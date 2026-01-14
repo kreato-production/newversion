@@ -1,4 +1,7 @@
 import { useState, useEffect } from 'react';
+import { format, parse } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { CalendarIcon } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -11,6 +14,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Calendar } from '@/components/ui/calendar';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import {
   Select,
   SelectContent,
@@ -23,6 +32,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { type Gravacao, generateCodigoGravacao } from '@/pages/producao/GravacaoList';
 import { RecursosTab } from './RecursosTab';
 import { CustosTab } from './CustosTab';
+import { cn } from '@/lib/utils';
 
 interface GravacaoFormModalProps {
   isOpen: boolean;
@@ -39,6 +49,7 @@ export const GravacaoFormModal = ({
 }: GravacaoFormModalProps) => {
   const { user } = useAuth();
   const [codigoGerado, setCodigoGerado] = useState('');
+  const [dataPrevista, setDataPrevista] = useState<Date | undefined>(undefined);
   const [formData, setFormData] = useState({
     codigoExterno: '',
     nome: '',
@@ -84,6 +95,17 @@ export const GravacaoFormModal = ({
         descricao: data.descricao,
         status: data.status,
       });
+      // Converter string de data para Date
+      if (data.dataPrevista) {
+        try {
+          const parsedDate = parse(data.dataPrevista, 'dd/MM/yyyy', new Date());
+          setDataPrevista(parsedDate);
+        } catch {
+          setDataPrevista(undefined);
+        }
+      } else {
+        setDataPrevista(undefined);
+      }
     } else {
       // Gerar novo código para nova gravação
       setCodigoGerado(generateCodigoGravacao());
@@ -96,6 +118,7 @@ export const GravacaoFormModal = ({
         descricao: '',
         status: '',
       });
+      setDataPrevista(undefined);
     }
   }, [data, isOpen]);
 
@@ -105,6 +128,7 @@ export const GravacaoFormModal = ({
       id: data?.id || crypto.randomUUID(),
       codigo: codigoGerado,
       ...formData,
+      dataPrevista: dataPrevista ? format(dataPrevista, 'dd/MM/yyyy') : '',
       dataCadastro: data?.dataCadastro || new Date().toLocaleDateString('pt-BR'),
       usuarioCadastro: data?.usuarioCadastro || user?.nome || 'Admin',
     });
@@ -197,7 +221,7 @@ export const GravacaoFormModal = ({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label>Classificação</Label>
                   <Select
@@ -229,6 +253,33 @@ export const GravacaoFormModal = ({
                       ))}
                     </SelectContent>
                   </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Data Prevista</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !dataPrevista && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {dataPrevista ? format(dataPrevista, "dd/MM/yyyy") : "Selecione..."}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={dataPrevista}
+                        onSelect={setDataPrevista}
+                        initialFocus
+                        locale={ptBR}
+                        className={cn("p-3 pointer-events-auto")}
+                      />
+                    </PopoverContent>
+                  </Popover>
                 </div>
               </div>
 
