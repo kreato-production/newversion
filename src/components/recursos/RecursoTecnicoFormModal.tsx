@@ -20,7 +20,7 @@ import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
 import type { RecursoTecnico } from '@/pages/recursos/RecursosTecnicos';
 
-interface Cargo {
+interface Funcao {
   id: string;
   nome: string;
 }
@@ -39,16 +39,16 @@ export const RecursoTecnicoFormModal = ({
   data,
 }: RecursoTecnicoFormModalProps) => {
   const { user } = useAuth();
-  const [cargos, setCargos] = useState<Cargo[]>([]);
+  const [funcoes, setFuncoes] = useState<Funcao[]>([]);
   const [formData, setFormData] = useState({
     codigoExterno: data?.codigoExterno || '',
     nome: data?.nome || '',
-    cargoOperador: data?.cargoOperador || '',
+    funcaoOperador: data?.funcaoOperador || '',
   });
 
   useEffect(() => {
-    const stored = localStorage.getItem('kreato_cargos');
-    setCargos(stored ? JSON.parse(stored) : []);
+    const stored = localStorage.getItem('kreato_funcoes');
+    setFuncoes(stored ? JSON.parse(stored) : []);
   }, []);
 
   useEffect(() => {
@@ -56,7 +56,7 @@ export const RecursoTecnicoFormModal = ({
       setFormData({
         codigoExterno: data?.codigoExterno || '',
         nome: data?.nome || '',
-        cargoOperador: data?.cargoOperador || '',
+        funcaoOperador: data?.funcaoOperador || '',
       });
     }
   }, [isOpen, data]);
@@ -67,11 +67,11 @@ export const RecursoTecnicoFormModal = ({
       id: data?.id || crypto.randomUUID(),
       codigoExterno: formData.codigoExterno,
       nome: formData.nome,
-      cargoOperador: formData.cargoOperador,
+      funcaoOperador: formData.funcaoOperador,
       dataCadastro: data?.dataCadastro || new Date().toLocaleDateString('pt-BR'),
       usuarioCadastro: data?.usuarioCadastro || user?.nome || 'Admin',
     });
-    setFormData({ codigoExterno: '', nome: '', cargoOperador: '' });
+    setFormData({ codigoExterno: '', nome: '', funcaoOperador: '' });
     onClose();
   };
 
@@ -106,24 +106,24 @@ export const RecursoTecnicoFormModal = ({
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="cargoOperador">Cargo do Operador</Label>
+            <Label htmlFor="funcaoOperador">Função do Operador</Label>
             <Select
-              value={formData.cargoOperador}
-              onValueChange={(value) => setFormData({ ...formData, cargoOperador: value })}
+              value={formData.funcaoOperador}
+              onValueChange={(value) => setFormData({ ...formData, funcaoOperador: value })}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Selecione o cargo..." />
+                <SelectValue placeholder="Selecione a função..." />
               </SelectTrigger>
               <SelectContent>
-                {cargos.map((cargo) => (
-                  <SelectItem key={cargo.id} value={cargo.nome}>
-                    {cargo.nome}
+                {funcoes.map((funcao) => (
+                  <SelectItem key={funcao.id} value={funcao.nome}>
+                    {funcao.nome}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
             <p className="text-xs text-muted-foreground">
-              Define qual cargo pode operar este recurso
+              Define qual função pode operar este recurso
             </p>
           </div>
           <DialogFooter>

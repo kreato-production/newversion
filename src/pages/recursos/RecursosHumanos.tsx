@@ -34,7 +34,7 @@ export interface RecursoHumano {
   telefone: string;
   email: string;
   departamento: string;
-  cargo: string;
+  funcao: string;
   custoHora: number;
   dataContratacao: string;
   status: 'Ativo' | 'Inativo';
@@ -118,7 +118,7 @@ const RecursosHumanos = () => {
                 <TableHead>Nome</TableHead>
                 <TableHead>E-mail</TableHead>
                 <TableHead>Departamento</TableHead>
-                <TableHead>Cargo</TableHead>
+                <TableHead>Função</TableHead>
                 <TableHead>Custo/Hora</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="w-24 text-right">Ações</TableHead>
@@ -140,7 +140,7 @@ const RecursosHumanos = () => {
                   </TableCell>
                   <TableCell>{item.email}</TableCell>
                   <TableCell>{item.departamento || '-'}</TableCell>
-                  <TableCell>{item.cargo || '-'}</TableCell>
+                  <TableCell>{item.funcao || '-'}</TableCell>
                   <TableCell>{formatCurrency(item.custoHora)}</TableCell>
                   <TableCell>
                     <Badge variant={item.status === 'Ativo' ? 'default' : 'secondary'}>
