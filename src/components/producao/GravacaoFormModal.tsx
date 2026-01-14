@@ -22,6 +22,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { type Gravacao, generateCodigoGravacao } from '@/pages/producao/GravacaoList';
 import { RecursosTab } from './RecursosTab';
+import { CustosTab } from './CustosTab';
 
 interface GravacaoFormModalProps {
   isOpen: boolean;
@@ -121,9 +122,10 @@ export const GravacaoFormModal = ({
         </DialogHeader>
 
         <Tabs defaultValue="dados" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="dados">Dados Gerais</TabsTrigger>
             <TabsTrigger value="recursos" disabled={!data}>Recursos</TabsTrigger>
+            <TabsTrigger value="custos" disabled={!data}>Custos</TabsTrigger>
           </TabsList>
 
           <TabsContent value="dados">
@@ -254,6 +256,10 @@ export const GravacaoFormModal = ({
 
           <TabsContent value="recursos">
             {data && <RecursosTab gravacaoId={data.id} />}
+          </TabsContent>
+
+          <TabsContent value="custos">
+            {data && <CustosTab gravacaoId={data.id} />}
           </TabsContent>
         </Tabs>
       </DialogContent>
