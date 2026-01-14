@@ -313,14 +313,14 @@ export const GravacaoFormModal = ({
                 <div className="space-y-2">
                   <Label>Conteúdo</Label>
                   <Select
-                    value={formData.conteudoId}
-                    onValueChange={(value) => setFormData({ ...formData, conteudoId: value })}
+                    value={formData.conteudoId || "__none__"}
+                    onValueChange={(value) => setFormData({ ...formData, conteudoId: value === "__none__" ? "" : value })}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione..." />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Nenhum</SelectItem>
+                      <SelectItem value="__none__">Nenhum</SelectItem>
                       {conteudos.map((c) => (
                         <SelectItem key={c.id} value={c.id}>{c.descricao}</SelectItem>
                       ))}
