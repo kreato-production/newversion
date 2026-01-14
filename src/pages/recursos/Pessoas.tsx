@@ -13,6 +13,7 @@ export interface Pessoa {
   codigoExterno: string;
   nome: string;
   sobrenome: string;
+  nomeTrabalho: string;
   foto?: string;
   dataNascimento: string;
   sexo: string;
