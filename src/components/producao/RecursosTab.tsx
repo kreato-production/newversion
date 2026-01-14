@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { parseISO, isWithinInterval } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -53,11 +54,20 @@ interface RecursoAlocado {
   horarios: Record<string, HorarioOcupacao>; // dia -> horário de ocupação (para físicos)
 }
 
+interface Ausencia {
+  id: string;
+  motivo: string;
+  dataInicio: string;
+  dataFim: string;
+  dias: number;
+}
+
 interface RecursoHumano {
   id: string;
   nome: string;
   funcao?: string;
   departamento?: string;
+  ausencias?: Ausencia[];
 }
 
 interface RecursosTabProps {
@@ -317,15 +327,68 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
 
   const rhAlocadosNoDia = rhModalRecurso?.recursosHumanos[rhModalDia] || [];
 
-  // Filtrar recursos humanos pela função do recurso técnico
+  // Verificar se um colaborador está ausente em uma data específica
+  const isColaboradorAusente = (rh: RecursoHumano, dataStr: string): boolean => {
+    if (!rh.ausencias || rh.ausencias.length === 0) return false;
+    
+    const data = parseISO(dataStr);
+    return rh.ausencias.some((ausencia) => {
+      const inicio = parseISO(ausencia.dataInicio);
+      const fim = parseISO(ausencia.dataFim);
+      return isWithinInterval(data, { start: inicio, end: fim });
+    });
+  };
+
+  // Obter motivo da ausência para uma data
+  const getMotivoAusencia = (rh: RecursoHumano, dataStr: string): string | null => {
+    if (!rh.ausencias || rh.ausencias.length === 0) return null;
+    
+    const data = parseISO(dataStr);
+    const ausencia = rh.ausencias.find((a) => {
+      const inicio = parseISO(a.dataInicio);
+      const fim = parseISO(a.dataFim);
+      return isWithinInterval(data, { start: inicio, end: fim });
+    });
+    return ausencia?.motivo || null;
+  };
+
+  // Filtrar recursos humanos pela função do recurso técnico E disponibilidade
   const recursosHumanosFiltrados = useMemo(() => {
-    if (!rhModalRecurso?.funcaoOperador) {
-      return recursosHumanos; // Se não tem função definida, mostra todos
+    let filtrados = recursosHumanos;
+    
+    // Filtrar por função se definida
+    if (rhModalRecurso?.funcaoOperador) {
+      filtrados = filtrados.filter(
+        (rh) => rh.funcao?.toLowerCase() === rhModalRecurso.funcaoOperador?.toLowerCase()
+      );
     }
-    return recursosHumanos.filter(
-      (rh) => rh.funcao?.toLowerCase() === rhModalRecurso.funcaoOperador?.toLowerCase()
-    );
-  }, [recursosHumanos, rhModalRecurso?.funcaoOperador]);
+    
+    // Filtrar colaboradores ausentes no dia selecionado
+    if (rhModalDia) {
+      filtrados = filtrados.filter((rh) => !isColaboradorAusente(rh, rhModalDia));
+    }
+    
+    return filtrados;
+  }, [recursosHumanos, rhModalRecurso?.funcaoOperador, rhModalDia]);
+
+  // Colaboradores ausentes no dia (para mostrar informação)
+  const colaboradoresAusentes = useMemo(() => {
+    if (!rhModalDia) return [];
+    
+    let filtrados = recursosHumanos;
+    if (rhModalRecurso?.funcaoOperador) {
+      filtrados = filtrados.filter(
+        (rh) => rh.funcao?.toLowerCase() === rhModalRecurso.funcaoOperador?.toLowerCase()
+      );
+    }
+    
+    return filtrados
+      .filter((rh) => isColaboradorAusente(rh, rhModalDia))
+      .map((rh) => ({
+        ...rh,
+        motivoAusencia: getMotivoAusencia(rh, rhModalDia),
+      }));
+  }, [recursosHumanos, rhModalRecurso?.funcaoOperador, rhModalDia]);
 
   const renderRecursosTable = (recursosLista: RecursoAlocado[], tipoLabel: string, tipoIcon: string, isTecnico: boolean) => {
     if (recursosLista.length === 0) return null;
@@ -581,6 +644,25 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
           </DialogHeader>
 
           <div className="space-y-4">
+            {/* Aviso de colaboradores ausentes */}
+            {colaboradoresAusentes.length > 0 && (
+              <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3">
+                <p className="text-xs font-medium text-amber-600 dark:text-amber-400 mb-2">
+                  ⚠️ Colaboradores indisponíveis nesta data:
+                </p>
+                <div className="space-y-1">
+                  {colaboradoresAusentes.map((rh) => (
+                    <div key={rh.id} className="text-xs text-muted-foreground flex items-center gap-2">
+                      <span>• {rh.nome}</span>
+                      <span className="bg-amber-500/20 text-amber-600 dark:text-amber-400 px-1.5 py-0.5 rounded text-[10px]">
+                        {rh.motivoAusencia}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Formulário para adicionar */}
             <div className="border rounded-lg p-3 space-y-3 bg-muted/30">
               <Label className="text-sm font-medium">Adicionar Colaborador</Label>
@@ -599,7 +681,10 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
                     <SelectContent>
                       {recursosHumanosFiltrados.length === 0 ? (
                         <div className="px-2 py-4 text-sm text-muted-foreground text-center">
-                          Nenhum colaborador encontrado{rhModalRecurso?.funcaoOperador ? ` com função "${rhModalRecurso.funcaoOperador}"` : ''}
+                          {colaboradoresAusentes.length > 0 
+                            ? 'Todos os colaboradores estão ausentes nesta data'
+                            : `Nenhum colaborador encontrado${rhModalRecurso?.funcaoOperador ? ` com função "${rhModalRecurso.funcaoOperador}"` : ''}`
+                          }
                         </div>
                       ) : (
                         recursosHumanosFiltrados.map((rh) => (
