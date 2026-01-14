@@ -1,12 +1,4 @@
 import { useState, useMemo } from 'react';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
@@ -16,6 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { RecursoHumanoFormModal } from '@/components/recursos/RecursoHumanoFormModal';
 import { parseISO, isWithinInterval, startOfDay } from 'date-fns';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { SortableTable, Column } from '@/components/shared/SortableTable';
 
 export interface Anexo {
   id: string;
@@ -110,6 +103,119 @@ const RecursosHumanos = () => {
     });
   };
 
+  const columns: Column<RecursoHumano>[] = [
+    {
+      key: 'foto',
+      label: '',
+      className: 'w-12',
+      sortable: false,
+      render: (item) => {
+        const ausenciaHoje = getAusenciaHoje(item);
+        return (
+          <div className="relative">
+            <Avatar className="w-8 h-8">
+              <AvatarImage src={item.foto} />
+              <AvatarFallback className="text-xs gradient-brand text-primary-foreground">
+                {item.nome.charAt(0)}{item.sobrenome.charAt(0)}
+              </AvatarFallback>
+            </Avatar>
+            {ausenciaHoje && (
+              <div className="absolute -top-1 -right-1 w-4 h-4 bg-amber-500 rounded-full flex items-center justify-center">
+                <UserX className="w-2.5 h-2.5 text-white" />
+              </div>
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      key: 'nome',
+      label: 'Nome',
+      render: (item) => {
+        const ausenciaHoje = getAusenciaHoje(item);
+        return (
+          <div className="flex items-center gap-2">
+            <span className="font-medium">{item.nome} {item.sobrenome}</span>
+            {ausenciaHoje && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Badge variant="outline" className="text-xs bg-amber-500/10 text-amber-600 border-amber-500/30">
+                      {ausenciaHoje.motivo}
+                    </Badge>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Ausente hoje: {ausenciaHoje.motivo}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      key: 'email',
+      label: 'E-mail',
+    },
+    {
+      key: 'departamento',
+      label: 'Departamento',
+      render: (item) => item.departamento || '-',
+    },
+    {
+      key: 'funcao',
+      label: 'Função',
+      render: (item) => item.funcao || '-',
+    },
+    {
+      key: 'custoHora',
+      label: 'Custo/Hora',
+      render: (item) => formatCurrency(item.custoHora),
+    },
+    {
+      key: 'status',
+      label: 'Status',
+      render: (item) => (
+        <Badge variant={item.status === 'Ativo' ? 'default' : 'secondary'}>
+          {item.status}
+        </Badge>
+      ),
+    },
+    {
+      key: 'acoes',
+      label: 'Ações',
+      className: 'w-24 text-right',
+      sortable: false,
+      render: (item) => (
+        <div className="flex justify-end gap-1">
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={(e) => {
+              e.stopPropagation();
+              setEditingItem(item);
+              setIsModalOpen(true);
+            }}
+          >
+            <Edit className="w-4 h-4" />
+          </Button>
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleDelete(item.id);
+            }}
+            className="text-destructive hover:text-destructive"
+          >
+            <Trash2 className="w-4 h-4" />
+          </Button>
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div>
       <PageHeader
@@ -134,93 +240,12 @@ const RecursosHumanos = () => {
             actionLabel="Adicionar Colaborador"
           />
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-12"></TableHead>
-                <TableHead>Nome</TableHead>
-                <TableHead>E-mail</TableHead>
-                <TableHead>Departamento</TableHead>
-                <TableHead>Função</TableHead>
-                <TableHead>Custo/Hora</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="w-24 text-right">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredItems.map((item) => {
-                const ausenciaHoje = getAusenciaHoje(item);
-                return (
-                <TableRow key={item.id} className={ausenciaHoje ? 'opacity-60' : ''}>
-                  <TableCell>
-                    <div className="relative">
-                      <Avatar className="w-8 h-8">
-                        <AvatarImage src={item.foto} />
-                        <AvatarFallback className="text-xs gradient-brand text-primary-foreground">
-                          {item.nome.charAt(0)}{item.sobrenome.charAt(0)}
-                        </AvatarFallback>
-                      </Avatar>
-                      {ausenciaHoje && (
-                        <div className="absolute -top-1 -right-1 w-4 h-4 bg-amber-500 rounded-full flex items-center justify-center">
-                          <UserX className="w-2.5 h-2.5 text-white" />
-                        </div>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell className="font-medium">
-                    <div className="flex items-center gap-2">
-                      {item.nome} {item.sobrenome}
-                      {ausenciaHoje && (
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Badge variant="outline" className="text-xs bg-amber-500/10 text-amber-600 border-amber-500/30">
-                                {ausenciaHoje.motivo}
-                              </Badge>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Ausente hoje: {ausenciaHoje.motivo}</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>{item.email}</TableCell>
-                  <TableCell>{item.departamento || '-'}</TableCell>
-                  <TableCell>{item.funcao || '-'}</TableCell>
-                  <TableCell>{formatCurrency(item.custoHora)}</TableCell>
-                  <TableCell>
-                    <Badge variant={item.status === 'Ativo' ? 'default' : 'secondary'}>
-                      {item.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-1">
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => {
-                          setEditingItem(item);
-                          setIsModalOpen(true);
-                        }}
-                      >
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => handleDelete(item.id)}
-                        className="text-destructive hover:text-destructive"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              )})}
-            </TableBody>
-          </Table>
+          <SortableTable
+            data={filteredItems}
+            columns={columns}
+            getRowKey={(item) => item.id}
+            storageKey="kreato_recursos_humanos_table"
+          />
         )}
       </DataCard>
 

@@ -1,23 +1,16 @@
 import { useState } from 'react';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
 import { Edit, Trash2, Wrench } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { RecursoTecnicoFormModal } from '@/components/recursos/RecursoTecnicoFormModal';
+import { SortableTable, Column } from '@/components/shared/SortableTable';
 
 export interface RecursoTecnico {
   id: string;
   codigoExterno: string;
   nome: string;
-  funcaoOperador: string; // Função que pode operar este recurso
+  funcaoOperador: string;
   dataCadastro: string;
   usuarioCadastro: string;
 }
@@ -62,6 +55,69 @@ const RecursosTecnicos = () => {
       item.codigoExterno.toLowerCase().includes(search.toLowerCase())
   );
 
+  const columns: Column<RecursoTecnico>[] = [
+    {
+      key: 'codigoExterno',
+      label: 'Código',
+      className: 'w-24',
+      render: (item) => (
+        <span className="font-mono text-sm">{item.codigoExterno || '-'}</span>
+      ),
+    },
+    {
+      key: 'nome',
+      label: 'Nome',
+      render: (item) => <span className="font-medium">{item.nome}</span>,
+    },
+    {
+      key: 'funcaoOperador',
+      label: 'Função Operador',
+      render: (item) => item.funcaoOperador || '-',
+    },
+    {
+      key: 'dataCadastro',
+      label: 'Data Cadastro',
+      className: 'w-32',
+    },
+    {
+      key: 'usuarioCadastro',
+      label: 'Usuário',
+      className: 'w-32',
+    },
+    {
+      key: 'acoes',
+      label: 'Ações',
+      className: 'w-24 text-right',
+      sortable: false,
+      render: (item) => (
+        <div className="flex justify-end gap-1">
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={(e) => {
+              e.stopPropagation();
+              setEditingItem(item);
+              setIsModalOpen(true);
+            }}
+          >
+            <Edit className="w-4 h-4" />
+          </Button>
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleDelete(item.id);
+            }}
+            className="text-destructive hover:text-destructive"
+          >
+            <Trash2 className="w-4 h-4" />
+          </Button>
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div>
       <PageHeader
@@ -86,49 +142,12 @@ const RecursosTecnicos = () => {
             actionLabel="Adicionar Recurso"
           />
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-24">Código</TableHead>
-                <TableHead>Nome</TableHead>
-                <TableHead className="w-32">Data Cadastro</TableHead>
-                <TableHead className="w-32">Usuário</TableHead>
-                <TableHead className="w-24 text-right">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredItems.map((item) => (
-                <TableRow key={item.id}>
-                  <TableCell className="font-mono text-sm">{item.codigoExterno || '-'}</TableCell>
-                  <TableCell className="font-medium">{item.nome}</TableCell>
-                  <TableCell>{item.dataCadastro}</TableCell>
-                  <TableCell>{item.usuarioCadastro}</TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-1">
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => {
-                          setEditingItem(item);
-                          setIsModalOpen(true);
-                        }}
-                      >
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => handleDelete(item.id)}
-                        className="text-destructive hover:text-destructive"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <SortableTable
+            data={filteredItems}
+            columns={columns}
+            getRowKey={(item) => item.id}
+            storageKey="kreato_recursos_tecnicos_table"
+          />
         )}
       </DataCard>
 

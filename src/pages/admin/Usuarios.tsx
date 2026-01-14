@@ -1,17 +1,10 @@
 import { useState } from 'react';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
 import { Edit, Trash2, UserCog } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { UsuarioFormModal } from '@/components/admin/UsuarioFormModal';
+import { SortableTable, Column } from '@/components/shared/SortableTable';
 
 export interface Usuario {
   id: string;
@@ -66,6 +59,67 @@ const Usuarios = () => {
       item.email.toLowerCase().includes(search.toLowerCase())
   );
 
+  const columns: Column<Usuario>[] = [
+    {
+      key: 'codigoExterno',
+      label: 'Código',
+      className: 'w-24',
+      render: (item) => (
+        <span className="font-mono text-sm">{item.codigoExterno || '-'}</span>
+      ),
+    },
+    {
+      key: 'nome',
+      label: 'Nome',
+      render: (item) => <span className="font-medium">{item.nome}</span>,
+    },
+    {
+      key: 'usuario',
+      label: 'Usuário',
+    },
+    {
+      key: 'email',
+      label: 'E-mail',
+    },
+    {
+      key: 'perfil',
+      label: 'Perfil',
+      render: (item) => item.perfil || '-',
+    },
+    {
+      key: 'acoes',
+      label: 'Ações',
+      className: 'w-24 text-right',
+      sortable: false,
+      render: (item) => (
+        <div className="flex justify-end gap-1">
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={(e) => {
+              e.stopPropagation();
+              setEditingItem(item);
+              setIsModalOpen(true);
+            }}
+          >
+            <Edit className="w-4 h-4" />
+          </Button>
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleDelete(item.id);
+            }}
+            className="text-destructive hover:text-destructive"
+          >
+            <Trash2 className="w-4 h-4" />
+          </Button>
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div>
       <PageHeader
@@ -90,51 +144,12 @@ const Usuarios = () => {
             actionLabel="Adicionar Usuário"
           />
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-24">Código</TableHead>
-                <TableHead>Nome</TableHead>
-                <TableHead>Usuário</TableHead>
-                <TableHead>E-mail</TableHead>
-                <TableHead>Perfil</TableHead>
-                <TableHead className="w-24 text-right">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredItems.map((item) => (
-                <TableRow key={item.id}>
-                  <TableCell className="font-mono text-sm">{item.codigoExterno || '-'}</TableCell>
-                  <TableCell className="font-medium">{item.nome}</TableCell>
-                  <TableCell>{item.usuario}</TableCell>
-                  <TableCell>{item.email}</TableCell>
-                  <TableCell>{item.perfil || '-'}</TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-1">
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => {
-                          setEditingItem(item);
-                          setIsModalOpen(true);
-                        }}
-                      >
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => handleDelete(item.id)}
-                        className="text-destructive hover:text-destructive"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <SortableTable
+            data={filteredItems}
+            columns={columns}
+            getRowKey={(item) => item.id}
+            storageKey="kreato_usuarios_table"
+          />
         )}
       </DataCard>
 
