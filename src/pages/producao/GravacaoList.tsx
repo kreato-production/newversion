@@ -110,8 +110,9 @@ const GravacaoList = () => {
 
   const filteredItems = items.filter(
     (item) =>
-      item.nome.toLowerCase().includes(search.toLowerCase()) ||
-      item.codigoExterno.toLowerCase().includes(search.toLowerCase())
+      item.nome?.toLowerCase().includes(search.toLowerCase()) ||
+      item.codigo?.toLowerCase().includes(search.toLowerCase()) ||
+      item.codigoExterno?.toLowerCase().includes(search.toLowerCase())
   );
 
   return (

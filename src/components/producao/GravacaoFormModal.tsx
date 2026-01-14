@@ -84,16 +84,18 @@ export const GravacaoFormModal = ({
   }, [isOpen]);
 
   useEffect(() => {
+    if (!isOpen) return;
+    
     if (data) {
-      setCodigoGerado(data.codigo);
+      setCodigoGerado(data.codigo || '');
       setFormData({
-        codigoExterno: data.codigoExterno,
-        nome: data.nome,
-        unidadeNegocio: data.unidadeNegocio,
-        classificacao: data.classificacao,
-        tipoConteudo: data.tipoConteudo,
-        descricao: data.descricao,
-        status: data.status,
+        codigoExterno: data.codigoExterno || '',
+        nome: data.nome || '',
+        unidadeNegocio: data.unidadeNegocio || '',
+        classificacao: data.classificacao || '',
+        tipoConteudo: data.tipoConteudo || '',
+        descricao: data.descricao || '',
+        status: data.status || '',
       });
       // Converter string de data para Date
       if (data.dataPrevista) {
@@ -108,7 +110,8 @@ export const GravacaoFormModal = ({
       }
     } else {
       // Gerar novo código para nova gravação
-      setCodigoGerado(generateCodigoGravacao());
+      const novoCodigo = generateCodigoGravacao();
+      setCodigoGerado(novoCodigo);
       setFormData({
         codigoExterno: '',
         nome: '',
