@@ -1,22 +1,15 @@
 import { useState } from 'react';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
-import { Edit, Trash2, Video, Plus } from 'lucide-react';
+import { Edit, Trash2, Video } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { GravacaoFormModal } from '@/components/producao/GravacaoFormModal';
 import { Badge } from '@/components/ui/badge';
+import { SortableTable, Column } from '@/components/shared/SortableTable';
 
 export interface Gravacao {
   id: string;
-  codigo: string; // REC-00001-26
+  codigo: string;
   codigoExterno: string;
   nome: string;
   unidadeNegocio: string;
@@ -29,23 +22,19 @@ export interface Gravacao {
   usuarioCadastro: string;
 }
 
-// Função para gerar código automático
 export const generateCodigoGravacao = (): string => {
   const currentYear = new Date().getFullYear();
   const yearSuffix = String(currentYear).slice(-2);
   
-  // Buscar gravações existentes
   const stored = localStorage.getItem('kreato_gravacoes');
   const gravacoes: Gravacao[] = stored ? JSON.parse(stored) : [];
   
-  // Filtrar gravações do ano atual
   const gravacoesMesmoAno = gravacoes.filter((g) => {
     if (!g.codigo) return false;
     const parts = g.codigo.split('-');
     return parts.length === 3 && parts[2] === yearSuffix;
   });
   
-  // Encontrar o maior contador do ano
   let maxCounter = 0;
   gravacoesMesmoAno.forEach((g) => {
     const parts = g.codigo.split('-');
@@ -57,7 +46,6 @@ export const generateCodigoGravacao = (): string => {
     }
   });
   
-  // Incrementar contador
   const nextCounter = maxCounter + 1;
   const paddedCounter = String(nextCounter).padStart(5, '0');
   
@@ -115,6 +103,84 @@ const GravacaoList = () => {
       item.codigoExterno?.toLowerCase().includes(search.toLowerCase())
   );
 
+  const columns: Column<Gravacao>[] = [
+    {
+      key: 'codigo',
+      label: 'Código',
+      className: 'w-32',
+      render: (item) => (
+        <span className="font-mono text-sm font-medium text-primary">{item.codigo || '-'}</span>
+      ),
+    },
+    {
+      key: 'codigoExterno',
+      label: 'Cód. Externo',
+      className: 'w-24',
+      render: (item) => (
+        <span className="font-mono text-sm text-muted-foreground">{item.codigoExterno || '-'}</span>
+      ),
+    },
+    {
+      key: 'nome',
+      label: 'Nome',
+      render: (item) => <span className="font-medium">{item.nome}</span>,
+    },
+    {
+      key: 'tipoConteudo',
+      label: 'Tipo',
+      render: (item) => item.tipoConteudo || '-',
+    },
+    {
+      key: 'classificacao',
+      label: 'Classificação',
+      render: (item) => item.classificacao || '-',
+    },
+    {
+      key: 'status',
+      label: 'Status',
+      render: (item) => (
+        <Badge className={getStatusColor(item.status)}>{item.status || 'Sem status'}</Badge>
+      ),
+    },
+    {
+      key: 'dataCadastro',
+      label: 'Data Cadastro',
+      className: 'w-32',
+    },
+    {
+      key: 'acoes',
+      label: 'Ações',
+      className: 'w-24 text-right',
+      sortable: false,
+      render: (item) => (
+        <div className="flex justify-end gap-1">
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={(e) => {
+              e.stopPropagation();
+              setEditingItem(item);
+              setIsModalOpen(true);
+            }}
+          >
+            <Edit className="w-4 h-4" />
+          </Button>
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleDelete(item.id);
+            }}
+            className="text-destructive hover:text-destructive"
+          >
+            <Trash2 className="w-4 h-4" />
+          </Button>
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div>
       <PageHeader
@@ -139,57 +205,12 @@ const GravacaoList = () => {
             actionLabel="Nova Gravação"
           />
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-32">Código</TableHead>
-                <TableHead className="w-24">Cód. Externo</TableHead>
-                <TableHead>Nome</TableHead>
-                <TableHead>Tipo</TableHead>
-                <TableHead>Classificação</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="w-32">Data Cadastro</TableHead>
-                <TableHead className="w-24 text-right">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredItems.map((item) => (
-                <TableRow key={item.id}>
-                  <TableCell className="font-mono text-sm font-medium text-primary">{item.codigo || '-'}</TableCell>
-                  <TableCell className="font-mono text-sm text-muted-foreground">{item.codigoExterno || '-'}</TableCell>
-                  <TableCell className="font-medium">{item.nome}</TableCell>
-                  <TableCell>{item.tipoConteudo || '-'}</TableCell>
-                  <TableCell>{item.classificacao || '-'}</TableCell>
-                  <TableCell>
-                    <Badge className={getStatusColor(item.status)}>{item.status || 'Sem status'}</Badge>
-                  </TableCell>
-                  <TableCell>{item.dataCadastro}</TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-1">
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => {
-                          setEditingItem(item);
-                          setIsModalOpen(true);
-                        }}
-                      >
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => handleDelete(item.id)}
-                        className="text-destructive hover:text-destructive"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <SortableTable
+            data={filteredItems}
+            columns={columns}
+            getRowKey={(item) => item.id}
+            storageKey="kreato_gravacoes_table"
+          />
         )}
       </DataCard>
 
