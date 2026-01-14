@@ -21,6 +21,7 @@ export interface Gravacao {
   dataPrevista: string;
   dataCadastro: string;
   usuarioCadastro: string;
+  conteudoId?: string;
 }
 
 export const generateCodigoGravacao = (): string => {
