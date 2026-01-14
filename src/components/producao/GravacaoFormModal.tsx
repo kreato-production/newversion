@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, forwardRef } from 'react';
 import { format, parse } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { CalendarIcon } from 'lucide-react';
@@ -45,12 +45,12 @@ interface GravacaoFormModalProps {
   data?: Gravacao | null;
 }
 
-export const GravacaoFormModal = ({
+export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalProps>(({
   isOpen,
   onClose,
   onSave,
   data,
-}: GravacaoFormModalProps) => {
+}, ref) => {
   const { user } = useAuth();
   const [codigoGerado, setCodigoGerado] = useState('');
   const [dataPrevista, setDataPrevista] = useState<Date | undefined>(undefined);
@@ -411,4 +411,6 @@ export const GravacaoFormModal = ({
       </DialogContent>
     </Dialog>
   );
-};
+});
+
+GravacaoFormModal.displayName = 'GravacaoFormModal';
