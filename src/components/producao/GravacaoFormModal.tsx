@@ -55,6 +55,7 @@ export const GravacaoFormModal = ({
     codigoExterno: '',
     nome: '',
     unidadeNegocio: '',
+    centroLucro: '',
     classificacao: '',
     tipoConteudo: '',
     descricao: '',
@@ -62,6 +63,7 @@ export const GravacaoFormModal = ({
   });
 
   const [unidades, setUnidades] = useState<{ id: string; nome: string }[]>([]);
+  const [centrosLucro, setCentrosLucro] = useState<{ id: string; nome: string; parentId: string | null; status: string }[]>([]);
   const [classificacoes, setClassificacoes] = useState<{ id: string; nome: string }[]>([]);
   const [tipos, setTipos] = useState<{ id: string; nome: string }[]>([]);
   const [statusList, setStatusList] = useState<{ id: string; nome: string }[]>([]);
@@ -69,11 +71,13 @@ export const GravacaoFormModal = ({
   useEffect(() => {
     const loadOptions = () => {
       const storedUnidades = localStorage.getItem('kreato_unidades_negocio');
+      const storedCentrosLucro = localStorage.getItem('kreato_centros_lucro');
       const storedClassificacoes = localStorage.getItem('kreato_classificacao');
       const storedTipos = localStorage.getItem('kreato_tipos_gravacao');
       const storedStatus = localStorage.getItem('kreato_status_gravacao');
 
       setUnidades(storedUnidades ? JSON.parse(storedUnidades) : []);
+      setCentrosLucro(storedCentrosLucro ? JSON.parse(storedCentrosLucro).filter((cl: { status: string }) => cl.status === 'Ativo') : []);
       setClassificacoes(storedClassificacoes ? JSON.parse(storedClassificacoes) : []);
       setTipos(storedTipos ? JSON.parse(storedTipos) : []);
       setStatusList(storedStatus ? JSON.parse(storedStatus) : []);
@@ -93,6 +97,7 @@ export const GravacaoFormModal = ({
         codigoExterno: data.codigoExterno || '',
         nome: data.nome || '',
         unidadeNegocio: data.unidadeNegocio || '',
+        centroLucro: (data as any).centroLucro || '',
         classificacao: data.classificacao || '',
         tipoConteudo: data.tipoConteudo || '',
         descricao: data.descricao || '',
@@ -117,6 +122,7 @@ export const GravacaoFormModal = ({
         codigoExterno: '',
         nome: '',
         unidadeNegocio: '',
+        centroLucro: '',
         classificacao: '',
         tipoConteudo: '',
         descricao: '',
@@ -191,7 +197,7 @@ export const GravacaoFormModal = ({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label>Unidade de Negócio</Label>
                   <Select
@@ -204,6 +210,22 @@ export const GravacaoFormModal = ({
                     <SelectContent>
                       {unidades.map((u) => (
                         <SelectItem key={u.id} value={u.nome}>{u.nome}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Centro de Lucro</Label>
+                  <Select
+                    value={formData.centroLucro}
+                    onValueChange={(value) => setFormData({ ...formData, centroLucro: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {centrosLucro.map((cl) => (
+                        <SelectItem key={cl.id} value={cl.nome}>{cl.nome}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>

@@ -24,6 +24,7 @@ import CategoriaFornecedores from "@/pages/recursos/CategoriaFornecedores";
 import UnidadesNegocio from "@/pages/admin/UnidadesNegocio";
 import Usuarios from "@/pages/admin/Usuarios";
 import PerfisAcesso from "@/pages/admin/PerfisAcesso";
+import CentrosLucro from "@/pages/admin/CentrosLucro";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -57,6 +58,7 @@ const App = () => (
               <Route path="/admin/unidades" element={<UnidadesNegocio />} />
               <Route path="/admin/usuarios" element={<Usuarios />} />
               <Route path="/admin/perfis" element={<PerfisAcesso />} />
+              <Route path="/admin/centros-lucro" element={<CentrosLucro />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

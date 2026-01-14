@@ -17,6 +17,7 @@ import {
   LayoutDashboard,
   LogOut,
   Map,
+  Landmark,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
@@ -78,6 +79,7 @@ const menuItems: MenuItem[] = [
     icon: Building2,
     children: [
       { label: 'Unidade de Negócio', icon: Building2, path: '/admin/unidades' },
+      { label: 'Centro de Lucro', icon: Landmark, path: '/admin/centros-lucro' },
       { label: 'Usuários', icon: UserCog, path: '/admin/usuarios' },
       { label: 'Perfil de Acesso', icon: Shield, path: '/admin/perfis' },
     ],

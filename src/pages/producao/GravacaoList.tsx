@@ -13,6 +13,7 @@ export interface Gravacao {
   codigoExterno: string;
   nome: string;
   unidadeNegocio: string;
+  centroLucro: string;
   classificacao: string;
   tipoConteudo: string;
   descricao: string;
