@@ -16,6 +16,7 @@ import {
   Shield,
   LayoutDashboard,
   LogOut,
+  Map,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
@@ -39,6 +40,7 @@ const menuItems: MenuItem[] = [
     icon: Video,
     children: [
       { label: 'Gravação', icon: Video, path: '/producao/gravacao' },
+      { label: 'Mapas', icon: Map, path: '/producao/mapas' },
       {
         label: 'Parametrizações',
         icon: Settings,
