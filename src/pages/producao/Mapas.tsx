@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import { PageHeader } from '@/components/shared/PageComponents';
+import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -11,51 +10,53 @@ import { Calendar, ChevronLeft, ChevronRight, Filter, MapPin, Users } from 'luci
 import { format, addDays, startOfWeek, addWeeks, subWeeks } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
-// Mock data
-const recursosFisicos = [
-  { id: 1, nome: 'Estúdio A', tipo: 'Estúdio' },
-  { id: 2, nome: 'Estúdio B', tipo: 'Estúdio' },
-  { id: 3, nome: 'Sala de Reunião 1', tipo: 'Sala' },
-  { id: 4, nome: 'Sala de Edição', tipo: 'Sala' },
-  { id: 5, nome: 'Auditório', tipo: 'Auditório' },
-];
+interface RecursoHumanoAlocado {
+  id: string;
+  recursoHumanoId: string;
+  nome: string;
+  horaInicio: string;
+  horaFim: string;
+}
 
-const recursosHumanos = [
-  { id: 1, nome: 'João Silva', funcao: 'Câmera' },
-  { id: 2, nome: 'Maria Santos', funcao: 'Produção' },
-  { id: 3, nome: 'Carlos Oliveira', funcao: 'Direção' },
-  { id: 4, nome: 'Ana Costa', funcao: 'Edição' },
-  { id: 5, nome: 'Pedro Lima', funcao: 'Áudio' },
-];
+interface HorarioOcupacao {
+  horaInicio: string;
+  horaFim: string;
+}
 
-// Mock de ocupações
-const ocupacoesFisicas: Record<string, Record<string, { gravacao: string; horario: string }[]>> = {
-  '1': {
-    '2026-01-14': [{ gravacao: 'Comercial XYZ', horario: '08:00-12:00' }],
-    '2026-01-15': [{ gravacao: 'Institucional ABC', horario: '14:00-18:00' }],
-  },
-  '2': {
-    '2026-01-14': [{ gravacao: 'Filme Corporativo', horario: '09:00-17:00' }],
-  },
-};
+interface RecursoAlocado {
+  id: string;
+  tipo: 'tecnico' | 'fisico';
+  recursoId: string;
+  recursoNome: string;
+  alocacoes: Record<string, number>;
+  recursosHumanos: Record<string, RecursoHumanoAlocado[]>;
+  horarios: Record<string, HorarioOcupacao>;
+}
 
-const ocupacoesHumanas: Record<string, Record<string, { gravacao: string; horario: string }[]>> = {
-  '1': {
-    '2026-01-14': [{ gravacao: 'Comercial XYZ', horario: '08:00-12:00' }],
-    '2026-01-15': [{ gravacao: 'Institucional ABC', horario: '14:00-18:00' }],
-    '2026-01-16': [{ gravacao: 'Evento Live', horario: '10:00-16:00' }],
-  },
-  '2': {
-    '2026-01-14': [{ gravacao: 'Filme Corporativo', horario: '09:00-17:00' }],
-    '2026-01-15': [{ gravacao: 'Comercial XYZ', horario: '08:00-12:00' }],
-  },
-  '3': {
-    '2026-01-16': [{ gravacao: 'Institucional ABC', horario: '14:00-18:00' }],
-  },
-};
+interface Gravacao {
+  id: string;
+  nome: string;
+  codigoExterno: string;
+}
 
-const tiposRecursoFisico = ['Todos', 'Estúdio', 'Sala', 'Auditório'];
-const funcoesRecursoHumano = ['Todas', 'Câmera', 'Produção', 'Direção', 'Edição', 'Áudio'];
+interface RecursoFisico {
+  id: string;
+  nome: string;
+  tipo?: string;
+}
+
+interface RecursoHumano {
+  id: string;
+  nome: string;
+  funcao?: string;
+  cargo?: string;
+}
+
+interface OcupacaoItem {
+  gravacao: string;
+  gravacaoId: string;
+  horario: string;
+}
 
 const Mapas = () => {
   const [currentWeekStart, setCurrentWeekStart] = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }));
@@ -63,20 +64,153 @@ const Mapas = () => {
   const [filtroNomeFisico, setFiltroNomeFisico] = useState('');
   const [filtroFuncaoHumano, setFiltroFuncaoHumano] = useState('Todas');
   const [filtroNomeHumano, setFiltroNomeHumano] = useState('');
+  const [filtroGravacao, setFiltroGravacao] = useState('Todas');
   const [showFilters, setShowFilters] = useState(false);
+
+  // Carregar dados do localStorage
+  const [gravacoes, setGravacoes] = useState<Gravacao[]>([]);
+  const [recursosFisicos, setRecursosFisicos] = useState<RecursoFisico[]>([]);
+  const [recursosHumanos, setRecursosHumanos] = useState<RecursoHumano[]>([]);
+  const [alocacoesPorGravacao, setAlocacoesPorGravacao] = useState<Record<string, RecursoAlocado[]>>({});
+
+  useEffect(() => {
+    // Carregar gravações
+    const storedGravacoes = localStorage.getItem('kreato_gravacoes');
+    const gravacoesList: Gravacao[] = storedGravacoes ? JSON.parse(storedGravacoes) : [];
+    setGravacoes(gravacoesList);
+
+    // Carregar recursos físicos
+    const storedFisicos = localStorage.getItem('kreato_recursos_fisicos');
+    setRecursosFisicos(storedFisicos ? JSON.parse(storedFisicos) : []);
+
+    // Carregar recursos humanos
+    const storedHumanos = localStorage.getItem('kreato_recursos_humanos');
+    setRecursosHumanos(storedHumanos ? JSON.parse(storedHumanos) : []);
+
+    // Carregar alocações de cada gravação
+    const alocacoes: Record<string, RecursoAlocado[]> = {};
+    gravacoesList.forEach((g) => {
+      const stored = localStorage.getItem(`kreato_gravacao_recursos_${g.id}`);
+      if (stored) {
+        alocacoes[g.id] = JSON.parse(stored);
+      }
+    });
+    setAlocacoesPorGravacao(alocacoes);
+  }, []);
 
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(currentWeekStart, i));
 
   const handlePrevWeek = () => setCurrentWeekStart(subWeeks(currentWeekStart, 1));
   const handleNextWeek = () => setCurrentWeekStart(addWeeks(currentWeekStart, 1));
 
+  // Calcular ocupações de recursos físicos baseado nas alocações
+  const ocupacoesFisicas = useMemo(() => {
+    const ocupacoes: Record<string, Record<string, OcupacaoItem[]>> = {};
+
+    Object.entries(alocacoesPorGravacao).forEach(([gravacaoId, recursos]) => {
+      const gravacao = gravacoes.find((g) => g.id === gravacaoId);
+      if (!gravacao) return;
+
+      recursos
+        .filter((r) => r.tipo === 'fisico')
+        .forEach((recurso) => {
+          if (!ocupacoes[recurso.recursoId]) {
+            ocupacoes[recurso.recursoId] = {};
+          }
+
+          Object.entries(recurso.alocacoes).forEach(([dia, qtd]) => {
+            if (qtd > 0) {
+              const horario = recurso.horarios[dia];
+              const horarioStr = horario
+                ? `${horario.horaInicio} - ${horario.horaFim}`
+                : 'Horário não definido';
+
+              if (!ocupacoes[recurso.recursoId][dia]) {
+                ocupacoes[recurso.recursoId][dia] = [];
+              }
+
+              ocupacoes[recurso.recursoId][dia].push({
+                gravacao: gravacao.nome,
+                gravacaoId: gravacao.id,
+                horario: horarioStr,
+              });
+            }
+          });
+        });
+    });
+
+    return ocupacoes;
+  }, [alocacoesPorGravacao, gravacoes]);
+
+  // Calcular ocupações de recursos humanos baseado nas alocações
+  const ocupacoesHumanas = useMemo(() => {
+    const ocupacoes: Record<string, Record<string, OcupacaoItem[]>> = {};
+
+    Object.entries(alocacoesPorGravacao).forEach(([gravacaoId, recursos]) => {
+      const gravacao = gravacoes.find((g) => g.id === gravacaoId);
+      if (!gravacao) return;
+
+      recursos
+        .filter((r) => r.tipo === 'tecnico')
+        .forEach((recurso) => {
+          Object.entries(recurso.recursosHumanos || {}).forEach(([dia, rhList]) => {
+            rhList.forEach((rh) => {
+              if (!ocupacoes[rh.recursoHumanoId]) {
+                ocupacoes[rh.recursoHumanoId] = {};
+              }
+
+              if (!ocupacoes[rh.recursoHumanoId][dia]) {
+                ocupacoes[rh.recursoHumanoId][dia] = [];
+              }
+
+              ocupacoes[rh.recursoHumanoId][dia].push({
+                gravacao: gravacao.nome,
+                gravacaoId: gravacao.id,
+                horario: `${rh.horaInicio} - ${rh.horaFim}`,
+              });
+            });
+          });
+        });
+    });
+
+    return ocupacoes;
+  }, [alocacoesPorGravacao, gravacoes]);
+
+  // Obter tipos únicos de recursos físicos
+  const tiposRecursoFisico = useMemo(() => {
+    const tipos = new Set<string>();
+    tipos.add('Todos');
+    recursosFisicos.forEach((r) => {
+      if (r.tipo) tipos.add(r.tipo);
+    });
+    return Array.from(tipos);
+  }, [recursosFisicos]);
+
+  // Obter funções únicas de recursos humanos
+  const funcoesRecursoHumano = useMemo(() => {
+    const funcoes = new Set<string>();
+    funcoes.add('Todas');
+    recursosHumanos.forEach((r) => {
+      if (r.funcao) funcoes.add(r.funcao);
+      if (r.cargo) funcoes.add(r.cargo);
+    });
+    return Array.from(funcoes);
+  }, [recursosHumanos]);
+
   const getOcupacaoCelula = (
-    ocupacoes: Record<string, Record<string, { gravacao: string; horario: string }[]>>,
-    recursoId: number,
+    ocupacoes: Record<string, Record<string, OcupacaoItem[]>>,
+    recursoId: string,
     data: Date
   ) => {
     const dataStr = format(data, 'yyyy-MM-dd');
-    return ocupacoes[String(recursoId)]?.[dataStr] || [];
+    let items = ocupacoes[recursoId]?.[dataStr] || [];
+    
+    // Filtrar por gravação se selecionado
+    if (filtroGravacao !== 'Todas') {
+      items = items.filter((item) => item.gravacaoId === filtroGravacao);
+    }
+    
+    return items;
   };
 
   const filteredRecursosFisicos = recursosFisicos.filter((r) => {
@@ -86,7 +220,10 @@ const Mapas = () => {
   });
 
   const filteredRecursosHumanos = recursosHumanos.filter((r) => {
-    const matchFuncao = filtroFuncaoHumano === 'Todas' || r.funcao === filtroFuncaoHumano;
+    const matchFuncao =
+      filtroFuncaoHumano === 'Todas' ||
+      r.funcao === filtroFuncaoHumano ||
+      r.cargo === filtroFuncaoHumano;
     const matchNome = r.nome.toLowerCase().includes(filtroNomeHumano.toLowerCase());
     return matchFuncao && matchNome;
   });
@@ -99,7 +236,8 @@ const Mapas = () => {
       <div className="flex items-center gap-2 px-3 py-1.5 bg-muted rounded-md">
         <Calendar className="h-4 w-4 text-muted-foreground" />
         <span className="text-sm font-medium">
-          {format(currentWeekStart, "dd 'de' MMMM", { locale: ptBR })} - {format(addDays(currentWeekStart, 6), "dd 'de' MMMM", { locale: ptBR })}
+          {format(currentWeekStart, "dd 'de' MMMM", { locale: ptBR })} -{' '}
+          {format(addDays(currentWeekStart, 6), "dd 'de' MMMM", { locale: ptBR })}
         </span>
       </div>
       <Button variant="outline" size="icon" onClick={handleNextWeek}>
@@ -109,8 +247,8 @@ const Mapas = () => {
   );
 
   const renderOcupacaoMatriz = (
-    recursos: { id: number; nome: string }[],
-    ocupacoes: Record<string, Record<string, { gravacao: string; horario: string }[]>>,
+    recursos: { id: string; nome: string }[],
+    ocupacoes: Record<string, Record<string, OcupacaoItem[]>>,
     emptyMessage: string
   ) => (
     <div className="overflow-x-auto">
@@ -154,7 +292,9 @@ const Mapas = () => {
                               key={idx}
                               className="bg-primary/10 border border-primary/30 rounded p-1.5 text-xs"
                             >
-                              <div className="font-medium text-primary truncate">{oc.gravacao}</div>
+                              <div className="font-medium text-primary truncate" title={oc.gravacao}>
+                                {oc.gravacao}
+                              </div>
                               <div className="text-muted-foreground">{oc.horario}</div>
                             </div>
                           ))}
@@ -234,6 +374,22 @@ const Mapas = () => {
                       onChange={(e) => setFiltroNomeFisico(e.target.value)}
                     />
                   </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Gravação/Projeto</Label>
+                    <Select value={filtroGravacao} onValueChange={setFiltroGravacao}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Todas">Todas</SelectItem>
+                        {gravacoes.map((g) => (
+                          <SelectItem key={g.id} value={g.id}>
+                            {g.nome}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -244,7 +400,7 @@ const Mapas = () => {
               {renderOcupacaoMatriz(
                 filteredRecursosFisicos,
                 ocupacoesFisicas,
-                'Nenhum recurso físico encontrado'
+                'Nenhum recurso físico encontrado. Cadastre recursos físicos e aloque-os em gravações.'
               )}
             </CardContent>
           </Card>
@@ -259,7 +415,7 @@ const Mapas = () => {
               <CardContent className="pb-3">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div className="space-y-1.5">
-                    <Label className="text-xs">Função</Label>
+                    <Label className="text-xs">Função/Cargo</Label>
                     <Select value={filtroFuncaoHumano} onValueChange={setFiltroFuncaoHumano}>
                       <SelectTrigger>
                         <SelectValue />
@@ -281,6 +437,22 @@ const Mapas = () => {
                       onChange={(e) => setFiltroNomeHumano(e.target.value)}
                     />
                   </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Gravação/Projeto</Label>
+                    <Select value={filtroGravacao} onValueChange={setFiltroGravacao}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Todas">Todas</SelectItem>
+                        {gravacoes.map((g) => (
+                          <SelectItem key={g.id} value={g.id}>
+                            {g.nome}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -291,7 +463,7 @@ const Mapas = () => {
               {renderOcupacaoMatriz(
                 filteredRecursosHumanos,
                 ocupacoesHumanas,
-                'Nenhum recurso humano encontrado'
+                'Nenhum recurso humano encontrado. Cadastre colaboradores e aloque-os em recursos técnicos das gravações.'
               )}
             </CardContent>
           </Card>
