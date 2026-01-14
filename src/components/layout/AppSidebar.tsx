@@ -19,6 +19,8 @@ import {
   Map,
   Landmark,
   Film,
+  Contact,
+  Tag,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
@@ -63,6 +65,7 @@ const menuItems: MenuItem[] = [
       { label: 'Recursos Técnicos', icon: Wrench, path: '/recursos/tecnicos' },
       { label: 'Recursos Físicos', icon: MapPin, path: '/recursos/fisicos' },
       { label: 'Fornecedores', icon: Truck, path: '/recursos/fornecedores' },
+      { label: 'Pessoas', icon: Contact, path: '/recursos/pessoas' },
       {
         label: 'Parametrizações',
         icon: FolderCog,
@@ -72,6 +75,7 @@ const menuItems: MenuItem[] = [
           { label: 'Funções', icon: Settings, path: '/recursos/funcoes' },
           { label: 'Serviços', icon: Settings, path: '/recursos/servicos' },
           { label: 'Categoria de Fornecedores', icon: Settings, path: '/recursos/categoria-fornecedores' },
+          { label: 'Classificação Pessoas', icon: Tag, path: '/recursos/classificacao-pessoas' },
         ],
       },
     ],

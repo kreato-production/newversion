@@ -18,11 +18,13 @@ import RecursosHumanos from "@/pages/recursos/RecursosHumanos";
 import RecursosTecnicos from "@/pages/recursos/RecursosTecnicos";
 import RecursosFisicos from "@/pages/recursos/RecursosFisicos";
 import Fornecedores from "@/pages/recursos/Fornecedores";
+import Pessoas from "@/pages/recursos/Pessoas";
 import Cargos from "@/pages/recursos/Cargos";
 import Departamentos from "@/pages/recursos/Departamentos";
 import Funcoes from "@/pages/recursos/Funcoes";
 import Servicos from "@/pages/recursos/Servicos";
 import CategoriaFornecedores from "@/pages/recursos/CategoriaFornecedores";
+import ClassificacaoPessoas from "@/pages/recursos/ClassificacaoPessoas";
 import UnidadesNegocio from "@/pages/admin/UnidadesNegocio";
 import Usuarios from "@/pages/admin/Usuarios";
 import PerfisAcesso from "@/pages/admin/PerfisAcesso";
@@ -54,11 +56,13 @@ const App = () => (
                 <Route path="/recursos/tecnicos" element={<RecursosTecnicos />} />
                 <Route path="/recursos/fisicos" element={<RecursosFisicos />} />
                 <Route path="/recursos/fornecedores" element={<Fornecedores />} />
+                <Route path="/recursos/pessoas" element={<Pessoas />} />
                 <Route path="/recursos/cargos" element={<Cargos />} />
                 <Route path="/recursos/departamentos" element={<Departamentos />} />
                 <Route path="/recursos/funcoes" element={<Funcoes />} />
                 <Route path="/recursos/servicos" element={<Servicos />} />
                 <Route path="/recursos/categoria-fornecedores" element={<CategoriaFornecedores />} />
+                <Route path="/recursos/classificacao-pessoas" element={<ClassificacaoPessoas />} />
                 <Route path="/admin/unidades" element={<UnidadesNegocio />} />
                 <Route path="/admin/usuarios" element={<Usuarios />} />
                 <Route path="/admin/perfis" element={<PerfisAcesso />} />
