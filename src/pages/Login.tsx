@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Eye, EyeOff, LogIn } from 'lucide-react';
+import { Eye, EyeOff, LogIn, Zap } from 'lucide-react';
 import kreatoLogo from '@/assets/kreato-logo.png';
 
 const Login = () => {
@@ -14,8 +14,13 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,91 +39,166 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center gradient-primary p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-4 overflow-hidden">
+      {/* Animated Grid Background */}
+      <div className="absolute inset-0 bg-[linear-gradient(rgba(6,182,212,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(6,182,212,0.03)_1px,transparent_1px)] bg-[size:50px_50px] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_0%,#000_70%,transparent_110%)]" />
+      
+      {/* Floating Orbs */}
       <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-kreato-cyan/20 rounded-full blur-3xl" />
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-kreato-orange/20 rounded-full blur-3xl" />
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-kreato-cyan/10 rounded-full blur-[100px] animate-pulse-slow" />
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-kreato-orange/10 rounded-full blur-[100px] animate-pulse-slow animation-delay-2000" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/5 rounded-full blur-[120px] animate-pulse-slow animation-delay-4000" />
+      </div>
+
+      {/* Animated Particles */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        {[...Array(20)].map((_, i) => (
+          <div
+            key={i}
+            className="absolute w-1 h-1 bg-kreato-cyan/60 rounded-full animate-float-particle"
+            style={{
+              left: `${Math.random() * 100}%`,
+              top: `${Math.random() * 100}%`,
+              animationDelay: `${Math.random() * 5}s`,
+              animationDuration: `${5 + Math.random() * 10}s`,
+            }}
+          />
+        ))}
+      </div>
+
+      {/* Scanning Line Effect */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute w-full h-[2px] bg-gradient-to-r from-transparent via-kreato-cyan/50 to-transparent animate-scan-line" />
       </div>
       
-      <Card className="w-full max-w-md animate-fade-in relative z-10 shadow-2xl border-0">
-        <CardHeader className="text-center space-y-4">
-          <div className="flex justify-center">
-            <img src={kreatoLogo} alt="Kreato" className="h-16 object-contain" />
-          </div>
-          <CardTitle className="text-2xl font-bold text-foreground">
-            Bem-vindo ao Kreato
-          </CardTitle>
-          <CardDescription>
-            Sistema de Gestão de Produção de Conteúdo
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="usuario">Usuário</Label>
-              <Input
-                id="usuario"
-                type="text"
-                placeholder="Digite seu usuário"
-                value={usuario}
-                onChange={(e) => setUsuario(e.target.value)}
-                required
-                className="h-11"
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="senha">Senha</Label>
-              <div className="relative">
-                <Input
-                  id="senha"
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="Digite sua senha"
-                  value={senha}
-                  onChange={(e) => setSenha(e.target.value)}
-                  required
-                  className="h-11 pr-10"
+      {/* Main Card */}
+      <div className={`relative z-10 transition-all duration-1000 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
+        {/* Glowing Border Effect */}
+        <div className="absolute -inset-[1px] bg-gradient-to-r from-kreato-cyan/50 via-primary/50 to-kreato-orange/50 rounded-xl blur-sm opacity-75 animate-border-glow" />
+        
+        <Card className="w-full max-w-md relative bg-slate-900/90 backdrop-blur-xl border border-slate-700/50 shadow-2xl shadow-kreato-cyan/10">
+          {/* Corner Accents */}
+          <div className="absolute top-0 left-0 w-8 h-8 border-t-2 border-l-2 border-kreato-cyan/70 rounded-tl-xl" />
+          <div className="absolute top-0 right-0 w-8 h-8 border-t-2 border-r-2 border-kreato-cyan/70 rounded-tr-xl" />
+          <div className="absolute bottom-0 left-0 w-8 h-8 border-b-2 border-l-2 border-kreato-orange/70 rounded-bl-xl" />
+          <div className="absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2 border-kreato-orange/70 rounded-br-xl" />
+          
+          <CardHeader className="text-center space-y-4 pt-8">
+            {/* Logo with Glow */}
+            <div className={`flex justify-center transition-all duration-700 delay-300 ${mounted ? 'opacity-100 scale-100' : 'opacity-0 scale-75'}`}>
+              <div className="relative group">
+                <div className="absolute inset-0 bg-kreato-cyan/30 rounded-full blur-xl group-hover:bg-kreato-cyan/50 transition-all duration-500" />
+                <img 
+                  src={kreatoLogo} 
+                  alt="Kreato" 
+                  className="h-20 object-contain relative z-10 drop-shadow-[0_0_15px_rgba(6,182,212,0.5)] hover:drop-shadow-[0_0_25px_rgba(6,182,212,0.8)] transition-all duration-500" 
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
               </div>
             </div>
+            
+            <div className={`space-y-2 transition-all duration-700 delay-500 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+              <CardTitle className="text-2xl font-bold bg-gradient-to-r from-white via-kreato-cyan to-white bg-clip-text text-transparent">
+                Bem-vindo ao Kreato
+              </CardTitle>
+              <CardDescription className="text-slate-400 flex items-center justify-center gap-2">
+                <Zap size={14} className="text-kreato-cyan animate-pulse" />
+                Sistema de Gestão de Produção
+                <Zap size={14} className="text-kreato-orange animate-pulse" />
+              </CardDescription>
+            </div>
+          </CardHeader>
+          
+          <CardContent className={`transition-all duration-700 delay-700 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+            <form onSubmit={handleSubmit} className="space-y-5">
+              <div className="space-y-2">
+                <Label htmlFor="usuario" className="text-slate-300 text-sm font-medium">
+                  Usuário
+                </Label>
+                <div className="relative group">
+                  <div className="absolute -inset-[1px] bg-gradient-to-r from-kreato-cyan/0 via-kreato-cyan/50 to-kreato-cyan/0 rounded-md opacity-0 group-focus-within:opacity-100 transition-opacity duration-300 blur-sm" />
+                  <Input
+                    id="usuario"
+                    type="text"
+                    placeholder="Digite seu usuário"
+                    value={usuario}
+                    onChange={(e) => setUsuario(e.target.value)}
+                    required
+                    className="h-12 bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-500 focus:border-kreato-cyan/50 focus:ring-kreato-cyan/20 transition-all duration-300 relative"
+                  />
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="senha" className="text-slate-300 text-sm font-medium">
+                  Senha
+                </Label>
+                <div className="relative group">
+                  <div className="absolute -inset-[1px] bg-gradient-to-r from-kreato-cyan/0 via-kreato-cyan/50 to-kreato-cyan/0 rounded-md opacity-0 group-focus-within:opacity-100 transition-opacity duration-300 blur-sm" />
+                  <Input
+                    id="senha"
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="Digite sua senha"
+                    value={senha}
+                    onChange={(e) => setSenha(e.target.value)}
+                    required
+                    className="h-12 bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-500 focus:border-kreato-cyan/50 focus:ring-kreato-cyan/20 pr-12 transition-all duration-300 relative"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-kreato-cyan transition-colors duration-300"
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+              </div>
 
-            {error && (
-              <p className="text-sm text-destructive text-center animate-fade-in">
-                {error}
-              </p>
-            )}
-
-            <Button
-              type="submit"
-              className="w-full h-11 gradient-primary hover:opacity-90 transition-opacity"
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <span className="flex items-center gap-2">
-                  <span className="w-4 h-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
-                  Entrando...
-                </span>
-              ) : (
-                <span className="flex items-center gap-2">
-                  <LogIn size={18} />
-                  Entrar
-                </span>
+              {error && (
+                <div className="relative overflow-hidden rounded-md">
+                  <div className="absolute inset-0 bg-destructive/20 animate-pulse" />
+                  <p className="text-sm text-destructive text-center py-2 relative">
+                    {error}
+                  </p>
+                </div>
               )}
-            </Button>
-          </form>
 
-          <p className="text-xs text-muted-foreground text-center mt-6">
-            Acesso inicial: Admin / kreato
-          </p>
-        </CardContent>
-      </Card>
+              <Button
+                type="submit"
+                className="w-full h-12 relative overflow-hidden group bg-gradient-to-r from-kreato-cyan via-primary to-kreato-orange hover:opacity-90 transition-all duration-300 text-white font-semibold"
+                disabled={isLoading}
+              >
+                {/* Button Shine Effect */}
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+                
+                {isLoading ? (
+                  <span className="flex items-center gap-2 relative z-10">
+                    <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Entrando...
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-2 relative z-10">
+                    <LogIn size={18} />
+                    Entrar no Sistema
+                  </span>
+                )}
+              </Button>
+            </form>
+
+            <div className={`mt-6 pt-4 border-t border-slate-700/50 transition-all duration-700 delay-1000 ${mounted ? 'opacity-100' : 'opacity-0'}`}>
+              <p className="text-xs text-slate-500 text-center flex items-center justify-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                Acesso inicial: Admin / kreato
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Version Badge */}
+      <div className={`absolute bottom-4 right-4 text-xs text-slate-600 flex items-center gap-2 transition-all duration-1000 delay-1200 ${mounted ? 'opacity-100' : 'opacity-0'}`}>
+        <span className="w-2 h-2 rounded-full bg-kreato-cyan/50 animate-pulse" />
+        v1.0.0
+      </div>
     </div>
   );
 };

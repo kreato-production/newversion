@@ -138,4 +138,75 @@
   .weekend-cell {
     background-color: hsl(var(--weekend-background));
   }
+
+  /* Futuristic Login Animations */
+  @keyframes pulse-slow {
+    0%, 100% {
+      opacity: 0.4;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.7;
+      transform: scale(1.1);
+    }
+  }
+
+  @keyframes float-particle {
+    0%, 100% {
+      transform: translateY(0) translateX(0);
+      opacity: 0;
+    }
+    10% {
+      opacity: 1;
+    }
+    90% {
+      opacity: 1;
+    }
+    100% {
+      transform: translateY(-100vh) translateX(20px);
+      opacity: 0;
+    }
+  }
+
+  @keyframes scan-line {
+    0% {
+      top: -2px;
+    }
+    100% {
+      top: 100%;
+    }
+  }
+
+  @keyframes border-glow {
+    0%, 100% {
+      opacity: 0.5;
+    }
+    50% {
+      opacity: 1;
+    }
+  }
+
+  .animate-pulse-slow {
+    animation: pulse-slow 6s ease-in-out infinite;
+  }
+
+  .animate-float-particle {
+    animation: float-particle 10s ease-in-out infinite;
+  }
+
+  .animate-scan-line {
+    animation: scan-line 4s linear infinite;
+  }
+
+  .animate-border-glow {
+    animation: border-glow 3s ease-in-out infinite;
+  }
+
+  .animation-delay-2000 {
+    animation-delay: 2s;
+  }
+
+  .animation-delay-4000 {
+    animation-delay: 4s;
+  }
 }
