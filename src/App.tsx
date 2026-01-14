@@ -8,6 +8,7 @@ import MainLayout from "@/components/layout/MainLayout";
 import Login from "@/pages/Login";
 import Dashboard from "@/pages/Dashboard";
 import GravacaoList from "@/pages/producao/GravacaoList";
+import Conteudo from "@/pages/producao/Conteudo";
 import TiposGravacao from "@/pages/producao/TiposGravacao";
 import Classificacao from "@/pages/producao/Classificacao";
 import StatusGravacao from "@/pages/producao/StatusGravacao";
@@ -41,6 +42,7 @@ const App = () => (
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route element={<MainLayout />}>
               <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/producao/conteudo" element={<Conteudo />} />
               <Route path="/producao/gravacao" element={<GravacaoList />} />
               <Route path="/producao/mapas" element={<Mapas />} />
               <Route path="/producao/tipos-gravacao" element={<TiposGravacao />} />
