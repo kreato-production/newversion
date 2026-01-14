@@ -53,14 +53,29 @@ export const generateCodigoGravacao = (): string => {
   return `REC-${paddedCounter}-${yearSuffix}`;
 };
 
+interface StatusGravacaoData {
+  id: string;
+  nome: string;
+  cor: string;
+}
+
 const GravacaoList = () => {
   const { toast } = useToast();
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Gravacao | null>(null);
+  const [statusList, setStatusList] = useState<StatusGravacaoData[]>([]);
   const [items, setItems] = useState<Gravacao[]>(() => {
     const stored = localStorage.getItem('kreato_gravacoes');
     return stored ? JSON.parse(stored) : [];
+  });
+
+  // Carregar lista de status para obter as cores
+  useState(() => {
+    const stored = localStorage.getItem('kreato_status_gravacao');
+    if (stored) {
+      setStatusList(JSON.parse(stored));
+    }
   });
 
   const saveToStorage = (data: Gravacao[]) => {
@@ -69,6 +84,12 @@ const GravacaoList = () => {
   };
 
   const handleSave = (data: Gravacao) => {
+    // Recarregar lista de status ao salvar
+    const storedStatus = localStorage.getItem('kreato_status_gravacao');
+    if (storedStatus) {
+      setStatusList(JSON.parse(storedStatus));
+    }
+    
     if (editingItem) {
       const updated = items.map((item) => (item.id === data.id ? data : item));
       saveToStorage(updated);
@@ -87,14 +108,9 @@ const GravacaoList = () => {
     }
   };
 
-  const getStatusColor = (status: string) => {
-    const colors: Record<string, string> = {
-      'Em andamento': 'bg-kreato-blue text-primary-foreground',
-      'Concluído': 'bg-green-500 text-primary-foreground',
-      'Pendente': 'bg-kreato-orange text-primary-foreground',
-      'Cancelado': 'bg-destructive text-destructive-foreground',
-    };
-    return colors[status] || 'bg-muted text-muted-foreground';
+  const getStatusColor = (statusNome: string): string | undefined => {
+    const status = statusList.find((s) => s.nome === statusNome);
+    return status?.cor;
   };
 
   const filteredItems = items.filter(
@@ -139,9 +155,17 @@ const GravacaoList = () => {
     {
       key: 'status',
       label: 'Status',
-      render: (item) => (
-        <Badge className={getStatusColor(item.status)}>{item.status || 'Sem status'}</Badge>
-      ),
+      render: (item) => {
+        const cor = getStatusColor(item.status);
+        return (
+          <Badge 
+            style={cor ? { backgroundColor: cor } : undefined}
+            className={cor ? 'text-white' : 'bg-muted text-muted-foreground'}
+          >
+            {item.status || 'Sem status'}
+          </Badge>
+        );
+      },
     },
     {
       key: 'dataCadastro',
