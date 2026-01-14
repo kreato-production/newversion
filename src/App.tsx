@@ -25,6 +25,8 @@ import Funcoes from "@/pages/recursos/Funcoes";
 import Servicos from "@/pages/recursos/Servicos";
 import CategoriaFornecedores from "@/pages/recursos/CategoriaFornecedores";
 import ClassificacaoPessoas from "@/pages/recursos/ClassificacaoPessoas";
+import Figurinos from "@/pages/recursos/Figurinos";
+import TipoFigurino from "@/pages/recursos/TipoFigurino";
 import UnidadesNegocio from "@/pages/admin/UnidadesNegocio";
 import Usuarios from "@/pages/admin/Usuarios";
 import PerfisAcesso from "@/pages/admin/PerfisAcesso";
@@ -63,6 +65,8 @@ const App = () => (
                 <Route path="/recursos/servicos" element={<Servicos />} />
                 <Route path="/recursos/categoria-fornecedores" element={<CategoriaFornecedores />} />
                 <Route path="/recursos/classificacao-pessoas" element={<ClassificacaoPessoas />} />
+                <Route path="/recursos/figurinos" element={<Figurinos />} />
+                <Route path="/recursos/tipo-figurino" element={<TipoFigurino />} />
                 <Route path="/admin/unidades" element={<UnidadesNegocio />} />
                 <Route path="/admin/usuarios" element={<Usuarios />} />
                 <Route path="/admin/perfis" element={<PerfisAcesso />} />

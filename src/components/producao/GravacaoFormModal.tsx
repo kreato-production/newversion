@@ -34,6 +34,7 @@ import { RecursosTab } from './RecursosTab';
 import { CustosTab } from './CustosTab';
 import { TerceirosTab } from './TerceirosTab';
 import { ConvidadosTab } from './ConvidadosTab';
+import FigurinosTab from './FigurinosTab';
 import { cn } from '@/lib/utils';
 
 interface GravacaoFormModalProps {
@@ -184,10 +185,11 @@ export const GravacaoFormModal = ({
         </DialogHeader>
 
         <Tabs defaultValue="dados" className="w-full">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="dados">Dados Gerais</TabsTrigger>
             <TabsTrigger value="recursos" disabled={!data}>Recursos</TabsTrigger>
             <TabsTrigger value="convidados" disabled={!data}>Convidados</TabsTrigger>
+            <TabsTrigger value="figurinos" disabled={!data}>Figurinos</TabsTrigger>
             <TabsTrigger value="terceiros" disabled={!data}>Terceiros</TabsTrigger>
             <TabsTrigger value="custos" disabled={!data}>Custos</TabsTrigger>
           </TabsList>
@@ -386,6 +388,10 @@ export const GravacaoFormModal = ({
 
           <TabsContent value="convidados">
             {data && <ConvidadosTab gravacaoId={data.id} />}
+          </TabsContent>
+
+          <TabsContent value="figurinos">
+            {data && <FigurinosTab gravacaoId={data.id} />}
           </TabsContent>
 
           <TabsContent value="terceiros">

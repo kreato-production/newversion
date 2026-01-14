@@ -21,6 +21,7 @@ import {
   Film,
   Contact,
   Tag,
+  Shirt,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
@@ -66,6 +67,7 @@ const menuItems: MenuItem[] = [
       { label: 'Recursos Físicos', icon: MapPin, path: '/recursos/fisicos' },
       { label: 'Fornecedores', icon: Truck, path: '/recursos/fornecedores' },
       { label: 'Pessoas', icon: Contact, path: '/recursos/pessoas' },
+      { label: 'Figurinos', icon: Shirt, path: '/recursos/figurinos' },
       {
         label: 'Parametrizações',
         icon: FolderCog,
@@ -76,6 +78,7 @@ const menuItems: MenuItem[] = [
           { label: 'Serviços', icon: Settings, path: '/recursos/servicos' },
           { label: 'Categoria de Fornecedores', icon: Settings, path: '/recursos/categoria-fornecedores' },
           { label: 'Classificação Pessoas', icon: Tag, path: '/recursos/classificacao-pessoas' },
+          { label: 'Tipo Figurino', icon: Shirt, path: '/recursos/tipo-figurino' },
         ],
       },
     ],
