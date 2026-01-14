@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { parseISO, isWithinInterval } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,8 +27,9 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { Plus, Trash2, Users, X, Clock } from 'lucide-react';
+import { Plus, Trash2, Users, X, Clock, AlertTriangle } from 'lucide-react';
 import { Label } from '@/components/ui/label';
+import { useToast } from '@/hooks/use-toast';
 
 interface RecursoHumanoAlocado {
   id: string;
@@ -75,6 +76,7 @@ interface RecursosTabProps {
 }
 
 export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
+  const { toast } = useToast();
   const [mesAno, setMesAno] = useState(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -83,7 +85,6 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
   const [recursos, setRecursos] = useState<RecursoAlocado[]>(() => {
     const stored = localStorage.getItem(`kreato_gravacao_recursos_${gravacaoId}`);
     const data = stored ? JSON.parse(stored) : [];
-    // Garantir que todos os recursos tenham as propriedades necessárias
     return data.map((r: RecursoAlocado) => ({
       ...r,
       recursosHumanos: r.recursosHumanos || {},
@@ -125,6 +126,65 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
     localStorage.setItem(`kreato_gravacao_recursos_${gravacaoId}`, JSON.stringify(data));
     setRecursos(data);
   };
+
+  // Verifica se um recurso está alocado em outra gravação na mesma data
+  const getConflito = useCallback((recursoId: string, tipo: 'tecnico' | 'fisico', dia: string): { gravacaoNome: string } | null => {
+    // Buscar todas as gravações
+    const gravacoes = localStorage.getItem('kreato_gravacoes');
+    const listaGravacoes = gravacoes ? JSON.parse(gravacoes) : [];
+    
+    // Buscar recursos de todas as outras gravações
+    for (const gravacao of listaGravacoes) {
+      if (gravacao.id === gravacaoId) continue; // Pular a gravação atual
+      
+      const recursosGravacao = localStorage.getItem(`kreato_gravacao_recursos_${gravacao.id}`);
+      if (!recursosGravacao) continue;
+      
+      const recursos: RecursoAlocado[] = JSON.parse(recursosGravacao);
+      const recursoConflitante = recursos.find(
+        (r) => r.recursoId === recursoId && r.tipo === tipo
+      );
+      
+      if (recursoConflitante) {
+        // Verificar se está alocado neste dia
+        const alocacao = recursoConflitante.alocacoes[dia];
+        if (alocacao && alocacao > 0) {
+          return { gravacaoNome: gravacao.nome || gravacao.codigo };
+        }
+      }
+    }
+    
+    return null;
+  }, [gravacaoId]);
+
+  // Verifica conflitos para todas as datas de um recurso
+  const getConflitosRecurso = useCallback((recursoId: string, tipo: 'tecnico' | 'fisico'): Record<string, string> => {
+    const conflitos: Record<string, string> = {};
+    const gravacoes = localStorage.getItem('kreato_gravacoes');
+    const listaGravacoes = gravacoes ? JSON.parse(gravacoes) : [];
+    
+    for (const gravacao of listaGravacoes) {
+      if (gravacao.id === gravacaoId) continue;
+      
+      const recursosGravacao = localStorage.getItem(`kreato_gravacao_recursos_${gravacao.id}`);
+      if (!recursosGravacao) continue;
+      
+      const recursos: RecursoAlocado[] = JSON.parse(recursosGravacao);
+      const recursoConflitante = recursos.find(
+        (r) => r.recursoId === recursoId && r.tipo === tipo
+      );
+      
+      if (recursoConflitante) {
+        Object.entries(recursoConflitante.alocacoes).forEach(([dia, qtd]) => {
+          if (qtd > 0) {
+            conflitos[dia] = gravacao.nome || gravacao.codigo;
+          }
+        });
+      }
+    }
+    
+    return conflitos;
+  }, [gravacaoId]);
 
   const diasDoMes = useMemo(() => {
     const [ano, mes] = mesAno.split('-').map(Number);
@@ -174,6 +234,23 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
   };
 
   const handleAlocacaoChange = (recursoId: string, dia: string, valor: number) => {
+    // Encontrar o recurso atual
+    const recursoAtual = recursos.find((r) => r.id === recursoId);
+    if (!recursoAtual) return;
+
+    // Se está tentando alocar (valor > 0), verificar conflito
+    if (valor > 0) {
+      const conflito = getConflito(recursoAtual.recursoId, recursoAtual.tipo, dia);
+      if (conflito) {
+        toast({
+          title: 'Conflito de alocação',
+          description: `Este recurso já está alocado para a gravação "${conflito.gravacaoNome}" nesta data.`,
+          variant: 'destructive',
+        });
+        return; // Não permite a alocação
+      }
+    }
+
     const updated = recursos.map((r) => {
       if (r.id === recursoId) {
         return {
@@ -419,7 +496,11 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
               </tr>
             </thead>
             <tbody>
-              {recursosLista.map((recurso) => (
+              {recursosLista.map((recurso) => {
+                // Obter conflitos para este recurso
+                const conflitos = getConflitosRecurso(recurso.recursoId, recurso.tipo);
+                
+                return (
                 <tr key={recurso.id} className="border-b">
                   <td className="px-1.5 py-0.5 sticky left-0 bg-card font-medium text-xs whitespace-nowrap">
                     {recurso.recursoNome}
@@ -431,26 +512,43 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
                     const faltaColaborador = isTecnico && qtdAlocada > 0 && rhCount === 0;
                     const horario = getHorario(recurso, d.dataKey);
                     const faltaHorario = !isTecnico && qtdAlocada > 0 && !horario;
+                    const conflito = conflitos[d.dataKey];
                     
                     return (
                       <td
                         key={d.dia}
-                        className={`px-0 py-0.5 text-center ${d.isWeekend ? 'bg-weekend' : ''}`}
+                        className={`px-0 py-0.5 text-center ${d.isWeekend ? 'bg-weekend' : ''} ${conflito ? 'bg-destructive/10' : ''}`}
                       >
                         <div className="flex flex-col items-center gap-0.5">
-                          <Input
-                            type="number"
-                            min="0"
-                            className="w-8 h-6 text-center p-0 text-[10px]"
-                            value={recurso.alocacoes[d.dataKey] || ''}
-                            onChange={(e) =>
-                              handleAlocacaoChange(
-                                recurso.id,
-                                d.dataKey,
-                                parseInt(e.target.value) || 0
-                              )
-                            }
-                          />
+                          {conflito ? (
+                            <TooltipProvider delayDuration={200}>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <div className="w-8 h-6 flex items-center justify-center bg-destructive/20 rounded border border-destructive/30 cursor-not-allowed">
+                                    <AlertTriangle className="w-3 h-3 text-destructive" />
+                                  </div>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="text-xs">
+                                  <p className="font-medium text-destructive">Recurso indisponível</p>
+                                  <p className="text-muted-foreground">Alocado em: {conflito}</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          ) : (
+                            <Input
+                              type="number"
+                              min="0"
+                              className="w-8 h-6 text-center p-0 text-[10px]"
+                              value={recurso.alocacoes[d.dataKey] || ''}
+                              onChange={(e) =>
+                                handleAlocacaoChange(
+                                  recurso.id,
+                                  d.dataKey,
+                                  parseInt(e.target.value) || 0
+                                )
+                              }
+                            />
+                          )}
                           {/* Ícone de colaborador para recursos TÉCNICOS */}
                           {isTecnico && (
                             <TooltipProvider delayDuration={200}>
@@ -557,7 +655,7 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
                     </Button>
                   </td>
                 </tr>
-              ))}
+              )})}
             </tbody>
           </table>
         </div>
