@@ -18,6 +18,7 @@ import {
   LogOut,
   Map,
   Landmark,
+  Film,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
@@ -40,6 +41,7 @@ const menuItems: MenuItem[] = [
     label: 'Produção',
     icon: Video,
     children: [
+      { label: 'Conteúdo', icon: Film, path: '/producao/conteudo' },
       { label: 'Gravação', icon: Video, path: '/producao/gravacao' },
       { label: 'Mapas', icon: Map, path: '/producao/mapas' },
       {
