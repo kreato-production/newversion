@@ -402,7 +402,12 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
   const recursosTecnicosAlocados = recursos.filter((r) => r.tipo === 'tecnico');
   const recursosFisicosAlocados = recursos.filter((r) => r.tipo === 'fisico');
 
-  const rhAlocadosNoDia = rhModalRecurso?.recursosHumanos[rhModalDia] || [];
+  // Buscar diretamente do estado atual para refletir mudanças imediatas
+  const rhAlocadosNoDia = useMemo(() => {
+    if (!rhModalRecurso || !rhModalDia) return [];
+    const recursoAtual = recursos.find((r) => r.id === rhModalRecurso.id);
+    return recursoAtual?.recursosHumanos[rhModalDia] || [];
+  }, [recursos, rhModalRecurso, rhModalDia]);
 
   // Verificar se um colaborador está ausente em uma data específica
   const isColaboradorAusente = (rh: RecursoHumano, dataStr: string): boolean => {
