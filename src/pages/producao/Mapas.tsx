@@ -6,8 +6,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Calendar, ChevronLeft, ChevronRight, Filter, MapPin, Users } from 'lucide-react';
-import { format, addDays, startOfWeek, addWeeks, subWeeks } from 'date-fns';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { Calendar, ChevronLeft, ChevronRight, Filter, MapPin, Users, CalendarDays, CalendarRange } from 'lucide-react';
+import { format, addDays, startOfWeek, addWeeks, subWeeks, startOfMonth, endOfMonth, addMonths, subMonths, eachDayOfInterval, getDay, isSameMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 interface RecursoHumanoAlocado {
@@ -58,7 +59,9 @@ interface OcupacaoItem {
 }
 
 const Mapas = () => {
+  const [viewMode, setViewMode] = useState<'week' | 'month'>('week');
   const [currentWeekStart, setCurrentWeekStart] = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }));
+  const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(new Date()));
   const [filtroTipoFisico, setFiltroTipoFisico] = useState('Todos');
   const [filtroNomeFisico, setFiltroNomeFisico] = useState('');
   const [filtroFuncaoHumano, setFiltroFuncaoHumano] = useState('Todas');
@@ -99,8 +102,36 @@ const Mapas = () => {
 
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(currentWeekStart, i));
 
+  // Dias do mês
+  const monthDays = useMemo(() => {
+    const start = startOfMonth(currentMonth);
+    const end = endOfMonth(currentMonth);
+    return eachDayOfInterval({ start, end });
+  }, [currentMonth]);
+
+  // Dias a exibir baseado no modo de visualização
+  const displayDays = viewMode === 'week' ? weekDays : monthDays;
+
   const handlePrevWeek = () => setCurrentWeekStart(subWeeks(currentWeekStart, 1));
   const handleNextWeek = () => setCurrentWeekStart(addWeeks(currentWeekStart, 1));
+  const handlePrevMonth = () => setCurrentMonth(subMonths(currentMonth, 1));
+  const handleNextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
+
+  const handlePrev = () => {
+    if (viewMode === 'week') {
+      handlePrevWeek();
+    } else {
+      handlePrevMonth();
+    }
+  };
+
+  const handleNext = () => {
+    if (viewMode === 'week') {
+      handleNextWeek();
+    } else {
+      handleNextMonth();
+    }
+  };
 
   // Calcular ocupações de recursos físicos baseado nas alocações
   const ocupacoesFisicas = useMemo(() => {
@@ -238,19 +269,35 @@ const Mapas = () => {
     return grupos;
   }, [filteredRecursosHumanos]);
 
-  const renderWeekNavigator = () => (
+  const renderNavigator = () => (
     <div className="flex items-center gap-2">
-      <Button variant="outline" size="icon" onClick={handlePrevWeek}>
+      <ToggleGroup type="single" value={viewMode} onValueChange={(v) => v && setViewMode(v as 'week' | 'month')}>
+        <ToggleGroupItem value="week" aria-label="Semana" className="gap-1.5">
+          <CalendarDays className="h-4 w-4" />
+          <span className="hidden sm:inline">Semana</span>
+        </ToggleGroupItem>
+        <ToggleGroupItem value="month" aria-label="Mês" className="gap-1.5">
+          <CalendarRange className="h-4 w-4" />
+          <span className="hidden sm:inline">Mês</span>
+        </ToggleGroupItem>
+      </ToggleGroup>
+      <Button variant="outline" size="icon" onClick={handlePrev}>
         <ChevronLeft className="h-4 w-4" />
       </Button>
-      <div className="flex items-center gap-2 px-3 py-1.5 bg-muted rounded-md">
+      <div className="flex items-center gap-2 px-3 py-1.5 bg-muted rounded-md min-w-[200px] justify-center">
         <Calendar className="h-4 w-4 text-muted-foreground" />
         <span className="text-sm font-medium">
-          {format(currentWeekStart, "dd 'de' MMMM", { locale: ptBR })} -{' '}
-          {format(addDays(currentWeekStart, 6), "dd 'de' MMMM", { locale: ptBR })}
+          {viewMode === 'week' ? (
+            <>
+              {format(currentWeekStart, "dd 'de' MMMM", { locale: ptBR })} -{' '}
+              {format(addDays(currentWeekStart, 6), "dd 'de' MMMM", { locale: ptBR })}
+            </>
+          ) : (
+            format(currentMonth, "MMMM 'de' yyyy", { locale: ptBR })
+          )}
         </span>
       </div>
-      <Button variant="outline" size="icon" onClick={handleNextWeek}>
+      <Button variant="outline" size="icon" onClick={handleNext}>
         <ChevronRight className="h-4 w-4" />
       </Button>
     </div>
@@ -266,22 +313,28 @@ const Mapas = () => {
         <TableHeader>
           <TableRow>
             <TableHead className="sticky left-0 bg-background z-10 min-w-[180px]">Recurso</TableHead>
-            {weekDays.map((day) => (
-              <TableHead key={day.toISOString()} className="text-center min-w-[140px]">
-                <div className="flex flex-col">
-                  <span className="text-xs text-muted-foreground">
-                    {format(day, 'EEEE', { locale: ptBR })}
-                  </span>
-                  <span className="font-semibold">{format(day, 'dd/MM')}</span>
-                </div>
-              </TableHead>
-            ))}
+            {displayDays.map((day) => {
+              const isWeekend = getDay(day) === 0 || getDay(day) === 6;
+              return (
+                <TableHead 
+                  key={day.toISOString()} 
+                  className={`text-center ${viewMode === 'month' ? 'min-w-[80px] px-1' : 'min-w-[140px]'} ${isWeekend ? 'bg-muted/50' : ''}`}
+                >
+                  <div className="flex flex-col">
+                    <span className="text-xs text-muted-foreground">
+                      {viewMode === 'week' ? format(day, 'EEEE', { locale: ptBR }) : format(day, 'EEE', { locale: ptBR })}
+                    </span>
+                    <span className="font-semibold">{format(day, 'dd/MM')}</span>
+                  </div>
+                </TableHead>
+              );
+            })}
           </TableRow>
         </TableHeader>
         <TableBody>
           {recursos.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+              <TableCell colSpan={displayDays.length + 1} className="text-center text-muted-foreground py-8">
                 {emptyMessage}
               </TableCell>
             </TableRow>
@@ -291,21 +344,27 @@ const Mapas = () => {
                 <TableCell className="sticky left-0 bg-background z-10 font-medium">
                   {recurso.nome}
                 </TableCell>
-                {weekDays.map((day) => {
+                {displayDays.map((day) => {
                   const ocupacoesDia = getOcupacaoCelula(ocupacoes, recurso.id, day);
+                  const isWeekend = getDay(day) === 0 || getDay(day) === 6;
                   return (
-                    <TableCell key={day.toISOString()} className="text-center p-1">
+                    <TableCell 
+                      key={day.toISOString()} 
+                      className={`text-center p-1 ${isWeekend ? 'bg-muted/50' : ''}`}
+                    >
                       {ocupacoesDia.length > 0 ? (
                         <div className="flex flex-col gap-1">
                           {ocupacoesDia.map((oc, idx) => (
                             <div
                               key={idx}
-                              className="bg-primary/10 border border-primary/30 rounded p-1.5 text-xs"
+                              className={`bg-primary/10 border border-primary/30 rounded text-xs ${viewMode === 'month' ? 'p-0.5' : 'p-1.5'}`}
                             >
                               <div className="font-medium text-primary truncate" title={oc.gravacao}>
-                                {oc.gravacao}
+                                {viewMode === 'month' ? oc.gravacao.substring(0, 8) + (oc.gravacao.length > 8 ? '...' : '') : oc.gravacao}
                               </div>
-                              <div className="text-muted-foreground">{oc.horario}</div>
+                              {viewMode === 'week' && (
+                                <div className="text-muted-foreground">{oc.horario}</div>
+                              )}
                             </div>
                           ))}
                         </div>
@@ -352,16 +411,22 @@ const Mapas = () => {
                 <TableHeader>
                   <TableRow>
                     <TableHead className="sticky left-0 bg-background z-10 min-w-[180px]">Colaborador</TableHead>
-                    {weekDays.map((day) => (
-                      <TableHead key={day.toISOString()} className="text-center min-w-[140px]">
-                        <div className="flex flex-col">
-                          <span className="text-xs text-muted-foreground">
-                            {format(day, 'EEEE', { locale: ptBR })}
-                          </span>
-                          <span className="font-semibold">{format(day, 'dd/MM')}</span>
-                        </div>
-                      </TableHead>
-                    ))}
+                    {displayDays.map((day) => {
+                      const isWeekend = getDay(day) === 0 || getDay(day) === 6;
+                      return (
+                        <TableHead 
+                          key={day.toISOString()} 
+                          className={`text-center ${viewMode === 'month' ? 'min-w-[80px] px-1' : 'min-w-[140px]'} ${isWeekend ? 'bg-muted/50' : ''}`}
+                        >
+                          <div className="flex flex-col">
+                            <span className="text-xs text-muted-foreground">
+                              {viewMode === 'week' ? format(day, 'EEEE', { locale: ptBR }) : format(day, 'EEE', { locale: ptBR })}
+                            </span>
+                            <span className="font-semibold">{format(day, 'dd/MM')}</span>
+                          </div>
+                        </TableHead>
+                      );
+                    })}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -370,21 +435,27 @@ const Mapas = () => {
                       <TableCell className="sticky left-0 bg-background z-10 font-medium">
                         {recurso.nome}
                       </TableCell>
-                      {weekDays.map((day) => {
+                      {displayDays.map((day) => {
                         const ocupacoesDia = getOcupacaoCelula(ocupacoes, recurso.id, day);
+                        const isWeekend = getDay(day) === 0 || getDay(day) === 6;
                         return (
-                          <TableCell key={day.toISOString()} className="text-center p-1">
+                          <TableCell 
+                            key={day.toISOString()} 
+                            className={`text-center p-1 ${isWeekend ? 'bg-muted/50' : ''}`}
+                          >
                             {ocupacoesDia.length > 0 ? (
                               <div className="flex flex-col gap-1">
                                 {ocupacoesDia.map((oc, idx) => (
                                   <div
                                     key={idx}
-                                    className="bg-primary/10 border border-primary/30 rounded p-1.5 text-xs"
+                                    className={`bg-primary/10 border border-primary/30 rounded text-xs ${viewMode === 'month' ? 'p-0.5' : 'p-1.5'}`}
                                   >
                                     <div className="font-medium text-primary truncate" title={oc.gravacao}>
-                                      {oc.gravacao}
+                                      {viewMode === 'month' ? oc.gravacao.substring(0, 8) + (oc.gravacao.length > 8 ? '...' : '') : oc.gravacao}
                                     </div>
-                                    <div className="text-muted-foreground">{oc.horario}</div>
+                                    {viewMode === 'week' && (
+                                      <div className="text-muted-foreground">{oc.horario}</div>
+                                    )}
                                   </div>
                                 ))}
                               </div>
@@ -410,7 +481,7 @@ const Mapas = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <h1 className="text-2xl font-bold text-foreground">Mapas de Ocupação</h1>
         <div className="flex items-center gap-2">
-          {renderWeekNavigator()}
+          {renderNavigator()}
           <Button
             variant="outline"
             size="sm"
