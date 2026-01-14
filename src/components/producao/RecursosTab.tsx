@@ -20,6 +20,12 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { Plus, Trash2, Users, X } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 
@@ -239,7 +245,7 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
 
   const rhAlocadosNoDia = rhModalRecurso?.recursosHumanos[rhModalDia] || [];
 
-  const renderRecursosTable = (recursosLista: RecursoAlocado[], tipoLabel: string, tipoIcon: string) => {
+  const renderRecursosTable = (recursosLista: RecursoAlocado[], tipoLabel: string, tipoIcon: string, isTecnico: boolean) => {
     if (recursosLista.length === 0) return null;
 
     return (
@@ -275,6 +281,10 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
                   </td>
                   {diasDoMes.map((d) => {
                     const rhCount = getRHCount(recurso, d.dataKey);
+                    const rhList = recurso.recursosHumanos[d.dataKey] || [];
+                    const qtdAlocada = recurso.alocacoes[d.dataKey] || 0;
+                    const faltaColaborador = !isTecnico && qtdAlocada > 0 && rhCount === 0;
+                    
                     return (
                       <td
                         key={d.dia}
@@ -294,27 +304,56 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
                               )
                             }
                           />
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                className={`h-5 w-5 ${rhCount > 0 ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
-                                onClick={() => openRHModal(recurso, d.dataKey)}
-                              >
-                                <Users className="w-3 h-3" />
-                                {rhCount > 0 && (
-                                  <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-[8px] rounded-full w-3 h-3 flex items-center justify-center">
-                                    {rhCount}
-                                  </span>
-                                )}
-                              </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-2 text-xs" align="center">
-                              <p className="font-medium">{rhCount} colaborador(es) alocado(s)</p>
-                              <p className="text-muted-foreground">Clique para gerenciar</p>
-                            </PopoverContent>
-                          </Popover>
+                          {/* Só exibe ícone de colaborador para recursos NÃO técnicos */}
+                          {!isTecnico && (
+                            <TooltipProvider delayDuration={200}>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    className={`h-5 w-5 relative ${
+                                      faltaColaborador 
+                                        ? 'text-destructive hover:text-destructive' 
+                                        : rhCount > 0 
+                                          ? 'text-primary' 
+                                          : 'text-muted-foreground hover:text-foreground'
+                                    }`}
+                                    onClick={() => openRHModal(recurso, d.dataKey)}
+                                  >
+                                    <Users className="w-3 h-3" />
+                                    {rhCount > 0 && (
+                                      <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-[8px] rounded-full w-3 h-3 flex items-center justify-center">
+                                        {rhCount}
+                                      </span>
+                                    )}
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="max-w-xs">
+                                  {rhCount > 0 ? (
+                                    <div className="space-y-1">
+                                      <p className="font-medium text-xs">{rhCount} colaborador(es):</p>
+                                      <ul className="text-xs space-y-0.5">
+                                        {rhList.map((rh) => (
+                                          <li key={rh.id} className="text-muted-foreground">
+                                            • {rh.nome} ({rh.horaInicio} - {rh.horaFim})
+                                          </li>
+                                        ))}
+                                      </ul>
+                                    </div>
+                                  ) : faltaColaborador ? (
+                                    <p className="text-xs text-destructive font-medium">
+                                      Atenção: recurso sem colaborador associado!
+                                    </p>
+                                  ) : (
+                                    <p className="text-xs text-muted-foreground">
+                                      Clique para adicionar colaboradores
+                                    </p>
+                                  )}
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
                         </div>
                       </td>
                     );
@@ -391,8 +430,8 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
 
       {recursos.length > 0 && (
         <div className="space-y-4">
-          {renderRecursosTable(recursosTecnicosAlocados, 'Recursos Técnicos', '🔧')}
-          {renderRecursosTable(recursosFisicosAlocados, 'Recursos Físicos', '🏢')}
+          {renderRecursosTable(recursosTecnicosAlocados, 'Recursos Técnicos', '🔧', true)}
+          {renderRecursosTable(recursosFisicosAlocados, 'Recursos Físicos', '🏢', false)}
         </div>
       )}
 
