@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Loader2, Wand2, Edit, Trash2 } from 'lucide-react';
+import { Loader2, Wand2 } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -19,11 +19,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { type Conteudo, generateCodigoConteudo } from '@/pages/producao/Conteudo';
 import { type Gravacao, generateCodigoGravacao } from '@/pages/producao/GravacaoList';
-import { SortableTable, Column } from '@/components/shared/SortableTable';
 import { Badge } from '@/components/ui/badge';
 import {
   Table,
@@ -33,6 +33,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { ConteudoCustosTab } from './ConteudoCustosTab';
 
 interface ConteudoFormModalProps {
   isOpen: boolean;
@@ -235,42 +236,6 @@ export const ConteudoFormModal = ({
     return status?.cor;
   };
 
-  const columns: Column<Gravacao>[] = [
-    {
-      key: 'codigo',
-      label: 'Código',
-      className: 'w-32',
-      render: (item) => (
-        <span className="font-mono text-sm font-medium text-primary">{item.codigo || '-'}</span>
-      ),
-    },
-    {
-      key: 'nome',
-      label: 'Nome',
-      render: (item) => <span className="font-medium">{item.nome}</span>,
-    },
-    {
-      key: 'status',
-      label: 'Status',
-      render: (item) => {
-        const cor = getStatusColor(item.status);
-        return (
-          <Badge 
-            style={cor ? { backgroundColor: cor } : undefined}
-            className={cor ? 'text-white' : 'bg-muted text-muted-foreground'}
-          >
-            {item.status || 'Sem status'}
-          </Badge>
-        );
-      },
-    },
-    {
-      key: 'dataCadastro',
-      label: 'Data Cadastro',
-      className: 'w-32',
-    },
-  ];
-
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto">
@@ -389,69 +354,82 @@ export const ConteudoFormModal = ({
 
           {data && (
             <div className="pt-4 border-t">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold">Gravações do Conteúdo</h3>
-                <Button
-                  type="button"
-                  onClick={handleGenerateGravacoes}
-                  disabled={isGenerating}
-                  className="gradient-primary hover:opacity-90"
-                >
-                  {isGenerating ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Gerando...
-                    </>
-                  ) : (
-                    <>
-                      <Wand2 className="w-4 h-4 mr-2" />
-                      Gerar
-                    </>
-                  )}
-                </Button>
-              </div>
+              <Tabs defaultValue="gravacoes" className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="gravacoes">Gravações</TabsTrigger>
+                  <TabsTrigger value="custos">Custos</TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="gravacoes" className="mt-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold">Gravações do Conteúdo</h3>
+                    <Button
+                      type="button"
+                      onClick={handleGenerateGravacoes}
+                      disabled={isGenerating}
+                      className="gradient-primary hover:opacity-90"
+                    >
+                      {isGenerating ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Gerando...
+                        </>
+                      ) : (
+                        <>
+                          <Wand2 className="w-4 h-4 mr-2" />
+                          Gerar
+                        </>
+                      )}
+                    </Button>
+                  </div>
 
-              {gravacoes.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground border rounded-lg">
-                  <p>Nenhuma gravação associada.</p>
-                  <p className="text-sm mt-1">Clique em "Gerar" para criar as gravações automaticamente.</p>
-                </div>
-              ) : (
-                <div className="border rounded-lg overflow-hidden max-h-[300px] overflow-y-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-32">Código</TableHead>
-                        <TableHead>Nome</TableHead>
-                        <TableHead className="w-32">Status</TableHead>
-                        <TableHead className="w-32">Data Cadastro</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {gravacoes.map((gravacao) => {
-                        const cor = getStatusColor(gravacao.status);
-                        return (
-                          <TableRow key={gravacao.id}>
-                            <TableCell className="font-mono text-sm font-medium text-primary">
-                              {gravacao.codigo}
-                            </TableCell>
-                            <TableCell className="font-medium">{gravacao.nome}</TableCell>
-                            <TableCell>
-                              <Badge 
-                                style={cor ? { backgroundColor: cor } : undefined}
-                                className={cor ? 'text-white' : 'bg-muted text-muted-foreground'}
-                              >
-                                {gravacao.status || 'Sem status'}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>{gravacao.dataCadastro}</TableCell>
+                  {gravacoes.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground border rounded-lg">
+                      <p>Nenhuma gravação associada.</p>
+                      <p className="text-sm mt-1">Clique em "Gerar" para criar as gravações automaticamente.</p>
+                    </div>
+                  ) : (
+                    <div className="border rounded-lg overflow-hidden max-h-[300px] overflow-y-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="w-32">Código</TableHead>
+                            <TableHead>Nome</TableHead>
+                            <TableHead className="w-32">Status</TableHead>
+                            <TableHead className="w-32">Data Cadastro</TableHead>
                           </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
+                        </TableHeader>
+                        <TableBody>
+                          {gravacoes.map((gravacao) => {
+                            const cor = getStatusColor(gravacao.status);
+                            return (
+                              <TableRow key={gravacao.id}>
+                                <TableCell className="font-mono text-sm font-medium text-primary">
+                                  {gravacao.codigo}
+                                </TableCell>
+                                <TableCell className="font-medium">{gravacao.nome}</TableCell>
+                                <TableCell>
+                                  <Badge 
+                                    style={cor ? { backgroundColor: cor } : undefined}
+                                    className={cor ? 'text-white' : 'bg-muted text-muted-foreground'}
+                                  >
+                                    {gravacao.status || 'Sem status'}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell>{gravacao.dataCadastro}</TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </TabsContent>
+                
+                <TabsContent value="custos" className="mt-4">
+                  <ConteudoCustosTab conteudoId={data.id} />
+                </TabsContent>
+              </Tabs>
             </div>
           )}
 
