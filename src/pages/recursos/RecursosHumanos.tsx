@@ -15,6 +15,14 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { RecursoHumanoFormModal } from '@/components/recursos/RecursoHumanoFormModal';
 
+export interface Anexo {
+  id: string;
+  nome: string;
+  tipo: string;
+  tamanho: number;
+  dataUrl: string;
+}
+
 export interface RecursoHumano {
   id: string;
   codigoExterno: string;
@@ -32,6 +40,7 @@ export interface RecursoHumano {
   status: 'Ativo' | 'Inativo';
   dataCadastro: string;
   usuarioCadastro: string;
+  anexos?: Anexo[];
 }
 
 const RecursosHumanos = () => {
