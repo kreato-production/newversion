@@ -176,26 +176,26 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
 
       {recursos.length > 0 && (
         <div className="overflow-x-auto border rounded-lg">
-          <table className="w-full text-sm">
+          <table className="w-full text-[11px]">
             <thead>
               <tr className="border-b bg-muted/50">
-                <th className="text-left p-2 font-medium sticky left-0 bg-muted/50 min-w-48">Recurso</th>
+                <th className="text-left px-1.5 py-1 font-medium sticky left-0 bg-muted/50 min-w-32 text-xs">Recurso</th>
                 {diasDoMes.map((d) => (
                   <th
                     key={d.dia}
-                    className={`p-2 text-center font-medium min-w-12 ${d.isWeekend ? 'bg-weekend' : ''}`}
+                    className={`px-0.5 py-1 text-center font-medium w-8 ${d.isWeekend ? 'bg-weekend' : ''}`}
                   >
                     {d.dia}
                   </th>
                 ))}
-                <th className="p-2 w-10"></th>
+                <th className="px-1 py-1 w-8"></th>
               </tr>
             </thead>
             <tbody>
               {recursos.map((recurso) => (
                 <tr key={recurso.id} className="border-b">
-                  <td className="p-2 sticky left-0 bg-card font-medium">
-                    <span className="text-xs text-muted-foreground mr-1">
+                  <td className="px-1.5 py-0.5 sticky left-0 bg-card font-medium text-xs whitespace-nowrap">
+                    <span className="text-[10px] text-muted-foreground mr-0.5">
                       [{recurso.tipo === 'tecnico' ? 'T' : 'F'}]
                     </span>
                     {recurso.recursoNome}
@@ -203,12 +203,12 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
                   {diasDoMes.map((d) => (
                     <td
                       key={d.dia}
-                      className={`p-1 text-center ${d.isWeekend ? 'bg-weekend' : ''}`}
+                      className={`px-0 py-0.5 text-center ${d.isWeekend ? 'bg-weekend' : ''}`}
                     >
                       <Input
                         type="number"
                         min="0"
-                        className="w-12 h-8 text-center p-1 text-xs"
+                        className="w-7 h-6 text-center p-0 text-[10px]"
                         value={recurso.alocacoes[`${mesAno}-${String(d.dia).padStart(2, '0')}`] || ''}
                         onChange={(e) =>
                           handleAlocacaoChange(
@@ -220,14 +220,14 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
                       />
                     </td>
                   ))}
-                  <td className="p-1">
+                  <td className="px-0 py-0.5">
                     <Button
                       size="icon"
                       variant="ghost"
                       onClick={() => handleRemoveRecurso(recurso.id)}
-                      className="h-8 w-8 text-destructive hover:text-destructive"
+                      className="h-6 w-6 text-destructive hover:text-destructive"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="w-3 h-3" />
                     </Button>
                   </td>
                 </tr>
