@@ -17,6 +17,7 @@ export interface RecursoTecnico {
   id: string;
   codigoExterno: string;
   nome: string;
+  cargoOperador: string; // Cargo que pode operar este recurso
   dataCadastro: string;
   usuarioCadastro: string;
 }
