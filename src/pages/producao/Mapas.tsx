@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -7,9 +7,11 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { Calendar, ChevronLeft, ChevronRight, Filter, MapPin, Users, CalendarDays, CalendarRange } from 'lucide-react';
+import { Calendar, ChevronLeft, ChevronRight, Filter, MapPin, Users, CalendarDays, CalendarRange, FileDown, Loader2 } from 'lucide-react';
 import { format, addDays, startOfWeek, addWeeks, subWeeks, startOfMonth, endOfMonth, addMonths, subMonths, eachDayOfInterval, getDay, isSameMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 
 interface RecursoHumanoAlocado {
   id: string;
@@ -68,6 +70,12 @@ const Mapas = () => {
   const [filtroNomeHumano, setFiltroNomeHumano] = useState('');
   const [filtroGravacao, setFiltroGravacao] = useState('Todas');
   const [showFilters, setShowFilters] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const [activeTab, setActiveTab] = useState('fisicos');
+
+  // Refs para exportação PDF
+  const fisicosRef = useRef<HTMLDivElement>(null);
+  const humanosRef = useRef<HTMLDivElement>(null);
 
   // Carregar dados do localStorage
   const [gravacoes, setGravacoes] = useState<Gravacao[]>([]);
@@ -268,6 +276,57 @@ const Mapas = () => {
     });
     return grupos;
   }, [filteredRecursosHumanos]);
+
+  // Função para exportar para PDF
+  const handleExportPDF = async () => {
+    setIsExporting(true);
+    try {
+      const targetRef = activeTab === 'fisicos' ? fisicosRef.current : humanosRef.current;
+      if (!targetRef) return;
+
+      const canvas = await html2canvas(targetRef, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff',
+      });
+
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({
+        orientation: 'landscape',
+        unit: 'mm',
+        format: 'a4',
+      });
+
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = canvas.width;
+      const imgHeight = canvas.height;
+      const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
+      const imgX = (pdfWidth - imgWidth * ratio) / 2;
+      const imgY = 10;
+
+      // Adicionar título
+      const titulo = activeTab === 'fisicos' ? 'Mapa de Ocupação - Recursos Físicos' : 'Mapa de Ocupação - Recursos Humanos';
+      const periodo = viewMode === 'week'
+        ? `${format(currentWeekStart, "dd/MM/yyyy")} - ${format(addDays(currentWeekStart, 6), "dd/MM/yyyy")}`
+        : format(currentMonth, "MMMM 'de' yyyy", { locale: ptBR });
+      
+      pdf.setFontSize(16);
+      pdf.text(titulo, pdfWidth / 2, 8, { align: 'center' });
+      pdf.setFontSize(10);
+      pdf.text(`Período: ${periodo}`, pdfWidth / 2, 14, { align: 'center' });
+
+      pdf.addImage(imgData, 'PNG', imgX, 20, imgWidth * ratio, imgHeight * ratio);
+      
+      const fileName = `mapa-ocupacao-${activeTab}-${format(new Date(), 'yyyy-MM-dd')}.pdf`;
+      pdf.save(fileName);
+    } catch (error) {
+      console.error('Erro ao exportar PDF:', error);
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   const renderNavigator = () => (
     <div className="flex items-center gap-2">
@@ -491,10 +550,24 @@ const Mapas = () => {
             <Filter className="h-4 w-4" />
             Filtros
           </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportPDF}
+            disabled={isExporting}
+            className="gap-2"
+          >
+            {isExporting ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <FileDown className="h-4 w-4" />
+            )}
+            Exportar PDF
+          </Button>
         </div>
       </div>
 
-      <Tabs defaultValue="fisicos" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList>
           <TabsTrigger value="fisicos" className="gap-2">
             <MapPin className="h-4 w-4" />
@@ -558,15 +631,17 @@ const Mapas = () => {
             </Card>
           )}
 
-          <Card>
-            <CardContent className="p-4">
-              {renderOcupacaoMatriz(
-                filteredRecursosFisicos,
-                ocupacoesFisicas,
-                'Nenhum recurso físico encontrado. Cadastre recursos físicos e aloque-os em gravações.'
-              )}
-            </CardContent>
-          </Card>
+          <div ref={fisicosRef}>
+            <Card>
+              <CardContent className="p-4">
+                {renderOcupacaoMatriz(
+                  filteredRecursosFisicos,
+                  ocupacoesFisicas,
+                  'Nenhum recurso físico encontrado. Cadastre recursos físicos e aloque-os em gravações.'
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
 
         <TabsContent value="humanos" className="space-y-4">
@@ -621,15 +696,17 @@ const Mapas = () => {
             </Card>
           )}
 
-          <Card>
-            <CardContent className="p-4">
-              {renderOcupacaoMatrizAgrupada(
-                recursosHumanosAgrupados,
-                ocupacoesHumanas,
-                'Nenhum recurso humano encontrado. Cadastre colaboradores e aloque-os em recursos técnicos das gravações.'
-              )}
-            </CardContent>
-          </Card>
+          <div ref={humanosRef}>
+            <Card>
+              <CardContent className="p-4">
+                {renderOcupacaoMatrizAgrupada(
+                  recursosHumanosAgrupados,
+                  ocupacoesHumanas,
+                  'Nenhum recurso humano encontrado. Cadastre colaboradores e aloque-os em recursos técnicos das gravações.'
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
     </div>
