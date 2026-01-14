@@ -23,6 +23,14 @@ export interface Anexo {
   dataUrl: string;
 }
 
+export interface Ausencia {
+  id: string;
+  motivo: 'Férias' | 'Folga' | 'Licença Maternidade' | 'Licença Paternidade' | 'Curso Externo' | 'Viagem de Trabalho';
+  dataInicio: string;
+  dataFim: string;
+  dias: number;
+}
+
 export interface RecursoHumano {
   id: string;
   codigoExterno: string;
@@ -41,6 +49,7 @@ export interface RecursoHumano {
   dataCadastro: string;
   usuarioCadastro: string;
   anexos?: Anexo[];
+  ausencias?: Ausencia[];
 }
 
 const RecursosHumanos = () => {
