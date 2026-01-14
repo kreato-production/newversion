@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface ParametroFormData {
   id?: string;
@@ -44,6 +45,7 @@ export const ParametroFormModal = ({
   data,
 }: ParametroFormModalProps) => {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [formData, setFormData] = useState<ParametroFormData>(emptyFormData);
 
   // Reset form data when modal opens or data changes
@@ -68,25 +70,25 @@ export const ParametroFormModal = ({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{data ? `Editar ${title}` : `Novo ${title}`}</DialogTitle>
+          <DialogTitle>{data ? `${t('common.edit')} ${title}` : `${t('common.new')} ${title}`}</DialogTitle>
           <DialogDescription>
-            Preencha os campos abaixo para {data ? 'editar' : 'cadastrar'} o registro.
+            {data ? t('common.edit') : t('common.add')} {title.toLowerCase()}.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="codigoExterno">Código Externo</Label>
+              <Label htmlFor="codigoExterno">{t('common.externalCode')}</Label>
               <Input
                 id="codigoExterno"
                 value={formData.codigoExterno}
                 onChange={(e) => setFormData({ ...formData, codigoExterno: e.target.value })}
                 maxLength={10}
-                placeholder="Máx. 10 caracteres"
+                placeholder={t('common.maxChars')}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="nome">Nome *</Label>
+              <Label htmlFor="nome">{t('common.name')} *</Label>
               <Input
                 id="nome"
                 value={formData.nome}
@@ -97,21 +99,20 @@ export const ParametroFormModal = ({
             </div>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="descricao">Descrição</Label>
+            <Label htmlFor="descricao">{t('common.description')}</Label>
             <Textarea
               id="descricao"
               value={formData.descricao}
               onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
               rows={3}
-              placeholder="Descrição do registro..."
             />
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>
-              Cancelar
+              {t('common.cancel')}
             </Button>
             <Button type="submit" className="gradient-primary hover:opacity-90">
-              Salvar
+              {t('common.save')}
             </Button>
           </DialogFooter>
         </form>
