@@ -13,6 +13,11 @@ interface TipoFigurino {
   nome: string;
 }
 
+interface MaterialItem {
+  id: string;
+  nome: string;
+}
+
 interface FigurinoFormModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -23,12 +28,14 @@ interface FigurinoFormModalProps {
 const FigurinoFormModal = ({ isOpen, onClose, onSave, data }: FigurinoFormModalProps) => {
   const { user } = useAuth();
   const [tiposFigurino, setTiposFigurino] = useState<TipoFigurino[]>([]);
+  const [materiais, setMateriais] = useState<MaterialItem[]>([]);
   
   const emptyFormData = {
     codigoExterno: '',
     codigoFigurino: '',
     descricao: '',
     tipoFigurino: '',
+    material: '',
     tamanhoPeca: '',
     corPredominante: '#000000',
     corSecundaria: '#ffffff',
@@ -38,10 +45,16 @@ const FigurinoFormModal = ({ isOpen, onClose, onSave, data }: FigurinoFormModalP
   const [imagens, setImagens] = useState<FigurinoImagem[]>([]);
 
   useEffect(() => {
-    const stored = localStorage.getItem('kreato_tipo_figurino');
-    if (stored) {
-      const parsed = JSON.parse(stored);
+    const storedTipos = localStorage.getItem('kreato_tipo_figurino');
+    if (storedTipos) {
+      const parsed = JSON.parse(storedTipos);
       setTiposFigurino(parsed.filter((t: TipoFigurino & { status?: string }) => t.status !== 'Inativo'));
+    }
+    
+    const storedMateriais = localStorage.getItem('kreato_material');
+    if (storedMateriais) {
+      const parsed = JSON.parse(storedMateriais);
+      setMateriais(parsed.filter((m: MaterialItem & { status?: string }) => m.status !== 'Inativo'));
     }
   }, [isOpen]);
 
@@ -52,6 +65,7 @@ const FigurinoFormModal = ({ isOpen, onClose, onSave, data }: FigurinoFormModalP
         codigoFigurino: data.codigoFigurino || '',
         descricao: data.descricao || '',
         tipoFigurino: data.tipoFigurino || '',
+        material: data.material || '',
         tamanhoPeca: data.tamanhoPeca || '',
         corPredominante: data.corPredominante || '#000000',
         corSecundaria: data.corSecundaria || '#ffffff',
@@ -111,6 +125,7 @@ const FigurinoFormModal = ({ isOpen, onClose, onSave, data }: FigurinoFormModalP
       codigoFigurino: formData.codigoFigurino,
       descricao: formData.descricao,
       tipoFigurino: formData.tipoFigurino,
+      material: formData.material,
       tamanhoPeca: formData.tamanhoPeca,
       corPredominante: formData.corPredominante,
       corSecundaria: formData.corSecundaria,
@@ -164,7 +179,7 @@ const FigurinoFormModal = ({ isOpen, onClose, onSave, data }: FigurinoFormModalP
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="tipoFigurino">Tipo de Figurino</Label>
               <Select
@@ -178,6 +193,25 @@ const FigurinoFormModal = ({ isOpen, onClose, onSave, data }: FigurinoFormModalP
                   {tiposFigurino.map((tipo) => (
                     <SelectItem key={tipo.id} value={tipo.nome}>
                       {tipo.nome}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="material">Material</Label>
+              <Select
+                value={formData.material}
+                onValueChange={(value) => handleChange('material', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o material" />
+                </SelectTrigger>
+                <SelectContent>
+                  {materiais.map((mat) => (
+                    <SelectItem key={mat.id} value={mat.nome}>
+                      {mat.nome}
                     </SelectItem>
                   ))}
                 </SelectContent>
