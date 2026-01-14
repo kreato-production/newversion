@@ -24,6 +24,7 @@ export interface Gravacao {
   tipoConteudo: string;
   descricao: string;
   status: string;
+  dataPrevista: string;
   dataCadastro: string;
   usuarioCadastro: string;
 }
