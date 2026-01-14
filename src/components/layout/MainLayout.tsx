@@ -1,19 +1,28 @@
 import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/hooks/use-theme';
+import { useLanguage } from '@/contexts/LanguageContext';
 import AppSidebar from './AppSidebar';
-import { Settings, Sun, Moon } from 'lucide-react';
+import { Settings, Sun, Moon, Globe } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
 } from '@/components/ui/dropdown-menu';
+import { languageLabels, Language } from '@/contexts/LanguageContext';
 
 const MainLayout = () => {
   const { isAuthenticated } = useAuth();
   const { theme, toggleTheme } = useTheme();
+  const { language, setLanguage, t } = useLanguage();
+
+  const languages: Language[] = ['pt', 'en', 'es'];
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
@@ -29,23 +38,47 @@ const MainLayout = () => {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="h-9 w-9">
                 <Settings className="h-5 w-5" />
-                <span className="sr-only">Configurações</span>
+                <span className="sr-only">{t('settings')}</span>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-40">
+            <DropdownMenuContent align="end" className="w-48">
+              {/* Theme Toggle */}
               <DropdownMenuItem onClick={toggleTheme} className="cursor-pointer gap-2">
                 {theme === 'light' ? (
                   <>
                     <Moon className="h-4 w-4" />
-                    Tema Escuro
+                    {t('theme.dark')}
                   </>
                 ) : (
                   <>
                     <Sun className="h-4 w-4" />
-                    Tema Claro
+                    {t('theme.light')}
                   </>
                 )}
               </DropdownMenuItem>
+              
+              <DropdownMenuSeparator />
+              
+              {/* Language Selector */}
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger className="gap-2">
+                  <Globe className="h-4 w-4" />
+                  <span>{t('language')}</span>
+                  <span className="ml-auto">{languageLabels[language].flag}</span>
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent className="w-40">
+                  {languages.map((lang) => (
+                    <DropdownMenuItem
+                      key={lang}
+                      onClick={() => setLanguage(lang)}
+                      className={`cursor-pointer gap-2 ${language === lang ? 'bg-accent' : ''}`}
+                    >
+                      <span className="text-lg">{languageLabels[lang].flag}</span>
+                      <span>{languageLabels[lang].name}</span>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

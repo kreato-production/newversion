@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Eye, EyeOff, LogIn, Zap } from 'lucide-react';
+import { LanguageSelector } from '@/components/shared/LanguageSelector';
 import kreatoLogo from '@/assets/kreato-logo.png';
 
 const Login = () => {
@@ -16,6 +18,7 @@ const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
   const { login } = useAuth();
+  const { t } = useLanguage();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -32,7 +35,7 @@ const Login = () => {
       if (success) {
         navigate('/dashboard');
       } else {
-        setError('Usuário ou senha inválidos');
+        setError(t('login.error'));
       }
       setIsLoading(false);
     }, 500);
@@ -40,6 +43,14 @@ const Login = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-4 overflow-hidden">
+      {/* Language Selector - Top Right */}
+      <div className="absolute top-4 right-4 z-50">
+        <LanguageSelector 
+          variant="ghost" 
+          className="text-slate-400 hover:text-white hover:bg-slate-800"
+        />
+      </div>
+
       {/* Animated Grid Background */}
       <div className="absolute inset-0 bg-[linear-gradient(rgba(6,182,212,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(6,182,212,0.03)_1px,transparent_1px)] bg-[size:50px_50px] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_0%,#000_70%,transparent_110%)]" />
       
@@ -98,11 +109,11 @@ const Login = () => {
             
             <div className={`space-y-2 transition-all duration-700 delay-500 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
               <CardTitle className="text-2xl font-bold bg-gradient-to-r from-white via-kreato-cyan to-white bg-clip-text text-transparent">
-                Bem-vindo ao Kreato
+                {t('login.welcome')}
               </CardTitle>
               <CardDescription className="text-slate-400 flex items-center justify-center gap-2">
                 <Zap size={14} className="text-kreato-cyan animate-pulse" />
-                Sistema de Gestão de Produção
+                {t('login.subtitle')}
                 <Zap size={14} className="text-kreato-orange animate-pulse" />
               </CardDescription>
             </div>
@@ -112,14 +123,14 @@ const Login = () => {
             <form onSubmit={handleSubmit} className="space-y-5">
               <div className="space-y-2">
                 <Label htmlFor="usuario" className="text-slate-300 text-sm font-medium">
-                  Usuário
+                  {t('login.user')}
                 </Label>
                 <div className="relative group">
                   <div className="absolute -inset-[1px] bg-gradient-to-r from-kreato-cyan/0 via-kreato-cyan/50 to-kreato-cyan/0 rounded-md opacity-0 group-focus-within:opacity-100 transition-opacity duration-300 blur-sm" />
                   <Input
                     id="usuario"
                     type="text"
-                    placeholder="Digite seu usuário"
+                    placeholder={t('login.user.placeholder')}
                     value={usuario}
                     onChange={(e) => setUsuario(e.target.value)}
                     required
@@ -130,14 +141,14 @@ const Login = () => {
               
               <div className="space-y-2">
                 <Label htmlFor="senha" className="text-slate-300 text-sm font-medium">
-                  Senha
+                  {t('login.password')}
                 </Label>
                 <div className="relative group">
                   <div className="absolute -inset-[1px] bg-gradient-to-r from-kreato-cyan/0 via-kreato-cyan/50 to-kreato-cyan/0 rounded-md opacity-0 group-focus-within:opacity-100 transition-opacity duration-300 blur-sm" />
                   <Input
                     id="senha"
                     type={showPassword ? 'text' : 'password'}
-                    placeholder="Digite sua senha"
+                    placeholder={t('login.password.placeholder')}
                     value={senha}
                     onChange={(e) => setSenha(e.target.value)}
                     required
@@ -173,12 +184,12 @@ const Login = () => {
                 {isLoading ? (
                   <span className="flex items-center gap-2 relative z-10">
                     <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    Entrando...
+                    {t('login.loading')}
                   </span>
                 ) : (
                   <span className="flex items-center gap-2 relative z-10">
                     <LogIn size={18} />
-                    Entrar no Sistema
+                    {t('login.submit')}
                   </span>
                 )}
               </Button>
@@ -187,7 +198,7 @@ const Login = () => {
             <div className={`mt-6 pt-4 border-t border-slate-700/50 transition-all duration-700 delay-1000 ${mounted ? 'opacity-100' : 'opacity-0'}`}>
               <p className="text-xs text-slate-500 text-center flex items-center justify-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                Acesso inicial: Admin / kreato
+                {t('login.hint')}
               </p>
             </div>
           </CardContent>
