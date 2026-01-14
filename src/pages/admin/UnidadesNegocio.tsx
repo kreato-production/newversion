@@ -4,6 +4,7 @@ import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared
 import { SortableTable, Column } from '@/components/shared/SortableTable';
 import { Edit, Trash2, Building2, ImageIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { UnidadeNegocioFormModal } from '@/components/admin/UnidadeNegocioFormModal';
 
 export interface UnidadeNegocio {
@@ -20,6 +21,7 @@ const STORAGE_KEY = 'kreato_unidades_negocio';
 
 const UnidadesNegocio = () => {
   const { toast } = useToast();
+  const { t } = useLanguage();
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<UnidadeNegocio | null>(null);
@@ -37,18 +39,18 @@ const UnidadesNegocio = () => {
     if (editingItem) {
       const updated = items.map((item) => (item.id === data.id ? data : item));
       saveToStorage(updated);
-      toast({ title: 'Sucesso', description: 'Unidade de Negócio atualizada com sucesso!' });
+      toast({ title: t('common.success'), description: t('businessUnits.updated') });
     } else {
       saveToStorage([...items, data]);
-      toast({ title: 'Sucesso', description: 'Unidade de Negócio cadastrada com sucesso!' });
+      toast({ title: t('common.success'), description: t('businessUnits.saved') });
     }
     setEditingItem(null);
   };
 
   const handleDelete = (id: string) => {
-    if (confirm('Deseja realmente excluir esta unidade de negócio?')) {
+    if (confirm(t('common.confirm.delete'))) {
       saveToStorage(items.filter((item) => item.id !== id));
-      toast({ title: 'Excluído', description: 'Unidade de Negócio removida com sucesso!' });
+      toast({ title: t('common.success'), description: t('businessUnits.deleted') });
     }
   };
 
@@ -66,7 +68,7 @@ const UnidadesNegocio = () => {
   const columns: Column<UnidadeNegocio & { actions?: never }>[] = [
     {
       key: 'imagem',
-      label: 'Logo',
+      label: t('common.logo'),
       className: 'w-16',
       sortable: false,
       render: (item) => (
@@ -85,18 +87,18 @@ const UnidadesNegocio = () => {
     },
     {
       key: 'codigoExterno',
-      label: 'Código',
+      label: t('common.code'),
       className: 'w-24',
       render: (item) => <span className="font-mono text-sm">{item.codigoExterno || '-'}</span>,
     },
     {
       key: 'nome',
-      label: 'Nome',
+      label: t('common.name'),
       render: (item) => <span className="font-medium">{item.nome}</span>,
     },
     {
       key: 'descricao',
-      label: 'Descrição',
+      label: t('common.description'),
       className: 'hidden md:table-cell',
       render: (item) => (
         <span className="text-muted-foreground max-w-xs truncate block">{item.descricao || '-'}</span>
@@ -104,17 +106,17 @@ const UnidadesNegocio = () => {
     },
     {
       key: 'dataCadastro',
-      label: 'Data Cadastro',
+      label: t('common.registrationDate'),
       className: 'w-32',
     },
     {
       key: 'usuarioCadastro',
-      label: 'Usuário',
+      label: t('common.user'),
       className: 'w-32',
     },
     {
       key: 'actions',
-      label: 'Ações',
+      label: t('common.actions'),
       className: 'w-24 text-right',
       sortable: false,
       render: (item) => (
@@ -138,25 +140,25 @@ const UnidadesNegocio = () => {
   return (
     <div>
       <PageHeader
-        title="Unidades de Negócio"
-        description="Gerencie as unidades de negócio da organização"
+        title={t('businessUnits.title')}
+        description={t('businessUnits.description')}
         onAdd={() => {
           setEditingItem(null);
           setIsModalOpen(true);
         }}
-        addLabel="Nova Unidade de Negócio"
+        addLabel={t('businessUnits.new')}
       >
-        <SearchBar value={search} onChange={setSearch} />
+        <SearchBar value={search} onChange={setSearch} placeholder={t('common.search')} />
       </PageHeader>
 
       <DataCard>
         {filteredItems.length === 0 ? (
           <EmptyState
-            title="Nenhuma unidade de negócio cadastrada"
-            description="Comece adicionando unidades de negócio para organizar seu sistema."
+            title={t('businessUnits.empty')}
+            description={t('businessUnits.emptyDescription')}
             icon={Building2}
             onAction={() => setIsModalOpen(true)}
-            actionLabel="Adicionar Unidade de Negócio"
+            actionLabel={t('common.add')}
           />
         ) : (
           <SortableTable
