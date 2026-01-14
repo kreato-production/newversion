@@ -1,9 +1,9 @@
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Video, Users, Building2, Calendar, TrendingUp, Clock, Clapperboard, Wrench, MapPin } from 'lucide-react';
 import { useMemo } from 'react';
-import { format, isAfter, isBefore, addDays, parseISO, startOfWeek, endOfWeek } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { isAfter, isBefore, addDays, parseISO, startOfWeek, endOfWeek } from 'date-fns';
 
 const StatCard = ({
   title,
@@ -54,6 +54,7 @@ interface Gravacao {
 
 const Dashboard = () => {
   const { user } = useAuth();
+  const { t } = useLanguage();
 
   // Carregar dados reais do localStorage
   const stats = useMemo(() => {
@@ -135,39 +136,39 @@ const Dashboard = () => {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-foreground">
-          Olá, {user?.nome}!
+          {t('dashboard.hello')}, {user?.nome}!
         </h1>
         <p className="text-muted-foreground mt-1">
-          Bem-vindo ao painel de controle do Kreato
+          {t('dashboard.welcome')}
         </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
-          title="Gravações"
+          title={t('dashboard.recordings')}
           value={stats.gravacoes}
-          description={`${stats.gravacoesAtivas} ativas no momento`}
+          description={`${stats.gravacoesAtivas} ${t('common.activeNow')}`}
           icon={Video}
           gradient="gradient-primary"
         />
         <StatCard
-          title="Conteúdos"
+          title={t('dashboard.contents')}
           value={stats.conteudos}
-          description="Cadastrados no sistema"
+          description={t('common.inSystem')}
           icon={Clapperboard}
           gradient="gradient-brand"
         />
         <StatCard
-          title="Recursos Humanos"
+          title={t('dashboard.humanResources')}
           value={stats.recursosHumanos}
-          description="Colaboradores ativos"
+          description={t('common.activeCollaborators')}
           icon={Users}
           gradient="gradient-accent"
         />
         <StatCard
-          title="Unidades de Negócio"
+          title={t('dashboard.businessUnits')}
           value={stats.unidades}
-          description="Cadastradas"
+          description={t('common.registered')}
           icon={Building2}
           gradient="gradient-primary"
         />
@@ -175,23 +176,23 @@ const Dashboard = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <StatCard
-          title="Recursos Técnicos"
+          title={t('dashboard.technicalResources')}
           value={stats.recursosTecnicos}
-          description="Equipamentos cadastrados"
+          description={t('common.registeredEquipment')}
           icon={Wrench}
           gradient="gradient-brand"
         />
         <StatCard
-          title="Recursos Físicos"
+          title={t('dashboard.physicalResources')}
           value={stats.recursosFisicos}
-          description="Locais/espaços"
+          description={t('common.locationsSpaces')}
           icon={MapPin}
           gradient="gradient-accent"
         />
         <StatCard
-          title="Fornecedores"
+          title={t('dashboard.suppliers')}
           value={stats.fornecedores}
-          description="Parceiros cadastrados"
+          description={t('common.registeredPartners')}
           icon={Building2}
           gradient="gradient-primary"
         />
@@ -202,15 +203,15 @@ const Dashboard = () => {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Clock className="w-5 h-5 text-kreato-orange" />
-              Próximas Gravações
+              {t('dashboard.upcomingRecordings')}
             </CardTitle>
-            <CardDescription>Gravações com recursos alocados esta semana</CardDescription>
+            <CardDescription>{t('dashboard.recordingsThisWeek')}</CardDescription>
           </CardHeader>
           <CardContent>
             {gravacoesSemana.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <Calendar className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                <p>Nenhuma gravação com recursos alocados esta semana</p>
+                <p>{t('dashboard.noRecordingsThisWeek')}</p>
               </div>
             ) : (
               <div className="space-y-4 max-h-80 overflow-y-auto">
@@ -228,7 +229,7 @@ const Dashboard = () => {
                       <div className="flex-1">
                         <p className="text-sm font-medium text-foreground">{gravacao.nome}</p>
                         <p className="text-xs text-muted-foreground">
-                          {totalRecursos} recurso{totalRecursos !== 1 ? 's' : ''} alocado{totalRecursos !== 1 ? 's' : ''}
+                          {totalRecursos} {t('common.allocatedResources')}
                         </p>
                       </div>
                       {gravacao.status && (
@@ -248,37 +249,37 @@ const Dashboard = () => {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <TrendingUp className="w-5 h-5 text-kreato-blue" />
-              Resumo do Sistema
+              {t('dashboard.systemSummary')}
             </CardTitle>
-            <CardDescription>Visão geral dos cadastros</CardDescription>
+            <CardDescription>{t('dashboard.registryOverview')}</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
               <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                 <div className="flex items-center gap-3">
                   <Video className="w-5 h-5 text-kreato-blue" />
-                  <span className="text-sm font-medium">Total de Gravações</span>
+                  <span className="text-sm font-medium">{t('dashboard.totalRecordings')}</span>
                 </div>
                 <span className="text-lg font-bold">{stats.gravacoes}</span>
               </div>
               <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                 <div className="flex items-center gap-3">
                   <Clapperboard className="w-5 h-5 text-kreato-purple" />
-                  <span className="text-sm font-medium">Total de Conteúdos</span>
+                  <span className="text-sm font-medium">{t('dashboard.totalContents')}</span>
                 </div>
                 <span className="text-lg font-bold">{stats.conteudos}</span>
               </div>
               <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                 <div className="flex items-center gap-3">
                   <Users className="w-5 h-5 text-kreato-orange" />
-                  <span className="text-sm font-medium">Recursos Humanos</span>
+                  <span className="text-sm font-medium">{t('dashboard.humanResources')}</span>
                 </div>
                 <span className="text-lg font-bold">{stats.recursosHumanos}</span>
               </div>
               <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                 <div className="flex items-center gap-3">
                   <Wrench className="w-5 h-5 text-kreato-cyan" />
-                  <span className="text-sm font-medium">Recursos Técnicos</span>
+                  <span className="text-sm font-medium">{t('dashboard.technicalResources')}</span>
                 </div>
                 <span className="text-lg font-bold">{stats.recursosTecnicos}</span>
               </div>

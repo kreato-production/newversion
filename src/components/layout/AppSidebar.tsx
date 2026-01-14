@@ -24,92 +24,94 @@ import {
   Shirt,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { cn } from '@/lib/utils';
 import kreatoLogo from '@/assets/kreato-logo.png';
 
-interface MenuItem {
-  label: string;
+interface MenuItemData {
+  labelKey: string;
   icon: React.ElementType;
   path?: string;
-  children?: MenuItem[];
+  children?: MenuItemData[];
 }
 
-const menuItems: MenuItem[] = [
+const getMenuItems = (): MenuItemData[] => [
   {
-    label: 'Dashboard',
+    labelKey: 'menu.dashboard',
     icon: LayoutDashboard,
     path: '/dashboard',
   },
   {
-    label: 'Produção',
+    labelKey: 'menu.production',
     icon: Video,
     children: [
-      { label: 'Conteúdo', icon: Film, path: '/producao/conteudo' },
-      { label: 'Gravação', icon: Video, path: '/producao/gravacao' },
-      { label: 'Mapas', icon: Map, path: '/producao/mapas' },
+      { labelKey: 'menu.content', icon: Film, path: '/producao/conteudo' },
+      { labelKey: 'menu.recordings', icon: Video, path: '/producao/gravacao' },
+      { labelKey: 'menu.maps', icon: Map, path: '/producao/mapas' },
       {
-        label: 'Parametrizações',
+        labelKey: 'menu.parameters',
         icon: Settings,
         children: [
-          { label: 'Tipos de Gravação', icon: Settings, path: '/producao/tipos-gravacao' },
-          { label: 'Classificação', icon: Settings, path: '/producao/classificacao' },
-          { label: 'Status de Gravação', icon: Settings, path: '/producao/status' },
+          { labelKey: 'menu.recordingTypes', icon: Settings, path: '/producao/tipos-gravacao' },
+          { labelKey: 'menu.classification', icon: Settings, path: '/producao/classificacao' },
+          { labelKey: 'menu.recordingStatus', icon: Settings, path: '/producao/status' },
         ],
       },
     ],
   },
   {
-    label: 'Recursos',
+    labelKey: 'menu.resources',
     icon: Users,
     children: [
-      { label: 'Recursos Humanos', icon: Users, path: '/recursos/humanos' },
-      { label: 'Recursos Técnicos', icon: Wrench, path: '/recursos/tecnicos' },
-      { label: 'Recursos Físicos', icon: MapPin, path: '/recursos/fisicos' },
-      { label: 'Fornecedores', icon: Truck, path: '/recursos/fornecedores' },
-      { label: 'Pessoas', icon: Contact, path: '/recursos/pessoas' },
-      { label: 'Figurinos', icon: Shirt, path: '/recursos/figurinos' },
+      { labelKey: 'menu.humanResources', icon: Users, path: '/recursos/humanos' },
+      { labelKey: 'menu.technicalResources', icon: Wrench, path: '/recursos/tecnicos' },
+      { labelKey: 'menu.physicalResources', icon: MapPin, path: '/recursos/fisicos' },
+      { labelKey: 'menu.suppliers', icon: Truck, path: '/recursos/fornecedores' },
+      { labelKey: 'menu.people', icon: Contact, path: '/recursos/pessoas' },
+      { labelKey: 'menu.costumes', icon: Shirt, path: '/recursos/figurinos' },
       {
-        label: 'Parametrizações',
+        labelKey: 'menu.parameters',
         icon: FolderCog,
         children: [
-          { label: 'Cargos', icon: Briefcase, path: '/recursos/cargos' },
-          { label: 'Departamentos', icon: Building2, path: '/recursos/departamentos' },
-          { label: 'Funções', icon: Settings, path: '/recursos/funcoes' },
-          { label: 'Serviços', icon: Settings, path: '/recursos/servicos' },
-          { label: 'Categoria de Fornecedores', icon: Settings, path: '/recursos/categoria-fornecedores' },
-          { label: 'Classificação Pessoas', icon: Tag, path: '/recursos/classificacao-pessoas' },
-          { label: 'Tipo Figurino', icon: Shirt, path: '/recursos/tipo-figurino' },
-          { label: 'Material', icon: Settings, path: '/recursos/material' },
+          { labelKey: 'menu.positions', icon: Briefcase, path: '/recursos/cargos' },
+          { labelKey: 'menu.departments', icon: Building2, path: '/recursos/departamentos' },
+          { labelKey: 'menu.functions', icon: Settings, path: '/recursos/funcoes' },
+          { labelKey: 'menu.services', icon: Settings, path: '/recursos/servicos' },
+          { labelKey: 'menu.supplierCategory', icon: Settings, path: '/recursos/categoria-fornecedores' },
+          { labelKey: 'menu.peopleClassification', icon: Tag, path: '/recursos/classificacao-pessoas' },
+          { labelKey: 'menu.costumeType', icon: Shirt, path: '/recursos/tipo-figurino' },
+          { labelKey: 'menu.material', icon: Settings, path: '/recursos/material' },
         ],
       },
     ],
   },
   {
-    label: 'Administração',
+    labelKey: 'menu.admin',
     icon: Building2,
     children: [
-      { label: 'Unidade de Negócio', icon: Building2, path: '/admin/unidades' },
-      { label: 'Centro de Lucro', icon: Landmark, path: '/admin/centros-lucro' },
-      { label: 'Usuários', icon: UserCog, path: '/admin/usuarios' },
-      { label: 'Perfil de Acesso', icon: Shield, path: '/admin/perfis' },
+      { labelKey: 'menu.businessUnits', icon: Building2, path: '/admin/unidades' },
+      { labelKey: 'menu.profitCenters', icon: Landmark, path: '/admin/centros-lucro' },
+      { labelKey: 'menu.users', icon: UserCog, path: '/admin/usuarios' },
+      { labelKey: 'menu.accessProfiles', icon: Shield, path: '/admin/perfis' },
     ],
   },
 ];
 
-const MenuItem = ({
+const MenuItemComponent = ({
   item,
   level = 0,
 }: {
-  item: MenuItem;
+  item: MenuItemData;
   level?: number;
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
+  const { t } = useLanguage();
   const hasChildren = item.children && item.children.length > 0;
   const isActive = item.path === location.pathname;
   const Icon = item.icon;
 
-  const isChildActive = (items: MenuItem[]): boolean => {
+  const isChildActive = (items: MenuItemData[]): boolean => {
     return items.some((child) => {
       if (child.path === location.pathname) return true;
       if (child.children) return isChildActive(child.children);
@@ -133,7 +135,7 @@ const MenuItem = ({
           style={{ paddingLeft: `${12 + level * 16}px` }}
         >
           <Icon size={level === 0 ? 20 : 16} className="shrink-0" />
-          <span className="flex-1 text-left font-medium">{item.label}</span>
+          <span className="flex-1 text-left font-medium">{t(item.labelKey)}</span>
           {isOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
         </button>
       ) : (
@@ -148,14 +150,14 @@ const MenuItem = ({
           style={{ paddingLeft: `${12 + level * 16}px` }}
         >
           <Icon size={level === 0 ? 20 : 16} className="shrink-0" />
-          <span className="font-medium">{item.label}</span>
+          <span className="font-medium">{t(item.labelKey)}</span>
         </Link>
       )}
       
       {hasChildren && isOpen && (
         <div className="mt-1 space-y-1">
           {item.children?.map((child, idx) => (
-            <MenuItem key={idx} item={child} level={level + 1} />
+            <MenuItemComponent key={idx} item={child} level={level + 1} />
           ))}
         </div>
       )}
@@ -165,6 +167,8 @@ const MenuItem = ({
 
 const AppSidebar = () => {
   const { user, logout } = useAuth();
+  const { t } = useLanguage();
+  const menuItems = getMenuItems();
 
   return (
     <aside className="w-64 h-screen bg-sidebar flex flex-col border-r border-sidebar-border">
@@ -174,7 +178,7 @@ const AppSidebar = () => {
 
       <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
         {menuItems.map((item, idx) => (
-          <MenuItem key={idx} item={item} />
+          <MenuItemComponent key={idx} item={item} />
         ))}
       </nav>
 
@@ -190,7 +194,7 @@ const AppSidebar = () => {
           <button
             onClick={logout}
             className="p-2 hover:bg-sidebar-accent rounded-lg transition-colors"
-            title="Sair"
+            title={t('menu.logout')}
           >
             <LogOut size={18} />
           </button>
