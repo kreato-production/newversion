@@ -56,11 +56,17 @@ export const ConteudoFormModal = ({
     descricao: '',
     quantidadeEpisodios: '',
     centroLucro: '',
+    unidadeNegocio: '',
+    tipoConteudo: '',
+    classificacao: '',
     anoProducao: '',
     sinopse: '',
   });
 
   const [centrosLucro, setCentrosLucro] = useState<{ id: string; nome: string; parentId: string | null; status: string }[]>([]);
+  const [unidades, setUnidades] = useState<{ id: string; nome: string }[]>([]);
+  const [tipos, setTipos] = useState<{ id: string; nome: string }[]>([]);
+  const [classificacoes, setClassificacoes] = useState<{ id: string; nome: string }[]>([]);
   const [gravacoes, setGravacoes] = useState<Gravacao[]>([]);
   const [statusList, setStatusList] = useState<{ id: string; nome: string; cor: string }[]>([]);
 
@@ -89,8 +95,15 @@ export const ConteudoFormModal = ({
     const loadOptions = () => {
       const storedCentrosLucro = localStorage.getItem('kreato_centros_lucro');
       const storedStatus = localStorage.getItem('kreato_status_gravacao');
+      const storedUnidades = localStorage.getItem('kreato_unidades_negocio');
+      const storedTipos = localStorage.getItem('kreato_tipos_gravacao');
+      const storedClassificacoes = localStorage.getItem('kreato_classificacao');
+      
       setCentrosLucro(storedCentrosLucro ? JSON.parse(storedCentrosLucro).filter((cl: { status: string }) => cl.status === 'Ativo') : []);
       setStatusList(storedStatus ? JSON.parse(storedStatus) : []);
+      setUnidades(storedUnidades ? JSON.parse(storedUnidades) : []);
+      setTipos(storedTipos ? JSON.parse(storedTipos) : []);
+      setClassificacoes(storedClassificacoes ? JSON.parse(storedClassificacoes) : []);
     };
 
     if (isOpen) {
@@ -107,6 +120,9 @@ export const ConteudoFormModal = ({
         descricao: data.descricao || '',
         quantidadeEpisodios: String(data.quantidadeEpisodios || ''),
         centroLucro: data.centroLucro || '',
+        unidadeNegocio: data.unidadeNegocio || '',
+        tipoConteudo: data.tipoConteudo || '',
+        classificacao: data.classificacao || '',
         anoProducao: data.anoProducao || '',
         sinopse: data.sinopse || '',
       });
@@ -118,6 +134,9 @@ export const ConteudoFormModal = ({
         descricao: '',
         quantidadeEpisodios: '',
         centroLucro: '',
+        unidadeNegocio: '',
+        tipoConteudo: '',
+        classificacao: '',
         anoProducao: '',
         sinopse: '',
       });
@@ -146,6 +165,9 @@ export const ConteudoFormModal = ({
       descricao: formData.descricao,
       quantidadeEpisodios: parseInt(formData.quantidadeEpisodios) || 0,
       centroLucro: formData.centroLucro,
+      unidadeNegocio: formData.unidadeNegocio,
+      tipoConteudo: formData.tipoConteudo,
+      classificacao: formData.classificacao,
       anoProducao: formData.anoProducao,
       sinopse: formData.sinopse,
       usuarioCadastro: data?.usuarioCadastro || user?.nome || 'Admin',
@@ -205,10 +227,10 @@ export const ConteudoFormModal = ({
           codigo: novoCodigo,
           codigoExterno: '',
           nome: `${formData.descricao} - Episódio ${i}`,
-          unidadeNegocio: '',
+          unidadeNegocio: formData.unidadeNegocio,
           centroLucro: formData.centroLucro,
-          classificacao: '',
-          tipoConteudo: '',
+          classificacao: formData.classificacao,
+          tipoConteudo: formData.tipoConteudo,
           descricao: '',
           status: '',
           dataPrevista: '',
@@ -288,6 +310,22 @@ export const ConteudoFormModal = ({
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
+              <Label>Unidade de Negócio</Label>
+              <Select
+                value={formData.unidadeNegocio}
+                onValueChange={(value) => setFormData({ ...formData, unidadeNegocio: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {unidades.map((u) => (
+                    <SelectItem key={u.id} value={u.nome}>{u.nome}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
               <Label>Centro de Lucro</Label>
               <Select
                 value={formData.centroLucro}
@@ -301,6 +339,41 @@ export const ConteudoFormModal = ({
                     <SelectItem key={cl.id} value={cl.nome}>
                       <span className="font-mono whitespace-pre">{cl.displayName}</span>
                     </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label>Tipo de Conteúdo</Label>
+              <Select
+                value={formData.tipoConteudo}
+                onValueChange={(value) => setFormData({ ...formData, tipoConteudo: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {tipos.map((t) => (
+                    <SelectItem key={t.id} value={t.nome}>{t.nome}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Classificação</Label>
+              <Select
+                value={formData.classificacao}
+                onValueChange={(value) => setFormData({ ...formData, classificacao: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {classificacoes.map((c) => (
+                    <SelectItem key={c.id} value={c.nome}>{c.nome}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>

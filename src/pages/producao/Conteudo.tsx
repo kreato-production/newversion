@@ -12,6 +12,9 @@ export interface Conteudo {
   descricao: string;
   quantidadeEpisodios: number;
   centroLucro: string;
+  unidadeNegocio: string;
+  tipoConteudo: string;
+  classificacao: string;
   anoProducao: string;
   sinopse: string;
   usuarioCadastro: string;
