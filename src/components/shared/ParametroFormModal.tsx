@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -30,6 +30,12 @@ interface ParametroFormModalProps {
   data?: ParametroFormData | null;
 }
 
+const emptyFormData: ParametroFormData = {
+  codigoExterno: '',
+  nome: '',
+  descricao: '',
+};
+
 export const ParametroFormModal = ({
   isOpen,
   onClose,
@@ -38,13 +44,14 @@ export const ParametroFormModal = ({
   data,
 }: ParametroFormModalProps) => {
   const { user } = useAuth();
-  const [formData, setFormData] = useState<ParametroFormData>(
-    data || {
-      codigoExterno: '',
-      nome: '',
-      descricao: '',
+  const [formData, setFormData] = useState<ParametroFormData>(emptyFormData);
+
+  // Reset form data when modal opens or data changes
+  useEffect(() => {
+    if (isOpen) {
+      setFormData(data ? { ...data } : { ...emptyFormData });
     }
-  );
+  }, [isOpen, data]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
