@@ -228,6 +228,19 @@ const Mapas = () => {
     return matchFuncao && matchNome;
   });
 
+  // Agrupar recursos humanos por cargo
+  const recursosHumanosAgrupados = useMemo(() => {
+    const grupos: Record<string, RecursoHumano[]> = {};
+    filteredRecursosHumanos.forEach((r) => {
+      const grupo = r.cargo || r.funcao || 'Sem cargo';
+      if (!grupos[grupo]) {
+        grupos[grupo] = [];
+      }
+      grupos[grupo].push(r);
+    });
+    return grupos;
+  }, [filteredRecursosHumanos]);
+
   const renderWeekNavigator = () => (
     <div className="flex items-center gap-2">
       <Button variant="outline" size="icon" onClick={handlePrevWeek}>
@@ -312,6 +325,88 @@ const Mapas = () => {
       </Table>
     </div>
   );
+
+  const renderOcupacaoMatrizAgrupada = (
+    grupos: Record<string, RecursoHumano[]>,
+    ocupacoes: Record<string, Record<string, OcupacaoItem[]>>,
+    emptyMessage: string
+  ) => {
+    const grupoKeys = Object.keys(grupos).sort();
+    
+    if (grupoKeys.length === 0) {
+      return (
+        <div className="text-center text-muted-foreground py-8">
+          {emptyMessage}
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-6">
+        {grupoKeys.map((grupo) => (
+          <div key={grupo}>
+            <div className="flex items-center gap-2 mb-2">
+              <Users className="h-4 w-4 text-muted-foreground" />
+              <h4 className="text-sm font-semibold text-foreground">{grupo}</h4>
+              <span className="text-xs text-muted-foreground">({grupos[grupo].length})</span>
+            </div>
+            <div className="overflow-x-auto border rounded-lg">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="sticky left-0 bg-background z-10 min-w-[180px]">Colaborador</TableHead>
+                    {weekDays.map((day) => (
+                      <TableHead key={day.toISOString()} className="text-center min-w-[140px]">
+                        <div className="flex flex-col">
+                          <span className="text-xs text-muted-foreground">
+                            {format(day, 'EEEE', { locale: ptBR })}
+                          </span>
+                          <span className="font-semibold">{format(day, 'dd/MM')}</span>
+                        </div>
+                      </TableHead>
+                    ))}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {grupos[grupo].map((recurso) => (
+                    <TableRow key={recurso.id}>
+                      <TableCell className="sticky left-0 bg-background z-10 font-medium">
+                        {recurso.nome}
+                      </TableCell>
+                      {weekDays.map((day) => {
+                        const ocupacoesDia = getOcupacaoCelula(ocupacoes, recurso.id, day);
+                        return (
+                          <TableCell key={day.toISOString()} className="text-center p-1">
+                            {ocupacoesDia.length > 0 ? (
+                              <div className="flex flex-col gap-1">
+                                {ocupacoesDia.map((oc, idx) => (
+                                  <div
+                                    key={idx}
+                                    className="bg-primary/10 border border-primary/30 rounded p-1.5 text-xs"
+                                  >
+                                    <div className="font-medium text-primary truncate" title={oc.gravacao}>
+                                      {oc.gravacao}
+                                    </div>
+                                    <div className="text-muted-foreground">{oc.horario}</div>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground/50">-</span>
+                            )}
+                          </TableCell>
+                        );
+                      })}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
 
   return (
     <div className="p-6">
@@ -460,8 +555,8 @@ const Mapas = () => {
 
           <Card>
             <CardContent className="p-4">
-              {renderOcupacaoMatriz(
-                filteredRecursosHumanos,
+              {renderOcupacaoMatrizAgrupada(
+                recursosHumanosAgrupados,
                 ocupacoesHumanas,
                 'Nenhum recurso humano encontrado. Cadastre colaboradores e aloque-os em recursos técnicos das gravações.'
               )}
