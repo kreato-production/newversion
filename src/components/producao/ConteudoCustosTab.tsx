@@ -99,14 +99,7 @@ export const ConteudoCustosTab = ({ conteudoId }: ConteudoCustosTabProps) => {
     // Carregar gravações do conteúdo
     const storedGravacoes = localStorage.getItem('kreato_gravacoes');
     const allGravacoes: Gravacao[] = storedGravacoes ? JSON.parse(storedGravacoes) : [];
-    
-    console.log('ConteudoCustosTab - conteudoId:', conteudoId);
-    console.log('ConteudoCustosTab - allGravacoes:', allGravacoes);
-    console.log('ConteudoCustosTab - gravações com conteudoId:', allGravacoes.map(g => ({ id: g.id, nome: g.nome, conteudoId: g.conteudoId })));
-    
     const gravacoesDoConteudo = allGravacoes.filter((g) => g.conteudoId === conteudoId);
-    console.log('ConteudoCustosTab - gravacoesDoConteudo:', gravacoesDoConteudo);
-    
     setGravacoes(gravacoesDoConteudo);
 
     // Carregar cadastro de recursos humanos

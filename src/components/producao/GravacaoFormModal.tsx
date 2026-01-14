@@ -60,6 +60,7 @@ export const GravacaoFormModal = ({
     tipoConteudo: '',
     descricao: '',
     status: '',
+    conteudoId: '',
   });
 
   const [unidades, setUnidades] = useState<{ id: string; nome: string }[]>([]);
@@ -88,6 +89,7 @@ export const GravacaoFormModal = ({
   const [classificacoes, setClassificacoes] = useState<{ id: string; nome: string }[]>([]);
   const [tipos, setTipos] = useState<{ id: string; nome: string }[]>([]);
   const [statusList, setStatusList] = useState<{ id: string; nome: string }[]>([]);
+  const [conteudos, setConteudos] = useState<{ id: string; descricao: string }[]>([]);
 
   useEffect(() => {
     const loadOptions = () => {
@@ -96,12 +98,14 @@ export const GravacaoFormModal = ({
       const storedClassificacoes = localStorage.getItem('kreato_classificacao');
       const storedTipos = localStorage.getItem('kreato_tipos_gravacao');
       const storedStatus = localStorage.getItem('kreato_status_gravacao');
+      const storedConteudos = localStorage.getItem('kreato_conteudos');
 
       setUnidades(storedUnidades ? JSON.parse(storedUnidades) : []);
       setCentrosLucro(storedCentrosLucro ? JSON.parse(storedCentrosLucro).filter((cl: { status: string }) => cl.status === 'Ativo') : []);
       setClassificacoes(storedClassificacoes ? JSON.parse(storedClassificacoes) : []);
       setTipos(storedTipos ? JSON.parse(storedTipos) : []);
       setStatusList(storedStatus ? JSON.parse(storedStatus) : []);
+      setConteudos(storedConteudos ? JSON.parse(storedConteudos) : []);
     };
 
     if (isOpen) {
@@ -123,6 +127,7 @@ export const GravacaoFormModal = ({
         tipoConteudo: data.tipoConteudo || '',
         descricao: data.descricao || '',
         status: data.status || '',
+        conteudoId: data.conteudoId || '',
       });
       // Converter string de data para Date
       if (data.dataPrevista) {
@@ -148,6 +153,7 @@ export const GravacaoFormModal = ({
         tipoConteudo: '',
         descricao: '',
         status: '',
+        conteudoId: '',
       });
       setDataPrevista(undefined);
     }
@@ -271,7 +277,7 @@ export const GravacaoFormModal = ({
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-4 gap-4">
                 <div className="space-y-2">
                   <Label>Classificação</Label>
                   <Select
@@ -300,6 +306,23 @@ export const GravacaoFormModal = ({
                     <SelectContent>
                       {statusList.map((s) => (
                         <SelectItem key={s.id} value={s.nome}>{s.nome}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Conteúdo</Label>
+                  <Select
+                    value={formData.conteudoId}
+                    onValueChange={(value) => setFormData({ ...formData, conteudoId: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Nenhum</SelectItem>
+                      {conteudos.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>{c.descricao}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
