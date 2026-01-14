@@ -10,8 +10,6 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Calendar, ChevronLeft, ChevronRight, Filter, MapPin, Users, CalendarDays, CalendarRange, FileDown, Loader2 } from 'lucide-react';
 import { format, addDays, startOfWeek, addWeeks, subWeeks, startOfMonth, endOfMonth, addMonths, subMonths, eachDayOfInterval, getDay, isSameMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import html2canvas from 'html2canvas';
-import jsPDF from 'jspdf';
 
 interface RecursoHumanoAlocado {
   id: string;
@@ -277,54 +275,77 @@ const Mapas = () => {
     return grupos;
   }, [filteredRecursosHumanos]);
 
-  // Função para exportar para PDF
-  const handleExportPDF = async () => {
+  // Exportar a vista atual via impressão (o usuário escolhe "Salvar como PDF")
+  const handleExportPDF = () => {
     setIsExporting(true);
     try {
       const targetRef = activeTab === 'fisicos' ? fisicosRef.current : humanosRef.current;
       if (!targetRef) return;
 
-      const canvas = await html2canvas(targetRef, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        backgroundColor: '#ffffff',
-      });
+      const titulo =
+        activeTab === 'fisicos'
+          ? 'Mapa de Ocupação - Recursos Físicos'
+          : 'Mapa de Ocupação - Recursos Humanos';
 
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF({
-        orientation: 'landscape',
-        unit: 'mm',
-        format: 'a4',
-      });
+      const periodo =
+        viewMode === 'week'
+          ? `${format(currentWeekStart, 'dd/MM/yyyy')} - ${format(addDays(currentWeekStart, 6), 'dd/MM/yyyy')}`
+          : format(currentMonth, "MMMM 'de' yyyy", { locale: ptBR });
 
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = pdf.internal.pageSize.getHeight();
-      const imgWidth = canvas.width;
-      const imgHeight = canvas.height;
-      const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
-      const imgX = (pdfWidth - imgWidth * ratio) / 2;
-      const imgY = 10;
+      // Reutilizar os mesmos estilos do app no documento de impressão
+      const stylesheetLinks = Array.from(
+        document.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"]')
+      )
+        .map((l) => `<link rel="stylesheet" href="${l.href}">`)
+        .join('\n');
 
-      // Adicionar título
-      const titulo = activeTab === 'fisicos' ? 'Mapa de Ocupação - Recursos Físicos' : 'Mapa de Ocupação - Recursos Humanos';
-      const periodo = viewMode === 'week'
-        ? `${format(currentWeekStart, "dd/MM/yyyy")} - ${format(addDays(currentWeekStart, 6), "dd/MM/yyyy")}`
-        : format(currentMonth, "MMMM 'de' yyyy", { locale: ptBR });
-      
-      pdf.setFontSize(16);
-      pdf.text(titulo, pdfWidth / 2, 8, { align: 'center' });
-      pdf.setFontSize(10);
-      pdf.text(`Período: ${periodo}`, pdfWidth / 2, 14, { align: 'center' });
+      const styleTags = Array.from(document.querySelectorAll<HTMLStyleElement>('style'))
+        .map((s) => `<style>${s.innerHTML}</style>`)
+        .join('\n');
 
-      pdf.addImage(imgData, 'PNG', imgX, 20, imgWidth * ratio, imgHeight * ratio);
-      
-      const fileName = `mapa-ocupacao-${activeTab}-${format(new Date(), 'yyyy-MM-dd')}.pdf`;
-      pdf.save(fileName);
-    } catch (error) {
-      console.error('Erro ao exportar PDF:', error);
+      const printWindow = window.open('', '_blank', 'noopener,noreferrer,width=1280,height=720');
+      if (!printWindow) return;
+
+      printWindow.document.open();
+      printWindow.document.write(`
+        <!doctype html>
+        <html lang="pt-BR">
+          <head>
+            <meta charset="utf-8" />
+            <meta name="viewport" content="width=device-width, initial-scale=1" />
+            <title>${titulo}</title>
+            ${stylesheetLinks}
+            ${styleTags}
+            <style>
+              @page { size: A4 landscape; margin: 12mm; }
+              body { background: white !important; }
+              /* Evitar cortes por overflow */
+              .overflow-x-auto { overflow: visible !important; }
+              /* Não imprimir portais (dropdowns/dialogs) caso existam */
+              [data-radix-portal] { display: none !important; }
+            </style>
+          </head>
+          <body>
+            <div style="padding: 16px">
+              <h1 style="text-align:center;font-size:18px;margin:0">${titulo}</h1>
+              <div style="text-align:center;font-size:12px;margin:4px 0 12px;color:#444">
+                Período: ${periodo}
+              </div>
+              ${targetRef.innerHTML}
+            </div>
+            <script>
+              window.onload = () => {
+                window.focus();
+                window.print();
+              };
+            </script>
+          </body>
+        </html>
+      `);
+      printWindow.document.close();
     } finally {
-      setIsExporting(false);
+      // pequeno delay para não “piscar” o loading
+      window.setTimeout(() => setIsExporting(false), 400);
     }
   };
 
