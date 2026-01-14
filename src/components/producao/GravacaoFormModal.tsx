@@ -63,7 +63,28 @@ export const GravacaoFormModal = ({
   });
 
   const [unidades, setUnidades] = useState<{ id: string; nome: string }[]>([]);
-  const [centrosLucro, setCentrosLucro] = useState<{ id: string; nome: string; parentId: string | null; status: string }[]>([]);
+  const [centrosLucro, setCentrosLucro] = useState<{ id: string; nome: string; parentId: string | null; status: string; codigoExterno?: string }[]>([]);
+
+  // Função para construir a hierarquia de centros de lucro
+  const buildHierarchy = (items: typeof centrosLucro, parentId: string | null = null, level: number = 0): { id: string; nome: string; displayName: string; level: number }[] => {
+    const result: { id: string; nome: string; displayName: string; level: number }[] = [];
+    const children = items.filter(item => item.parentId === parentId);
+    
+    for (const child of children) {
+      const prefix = level > 0 ? '│ '.repeat(level - 1) + '├─ ' : '';
+      result.push({
+        id: child.id,
+        nome: child.nome,
+        displayName: `${prefix}${child.nome}`,
+        level
+      });
+      result.push(...buildHierarchy(items, child.id, level + 1));
+    }
+    
+    return result;
+  };
+
+  const centrosLucroHierarquicos = buildHierarchy(centrosLucro);
   const [classificacoes, setClassificacoes] = useState<{ id: string; nome: string }[]>([]);
   const [tipos, setTipos] = useState<{ id: string; nome: string }[]>([]);
   const [statusList, setStatusList] = useState<{ id: string; nome: string }[]>([]);
@@ -224,8 +245,10 @@ export const GravacaoFormModal = ({
                       <SelectValue placeholder="Selecione..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {centrosLucro.map((cl) => (
-                        <SelectItem key={cl.id} value={cl.nome}>{cl.nome}</SelectItem>
+                      {centrosLucroHierarquicos.map((cl) => (
+                        <SelectItem key={cl.id} value={cl.nome}>
+                          <span className="font-mono whitespace-pre">{cl.displayName}</span>
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
