@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   Table,
   TableBody,
@@ -10,10 +10,12 @@ import {
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
-import { Edit, Trash2, Users } from 'lucide-react';
+import { Edit, Trash2, Users, UserX } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { RecursoHumanoFormModal } from '@/components/recursos/RecursoHumanoFormModal';
+import { parseISO, isWithinInterval, startOfDay } from 'date-fns';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 export interface Anexo {
   id: string;
@@ -96,6 +98,18 @@ const RecursosHumanos = () => {
       item.email.toLowerCase().includes(search.toLowerCase())
   );
 
+  const hoje = useMemo(() => startOfDay(new Date()), []);
+
+  const getAusenciaHoje = (item: RecursoHumano) => {
+    if (!item.ausencias || item.ausencias.length === 0) return null;
+    
+    return item.ausencias.find((ausencia) => {
+      const inicio = startOfDay(parseISO(ausencia.dataInicio));
+      const fim = startOfDay(parseISO(ausencia.dataFim));
+      return isWithinInterval(hoje, { start: inicio, end: fim });
+    });
+  };
+
   return (
     <div>
       <PageHeader
@@ -134,18 +148,43 @@ const RecursosHumanos = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredItems.map((item) => (
-                <TableRow key={item.id}>
+              {filteredItems.map((item) => {
+                const ausenciaHoje = getAusenciaHoje(item);
+                return (
+                <TableRow key={item.id} className={ausenciaHoje ? 'opacity-60' : ''}>
                   <TableCell>
-                    <Avatar className="w-8 h-8">
-                      <AvatarImage src={item.foto} />
-                      <AvatarFallback className="text-xs gradient-brand text-primary-foreground">
-                        {item.nome.charAt(0)}{item.sobrenome.charAt(0)}
-                      </AvatarFallback>
-                    </Avatar>
+                    <div className="relative">
+                      <Avatar className="w-8 h-8">
+                        <AvatarImage src={item.foto} />
+                        <AvatarFallback className="text-xs gradient-brand text-primary-foreground">
+                          {item.nome.charAt(0)}{item.sobrenome.charAt(0)}
+                        </AvatarFallback>
+                      </Avatar>
+                      {ausenciaHoje && (
+                        <div className="absolute -top-1 -right-1 w-4 h-4 bg-amber-500 rounded-full flex items-center justify-center">
+                          <UserX className="w-2.5 h-2.5 text-white" />
+                        </div>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell className="font-medium">
-                    {item.nome} {item.sobrenome}
+                    <div className="flex items-center gap-2">
+                      {item.nome} {item.sobrenome}
+                      {ausenciaHoje && (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Badge variant="outline" className="text-xs bg-amber-500/10 text-amber-600 border-amber-500/30">
+                                {ausenciaHoje.motivo}
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Ausente hoje: {ausenciaHoje.motivo}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell>{item.email}</TableCell>
                   <TableCell>{item.departamento || '-'}</TableCell>
@@ -179,7 +218,7 @@ const RecursosHumanos = () => {
                     </div>
                   </TableCell>
                 </TableRow>
-              ))}
+              )})}
             </TableBody>
           </Table>
         )}
