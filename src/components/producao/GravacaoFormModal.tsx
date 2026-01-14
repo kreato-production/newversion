@@ -20,7 +20,7 @@ import {
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
-import type { Gravacao } from '@/pages/producao/GravacaoList';
+import { type Gravacao, generateCodigoGravacao } from '@/pages/producao/GravacaoList';
 import { RecursosTab } from './RecursosTab';
 
 interface GravacaoFormModalProps {
@@ -37,6 +37,7 @@ export const GravacaoFormModal = ({
   data,
 }: GravacaoFormModalProps) => {
   const { user } = useAuth();
+  const [codigoGerado, setCodigoGerado] = useState('');
   const [formData, setFormData] = useState({
     codigoExterno: '',
     nome: '',
@@ -72,6 +73,7 @@ export const GravacaoFormModal = ({
 
   useEffect(() => {
     if (data) {
+      setCodigoGerado(data.codigo);
       setFormData({
         codigoExterno: data.codigoExterno,
         nome: data.nome,
@@ -82,6 +84,8 @@ export const GravacaoFormModal = ({
         status: data.status,
       });
     } else {
+      // Gerar novo código para nova gravação
+      setCodigoGerado(generateCodigoGravacao());
       setFormData({
         codigoExterno: '',
         nome: '',
@@ -98,6 +102,7 @@ export const GravacaoFormModal = ({
     e.preventDefault();
     onSave({
       id: data?.id || crypto.randomUUID(),
+      codigo: codigoGerado,
       ...formData,
       dataCadastro: data?.dataCadastro || new Date().toLocaleDateString('pt-BR'),
       usuarioCadastro: data?.usuarioCadastro || user?.nome || 'Admin',
@@ -123,7 +128,16 @@ export const GravacaoFormModal = ({
 
           <TabsContent value="dados">
             <form onSubmit={handleSubmit} className="space-y-4 mt-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="codigo">Código</Label>
+                  <Input
+                    id="codigo"
+                    value={codigoGerado}
+                    readOnly
+                    className="bg-muted font-mono font-medium"
+                  />
+                </div>
                 <div className="space-y-2">
                   <Label htmlFor="codigoExterno">Código Externo</Label>
                   <Input

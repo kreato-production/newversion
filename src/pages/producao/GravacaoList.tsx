@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/badge';
 
 export interface Gravacao {
   id: string;
+  codigo: string; // REC-00001-26
   codigoExterno: string;
   nome: string;
   unidadeNegocio: string;
@@ -26,6 +27,41 @@ export interface Gravacao {
   dataCadastro: string;
   usuarioCadastro: string;
 }
+
+// Função para gerar código automático
+export const generateCodigoGravacao = (): string => {
+  const currentYear = new Date().getFullYear();
+  const yearSuffix = String(currentYear).slice(-2);
+  
+  // Buscar gravações existentes
+  const stored = localStorage.getItem('kreato_gravacoes');
+  const gravacoes: Gravacao[] = stored ? JSON.parse(stored) : [];
+  
+  // Filtrar gravações do ano atual
+  const gravacoesMesmoAno = gravacoes.filter((g) => {
+    if (!g.codigo) return false;
+    const parts = g.codigo.split('-');
+    return parts.length === 3 && parts[2] === yearSuffix;
+  });
+  
+  // Encontrar o maior contador do ano
+  let maxCounter = 0;
+  gravacoesMesmoAno.forEach((g) => {
+    const parts = g.codigo.split('-');
+    if (parts.length === 3) {
+      const counter = parseInt(parts[1], 10);
+      if (!isNaN(counter) && counter > maxCounter) {
+        maxCounter = counter;
+      }
+    }
+  });
+  
+  // Incrementar contador
+  const nextCounter = maxCounter + 1;
+  const paddedCounter = String(nextCounter).padStart(5, '0');
+  
+  return `REC-${paddedCounter}-${yearSuffix}`;
+};
 
 const GravacaoList = () => {
   const { toast } = useToast();
@@ -104,7 +140,8 @@ const GravacaoList = () => {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-24">Código</TableHead>
+                <TableHead className="w-32">Código</TableHead>
+                <TableHead className="w-24">Cód. Externo</TableHead>
                 <TableHead>Nome</TableHead>
                 <TableHead>Tipo</TableHead>
                 <TableHead>Classificação</TableHead>
@@ -116,7 +153,8 @@ const GravacaoList = () => {
             <TableBody>
               {filteredItems.map((item) => (
                 <TableRow key={item.id}>
-                  <TableCell className="font-mono text-sm">{item.codigoExterno || '-'}</TableCell>
+                  <TableCell className="font-mono text-sm font-medium text-primary">{item.codigo || '-'}</TableCell>
+                  <TableCell className="font-mono text-sm text-muted-foreground">{item.codigoExterno || '-'}</TableCell>
                   <TableCell className="font-medium">{item.nome}</TableCell>
                   <TableCell>{item.tipoConteudo || '-'}</TableCell>
                   <TableCell>{item.classificacao || '-'}</TableCell>
