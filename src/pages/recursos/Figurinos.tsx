@@ -20,6 +20,7 @@ export interface Figurino {
   codigoFigurino: string;
   descricao: string;
   tipoFigurino?: string;
+  material?: string;
   tamanhoPeca?: string;
   corPredominante?: string;
   corSecundaria?: string;
