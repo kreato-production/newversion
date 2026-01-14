@@ -8,7 +8,28 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Plus, Trash2 } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { Plus, Trash2, Users, X } from 'lucide-react';
+import { Label } from '@/components/ui/label';
+
+interface RecursoHumanoAlocado {
+  id: string;
+  recursoHumanoId: string;
+  nome: string;
+  horaInicio: string;
+  horaFim: string;
+}
 
 interface RecursoAlocado {
   id: string;
@@ -16,6 +37,14 @@ interface RecursoAlocado {
   recursoId: string;
   recursoNome: string;
   alocacoes: Record<string, number>; // dia -> quantidade
+  recursosHumanos: Record<string, RecursoHumanoAlocado[]>; // dia -> lista de recursos humanos
+}
+
+interface RecursoHumano {
+  id: string;
+  nome: string;
+  cargo?: string;
+  departamento?: string;
 }
 
 interface RecursosTabProps {
@@ -30,19 +59,35 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
 
   const [recursos, setRecursos] = useState<RecursoAlocado[]>(() => {
     const stored = localStorage.getItem(`kreato_gravacao_recursos_${gravacaoId}`);
-    return stored ? JSON.parse(stored) : [];
+    const data = stored ? JSON.parse(stored) : [];
+    // Garantir que todos os recursos tenham a propriedade recursosHumanos
+    return data.map((r: RecursoAlocado) => ({
+      ...r,
+      recursosHumanos: r.recursosHumanos || {},
+    }));
   });
 
   const [recursosTecnicos, setRecursosTecnicos] = useState<{ id: string; nome: string }[]>([]);
   const [recursosFisicos, setRecursosFisicos] = useState<{ id: string; nome: string }[]>([]);
+  const [recursosHumanos, setRecursosHumanos] = useState<RecursoHumano[]>([]);
   const [selectedTipo, setSelectedTipo] = useState<'tecnico' | 'fisico'>('tecnico');
   const [selectedRecurso, setSelectedRecurso] = useState('');
+
+  // Modal de recursos humanos
+  const [rhModalOpen, setRhModalOpen] = useState(false);
+  const [rhModalRecurso, setRhModalRecurso] = useState<RecursoAlocado | null>(null);
+  const [rhModalDia, setRhModalDia] = useState('');
+  const [selectedRH, setSelectedRH] = useState('');
+  const [horaInicio, setHoraInicio] = useState('08:00');
+  const [horaFim, setHoraFim] = useState('18:00');
 
   useEffect(() => {
     const tecnicos = localStorage.getItem('kreato_recursos_tecnicos');
     const fisicos = localStorage.getItem('kreato_recursos_fisicos');
+    const humanos = localStorage.getItem('kreato_recursos_humanos');
     setRecursosTecnicos(tecnicos ? JSON.parse(tecnicos) : []);
     setRecursosFisicos(fisicos ? JSON.parse(fisicos) : []);
+    setRecursosHumanos(humanos ? JSON.parse(humanos) : []);
   }, []);
 
   const saveToStorage = (data: RecursoAlocado[]) => {
@@ -53,7 +98,7 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
   const diasDoMes = useMemo(() => {
     const [ano, mes] = mesAno.split('-').map(Number);
     const ultimoDia = new Date(ano, mes, 0).getDate();
-    const dias: { dia: number; diaSemana: number; isWeekend: boolean }[] = [];
+    const dias: { dia: number; diaSemana: number; isWeekend: boolean; dataKey: string }[] = [];
     
     for (let d = 1; d <= ultimoDia; d++) {
       const data = new Date(ano, mes - 1, d);
@@ -62,6 +107,7 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
         dia: d,
         diaSemana,
         isWeekend: diaSemana === 0 || diaSemana === 6,
+        dataKey: `${mesAno}-${String(d).padStart(2, '0')}`,
       });
     }
     return dias;
@@ -83,6 +129,7 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
       recursoId: selectedRecurso,
       recursoNome: recurso.nome,
       alocacoes: {},
+      recursosHumanos: {},
     };
 
     saveToStorage([...recursos, novoRecurso]);
@@ -109,6 +156,69 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
     saveToStorage(updated);
   };
 
+  const openRHModal = (recurso: RecursoAlocado, dia: string) => {
+    setRhModalRecurso(recurso);
+    setRhModalDia(dia);
+    setSelectedRH('');
+    setHoraInicio('08:00');
+    setHoraFim('18:00');
+    setRhModalOpen(true);
+  };
+
+  const handleAddRH = () => {
+    if (!selectedRH || !rhModalRecurso) return;
+    
+    const rh = recursosHumanos.find((r) => r.id === selectedRH);
+    if (!rh) return;
+
+    const novoRH: RecursoHumanoAlocado = {
+      id: crypto.randomUUID(),
+      recursoHumanoId: selectedRH,
+      nome: rh.nome,
+      horaInicio,
+      horaFim,
+    };
+
+    const updated = recursos.map((r) => {
+      if (r.id === rhModalRecurso.id) {
+        const rhAtual = r.recursosHumanos[rhModalDia] || [];
+        return {
+          ...r,
+          recursosHumanos: {
+            ...r.recursosHumanos,
+            [rhModalDia]: [...rhAtual, novoRH],
+          },
+        };
+      }
+      return r;
+    });
+
+    saveToStorage(updated);
+    setSelectedRH('');
+    setHoraInicio('08:00');
+    setHoraFim('18:00');
+  };
+
+  const handleRemoveRH = (recursoId: string, dia: string, rhId: string) => {
+    const updated = recursos.map((r) => {
+      if (r.id === recursoId) {
+        return {
+          ...r,
+          recursosHumanos: {
+            ...r.recursosHumanos,
+            [dia]: (r.recursosHumanos[dia] || []).filter((rh) => rh.id !== rhId),
+          },
+        };
+      }
+      return r;
+    });
+    saveToStorage(updated);
+  };
+
+  const getRHCount = (recurso: RecursoAlocado, dia: string) => {
+    return (recurso.recursosHumanos[dia] || []).length;
+  };
+
   const mesesDisponiveis = useMemo(() => {
     const meses = [];
     const now = new Date();
@@ -122,6 +232,111 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
   }, []);
 
   const recursosDisponiveis = selectedTipo === 'tecnico' ? recursosTecnicos : recursosFisicos;
+
+  // Agrupar recursos por tipo
+  const recursosTecnicosAlocados = recursos.filter((r) => r.tipo === 'tecnico');
+  const recursosFisicosAlocados = recursos.filter((r) => r.tipo === 'fisico');
+
+  const rhAlocadosNoDia = rhModalRecurso?.recursosHumanos[rhModalDia] || [];
+
+  const renderRecursosTable = (recursosLista: RecursoAlocado[], tipoLabel: string, tipoIcon: string) => {
+    if (recursosLista.length === 0) return null;
+
+    return (
+      <div className="mb-4">
+        <h4 className="text-sm font-medium mb-2 flex items-center gap-2">
+          <span className="text-muted-foreground">{tipoIcon}</span>
+          {tipoLabel}
+          <span className="text-xs text-muted-foreground">({recursosLista.length})</span>
+        </h4>
+        <div className="overflow-x-auto border rounded-lg">
+          <table className="w-full text-[11px]">
+            <thead>
+              <tr className="border-b bg-muted/50">
+                <th className="text-left px-1.5 py-1 font-medium sticky left-0 bg-muted/50 min-w-40 text-xs">
+                  Recurso
+                </th>
+                {diasDoMes.map((d) => (
+                  <th
+                    key={d.dia}
+                    className={`px-0.5 py-1 text-center font-medium w-10 ${d.isWeekend ? 'bg-weekend' : ''}`}
+                  >
+                    {d.dia}
+                  </th>
+                ))}
+                <th className="px-1 py-1 w-8"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {recursosLista.map((recurso) => (
+                <tr key={recurso.id} className="border-b">
+                  <td className="px-1.5 py-0.5 sticky left-0 bg-card font-medium text-xs whitespace-nowrap">
+                    {recurso.recursoNome}
+                  </td>
+                  {diasDoMes.map((d) => {
+                    const rhCount = getRHCount(recurso, d.dataKey);
+                    return (
+                      <td
+                        key={d.dia}
+                        className={`px-0 py-0.5 text-center ${d.isWeekend ? 'bg-weekend' : ''}`}
+                      >
+                        <div className="flex flex-col items-center gap-0.5">
+                          <Input
+                            type="number"
+                            min="0"
+                            className="w-8 h-6 text-center p-0 text-[10px]"
+                            value={recurso.alocacoes[d.dataKey] || ''}
+                            onChange={(e) =>
+                              handleAlocacaoChange(
+                                recurso.id,
+                                d.dataKey,
+                                parseInt(e.target.value) || 0
+                              )
+                            }
+                          />
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className={`h-5 w-5 ${rhCount > 0 ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+                                onClick={() => openRHModal(recurso, d.dataKey)}
+                              >
+                                <Users className="w-3 h-3" />
+                                {rhCount > 0 && (
+                                  <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-[8px] rounded-full w-3 h-3 flex items-center justify-center">
+                                    {rhCount}
+                                  </span>
+                                )}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-2 text-xs" align="center">
+                              <p className="font-medium">{rhCount} colaborador(es) alocado(s)</p>
+                              <p className="text-muted-foreground">Clique para gerenciar</p>
+                            </PopoverContent>
+                          </Popover>
+                        </div>
+                      </td>
+                    );
+                  })}
+                  <td className="px-0 py-0.5">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => handleRemoveRecurso(recurso.id)}
+                      className="h-6 w-6 text-destructive hover:text-destructive"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-4 mt-4">
@@ -175,65 +390,9 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
       </div>
 
       {recursos.length > 0 && (
-        <div className="overflow-x-auto border rounded-lg">
-          <table className="w-full text-[11px]">
-            <thead>
-              <tr className="border-b bg-muted/50">
-                <th className="text-left px-1.5 py-1 font-medium sticky left-0 bg-muted/50 min-w-32 text-xs">Recurso</th>
-                {diasDoMes.map((d) => (
-                  <th
-                    key={d.dia}
-                    className={`px-0.5 py-1 text-center font-medium w-8 ${d.isWeekend ? 'bg-weekend' : ''}`}
-                  >
-                    {d.dia}
-                  </th>
-                ))}
-                <th className="px-1 py-1 w-8"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {recursos.map((recurso) => (
-                <tr key={recurso.id} className="border-b">
-                  <td className="px-1.5 py-0.5 sticky left-0 bg-card font-medium text-xs whitespace-nowrap">
-                    <span className="text-[10px] text-muted-foreground mr-0.5">
-                      [{recurso.tipo === 'tecnico' ? 'T' : 'F'}]
-                    </span>
-                    {recurso.recursoNome}
-                  </td>
-                  {diasDoMes.map((d) => (
-                    <td
-                      key={d.dia}
-                      className={`px-0 py-0.5 text-center ${d.isWeekend ? 'bg-weekend' : ''}`}
-                    >
-                      <Input
-                        type="number"
-                        min="0"
-                        className="w-7 h-6 text-center p-0 text-[10px]"
-                        value={recurso.alocacoes[`${mesAno}-${String(d.dia).padStart(2, '0')}`] || ''}
-                        onChange={(e) =>
-                          handleAlocacaoChange(
-                            recurso.id,
-                            `${mesAno}-${String(d.dia).padStart(2, '0')}`,
-                            parseInt(e.target.value) || 0
-                          )
-                        }
-                      />
-                    </td>
-                  ))}
-                  <td className="px-0 py-0.5">
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      onClick={() => handleRemoveRecurso(recurso.id)}
-                      className="h-6 w-6 text-destructive hover:text-destructive"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="space-y-4">
+          {renderRecursosTable(recursosTecnicosAlocados, 'Recursos Técnicos', '🔧')}
+          {renderRecursosTable(recursosFisicosAlocados, 'Recursos Físicos', '🏢')}
         </div>
       )}
 
@@ -243,6 +402,109 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
           <p className="text-sm">Adicione recursos técnicos ou físicos acima.</p>
         </div>
       )}
+
+      {/* Modal para gerenciar recursos humanos */}
+      <Dialog open={rhModalOpen} onOpenChange={setRhModalOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Users className="w-5 h-5" />
+              Recursos Humanos - {rhModalRecurso?.recursoNome}
+            </DialogTitle>
+            <p className="text-sm text-muted-foreground">
+              Data: {rhModalDia ? new Date(rhModalDia + 'T12:00:00').toLocaleDateString('pt-BR') : ''}
+            </p>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {/* Formulário para adicionar */}
+            <div className="border rounded-lg p-3 space-y-3 bg-muted/30">
+              <Label className="text-sm font-medium">Adicionar Colaborador</Label>
+              <div className="grid grid-cols-1 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Colaborador</Label>
+                  <Select value={selectedRH} onValueChange={setSelectedRH}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {recursosHumanos.map((rh) => (
+                        <SelectItem key={rh.id} value={rh.id}>
+                          {rh.nome}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Hora Início</Label>
+                    <Input
+                      type="time"
+                      value={horaInicio}
+                      onChange={(e) => setHoraInicio(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Hora Fim</Label>
+                    <Input
+                      type="time"
+                      value={horaFim}
+                      onChange={(e) => setHoraFim(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <Button onClick={handleAddRH} disabled={!selectedRH} className="w-full">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Adicionar
+                </Button>
+              </div>
+            </div>
+
+            {/* Lista de recursos humanos alocados */}
+            {rhAlocadosNoDia.length > 0 && (
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Colaboradores Alocados</Label>
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {rhAlocadosNoDia.map((rh) => (
+                    <div
+                      key={rh.id}
+                      className="flex items-center justify-between p-2 border rounded-lg bg-background"
+                    >
+                      <div>
+                        <p className="font-medium text-sm">{rh.nome}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {rh.horaInicio} - {rh.horaFim}
+                        </p>
+                      </div>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => handleRemoveRH(rhModalRecurso!.id, rhModalDia, rh.id)}
+                        className="h-7 w-7 text-destructive hover:text-destructive"
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {rhAlocadosNoDia.length === 0 && (
+              <p className="text-center text-sm text-muted-foreground py-4">
+                Nenhum colaborador alocado para este dia.
+              </p>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRhModalOpen(false)}>
+              Fechar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
