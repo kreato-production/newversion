@@ -1,15 +1,8 @@
 import { useState } from 'react';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
 import { ParametroFormModal } from '@/components/shared/ParametroFormModal';
+import { SortableTable, Column } from '@/components/shared/SortableTable';
 import { Edit, Trash2, Settings } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -74,6 +67,59 @@ const ParametroListPage = ({ title, description, entityName, storageKey }: Param
       item.codigoExterno.toLowerCase().includes(search.toLowerCase())
   );
 
+  const columns: Column<Parametro & { actions?: never }>[] = [
+    {
+      key: 'codigoExterno',
+      label: 'Código',
+      className: 'w-24',
+      render: (item) => <span className="font-mono text-sm">{item.codigoExterno || '-'}</span>,
+    },
+    {
+      key: 'nome',
+      label: 'Nome',
+      render: (item) => <span className="font-medium">{item.nome}</span>,
+    },
+    {
+      key: 'descricao',
+      label: 'Descrição',
+      className: 'hidden md:table-cell',
+      render: (item) => (
+        <span className="text-muted-foreground max-w-xs truncate block">{item.descricao || '-'}</span>
+      ),
+    },
+    {
+      key: 'dataCadastro',
+      label: 'Data Cadastro',
+      className: 'w-32',
+    },
+    {
+      key: 'usuarioCadastro',
+      label: 'Usuário',
+      className: 'w-32',
+    },
+    {
+      key: 'actions',
+      label: 'Ações',
+      className: 'w-24 text-right',
+      sortable: false,
+      render: (item) => (
+        <div className="flex justify-end gap-1">
+          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => handleEdit(item)}>
+            <Edit className="w-3.5 h-3.5" />
+          </Button>
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-7 w-7 text-destructive hover:text-destructive"
+            onClick={() => handleDelete(item.id)}
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </Button>
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div>
       <PageHeader
@@ -98,46 +144,12 @@ const ParametroListPage = ({ title, description, entityName, storageKey }: Param
             actionLabel={`Adicionar ${entityName}`}
           />
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-24">Código</TableHead>
-                <TableHead>Nome</TableHead>
-                <TableHead className="hidden md:table-cell">Descrição</TableHead>
-                <TableHead className="w-32">Data Cadastro</TableHead>
-                <TableHead className="w-32">Usuário</TableHead>
-                <TableHead className="w-24 text-right">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredItems.map((item) => (
-                <TableRow key={item.id}>
-                  <TableCell className="font-mono text-sm">{item.codigoExterno || '-'}</TableCell>
-                  <TableCell className="font-medium">{item.nome}</TableCell>
-                  <TableCell className="hidden md:table-cell text-muted-foreground max-w-xs truncate">
-                    {item.descricao || '-'}
-                  </TableCell>
-                  <TableCell>{item.dataCadastro}</TableCell>
-                  <TableCell>{item.usuarioCadastro}</TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-1">
-                      <Button size="icon" variant="ghost" onClick={() => handleEdit(item)}>
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => handleDelete(item.id)}
-                        className="text-destructive hover:text-destructive"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <SortableTable
+            data={filteredItems}
+            columns={columns}
+            getRowKey={(item) => item.id}
+            storageKey={storageKey}
+          />
         )}
       </DataCard>
 
