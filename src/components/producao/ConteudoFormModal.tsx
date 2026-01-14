@@ -34,6 +34,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { ConteudoCustosTab } from './ConteudoCustosTab';
+import { ElencoTab } from './ElencoTab';
 
 interface ConteudoFormModalProps {
   isOpen: boolean;
@@ -428,8 +429,9 @@ export const ConteudoFormModal = ({
           {data && (
             <div className="pt-4 border-t">
               <Tabs defaultValue="gravacoes" className="w-full">
-                <TabsList className="grid w-full grid-cols-2">
+                <TabsList className="grid w-full grid-cols-3">
                   <TabsTrigger value="gravacoes">Gravações</TabsTrigger>
+                  <TabsTrigger value="elenco">Elenco</TabsTrigger>
                   <TabsTrigger value="custos">Custos</TabsTrigger>
                 </TabsList>
                 
@@ -497,6 +499,10 @@ export const ConteudoFormModal = ({
                       </Table>
                     </div>
                   )}
+                </TabsContent>
+
+                <TabsContent value="elenco" className="mt-4">
+                  <ElencoTab entityId={data.id} storagePrefix="conteudo" />
                 </TabsContent>
                 
                 <TabsContent value="custos" className="mt-4">
