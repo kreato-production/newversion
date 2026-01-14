@@ -11,6 +11,7 @@ import GravacaoList from "@/pages/producao/GravacaoList";
 import TiposGravacao from "@/pages/producao/TiposGravacao";
 import Classificacao from "@/pages/producao/Classificacao";
 import StatusGravacao from "@/pages/producao/StatusGravacao";
+import Mapas from "@/pages/producao/Mapas";
 import RecursosHumanos from "@/pages/recursos/RecursosHumanos";
 import RecursosTecnicos from "@/pages/recursos/RecursosTecnicos";
 import RecursosFisicos from "@/pages/recursos/RecursosFisicos";
@@ -40,6 +41,7 @@ const App = () => (
             <Route element={<MainLayout />}>
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/producao/gravacao" element={<GravacaoList />} />
+              <Route path="/producao/mapas" element={<Mapas />} />
               <Route path="/producao/tipos-gravacao" element={<TiposGravacao />} />
               <Route path="/producao/classificacao" element={<Classificacao />} />
               <Route path="/producao/status" element={<StatusGravacao />} />
