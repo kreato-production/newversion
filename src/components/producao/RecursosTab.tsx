@@ -47,7 +47,7 @@ interface RecursoAlocado {
   tipo: 'tecnico' | 'fisico';
   recursoId: string;
   recursoNome: string;
-  cargoOperador?: string; // Cargo do operador (para recursos técnicos)
+  funcaoOperador?: string; // Função do operador (para recursos técnicos)
   alocacoes: Record<string, number>; // dia -> quantidade
   recursosHumanos: Record<string, RecursoHumanoAlocado[]>; // dia -> lista de recursos humanos (para técnicos)
   horarios: Record<string, HorarioOcupacao>; // dia -> horário de ocupação (para físicos)
@@ -56,7 +56,7 @@ interface RecursoAlocado {
 interface RecursoHumano {
   id: string;
   nome: string;
-  cargo?: string;
+  funcao?: string;
   departamento?: string;
 }
 
@@ -81,7 +81,7 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
     }));
   });
 
-  const [recursosTecnicos, setRecursosTecnicos] = useState<{ id: string; nome: string; cargoOperador?: string }[]>([]);
+  const [recursosTecnicos, setRecursosTecnicos] = useState<{ id: string; nome: string; funcaoOperador?: string }[]>([]);
   const [recursosFisicos, setRecursosFisicos] = useState<{ id: string; nome: string }[]>([]);
   const [recursosHumanos, setRecursosHumanos] = useState<RecursoHumano[]>([]);
   const [selectedTipo, setSelectedTipo] = useState<'tecnico' | 'fisico'>('tecnico');
@@ -149,7 +149,7 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
       tipo: selectedTipo,
       recursoId: selectedRecurso,
       recursoNome: recurso.nome,
-      cargoOperador: selectedTipo === 'tecnico' ? (recurso as { id: string; nome: string; cargoOperador?: string }).cargoOperador : undefined,
+      funcaoOperador: selectedTipo === 'tecnico' ? (recurso as { id: string; nome: string; funcaoOperador?: string }).funcaoOperador : undefined,
       alocacoes: {},
       recursosHumanos: {},
       horarios: {},
@@ -317,15 +317,15 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
 
   const rhAlocadosNoDia = rhModalRecurso?.recursosHumanos[rhModalDia] || [];
 
-  // Filtrar recursos humanos pelo cargo do recurso técnico
+  // Filtrar recursos humanos pela função do recurso técnico
   const recursosHumanosFiltrados = useMemo(() => {
-    if (!rhModalRecurso?.cargoOperador) {
-      return recursosHumanos; // Se não tem cargo definido, mostra todos
+    if (!rhModalRecurso?.funcaoOperador) {
+      return recursosHumanos; // Se não tem função definida, mostra todos
     }
     return recursosHumanos.filter(
-      (rh) => rh.cargo?.toLowerCase() === rhModalRecurso.cargoOperador?.toLowerCase()
+      (rh) => rh.funcao?.toLowerCase() === rhModalRecurso.funcaoOperador?.toLowerCase()
     );
-  }, [recursosHumanos, rhModalRecurso?.cargoOperador]);
+  }, [recursosHumanos, rhModalRecurso?.funcaoOperador]);
 
   const renderRecursosTable = (recursosLista: RecursoAlocado[], tipoLabel: string, tipoIcon: string, isTecnico: boolean) => {
     if (recursosLista.length === 0) return null;
@@ -584,9 +584,9 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
             {/* Formulário para adicionar */}
             <div className="border rounded-lg p-3 space-y-3 bg-muted/30">
               <Label className="text-sm font-medium">Adicionar Colaborador</Label>
-              {rhModalRecurso?.cargoOperador && (
+              {rhModalRecurso?.funcaoOperador && (
                 <p className="text-xs text-muted-foreground">
-                  Exibindo colaboradores com cargo: <strong>{rhModalRecurso.cargoOperador}</strong>
+                  Exibindo colaboradores com função: <strong>{rhModalRecurso.funcaoOperador}</strong>
                 </p>
               )}
               <div className="grid grid-cols-1 gap-3">
@@ -599,12 +599,12 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
                     <SelectContent>
                       {recursosHumanosFiltrados.length === 0 ? (
                         <div className="px-2 py-4 text-sm text-muted-foreground text-center">
-                          Nenhum colaborador encontrado{rhModalRecurso?.cargoOperador ? ` com cargo "${rhModalRecurso.cargoOperador}"` : ''}
+                          Nenhum colaborador encontrado{rhModalRecurso?.funcaoOperador ? ` com função "${rhModalRecurso.funcaoOperador}"` : ''}
                         </div>
                       ) : (
                         recursosHumanosFiltrados.map((rh) => (
                           <SelectItem key={rh.id} value={rh.id}>
-                            {rh.nome} {rh.cargo ? `(${rh.cargo})` : ''}
+                            {rh.nome} {rh.funcao ? `(${rh.funcao})` : ''}
                           </SelectItem>
                         ))
                       )}

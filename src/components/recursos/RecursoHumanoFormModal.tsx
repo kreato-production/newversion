@@ -37,7 +37,7 @@ export const RecursoHumanoFormModal = ({
 }: RecursoHumanoFormModalProps) => {
   const { user } = useAuth();
   const [departamentos, setDepartamentos] = useState<{ id: string; nome: string }[]>([]);
-  const [cargos, setCargos] = useState<{ id: string; nome: string }[]>([]);
+  const [funcoes, setFuncoes] = useState<{ id: string; nome: string }[]>([]);
   const fotoInputRef = useRef<HTMLInputElement>(null);
   const anexoInputRef = useRef<HTMLInputElement>(null);
 
@@ -51,7 +51,7 @@ export const RecursoHumanoFormModal = ({
     telefone: '',
     email: '',
     departamento: '',
-    cargo: '',
+    funcao: '',
     custoHora: 0,
     dataContratacao: '',
     status: 'Ativo' as 'Ativo' | 'Inativo',
@@ -61,9 +61,9 @@ export const RecursoHumanoFormModal = ({
 
   useEffect(() => {
     const storedDep = localStorage.getItem('kreato_departamentos');
-    const storedCargos = localStorage.getItem('kreato_cargos');
+    const storedFuncoes = localStorage.getItem('kreato_funcoes');
     setDepartamentos(storedDep ? JSON.parse(storedDep) : []);
-    setCargos(storedCargos ? JSON.parse(storedCargos) : []);
+    setFuncoes(storedFuncoes ? JSON.parse(storedFuncoes) : []);
   }, [isOpen]);
 
   useEffect(() => {
@@ -78,7 +78,7 @@ export const RecursoHumanoFormModal = ({
         telefone: data.telefone,
         email: data.email,
         departamento: data.departamento,
-        cargo: data.cargo,
+        funcao: data.funcao,
         custoHora: data.custoHora,
         dataContratacao: data.dataContratacao,
         status: data.status,
@@ -95,7 +95,7 @@ export const RecursoHumanoFormModal = ({
         telefone: '',
         email: '',
         departamento: '',
-        cargo: '',
+        funcao: '',
         custoHora: 0,
         dataContratacao: '',
         status: 'Ativo',
@@ -353,17 +353,17 @@ export const RecursoHumanoFormModal = ({
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Cargo</Label>
+              <Label>Função</Label>
               <Select
-                value={formData.cargo}
-                onValueChange={(value) => setFormData({ ...formData, cargo: value })}
+                value={formData.funcao}
+                onValueChange={(value) => setFormData({ ...formData, funcao: value })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {cargos.map((c) => (
-                    <SelectItem key={c.id} value={c.nome}>{c.nome}</SelectItem>
+                  {funcoes.map((f) => (
+                    <SelectItem key={f.id} value={f.nome}>{f.nome}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>

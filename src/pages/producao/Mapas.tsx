@@ -49,7 +49,6 @@ interface RecursoHumano {
   id: string;
   nome: string;
   funcao?: string;
-  cargo?: string;
 }
 
 interface OcupacaoItem {
@@ -192,7 +191,6 @@ const Mapas = () => {
     funcoes.add('Todas');
     recursosHumanos.forEach((r) => {
       if (r.funcao) funcoes.add(r.funcao);
-      if (r.cargo) funcoes.add(r.cargo);
     });
     return Array.from(funcoes);
   }, [recursosHumanos]);
@@ -222,17 +220,16 @@ const Mapas = () => {
   const filteredRecursosHumanos = recursosHumanos.filter((r) => {
     const matchFuncao =
       filtroFuncaoHumano === 'Todas' ||
-      r.funcao === filtroFuncaoHumano ||
-      r.cargo === filtroFuncaoHumano;
+      r.funcao === filtroFuncaoHumano;
     const matchNome = r.nome.toLowerCase().includes(filtroNomeHumano.toLowerCase());
     return matchFuncao && matchNome;
   });
 
-  // Agrupar recursos humanos por cargo
+  // Agrupar recursos humanos por função
   const recursosHumanosAgrupados = useMemo(() => {
     const grupos: Record<string, RecursoHumano[]> = {};
     filteredRecursosHumanos.forEach((r) => {
-      const grupo = r.cargo || r.funcao || 'Sem cargo';
+      const grupo = r.funcao || 'Sem função';
       if (!grupos[grupo]) {
         grupos[grupo] = [];
       }
@@ -510,7 +507,7 @@ const Mapas = () => {
               <CardContent className="pb-3">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div className="space-y-1.5">
-                    <Label className="text-xs">Função/Cargo</Label>
+                    <Label className="text-xs">Função</Label>
                     <Select value={filtroFuncaoHumano} onValueChange={setFiltroFuncaoHumano}>
                       <SelectTrigger>
                         <SelectValue />
