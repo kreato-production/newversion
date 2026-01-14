@@ -2,7 +2,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Video, Users, Building2, Calendar, TrendingUp, Clock, Clapperboard, Wrench, MapPin } from 'lucide-react';
 import { useMemo } from 'react';
-import { format, isAfter, isBefore, addDays, parseISO } from 'date-fns';
+import { format, isAfter, isBefore, addDays, parseISO, startOfWeek, endOfWeek } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 const StatCard = ({
@@ -34,6 +34,12 @@ const StatCard = ({
   </Card>
 );
 
+interface RecursoAlocado {
+  id: string;
+  dataInicio: string;
+  dataFim: string;
+}
+
 interface Gravacao {
   id: string;
   nome: string;
@@ -41,6 +47,9 @@ interface Gravacao {
   dataInicio?: string;
   dataFim?: string;
   status?: string;
+  recursosFisicos?: RecursoAlocado[];
+  recursosHumanos?: RecursoAlocado[];
+  recursosTecnicos?: RecursoAlocado[];
 }
 
 const Dashboard = () => {
@@ -77,19 +86,49 @@ const Dashboard = () => {
     };
   }, []);
 
-  // Próximas gravações (ordenadas por data de início)
-  const proximasGravacoes = useMemo(() => {
+  // Gravações da semana corrente (baseado na alocação de recursos)
+  const gravacoesSemana = useMemo(() => {
     const gravacoes: Gravacao[] = JSON.parse(localStorage.getItem('kreato_gravacoes') || '[]');
     const hoje = new Date();
-    
+    const inicioSemana = startOfWeek(hoje, { weekStartsOn: 0 }); // Domingo
+    const fimSemana = endOfWeek(hoje, { weekStartsOn: 0 }); // Sábado
+
+    // Função para verificar se alguma alocação está na semana corrente
+    const temAlocacaoNaSemana = (recursos?: RecursoAlocado[]): boolean => {
+      if (!recursos || recursos.length === 0) return false;
+      return recursos.some((r) => {
+        if (!r.dataInicio || !r.dataFim) return false;
+        const inicio = parseISO(r.dataInicio);
+        const fim = parseISO(r.dataFim);
+        // Verifica se há sobreposição com a semana corrente
+        return isBefore(inicio, addDays(fimSemana, 1)) && isAfter(fim, addDays(inicioSemana, -1));
+      });
+    };
+
+    // Filtra gravações que têm recursos alocados na semana corrente
     return gravacoes
-      .filter((g) => g.dataInicio && isAfter(parseISO(g.dataInicio), addDays(hoje, -1)))
-      .sort((a, b) => {
-        const dataA = a.dataInicio ? parseISO(a.dataInicio).getTime() : 0;
-        const dataB = b.dataInicio ? parseISO(b.dataInicio).getTime() : 0;
-        return dataA - dataB;
+      .filter((g) => {
+        const temFisicos = temAlocacaoNaSemana(g.recursosFisicos);
+        const temHumanos = temAlocacaoNaSemana(g.recursosHumanos);
+        const temTecnicos = temAlocacaoNaSemana(g.recursosTecnicos);
+        return temFisicos || temHumanos || temTecnicos;
       })
-      .slice(0, 5);
+      .sort((a, b) => {
+        // Ordena pela primeira data de alocação na semana
+        const getFirstDate = (g: Gravacao): number => {
+          const allResources = [
+            ...(g.recursosFisicos || []),
+            ...(g.recursosHumanos || []),
+            ...(g.recursosTecnicos || []),
+          ];
+          const datesInWeek = allResources
+            .filter((r) => r.dataInicio)
+            .map((r) => parseISO(r.dataInicio).getTime())
+            .filter((t) => t >= inicioSemana.getTime() && t <= fimSemana.getTime());
+          return datesInWeek.length > 0 ? Math.min(...datesInWeek) : Infinity;
+        };
+        return getFirstDate(a) - getFirstDate(b);
+      });
   }, []);
 
   return (
@@ -165,37 +204,41 @@ const Dashboard = () => {
               <Clock className="w-5 h-5 text-kreato-orange" />
               Próximas Gravações
             </CardTitle>
-            <CardDescription>Agenda das gravações</CardDescription>
+            <CardDescription>Gravações com recursos alocados esta semana</CardDescription>
           </CardHeader>
           <CardContent>
-            {proximasGravacoes.length === 0 ? (
+            {gravacoesSemana.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <Calendar className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                <p>Nenhuma gravação agendada</p>
+                <p>Nenhuma gravação com recursos alocados esta semana</p>
               </div>
             ) : (
-              <div className="space-y-4">
-                {proximasGravacoes.map((gravacao) => (
-                  <div key={gravacao.id} className="flex items-center gap-4 p-3 border border-border rounded-lg">
-                    <div className="w-10 h-10 rounded-lg gradient-brand flex items-center justify-center">
-                      <Video className="w-5 h-5 text-primary-foreground" />
+              <div className="space-y-4 max-h-80 overflow-y-auto">
+                {gravacoesSemana.map((gravacao) => {
+                  const totalRecursos = 
+                    (gravacao.recursosFisicos?.length || 0) + 
+                    (gravacao.recursosHumanos?.length || 0) + 
+                    (gravacao.recursosTecnicos?.length || 0);
+                  
+                  return (
+                    <div key={gravacao.id} className="flex items-center gap-4 p-3 border border-border rounded-lg">
+                      <div className="w-10 h-10 rounded-lg gradient-brand flex items-center justify-center">
+                        <Video className="w-5 h-5 text-primary-foreground" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-foreground">{gravacao.nome}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {totalRecursos} recurso{totalRecursos !== 1 ? 's' : ''} alocado{totalRecursos !== 1 ? 's' : ''}
+                        </p>
+                      </div>
+                      {gravacao.status && (
+                        <span className="text-xs px-2 py-1 rounded-full bg-muted text-muted-foreground">
+                          {gravacao.status}
+                        </span>
+                      )}
                     </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-foreground">{gravacao.nome}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {gravacao.dataInicio
-                          ? format(parseISO(gravacao.dataInicio), "dd 'de' MMMM", { locale: ptBR })
-                          : 'Data não definida'}
-                        {gravacao.dataFim && ` - ${format(parseISO(gravacao.dataFim), "dd 'de' MMMM", { locale: ptBR })}`}
-                      </p>
-                    </div>
-                    {gravacao.status && (
-                      <span className="text-xs px-2 py-1 rounded-full bg-muted text-muted-foreground">
-                        {gravacao.status}
-                      </span>
-                    )}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </CardContent>
