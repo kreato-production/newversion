@@ -43,6 +43,7 @@ const emptyFormData: Omit<Pessoa, 'id' | 'dataCadastro' | 'usuarioCadastro'> = {
   codigoExterno: '',
   nome: '',
   sobrenome: '',
+  nomeTrabalho: '',
   foto: '',
   dataNascimento: '',
   sexo: '',
@@ -75,6 +76,7 @@ export const PessoaFormModal = ({
           codigoExterno: data.codigoExterno,
           nome: data.nome,
           sobrenome: data.sobrenome,
+          nomeTrabalho: data.nomeTrabalho || '',
           foto: data.foto || '',
           dataNascimento: data.dataNascimento,
           sexo: data.sexo,
@@ -202,6 +204,16 @@ export const PessoaFormModal = ({
                 required
               />
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="nomeTrabalho">Nome de Trabalho</Label>
+            <Input
+              id="nomeTrabalho"
+              value={formData.nomeTrabalho}
+              onChange={(e) => setFormData({ ...formData, nomeTrabalho: e.target.value })}
+              placeholder="Nome artístico ou de trabalho"
+            />
           </div>
 
           <div className="grid grid-cols-3 gap-4">
