@@ -107,7 +107,7 @@ export const GravacaoFormModal = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[95vw] lg:max-w-[1400px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{data ? 'Editar Gravação' : 'Nova Gravação'}</DialogTitle>
           <DialogDescription>
