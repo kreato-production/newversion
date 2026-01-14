@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Users, MapPin, Wrench, Calculator, Clock, DollarSign } from 'lucide-react';
+import { Users, MapPin, Wrench, Calculator, Clock, DollarSign, Building2 } from 'lucide-react';
 
 interface RecursoHumanoAlocado {
   id: string;
@@ -49,7 +49,16 @@ interface CustoItem {
   horas: number;
   custoUnitario: number;
   custoTotal: number;
-  tipo: 'humano' | 'fisico' | 'tecnico';
+  tipo: 'humano' | 'fisico' | 'tecnico' | 'terceiro';
+}
+
+interface TerceiroAlocado {
+  id: string;
+  fornecedorId: string;
+  fornecedorNome: string;
+  servicoId: string;
+  servicoNome: string;
+  custo: number;
 }
 
 interface CustosTabProps {
@@ -76,6 +85,7 @@ export const CustosTab = ({ gravacaoId }: CustosTabProps) => {
   const [recursos, setRecursos] = useState<RecursoAlocado[]>([]);
   const [recursosHumanos, setRecursosHumanos] = useState<RecursoHumano[]>([]);
   const [recursosFisicos, setRecursosFisicos] = useState<RecursoFisico[]>([]);
+  const [terceiros, setTerceiros] = useState<TerceiroAlocado[]>([]);
 
   useEffect(() => {
     // Carregar recursos alocados na gravação
@@ -94,6 +104,12 @@ export const CustosTab = ({ gravacaoId }: CustosTabProps) => {
     const storedFisicos = localStorage.getItem('kreato_recursos_fisicos');
     if (storedFisicos) {
       setRecursosFisicos(JSON.parse(storedFisicos));
+    }
+
+    // Carregar terceiros alocados
+    const storedTerceiros = localStorage.getItem(`kreato_gravacao_terceiros_${gravacaoId}`);
+    if (storedTerceiros) {
+      setTerceiros(JSON.parse(storedTerceiros));
     }
   }, [gravacaoId]);
 
@@ -162,8 +178,21 @@ export const CustosTab = ({ gravacaoId }: CustosTabProps) => {
       }
     });
 
+    // Adicionar custos de terceiros
+    terceiros.forEach((terceiro) => {
+      itens.push({
+        categoria: 'Terceiros',
+        recurso: terceiro.fornecedorNome,
+        descricao: terceiro.servicoNome,
+        horas: 0,
+        custoUnitario: terceiro.custo,
+        custoTotal: terceiro.custo,
+        tipo: 'terceiro',
+      });
+    });
+
     return itens;
-  }, [recursos, recursosHumanos, recursosFisicos]);
+  }, [recursos, recursosHumanos, recursosFisicos, terceiros]);
 
   const custosPorCategoria = useMemo(() => {
     const categorias: Record<string, CustoItem[]> = {};
@@ -197,6 +226,7 @@ export const CustosTab = ({ gravacaoId }: CustosTabProps) => {
   const getIconCategoria = (categoria: string) => {
     if (categoria === 'Recursos Humanos') return <Users className="h-4 w-4" />;
     if (categoria === 'Recursos Físicos') return <MapPin className="h-4 w-4" />;
+    if (categoria === 'Terceiros') return <Building2 className="h-4 w-4" />;
     return <Wrench className="h-4 w-4" />;
   };
 
@@ -270,8 +300,12 @@ export const CustosTab = ({ gravacaoId }: CustosTabProps) => {
                 <TableRow>
                   <TableHead>Recurso</TableHead>
                   <TableHead>Descrição</TableHead>
-                  <TableHead className="text-right">Horas</TableHead>
-                  <TableHead className="text-right">Custo/Hora</TableHead>
+                  {categoria !== 'Terceiros' && (
+                    <>
+                      <TableHead className="text-right">Horas</TableHead>
+                      <TableHead className="text-right">Custo/Hora</TableHead>
+                    </>
+                  )}
                   <TableHead className="text-right">Custo Total</TableHead>
                 </TableRow>
               </TableHeader>
@@ -280,8 +314,12 @@ export const CustosTab = ({ gravacaoId }: CustosTabProps) => {
                   <TableRow key={idx}>
                     <TableCell className="font-medium">{item.recurso}</TableCell>
                     <TableCell className="text-muted-foreground">{item.descricao}</TableCell>
-                    <TableCell className="text-right">{item.horas.toFixed(1)}h</TableCell>
-                    <TableCell className="text-right">{formatCurrency(item.custoUnitario)}</TableCell>
+                    {categoria !== 'Terceiros' && (
+                      <>
+                        <TableCell className="text-right">{item.horas.toFixed(1)}h</TableCell>
+                        <TableCell className="text-right">{formatCurrency(item.custoUnitario)}</TableCell>
+                      </>
+                    )}
                     <TableCell className="text-right font-medium">{formatCurrency(item.custoTotal)}</TableCell>
                   </TableRow>
                 ))}
@@ -289,10 +327,14 @@ export const CustosTab = ({ gravacaoId }: CustosTabProps) => {
                   <TableCell colSpan={2} className="font-medium">
                     Subtotal - {categoria}
                   </TableCell>
-                  <TableCell className="text-right font-medium">
-                    {totaisPorCategoria[categoria]?.horas.toFixed(1)}h
-                  </TableCell>
-                  <TableCell></TableCell>
+                  {categoria !== 'Terceiros' && (
+                    <>
+                      <TableCell className="text-right font-medium">
+                        {totaisPorCategoria[categoria]?.horas.toFixed(1)}h
+                      </TableCell>
+                      <TableCell></TableCell>
+                    </>
+                  )}
                   <TableCell className="text-right font-bold">
                     {formatCurrency(totaisPorCategoria[categoria]?.custo || 0)}
                   </TableCell>
