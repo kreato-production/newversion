@@ -1,0 +1,203 @@
+import { useState, useEffect } from 'react';
+import { Plus, Search, Edit, Trash2, Image as ImageIcon } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { PageHeader, EmptyState } from '@/components/shared/PageComponents';
+import { SortableTable, Column } from '@/components/shared/SortableTable';
+import FigurinoFormModal from '@/components/recursos/FigurinoFormModal';
+import { useToast } from '@/hooks/use-toast';
+
+export interface FigurinoImagem {
+  id: string;
+  url: string;
+  isPrincipal: boolean;
+}
+
+export interface Figurino {
+  id: string;
+  codigoExterno: string;
+  codigoFigurino: string;
+  descricao: string;
+  tipoFigurino?: string;
+  tamanhoPeca?: string;
+  corPredominante?: string;
+  corSecundaria?: string;
+  imagens: FigurinoImagem[];
+  dataCadastro: string;
+  usuarioCadastro: string;
+}
+
+const Figurinos = () => {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingData, setEditingData] = useState<Figurino | null>(null);
+  const [items, setItems] = useState<Figurino[]>([]);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    const stored = localStorage.getItem('kreato_figurinos');
+    if (stored) {
+      setItems(JSON.parse(stored));
+    }
+  }, []);
+
+  const saveToStorage = (data: Figurino[]) => {
+    localStorage.setItem('kreato_figurinos', JSON.stringify(data));
+    setItems(data);
+  };
+
+  const handleSave = (figurino: Figurino) => {
+    let updatedItems: Figurino[];
+    if (editingData) {
+      updatedItems = items.map(item => item.id === figurino.id ? figurino : item);
+      toast({ title: 'Figurino atualizado', description: 'O figurino foi atualizado com sucesso.' });
+    } else {
+      updatedItems = [...items, figurino];
+      toast({ title: 'Figurino criado', description: 'O figurino foi criado com sucesso.' });
+    }
+    saveToStorage(updatedItems);
+    setIsModalOpen(false);
+    setEditingData(null);
+  };
+
+  const handleEdit = (figurino: Figurino) => {
+    setEditingData(figurino);
+    setIsModalOpen(true);
+  };
+
+  const handleDelete = (id: string) => {
+    const updatedItems = items.filter(item => item.id !== id);
+    saveToStorage(updatedItems);
+    toast({ title: 'Figurino excluído', description: 'O figurino foi excluído com sucesso.' });
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setEditingData(null);
+  };
+
+  const getImagemPrincipal = (figurino: Figurino): string | undefined => {
+    const principal = figurino.imagens?.find(img => img.isPrincipal);
+    return principal?.url || figurino.imagens?.[0]?.url;
+  };
+
+  const filteredItems = items.filter(item =>
+    item.descricao?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    item.codigoFigurino?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    item.codigoExterno?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const columns: Column<Figurino>[] = [
+    {
+      key: 'imagem',
+      label: 'Imagem',
+      sortable: false,
+      render: (figurino: Figurino) => {
+        const imgUrl = getImagemPrincipal(figurino);
+        return imgUrl ? (
+          <img src={imgUrl} alt={figurino.descricao} className="w-12 h-12 rounded object-cover" />
+        ) : (
+          <div className="w-12 h-12 rounded bg-muted flex items-center justify-center">
+            <ImageIcon className="w-6 h-6 text-muted-foreground" />
+          </div>
+        );
+      }
+    },
+    { key: 'codigoFigurino', label: 'Código', sortable: true },
+    { key: 'descricao', label: 'Descrição', sortable: true },
+    { key: 'tipoFigurino', label: 'Tipo', sortable: true },
+    { key: 'tamanhoPeca', label: 'Tamanho', sortable: true },
+    {
+      key: 'cores',
+      label: 'Cores',
+      sortable: false,
+      render: (figurino: Figurino) => (
+        <div className="flex gap-1">
+          {figurino.corPredominante && (
+            <div 
+              className="w-6 h-6 rounded border" 
+              style={{ backgroundColor: figurino.corPredominante }}
+              title={`Predominante: ${figurino.corPredominante}`}
+            />
+          )}
+          {figurino.corSecundaria && (
+            <div 
+              className="w-6 h-6 rounded border" 
+              style={{ backgroundColor: figurino.corSecundaria }}
+              title={`Secundária: ${figurino.corSecundaria}`}
+            />
+          )}
+        </div>
+      )
+    },
+    {
+      key: 'qtdImagens',
+      label: 'Imagens',
+      sortable: false,
+      render: (figurino: Figurino) => (
+        <Badge variant="secondary">{figurino.imagens?.length || 0}</Badge>
+      )
+    },
+    {
+      key: 'actions',
+      label: 'Ações',
+      sortable: false,
+      render: (figurino: Figurino) => (
+        <div className="flex gap-2">
+          <Button variant="ghost" size="icon" onClick={() => handleEdit(figurino)}>
+            <Edit className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="icon" onClick={() => handleDelete(figurino.id)}>
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      )
+    }
+  ];
+
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        title="Figurinos"
+        description="Gerencie os figurinos disponíveis para as produções"
+        onAdd={() => setIsModalOpen(true)}
+        addLabel="Novo Figurino"
+      >
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar figurino..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-9 w-64"
+          />
+        </div>
+      </PageHeader>
+
+      {filteredItems.length > 0 ? (
+        <SortableTable 
+          columns={columns} 
+          data={filteredItems} 
+          getRowKey={(item) => item.id}
+          storageKey="kreato_figurinos_table"
+        />
+      ) : (
+        <EmptyState
+          icon={ImageIcon}
+          title="Nenhum figurino encontrado"
+          description="Adicione um novo figurino para começar."
+        />
+      )}
+
+      <FigurinoFormModal
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+        onSave={handleSave}
+        data={editingData}
+      />
+    </div>
+  );
+};
+
+export default Figurinos;
