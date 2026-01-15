@@ -506,7 +506,7 @@ export const ConteudoFormModal = ({
                 </TabsContent>
                 
                 <TabsContent value="custos" className="mt-4">
-                  <ConteudoCustosTab conteudoId={data.id} />
+                  <ConteudoCustosTab conteudoId={data.id} conteudoNome={data.descricao} />
                 </TabsContent>
               </Tabs>
             </div>
