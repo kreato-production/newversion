@@ -210,7 +210,7 @@ export const UsuarioFormModal = ({
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="nome">Nome *</Label>
+                  <Label htmlFor="nome">Nome <span className="text-destructive">*</span></Label>
                   <Input
                     id="nome"
                     value={formData.nome}
@@ -223,7 +223,7 @@ export const UsuarioFormModal = ({
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="email">E-mail *</Label>
+                  <Label htmlFor="email">E-mail <span className="text-destructive">*</span></Label>
                   <Input
                     id="email"
                     type="email"
@@ -233,7 +233,7 @@ export const UsuarioFormModal = ({
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="usuario">Usuário *</Label>
+                  <Label htmlFor="usuario">Usuário <span className="text-destructive">*</span></Label>
                   <Input
                     id="usuario"
                     value={formData.usuario}
@@ -245,7 +245,7 @@ export const UsuarioFormModal = ({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="senha">Senha *</Label>
+                <Label htmlFor="senha">Senha <span className="text-destructive">*</span></Label>
                 <Input
                   id="senha"
                   type="password"

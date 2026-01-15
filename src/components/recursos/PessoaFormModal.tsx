@@ -166,7 +166,7 @@ export const PessoaFormModal = ({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="classificacao">Classificação *</Label>
+              <Label htmlFor="classificacao">Classificação <span className="text-destructive">*</span></Label>
               <Select
                 value={formData.classificacao}
                 onValueChange={(value) => setFormData({ ...formData, classificacao: value })}
@@ -187,7 +187,7 @@ export const PessoaFormModal = ({
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="nome">Nome *</Label>
+              <Label htmlFor="nome">Nome <span className="text-destructive">*</span></Label>
               <Input
                 id="nome"
                 value={formData.nome}
@@ -196,7 +196,7 @@ export const PessoaFormModal = ({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="sobrenome">Sobrenome *</Label>
+              <Label htmlFor="sobrenome">Sobrenome <span className="text-destructive">*</span></Label>
               <Input
                 id="sobrenome"
                 value={formData.sobrenome}
@@ -322,7 +322,7 @@ export const PessoaFormModal = ({
 
           {/* Status */}
           <div className="space-y-2">
-            <Label htmlFor="status">Status *</Label>
+            <Label htmlFor="status">Status <span className="text-destructive">*</span></Label>
             <Select
               value={formData.status}
               onValueChange={(value) => setFormData({ ...formData, status: value as 'Ativo' | 'Inativo' })}

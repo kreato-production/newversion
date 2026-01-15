@@ -124,7 +124,7 @@ export const FornecedorFormModal = ({
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="nome">Nome *</Label>
+                  <Label htmlFor="nome">Nome <span className="text-destructive">*</span></Label>
                   <Input
                     id="nome"
                     value={formData.nome}
@@ -153,7 +153,7 @@ export const FornecedorFormModal = ({
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="email">E-mail *</Label>
+                  <Label htmlFor="email">E-mail <span className="text-destructive">*</span></Label>
                   <Input
                     id="email"
                     type="email"

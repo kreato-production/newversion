@@ -247,7 +247,7 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="nome">{t('common.name')} *</Label>
+                  <Label htmlFor="nome">{t('common.name')} <span className="text-destructive">*</span></Label>
                   <Input
                     id="nome"
                     value={formData.nome}

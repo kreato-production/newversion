@@ -102,7 +102,7 @@ export const StatusGravacaoFormModal = ({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="nome">Nome *</Label>
+              <Label htmlFor="nome">Nome <span className="text-destructive">*</span></Label>
               <Input
                 id="nome"
                 value={formData.nome}

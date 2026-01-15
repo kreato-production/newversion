@@ -5,6 +5,7 @@ import { Edit, Trash2, UserCog } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { UsuarioFormModal } from '@/components/admin/UsuarioFormModal';
 import { SortableTable, Column } from '@/components/shared/SortableTable';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 export interface Usuario {
   id: string;
@@ -61,7 +62,30 @@ const Usuarios = () => {
       item.email.toLowerCase().includes(search.toLowerCase())
   );
 
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map((n) => n[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+  };
+
   const columns: Column<Usuario>[] = [
+    {
+      key: 'foto',
+      label: 'Foto',
+      className: 'w-16',
+      sortable: false,
+      render: (item) => (
+        <Avatar className="h-9 w-9">
+          <AvatarImage src={item.foto || undefined} alt={item.nome} />
+          <AvatarFallback className="text-xs bg-muted">
+            {getInitials(item.nome || '??')}
+          </AvatarFallback>
+        </Avatar>
+      ),
+    },
     {
       key: 'codigoExterno',
       label: 'Código',

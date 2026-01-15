@@ -364,7 +364,7 @@ export const RecursoHumanoFormModal = ({
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="nome">Nome *</Label>
+                      <Label htmlFor="nome">Nome <span className="text-destructive">*</span></Label>
                       <Input
                         id="nome"
                         value={formData.nome}
@@ -374,7 +374,7 @@ export const RecursoHumanoFormModal = ({
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="sobrenome">Sobrenome *</Label>
+                      <Label htmlFor="sobrenome">Sobrenome <span className="text-destructive">*</span></Label>
                       <Input
                         id="sobrenome"
                         value={formData.sobrenome}
@@ -387,7 +387,7 @@ export const RecursoHumanoFormModal = ({
 
                   <div className="grid grid-cols-3 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="email">E-mail *</Label>
+                      <Label htmlFor="email">E-mail <span className="text-destructive">*</span></Label>
                       <Input
                         id="email"
                         type="email"
@@ -577,7 +577,7 @@ export const RecursoHumanoFormModal = ({
               </h4>
               <div className="grid grid-cols-4 gap-3">
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Motivo *</Label>
+                  <Label className="text-xs">Motivo <span className="text-destructive">*</span></Label>
                   <Select
                     value={novaAusencia.motivo}
                     onValueChange={(value) => setNovaAusencia({ ...novaAusencia, motivo: value as Ausencia['motivo'] })}
@@ -595,7 +595,7 @@ export const RecursoHumanoFormModal = ({
                   </Select>
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Data Início *</Label>
+                  <Label className="text-xs">Data Início <span className="text-destructive">*</span></Label>
                   <Input
                     type="date"
                     value={novaAusencia.dataInicio}
@@ -603,7 +603,7 @@ export const RecursoHumanoFormModal = ({
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Data Fim *</Label>
+                  <Label className="text-xs">Data Fim <span className="text-destructive">*</span></Label>
                   <Input
                     type="date"
                     value={novaAusencia.dataFim}
