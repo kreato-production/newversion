@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Plus, Search, CheckCircle2, Clock, AlertCircle, ArrowUpDown, ArrowUp, ArrowDown, Edit, Trash2 } from 'lucide-react';
+import { Plus, Search, CheckCircle2, Clock, AlertCircle, ArrowUpDown, ArrowUp, ArrowDown, Edit } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -23,21 +23,11 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { PageHeader, DataCard } from '@/components/shared/PageComponents';
 import { TarefaFormModal } from '@/components/producao/TarefaFormModal';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { usePermissions } from '@/hooks/usePermissions';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
@@ -76,6 +66,13 @@ interface Gravacao {
 
 const Tarefas = () => {
   const { t, formatDate } = useLanguage();
+  const { canIncluir, canAlterar, canExcluir, isVisible } = usePermissions();
+  
+  // Permissões de ação
+  const podeIncluir = canIncluir('Produção', 'Tarefas');
+  const podeAlterar = canAlterar('Produção', 'Tarefas');
+  const podeExcluir = canExcluir('Produção', 'Tarefas');
+  
   const [tarefas, setTarefas] = useState<Tarefa[]>([]);
   const [statusList, setStatusList] = useState<StatusTarefa[]>([]);
   const [gravacoes, setGravacoes] = useState<Gravacao[]>([]);
@@ -278,7 +275,7 @@ const Tarefas = () => {
       <PageHeader
         title={t('tasks.title')}
         description={t('tasks.description')}
-        onAdd={() => { setEditingTarefa(null); setIsModalOpen(true); }}
+        onAdd={podeIncluir ? () => { setEditingTarefa(null); setIsModalOpen(true); } : undefined}
         addLabel={t('tasks.new')}
       />
 
@@ -359,10 +356,12 @@ const Tarefas = () => {
         {sortedTarefas.length === 0 ? (
           <div className="text-center py-12 border-2 border-dashed rounded-lg">
             <p className="text-muted-foreground mb-4">{t('tasks.empty')}</p>
-            <Button variant="outline" onClick={() => { setEditingTarefa(null); setIsModalOpen(true); }}>
-              <Plus className="h-4 w-4 mr-2" />
-              {t('tasks.addFirst')}
-            </Button>
+            {podeIncluir && (
+              <Button variant="outline" onClick={() => { setEditingTarefa(null); setIsModalOpen(true); }}>
+                <Plus className="h-4 w-4 mr-2" />
+                {t('tasks.addFirst')}
+              </Button>
+            )}
           </div>
         ) : (
           <DataCard>
@@ -380,11 +379,14 @@ const Tarefas = () => {
               </TableHeader>
               <TableBody>
                 {sortedTarefas.map(tarefa => (
-                  <TableRow 
-                    key={tarefa.id} 
-                    className="cursor-pointer hover:bg-muted/50"
-                    onClick={() => handleEdit(tarefa)}
-                  >
+                    <TableRow 
+                      key={tarefa.id} 
+                      className={cn(
+                        "hover:bg-muted/50",
+                        podeAlterar && "cursor-pointer"
+                      )}
+                      onClick={() => podeAlterar && handleEdit(tarefa)}
+                    >
                     <TableCell className="font-medium">{tarefa.titulo}</TableCell>
                     <TableCell>{tarefa.gravacaoNome || '-'}</TableCell>
                     <TableCell>{tarefa.recursoHumanoNome || '-'}</TableCell>
@@ -407,13 +409,15 @@ const Tarefas = () => {
                     <TableCell>{tarefa.dataFim ? formatDate(tarefa.dataFim) : '-'}</TableCell>
                     <TableCell>
                       <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleEdit(tarefa)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
+                        {podeAlterar && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleEdit(tarefa)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -428,10 +432,11 @@ const Tarefas = () => {
         open={isModalOpen}
         onOpenChange={setIsModalOpen}
         onSave={handleSave}
-        onDelete={editingTarefa ? () => handleDelete(editingTarefa.id) : undefined}
+        onDelete={editingTarefa && podeExcluir ? () => handleDelete(editingTarefa.id) : undefined}
         data={editingTarefa}
         statusList={statusList}
         gravacoes={gravacoes}
+        readOnly={editingTarefa && !podeAlterar}
       />
     </>
   );

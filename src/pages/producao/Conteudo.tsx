@@ -5,6 +5,7 @@ import { Edit, Trash2, Film } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ConteudoFormModal } from '@/components/producao/ConteudoFormModal';
 import { SortableTable, Column } from '@/components/shared/SortableTable';
+import { usePermissions } from '@/hooks/usePermissions';
 
 export interface Conteudo {
   id: string;
@@ -53,6 +54,13 @@ export const generateCodigoConteudo = (): string => {
 
 const Conteudo = () => {
   const { toast } = useToast();
+  const { canIncluir, canAlterar, canExcluir } = usePermissions();
+  
+  // Permissões de ação
+  const podeIncluir = canIncluir('Produção', 'Conteúdo');
+  const podeAlterar = canAlterar('Produção', 'Conteúdo');
+  const podeExcluir = canExcluir('Produção', 'Conteúdo');
+  
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Conteudo | null>(null);
@@ -189,28 +197,32 @@ const Conteudo = () => {
       sortable: false,
       render: (item) => (
         <div className="flex justify-end gap-1">
-          <Button
-            size="icon"
-            variant="ghost"
-            onClick={(e) => {
-              e.stopPropagation();
-              setEditingItem(item);
-              setIsModalOpen(true);
-            }}
-          >
-            <Edit className="w-4 h-4" />
-          </Button>
-          <Button
-            size="icon"
-            variant="ghost"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleDelete(item.id);
-            }}
-            className="text-destructive hover:text-destructive"
-          >
-            <Trash2 className="w-4 h-4" />
-          </Button>
+          {podeAlterar && (
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={(e) => {
+                e.stopPropagation();
+                setEditingItem(item);
+                setIsModalOpen(true);
+              }}
+            >
+              <Edit className="w-4 h-4" />
+            </Button>
+          )}
+          {podeExcluir && (
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDelete(item.id);
+              }}
+              className="text-destructive hover:text-destructive"
+            >
+              <Trash2 className="w-4 h-4" />
+            </Button>
+          )}
         </div>
       ),
     },
@@ -221,10 +233,10 @@ const Conteudo = () => {
       <PageHeader
         title="Conteúdos"
         description="Gerencie os conteúdos de produção"
-        onAdd={() => {
+        onAdd={podeIncluir ? () => {
           setEditingItem(null);
           setIsModalOpen(true);
-        }}
+        } : undefined}
         addLabel="Novo Conteúdo"
       >
         <SearchBar value={search} onChange={setSearch} />

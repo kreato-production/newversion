@@ -7,6 +7,7 @@ import { GravacaoFormModal } from '@/components/producao/GravacaoFormModal';
 import { Badge } from '@/components/ui/badge';
 import { SortableTable, Column } from '@/components/shared/SortableTable';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { usePermissions } from '@/hooks/usePermissions';
 
 export interface Gravacao {
   id: string;
@@ -64,6 +65,13 @@ interface StatusGravacaoData {
 const GravacaoList = () => {
   const { toast } = useToast();
   const { t } = useLanguage();
+  const { canIncluir, canAlterar, canExcluir } = usePermissions();
+  
+  // Permissões de ação
+  const podeIncluir = canIncluir('Produção', 'Gravação');
+  const podeAlterar = canAlterar('Produção', 'Gravação');
+  const podeExcluir = canExcluir('Produção', 'Gravação');
+  
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Gravacao | null>(null);
@@ -182,28 +190,32 @@ const GravacaoList = () => {
       sortable: false,
       render: (item) => (
         <div className="flex justify-end gap-1">
-          <Button
-            size="icon"
-            variant="ghost"
-            onClick={(e) => {
-              e.stopPropagation();
-              setEditingItem(item);
-              setIsModalOpen(true);
-            }}
-          >
-            <Edit className="w-4 h-4" />
-          </Button>
-          <Button
-            size="icon"
-            variant="ghost"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleDelete(item.id);
-            }}
-            className="text-destructive hover:text-destructive"
-          >
-            <Trash2 className="w-4 h-4" />
-          </Button>
+          {podeAlterar && (
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={(e) => {
+                e.stopPropagation();
+                setEditingItem(item);
+                setIsModalOpen(true);
+              }}
+            >
+              <Edit className="w-4 h-4" />
+            </Button>
+          )}
+          {podeExcluir && (
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDelete(item.id);
+              }}
+              className="text-destructive hover:text-destructive"
+            >
+              <Trash2 className="w-4 h-4" />
+            </Button>
+          )}
         </div>
       ),
     },
@@ -214,10 +226,10 @@ const GravacaoList = () => {
       <PageHeader
         title={t('recordings.title')}
         description={t('recordings.description')}
-        onAdd={() => {
+        onAdd={podeIncluir ? () => {
           setEditingItem(null);
           setIsModalOpen(true);
-        }}
+        } : undefined}
         addLabel={t('recordings.new')}
       >
         <SearchBar value={search} onChange={setSearch} placeholder={t('common.search')} />
