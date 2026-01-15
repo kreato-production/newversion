@@ -8,8 +8,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Calendar, ChevronLeft, ChevronRight, Filter, MapPin, Users, CalendarDays, CalendarRange, FileDown, Loader2 } from 'lucide-react';
-import { format, addDays, startOfWeek, addWeeks, subWeeks, startOfMonth, endOfMonth, addMonths, subMonths, eachDayOfInterval, getDay, isSameMonth } from 'date-fns';
+import { format, addDays, startOfWeek, addWeeks, subWeeks, startOfMonth, endOfMonth, addMonths, subMonths, eachDayOfInterval, getDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import jsPDF from 'jspdf';
 
 interface RecursoHumanoAlocado {
   id: string;
@@ -275,13 +276,10 @@ const Mapas = () => {
     return grupos;
   }, [filteredRecursosHumanos]);
 
-  // Exportar a vista atual via impressão (o usuário escolhe "Salvar como PDF")
+  // Exportar a vista atual como PDF usando jsPDF
   const handleExportPDF = () => {
     setIsExporting(true);
     try {
-      const targetRef = activeTab === 'fisicos' ? fisicosRef.current : humanosRef.current;
-      if (!targetRef) return;
-
       const titulo =
         activeTab === 'fisicos'
           ? 'Mapa de Ocupação - Recursos Físicos'
@@ -292,59 +290,225 @@ const Mapas = () => {
           ? `${format(currentWeekStart, 'dd/MM/yyyy')} - ${format(addDays(currentWeekStart, 6), 'dd/MM/yyyy')}`
           : format(currentMonth, "MMMM 'de' yyyy", { locale: ptBR });
 
-      // Reutilizar os mesmos estilos do app no documento de impressão
-      const stylesheetLinks = Array.from(
-        document.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"]')
-      )
-        .map((l) => `<link rel="stylesheet" href="${l.href}">`)
-        .join('\n');
+      // Criar PDF em paisagem
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const margin = 10;
+      let y = margin;
 
-      const styleTags = Array.from(document.querySelectorAll<HTMLStyleElement>('style'))
-        .map((s) => `<style>${s.innerHTML}</style>`)
-        .join('\n');
+      // Título
+      doc.setFontSize(16);
+      doc.setFont('helvetica', 'bold');
+      doc.text(titulo, pageWidth / 2, y, { align: 'center' });
+      y += 8;
 
-      const printWindow = window.open('', '_blank', 'noopener,noreferrer,width=1280,height=720');
-      if (!printWindow) return;
+      // Período
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Período: ${periodo}`, pageWidth / 2, y, { align: 'center' });
+      y += 10;
 
-      printWindow.document.open();
-      printWindow.document.write(`
-        <!doctype html>
-        <html lang="pt-BR">
-          <head>
-            <meta charset="utf-8" />
-            <meta name="viewport" content="width=device-width, initial-scale=1" />
-            <title>${titulo}</title>
-            ${stylesheetLinks}
-            ${styleTags}
-            <style>
-              @page { size: A4 landscape; margin: 12mm; }
-              body { background: white !important; }
-              /* Evitar cortes por overflow */
-              .overflow-x-auto { overflow: visible !important; }
-              /* Não imprimir portais (dropdowns/dialogs) caso existam */
-              [data-radix-portal] { display: none !important; }
-            </style>
-          </head>
-          <body>
-            <div style="padding: 16px">
-              <h1 style="text-align:center;font-size:18px;margin:0">${titulo}</h1>
-              <div style="text-align:center;font-size:12px;margin:4px 0 12px;color:#444">
-                Período: ${periodo}
-              </div>
-              ${targetRef.innerHTML}
-            </div>
-            <script>
-              window.onload = () => {
-                window.focus();
-                window.print();
-              };
-            </script>
-          </body>
-        </html>
-      `);
-      printWindow.document.close();
+      // Preparar dados da tabela
+      const recursos = activeTab === 'fisicos' ? filteredRecursosFisicos : filteredRecursosHumanos;
+      const ocupacoes = activeTab === 'fisicos' ? ocupacoesFisicas : ocupacoesHumanas;
+
+      // Função auxiliar para desenhar tabela no PDF
+      const drawTable = (
+        recursosList: { id: string; nome: string }[],
+        startY: number
+      ): number => {
+        const colWidth = viewMode === 'week' ? 35 : 22;
+        const firstColWidth = 45;
+        const rowHeight = 8;
+        const headerHeight = 12;
+        let currentY = startY;
+
+        if (recursosList.length === 0) {
+          doc.setFontSize(10);
+          doc.setFont('helvetica', 'italic');
+          doc.text('Nenhum recurso encontrado', margin, currentY + 10);
+          return currentY + 20;
+        }
+
+        // Calcular quantas colunas cabem por página
+        const availableWidth = pageWidth - margin * 2 - firstColWidth;
+        const colsPerPage = Math.floor(availableWidth / colWidth);
+        const totalCols = displayDays.length;
+        const pageGroups = Math.ceil(totalCols / colsPerPage);
+
+        for (let pageGroup = 0; pageGroup < pageGroups; pageGroup++) {
+          const startCol = pageGroup * colsPerPage;
+          const endCol = Math.min(startCol + colsPerPage, totalCols);
+          const pageDays = displayDays.slice(startCol, endCol);
+
+          if (pageGroup > 0) {
+            doc.addPage();
+            currentY = margin + 20;
+          }
+
+          // Cabeçalho da tabela
+          doc.setFillColor(240, 240, 240);
+          doc.rect(margin, currentY, firstColWidth + pageDays.length * colWidth, headerHeight, 'F');
+          doc.setDrawColor(200, 200, 200);
+          doc.rect(margin, currentY, firstColWidth + pageDays.length * colWidth, headerHeight, 'S');
+
+          doc.setFontSize(8);
+          doc.setFont('helvetica', 'bold');
+          doc.text('Recurso', margin + 2, currentY + 7);
+
+          pageDays.forEach((day, i) => {
+            const x = margin + firstColWidth + i * colWidth;
+            doc.line(x, currentY, x, currentY + headerHeight);
+            const dayLabel = viewMode === 'week' 
+              ? format(day, 'EEE dd/MM', { locale: ptBR })
+              : format(day, 'dd/MM');
+            doc.text(dayLabel, x + colWidth / 2, currentY + 7, { align: 'center' });
+          });
+
+          currentY += headerHeight;
+
+          // Linhas de recursos
+          recursosList.forEach((recurso) => {
+            // Verificar se precisa de nova página
+            if (currentY > pageHeight - 20) {
+              doc.addPage();
+              currentY = margin;
+
+              // Redesenhar cabeçalho
+              doc.setFillColor(240, 240, 240);
+              doc.rect(margin, currentY, firstColWidth + pageDays.length * colWidth, headerHeight, 'F');
+              doc.setDrawColor(200, 200, 200);
+              doc.rect(margin, currentY, firstColWidth + pageDays.length * colWidth, headerHeight, 'S');
+              doc.setFontSize(8);
+              doc.setFont('helvetica', 'bold');
+              doc.text('Recurso', margin + 2, currentY + 7);
+              pageDays.forEach((day, i) => {
+                const x = margin + firstColWidth + i * colWidth;
+                doc.line(x, currentY, x, currentY + headerHeight);
+                const dayLabel = viewMode === 'week' 
+                  ? format(day, 'EEE dd/MM', { locale: ptBR })
+                  : format(day, 'dd/MM');
+                doc.text(dayLabel, x + colWidth / 2, currentY + 7, { align: 'center' });
+              });
+              currentY += headerHeight;
+            }
+
+            // Calcular altura da linha baseado no conteúdo
+            let maxOcupacoes = 1;
+            pageDays.forEach((day) => {
+              const dataStr = format(day, 'yyyy-MM-dd');
+              let items = ocupacoes[recurso.id]?.[dataStr] || [];
+              if (filtroGravacao !== 'Todas') {
+                items = items.filter((item) => item.gravacaoId === filtroGravacao);
+              }
+              maxOcupacoes = Math.max(maxOcupacoes, items.length);
+            });
+            const currentRowHeight = Math.max(rowHeight, maxOcupacoes * 6 + 2);
+
+            // Desenhar linha
+            doc.setDrawColor(220, 220, 220);
+            doc.rect(margin, currentY, firstColWidth + pageDays.length * colWidth, currentRowHeight, 'S');
+
+            // Nome do recurso
+            doc.setFontSize(7);
+            doc.setFont('helvetica', 'normal');
+            doc.setTextColor(0, 0, 0);
+            const nomeRecurso = recurso.nome.length > 18 ? recurso.nome.substring(0, 18) + '...' : recurso.nome;
+            doc.text(nomeRecurso, margin + 2, currentY + currentRowHeight / 2 + 1);
+
+            // Células de ocupação
+            pageDays.forEach((day, i) => {
+              const x = margin + firstColWidth + i * colWidth;
+              doc.line(x, currentY, x, currentY + currentRowHeight);
+
+              const dataStr = format(day, 'yyyy-MM-dd');
+              let items = ocupacoes[recurso.id]?.[dataStr] || [];
+              if (filtroGravacao !== 'Todas') {
+                items = items.filter((item) => item.gravacaoId === filtroGravacao);
+              }
+
+              if (items.length > 0) {
+                doc.setFontSize(6);
+                items.forEach((oc, idx) => {
+                  const cellY = currentY + 4 + idx * 6;
+                  const gravNome = oc.gravacao.length > 12 ? oc.gravacao.substring(0, 12) + '..' : oc.gravacao;
+                  doc.setFont('helvetica', 'bold');
+                  doc.setTextColor(0, 0, 0);
+                  doc.text(gravNome, x + 1, cellY);
+                  if (viewMode === 'week') {
+                    doc.setFont('helvetica', 'normal');
+                    const horario = oc.horario.length > 15 ? oc.horario.substring(0, 15) : oc.horario;
+                    doc.text(horario, x + 1, cellY + 3);
+                  }
+                });
+              } else {
+                doc.setFontSize(7);
+                doc.setTextColor(180, 180, 180);
+                doc.text('-', x + colWidth / 2, currentY + currentRowHeight / 2, { align: 'center' });
+                doc.setTextColor(0, 0, 0);
+              }
+            });
+
+            currentY += currentRowHeight;
+          });
+        }
+
+        return currentY;
+      };
+
+      // Se for recursos humanos, desenhar agrupado por função
+      if (activeTab === 'humanos') {
+        const grupoKeys = Object.keys(recursosHumanosAgrupados).sort();
+        
+        if (grupoKeys.length === 0) {
+          doc.setFontSize(10);
+          doc.setFont('helvetica', 'italic');
+          doc.text('Nenhum recurso humano encontrado', margin, y + 10);
+        } else {
+          grupoKeys.forEach((grupo) => {
+            // Verificar se precisa de nova página
+            if (y > pageHeight - 40) {
+              doc.addPage();
+              y = margin;
+            }
+
+            // Nome do grupo
+            doc.setFontSize(11);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(0, 0, 0);
+            doc.text(`${grupo} (${recursosHumanosAgrupados[grupo].length})`, margin, y);
+            y += 6;
+
+            // Desenhar tabela para este grupo
+            y = drawTable(recursosHumanosAgrupados[grupo], y);
+            y += 8;
+          });
+        }
+      } else {
+        // Recursos físicos - tabela única
+        y = drawTable(recursos, y);
+      }
+
+      // Rodapé
+      const totalPages = doc.getNumberOfPages();
+      for (let i = 1; i <= totalPages; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(100, 100, 100);
+        doc.text(
+          `Gerado em ${format(new Date(), "dd/MM/yyyy 'às' HH:mm")} - Página ${i} de ${totalPages}`,
+          pageWidth / 2,
+          pageHeight - 5,
+          { align: 'center' }
+        );
+      }
+
+      // Salvar PDF
+      const nomeArquivo = `mapa-ocupacao-${activeTab}-${format(new Date(), 'yyyy-MM-dd')}.pdf`;
+      doc.save(nomeArquivo);
     } finally {
-      // pequeno delay para não “piscar” o loading
       window.setTimeout(() => setIsExporting(false), 400);
     }
   };
