@@ -218,12 +218,13 @@ const Mapas = () => {
                 ocupacoes[rh.recursoHumanoId][dia] = [];
               }
 
-              // Buscar a tarefa correspondente para obter a cor do status
+              // Buscar a tarefa correspondente para obter a cor do status (considerando a data)
               const tarefaCorrespondente = tarefas.find(
                 (t) =>
                   t.gravacaoId === gravacaoId &&
                   t.recursoHumanoId === rh.recursoHumanoId &&
-                  t.recursoTecnicoId === recurso.recursoId
+                  t.recursoTecnicoId === recurso.recursoId &&
+                  t.dataInicio === dia
               );
 
               ocupacoes[rh.recursoHumanoId][dia].push({
