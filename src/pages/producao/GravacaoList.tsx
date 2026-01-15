@@ -6,6 +6,7 @@ import { useToast } from '@/hooks/use-toast';
 import { GravacaoFormModal } from '@/components/producao/GravacaoFormModal';
 import { Badge } from '@/components/ui/badge';
 import { SortableTable, Column } from '@/components/shared/SortableTable';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 export interface Gravacao {
   id: string;
@@ -62,6 +63,7 @@ interface StatusGravacaoData {
 
 const GravacaoList = () => {
   const { toast } = useToast();
+  const { t } = useLanguage();
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Gravacao | null>(null);
@@ -94,18 +96,18 @@ const GravacaoList = () => {
     if (editingItem) {
       const updated = items.map((item) => (item.id === data.id ? data : item));
       saveToStorage(updated);
-      toast({ title: 'Sucesso', description: 'Gravação atualizada!' });
+      toast({ title: t('common.success'), description: t('recordings.edit') + '!' });
     } else {
       saveToStorage([...items, data]);
-      toast({ title: 'Sucesso', description: 'Gravação cadastrada!' });
+      toast({ title: t('common.success'), description: t('recordings.new') + '!' });
     }
     setEditingItem(null);
   };
 
   const handleDelete = (id: string) => {
-    if (confirm('Deseja realmente excluir esta gravação?')) {
+    if (confirm(t('common.confirm.delete'))) {
       saveToStorage(items.filter((item) => item.id !== id));
-      toast({ title: 'Excluído', description: 'Gravação removida!' });
+      toast({ title: t('common.deleted'), description: t('recordings.title') + '!' });
     }
   };
 
@@ -124,7 +126,7 @@ const GravacaoList = () => {
   const columns: Column<Gravacao>[] = [
     {
       key: 'codigo',
-      label: 'Código',
+      label: t('common.code'),
       className: 'w-32',
       render: (item) => (
         <span className="font-mono text-sm font-medium text-primary">{item.codigo || '-'}</span>
@@ -132,7 +134,7 @@ const GravacaoList = () => {
     },
     {
       key: 'codigoExterno',
-      label: 'Cód. Externo',
+      label: t('common.externalCode'),
       className: 'w-24',
       render: (item) => (
         <span className="font-mono text-sm text-muted-foreground">{item.codigoExterno || '-'}</span>
@@ -140,22 +142,22 @@ const GravacaoList = () => {
     },
     {
       key: 'nome',
-      label: 'Nome',
+      label: t('common.name'),
       render: (item) => <span className="font-medium">{item.nome}</span>,
     },
     {
       key: 'tipoConteudo',
-      label: 'Tipo',
+      label: t('common.type'),
       render: (item) => item.tipoConteudo || '-',
     },
     {
       key: 'classificacao',
-      label: 'Classificação',
+      label: t('content.classification'),
       render: (item) => item.classificacao || '-',
     },
     {
       key: 'status',
-      label: 'Status',
+      label: t('common.status'),
       render: (item) => {
         const cor = getStatusColor(item.status);
         return (
@@ -163,19 +165,19 @@ const GravacaoList = () => {
             style={cor ? { backgroundColor: cor } : undefined}
             className={cor ? 'text-white' : 'bg-muted text-muted-foreground'}
           >
-            {item.status || 'Sem status'}
+            {item.status || t('common.none')}
           </Badge>
         );
       },
     },
     {
       key: 'dataCadastro',
-      label: 'Data Cadastro',
+      label: t('common.registrationDate'),
       className: 'w-32',
     },
     {
       key: 'acoes',
-      label: 'Ações',
+      label: t('common.actions'),
       className: 'w-24 text-right',
       sortable: false,
       render: (item) => (
@@ -210,25 +212,25 @@ const GravacaoList = () => {
   return (
     <div>
       <PageHeader
-        title="Gravações"
-        description="Gerencie as gravações de conteúdo"
+        title={t('recordings.title')}
+        description={t('recordings.description')}
         onAdd={() => {
           setEditingItem(null);
           setIsModalOpen(true);
         }}
-        addLabel="Nova Gravação"
+        addLabel={t('recordings.new')}
       >
-        <SearchBar value={search} onChange={setSearch} />
+        <SearchBar value={search} onChange={setSearch} placeholder={t('common.search')} />
       </PageHeader>
 
       <DataCard>
         {filteredItems.length === 0 ? (
           <EmptyState
-            title="Nenhuma gravação cadastrada"
-            description="Comece adicionando sua primeira gravação de conteúdo."
+            title={t('recordings.empty')}
+            description={t('recordings.emptyDescription')}
             icon={Video}
             onAction={() => setIsModalOpen(true)}
-            actionLabel="Nova Gravação"
+            actionLabel={t('recordings.new')}
           />
         ) : (
           <SortableTable

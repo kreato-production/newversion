@@ -1,6 +1,6 @@
 import { useState, useEffect, forwardRef } from 'react';
 import { format, parse } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { ptBR, enUS, es } from 'date-fns/locale';
 import { CalendarIcon } from 'lucide-react';
 import {
   Dialog,
@@ -29,6 +29,7 @@ import {
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { type Gravacao, generateCodigoGravacao } from '@/pages/producao/GravacaoList';
 import { RecursosTab } from './RecursosTab';
 import { CustosTab } from './CustosTab';
@@ -46,6 +47,12 @@ interface GravacaoFormModalProps {
   data?: Gravacao | null;
 }
 
+const localeMap = {
+  pt: ptBR,
+  en: enUS,
+  es: es,
+};
+
 export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalProps>(({
   isOpen,
   onClose,
@@ -53,6 +60,7 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
   data,
 }, ref) => {
   const { user } = useAuth();
+  const { t, language, formatDate } = useLanguage();
   const [codigoGerado, setCodigoGerado] = useState('');
   const [dataPrevista, setDataPrevista] = useState<Date | undefined>(undefined);
   const [formData, setFormData] = useState({
@@ -176,33 +184,35 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
     onClose();
   };
 
+  const currentLocale = localeMap[language] || ptBR;
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[95vw] lg:max-w-[1400px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{data ? 'Editar Gravação' : 'Nova Gravação'}</DialogTitle>
+          <DialogTitle>{data ? t('recordings.edit') : t('recordings.new')}</DialogTitle>
           <DialogDescription>
-            Preencha os campos para {data ? 'editar' : 'cadastrar'} a gravação.
+            {data ? t('recordings.edit') : t('recordings.new')}
           </DialogDescription>
         </DialogHeader>
 
         <Tabs defaultValue="dados" className="w-full">
           <TabsList className="grid w-full grid-cols-8">
-            <TabsTrigger value="dados">Dados Gerais</TabsTrigger>
-            <TabsTrigger value="roteiro" disabled={!data}>Roteiro</TabsTrigger>
-            <TabsTrigger value="recursos" disabled={!data}>Recursos</TabsTrigger>
-            <TabsTrigger value="elenco" disabled={!data}>Elenco</TabsTrigger>
-            <TabsTrigger value="convidados" disabled={!data}>Convidados</TabsTrigger>
-            <TabsTrigger value="figurinos" disabled={!data}>Figurinos</TabsTrigger>
-            <TabsTrigger value="terceiros" disabled={!data}>Terceiros</TabsTrigger>
-            <TabsTrigger value="custos" disabled={!data}>Custos</TabsTrigger>
+            <TabsTrigger value="dados">{t('recordings.generalData')}</TabsTrigger>
+            <TabsTrigger value="roteiro" disabled={!data}>{t('script.title').split(' ')[0]}</TabsTrigger>
+            <TabsTrigger value="recursos" disabled={!data}>{t('recordings.resources')}</TabsTrigger>
+            <TabsTrigger value="elenco" disabled={!data}>{t('recordings.cast')}</TabsTrigger>
+            <TabsTrigger value="convidados" disabled={!data}>{t('recordings.guests')}</TabsTrigger>
+            <TabsTrigger value="figurinos" disabled={!data}>{t('recordings.costumes')}</TabsTrigger>
+            <TabsTrigger value="terceiros" disabled={!data}>{t('recordings.thirdParties')}</TabsTrigger>
+            <TabsTrigger value="custos" disabled={!data}>{t('recordings.costs')}</TabsTrigger>
           </TabsList>
 
           <TabsContent value="dados">
             <form onSubmit={handleSubmit} className="space-y-4 mt-4">
               <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="codigo">Código</Label>
+                  <Label htmlFor="codigo">{t('common.code')}</Label>
                   <Input
                     id="codigo"
                     value={codigoGerado}
@@ -211,17 +221,17 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="codigoExterno">Código Externo</Label>
+                  <Label htmlFor="codigoExterno">{t('common.externalCode')}</Label>
                   <Input
                     id="codigoExterno"
                     value={formData.codigoExterno}
                     onChange={(e) => setFormData({ ...formData, codigoExterno: e.target.value })}
                     maxLength={10}
-                    placeholder="Máx. 10 caracteres"
+                    placeholder={t('common.maxChars')}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="nome">Nome *</Label>
+                  <Label htmlFor="nome">{t('common.name')} *</Label>
                   <Input
                     id="nome"
                     value={formData.nome}
@@ -234,13 +244,13 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
 
               <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label>Unidade de Negócio</Label>
+                  <Label>{t('recordings.businessUnit')}</Label>
                   <Select
                     value={formData.unidadeNegocio}
                     onValueChange={(value) => setFormData({ ...formData, unidadeNegocio: value })}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Selecione..." />
+                      <SelectValue placeholder={t('common.select')} />
                     </SelectTrigger>
                     <SelectContent>
                       {unidades.map((u) => (
@@ -250,13 +260,13 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Centro de Lucro</Label>
+                  <Label>{t('recordings.profitCenter')}</Label>
                   <Select
                     value={formData.centroLucro}
                     onValueChange={(value) => setFormData({ ...formData, centroLucro: value })}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Selecione..." />
+                      <SelectValue placeholder={t('common.select')} />
                     </SelectTrigger>
                     <SelectContent>
                       {centrosLucroHierarquicos.map((cl) => (
@@ -268,17 +278,17 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Tipo de Conteúdo</Label>
+                  <Label>{t('content.contentType')}</Label>
                   <Select
                     value={formData.tipoConteudo}
                     onValueChange={(value) => setFormData({ ...formData, tipoConteudo: value })}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Selecione..." />
+                      <SelectValue placeholder={t('common.select')} />
                     </SelectTrigger>
                     <SelectContent>
-                      {tipos.map((t) => (
-                        <SelectItem key={t.id} value={t.nome}>{t.nome}</SelectItem>
+                      {tipos.map((tipo) => (
+                        <SelectItem key={tipo.id} value={tipo.nome}>{tipo.nome}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -287,13 +297,13 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
 
               <div className="grid grid-cols-4 gap-4">
                 <div className="space-y-2">
-                  <Label>Classificação</Label>
+                  <Label>{t('content.classification')}</Label>
                   <Select
                     value={formData.classificacao}
                     onValueChange={(value) => setFormData({ ...formData, classificacao: value })}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Selecione..." />
+                      <SelectValue placeholder={t('common.select')} />
                     </SelectTrigger>
                     <SelectContent>
                       {classificacoes.map((c) => (
@@ -303,13 +313,13 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Status</Label>
+                  <Label>{t('common.status')}</Label>
                   <Select
                     value={formData.status}
                     onValueChange={(value) => setFormData({ ...formData, status: value })}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Selecione..." />
+                      <SelectValue placeholder={t('common.select')} />
                     </SelectTrigger>
                     <SelectContent>
                       {statusList.map((s) => (
@@ -319,16 +329,16 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Conteúdo</Label>
+                  <Label>{t('content.title')}</Label>
                   <Select
                     value={formData.conteudoId || "__none__"}
                     onValueChange={(value) => setFormData({ ...formData, conteudoId: value === "__none__" ? "" : value })}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Selecione..." />
+                      <SelectValue placeholder={t('common.select')} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="__none__">Nenhum</SelectItem>
+                      <SelectItem value="__none__">{t('common.none')}</SelectItem>
                       {conteudos.map((c) => (
                         <SelectItem key={c.id} value={c.id}>{c.descricao}</SelectItem>
                       ))}
@@ -336,7 +346,7 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Data Prevista</Label>
+                  <Label>{t('recordings.expectedDate')}</Label>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button
@@ -347,7 +357,7 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
                         )}
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
-                        {dataPrevista ? format(dataPrevista, "dd/MM/yyyy") : "Selecione..."}
+                        {dataPrevista ? format(dataPrevista, "dd/MM/yyyy") : t('common.select')}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
@@ -356,7 +366,7 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
                         selected={dataPrevista}
                         onSelect={setDataPrevista}
                         initialFocus
-                        locale={ptBR}
+                        locale={currentLocale}
                         className={cn("p-3 pointer-events-auto")}
                       />
                     </PopoverContent>
@@ -365,22 +375,22 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="descricao">Descrição</Label>
+                <Label htmlFor="descricao">{t('common.description')}</Label>
                 <Textarea
                   id="descricao"
                   value={formData.descricao}
                   onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
                   rows={3}
-                  placeholder="Descrição do conteúdo..."
+                  placeholder={t('common.description') + '...'}
                 />
               </div>
 
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={onClose}>
-                  Cancelar
+                  {t('common.cancel')}
                 </Button>
                 <Button type="submit" className="gradient-primary hover:opacity-90">
-                  Salvar
+                  {t('common.save')}
                 </Button>
               </DialogFooter>
             </form>

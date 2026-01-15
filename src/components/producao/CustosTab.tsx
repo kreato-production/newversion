@@ -2,8 +2,8 @@ import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import { Users, MapPin, Wrench, Calculator, Clock, DollarSign, Building2 } from 'lucide-react';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface RecursoHumanoAlocado {
   id: string;
@@ -65,9 +65,6 @@ interface CustosTabProps {
   gravacaoId: string;
 }
 
-const formatCurrency = (value: number) =>
-  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
-
 const calcularHorasEntreTempo = (inicio: string, fim: string): number => {
   if (!inicio || !fim) return 0;
   
@@ -82,6 +79,7 @@ const calcularHorasEntreTempo = (inicio: string, fim: string): number => {
 };
 
 export const CustosTab = ({ gravacaoId }: CustosTabProps) => {
+  const { t, formatCurrency } = useLanguage();
   const [recursos, setRecursos] = useState<RecursoAlocado[]>([]);
   const [recursosHumanos, setRecursosHumanos] = useState<RecursoHumano[]>([]);
   const [recursosFisicos, setRecursosFisicos] = useState<RecursoFisico[]>([]);
@@ -135,9 +133,9 @@ export const CustosTab = ({ gravacaoId }: CustosTabProps) => {
 
         if (totalHoras > 0) {
           itens.push({
-            categoria: 'Recursos Físicos',
+            categoria: t('costsTab.physicalResources'),
             recurso: recurso.recursoNome,
-            descricao: `${diasUtilizados.length} dia(s) de ocupação`,
+            descricao: `${diasUtilizados.length} ${t('costsTab.daysOccupation')}`,
             horas: totalHoras,
             custoUnitario: custoHora,
             custoTotal: totalHoras * custoHora,
@@ -165,9 +163,9 @@ export const CustosTab = ({ gravacaoId }: CustosTabProps) => {
 
           if (dados.horas > 0) {
             itens.push({
-              categoria: 'Recursos Humanos',
+              categoria: t('costsTab.humanResources'),
               recurso: dados.nome,
-              descricao: `${dados.dias} dia(s) em ${recurso.recursoNome}`,
+              descricao: `${dados.dias} ${t('costsTab.daysIn')} ${recurso.recursoNome}`,
               horas: dados.horas,
               custoUnitario: custoHora,
               custoTotal: dados.horas * custoHora,
@@ -181,7 +179,7 @@ export const CustosTab = ({ gravacaoId }: CustosTabProps) => {
     // Adicionar custos de terceiros
     terceiros.forEach((terceiro) => {
       itens.push({
-        categoria: 'Terceiros',
+        categoria: t('thirdParties.title'),
         recurso: terceiro.fornecedorNome,
         descricao: terceiro.servicoNome,
         horas: 0,
@@ -192,7 +190,7 @@ export const CustosTab = ({ gravacaoId }: CustosTabProps) => {
     });
 
     return itens;
-  }, [recursos, recursosHumanos, recursosFisicos, terceiros]);
+  }, [recursos, recursosHumanos, recursosFisicos, terceiros, t]);
 
   const custosPorCategoria = useMemo(() => {
     const categorias: Record<string, CustoItem[]> = {};
@@ -224,9 +222,9 @@ export const CustosTab = ({ gravacaoId }: CustosTabProps) => {
   }, [custos]);
 
   const getIconCategoria = (categoria: string) => {
-    if (categoria === 'Recursos Humanos') return <Users className="h-4 w-4" />;
-    if (categoria === 'Recursos Físicos') return <MapPin className="h-4 w-4" />;
-    if (categoria === 'Terceiros') return <Building2 className="h-4 w-4" />;
+    if (categoria === t('costsTab.humanResources')) return <Users className="h-4 w-4" />;
+    if (categoria === t('costsTab.physicalResources')) return <MapPin className="h-4 w-4" />;
+    if (categoria === t('thirdParties.title')) return <Building2 className="h-4 w-4" />;
     return <Wrench className="h-4 w-4" />;
   };
 
@@ -236,9 +234,9 @@ export const CustosTab = ({ gravacaoId }: CustosTabProps) => {
         <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
           <Calculator className="w-8 h-8 text-muted-foreground" />
         </div>
-        <h3 className="text-lg font-semibold text-foreground mb-1">Nenhum custo estimado</h3>
+        <h3 className="text-lg font-semibold text-foreground mb-1">{t('costsTab.noCosts')}</h3>
         <p className="text-sm text-muted-foreground max-w-sm">
-          Aloque recursos com horários definidos na aba "Recursos" para visualizar a estimativa de custos.
+          {t('costsTab.noCostsDescription')}
         </p>
       </div>
     );
@@ -250,34 +248,34 @@ export const CustosTab = ({ gravacaoId }: CustosTabProps) => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total de Horas</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('costsTab.totalHours')}</CardTitle>
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{totalGeral.horas.toFixed(1)}h</div>
-            <p className="text-xs text-muted-foreground">Horas estimadas de trabalho</p>
+            <p className="text-xs text-muted-foreground">{t('costsTab.estimatedHours')}</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Custo Total</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('costsTab.totalCost')}</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-primary">{formatCurrency(totalGeral.custo)}</div>
-            <p className="text-xs text-muted-foreground">Custo estimado da gravação</p>
+            <p className="text-xs text-muted-foreground">{t('costsTab.estimatedCost')}</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Itens de Custo</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('costsTab.costItems')}</CardTitle>
             <Calculator className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{custos.length}</div>
-            <p className="text-xs text-muted-foreground">Recursos alocados com custo</p>
+            <p className="text-xs text-muted-foreground">{t('costsTab.allocatedWithCost')}</p>
           </CardContent>
         </Card>
       </div>
@@ -298,15 +296,15 @@ export const CustosTab = ({ gravacaoId }: CustosTabProps) => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Recurso</TableHead>
-                  <TableHead>Descrição</TableHead>
-                  {categoria !== 'Terceiros' && (
+                  <TableHead>{t('costsTab.resource')}</TableHead>
+                  <TableHead>{t('common.description')}</TableHead>
+                  {categoria !== t('thirdParties.title') && (
                     <>
-                      <TableHead className="text-right">Horas</TableHead>
-                      <TableHead className="text-right">Custo/Hora</TableHead>
+                      <TableHead className="text-right">{t('costsTab.hours')}</TableHead>
+                      <TableHead className="text-right">{t('costsTab.hourlyRate')}</TableHead>
                     </>
                   )}
-                  <TableHead className="text-right">Custo Total</TableHead>
+                  <TableHead className="text-right">{t('costs.totalCost')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -314,7 +312,7 @@ export const CustosTab = ({ gravacaoId }: CustosTabProps) => {
                   <TableRow key={idx}>
                     <TableCell className="font-medium">{item.recurso}</TableCell>
                     <TableCell className="text-muted-foreground">{item.descricao}</TableCell>
-                    {categoria !== 'Terceiros' && (
+                    {categoria !== t('thirdParties.title') && (
                       <>
                         <TableCell className="text-right">{item.horas.toFixed(1)}h</TableCell>
                         <TableCell className="text-right">{formatCurrency(item.custoUnitario)}</TableCell>
@@ -325,9 +323,9 @@ export const CustosTab = ({ gravacaoId }: CustosTabProps) => {
                 ))}
                 <TableRow className="bg-muted/50">
                   <TableCell colSpan={2} className="font-medium">
-                    Subtotal - {categoria}
+                    {t('costsTab.subtotal')} - {categoria}
                   </TableCell>
-                  {categoria !== 'Terceiros' && (
+                  {categoria !== t('thirdParties.title') && (
                     <>
                       <TableCell className="text-right font-medium">
                         {totaisPorCategoria[categoria]?.horas.toFixed(1)}h
@@ -354,9 +352,9 @@ export const CustosTab = ({ gravacaoId }: CustosTabProps) => {
                 <DollarSign className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Custo Total Estimado</p>
+                <p className="text-sm text-muted-foreground">{t('costsTab.totalEstimatedCost')}</p>
                 <p className="text-sm text-muted-foreground">
-                  {totalGeral.horas.toFixed(1)} horas de trabalho
+                  {totalGeral.horas.toFixed(1)} {t('costsTab.workHours')}
                 </p>
               </div>
             </div>
