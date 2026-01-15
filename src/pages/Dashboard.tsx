@@ -134,6 +134,65 @@ const Dashboard = () => {
       });
   }, []);
 
+  // Função auxiliar para calcular horas entre horários
+  const calcularHorasEntreTempo = (inicio: string, fim: string): number => {
+    if (!inicio || !fim) return 0;
+    const [horaInicio, minInicio] = inicio.split(':').map(Number);
+    const [horaFim, minFim] = fim.split(':').map(Number);
+    const totalMinutosInicio = horaInicio * 60 + minInicio;
+    const totalMinutosFim = horaFim * 60 + minFim;
+    const diferencaMinutos = totalMinutosFim - totalMinutosInicio;
+    return diferencaMinutos > 0 ? diferencaMinutos / 60 : 0;
+  };
+
+  // Função para calcular custo total de uma gravação (mesma lógica do CustosTab)
+  const calcularCustoGravacao = (gravacaoId: string): number => {
+    let custoTotal = 0;
+    
+    // Carregar recursos humanos e físicos cadastrados
+    const recursosHumanosCadastro = JSON.parse(localStorage.getItem('kreato_recursos_humanos') || '[]');
+    const recursosFisicosCadastro = JSON.parse(localStorage.getItem('kreato_recursos_fisicos') || '[]');
+    
+    // Carregar recursos alocados na gravação
+    const recursos = JSON.parse(localStorage.getItem(`kreato_gravacao_recursos_${gravacaoId}`) || '[]');
+    
+    recursos.forEach((recurso: any) => {
+      if (recurso.tipo === 'fisico') {
+        // Custo de recursos físicos - baseado no horário de ocupação
+        const recursoFisico = recursosFisicosCadastro.find((rf: any) => rf.id === recurso.recursoId);
+        const custoHora = parseFloat(recursoFisico?.custoHora || 0);
+        
+        let totalHoras = 0;
+        Object.entries(recurso.horarios || {}).forEach(([, horario]: [string, any]) => {
+          const horas = calcularHorasEntreTempo(horario.horaInicio, horario.horaFim);
+          if (horas > 0) totalHoras += horas;
+        });
+        
+        custoTotal += totalHoras * custoHora;
+      } else if (recurso.tipo === 'tecnico') {
+        // Custo de recursos humanos alocados em recursos técnicos
+        Object.entries(recurso.recursosHumanos || {}).forEach(([, rhList]: [string, any]) => {
+          if (Array.isArray(rhList)) {
+            rhList.forEach((rh: any) => {
+              const horas = calcularHorasEntreTempo(rh.horaInicio, rh.horaFim);
+              const colaborador = recursosHumanosCadastro.find((r: any) => r.id === rh.recursoHumanoId);
+              const custoHora = parseFloat(colaborador?.custoHora || 0);
+              custoTotal += horas * custoHora;
+            });
+          }
+        });
+      }
+    });
+    
+    // Carregar terceiros alocados
+    const terceiros = JSON.parse(localStorage.getItem(`kreato_gravacao_terceiros_${gravacaoId}`) || '[]');
+    terceiros.forEach((terceiro: any) => {
+      custoTotal += parseFloat(terceiro.custo || 0);
+    });
+    
+    return custoTotal;
+  };
+
   // Dados para o gráfico de custos por mês
   const custosAnuais = useMemo(() => {
     const gravacoes = JSON.parse(localStorage.getItem('kreato_gravacoes') || '[]');
@@ -156,7 +215,6 @@ const Dashboard = () => {
       }
     });
     if (anosComDados.size > 0 && !anosComDados.has(anoCorrente)) {
-      // Se não há dados no ano corrente, usa o ano mais recente com dados
       const anosArray = Array.from(anosComDados);
       anoExibicao = Math.max(...anosArray);
     }
@@ -173,106 +231,35 @@ const Dashboard = () => {
     // Calcular custos de gravações por mês (baseado na data prevista)
     gravacoes.forEach((gravacao: any) => {
       if (!gravacao.dataPrevista) return;
-      const data = parseISO(gravacao.dataPrevista);
-      if (getYear(data) !== anoExibicao) return;
-      
-      const mesIndex = getMonth(data);
-      let custoTotal = 0;
-
-      // Somar custos de recursos humanos
-      if (gravacao.recursosHumanos) {
-        gravacao.recursosHumanos.forEach((rh: any) => {
-          custoTotal += parseFloat(rh.custoTotal || 0);
-        });
+      try {
+        const data = parseISO(gravacao.dataPrevista);
+        if (isNaN(data.getTime()) || getYear(data) !== anoExibicao) return;
+        
+        const mesIndex = getMonth(data);
+        const custoGravacao = calcularCustoGravacao(gravacao.id);
+        meses[mesIndex].custosGravacoes += custoGravacao;
+      } catch {
+        // Ignora gravações com datas inválidas
       }
-
-      // Somar custos de recursos físicos
-      if (gravacao.recursosFisicos) {
-        gravacao.recursosFisicos.forEach((rf: any) => {
-          custoTotal += parseFloat(rf.custoTotal || 0);
-        });
-      }
-
-      // Somar custos de recursos técnicos
-      if (gravacao.recursosTecnicos) {
-        gravacao.recursosTecnicos.forEach((rt: any) => {
-          custoTotal += parseFloat(rt.custoTotal || 0);
-        });
-      }
-
-      // Somar custos de terceiros
-      if (gravacao.terceiros) {
-        gravacao.terceiros.forEach((t: any) => {
-          custoTotal += parseFloat(t.valor || 0);
-        });
-      }
-
-      meses[mesIndex].custosGravacoes += custoTotal;
     });
 
-    // Calcular custos de conteúdos por mês (baseado no ano de produção)
+    // Calcular custos de conteúdos por mês
     conteudos.forEach((conteudo: any) => {
-      // Se o ano de produção for o ano de exibição, distribuir custos
-      if (conteudo.anoProducao !== anoExibicao.toString()) return;
-      
       // Buscar gravações deste conteúdo
       const gravacoesConteudo = gravacoes.filter((g: any) => g.conteudoId === conteudo.id);
       
-      let custoTotalConteudo = 0;
-      gravacoesConteudo.forEach((gravacao: any) => {
-        // Somar todos os custos
-        if (gravacao.recursosHumanos) {
-          gravacao.recursosHumanos.forEach((rh: any) => {
-            custoTotalConteudo += parseFloat(rh.custoTotal || 0);
-          });
-        }
-        if (gravacao.recursosFisicos) {
-          gravacao.recursosFisicos.forEach((rf: any) => {
-            custoTotalConteudo += parseFloat(rf.custoTotal || 0);
-          });
-        }
-        if (gravacao.recursosTecnicos) {
-          gravacao.recursosTecnicos.forEach((rt: any) => {
-            custoTotalConteudo += parseFloat(rt.custoTotal || 0);
-          });
-        }
-        if (gravacao.terceiros) {
-          gravacao.terceiros.forEach((t: any) => {
-            custoTotalConteudo += parseFloat(t.valor || 0);
-          });
-        }
-      });
-
-      // Distribuir custo pelo mês da data prevista das gravações
       gravacoesConteudo.forEach((gravacao: any) => {
         if (!gravacao.dataPrevista) return;
-        const data = parseISO(gravacao.dataPrevista);
-        if (getYear(data) !== anoExibicao) return;
-        const mesIndex = getMonth(data);
-        
-        let custoGravacao = 0;
-        if (gravacao.recursosHumanos) {
-          gravacao.recursosHumanos.forEach((rh: any) => {
-            custoGravacao += parseFloat(rh.custoTotal || 0);
-          });
+        try {
+          const data = parseISO(gravacao.dataPrevista);
+          if (isNaN(data.getTime()) || getYear(data) !== anoExibicao) return;
+          
+          const mesIndex = getMonth(data);
+          const custoGravacao = calcularCustoGravacao(gravacao.id);
+          meses[mesIndex].custosConteudos += custoGravacao;
+        } catch {
+          // Ignora gravações com datas inválidas
         }
-        if (gravacao.recursosFisicos) {
-          gravacao.recursosFisicos.forEach((rf: any) => {
-            custoGravacao += parseFloat(rf.custoTotal || 0);
-          });
-        }
-        if (gravacao.recursosTecnicos) {
-          gravacao.recursosTecnicos.forEach((rt: any) => {
-            custoGravacao += parseFloat(rt.custoTotal || 0);
-          });
-        }
-        if (gravacao.terceiros) {
-          gravacao.terceiros.forEach((t: any) => {
-            custoGravacao += parseFloat(t.valor || 0);
-          });
-        }
-        
-        meses[mesIndex].custosConteudos += custoGravacao;
       });
     });
 
