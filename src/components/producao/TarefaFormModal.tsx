@@ -137,7 +137,7 @@ export const TarefaFormModal = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-[900px] max-w-[900px] max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{data ? t('tasks.edit') : t('tasks.new')}</DialogTitle>
           <DialogDescription>

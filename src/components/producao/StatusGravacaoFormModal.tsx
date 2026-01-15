@@ -82,7 +82,7 @@ export const StatusGravacaoFormModal = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="w-[900px] max-w-[900px] max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{data ? 'Editar Status' : 'Novo Status'}</DialogTitle>
           <DialogDescription>

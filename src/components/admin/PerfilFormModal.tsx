@@ -85,7 +85,7 @@ const PerfilFormModal = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="w-[900px] max-w-[900px] max-h-[80vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle>
             {data ? `${t('common.edit')} Perfil` : `${t('common.new')} Perfil`}
