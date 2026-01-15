@@ -44,6 +44,7 @@ export const UsuarioFormModal = ({
     nome: '',
     email: '',
     usuario: '',
+    senha: '',
     perfil: '',
     descricao: '',
   });
@@ -60,6 +61,7 @@ export const UsuarioFormModal = ({
         nome: data.nome,
         email: data.email,
         usuario: data.usuario,
+        senha: data.senha || '',
         perfil: data.perfil,
         descricao: data.descricao,
       });
@@ -69,6 +71,7 @@ export const UsuarioFormModal = ({
         nome: '',
         email: '',
         usuario: '',
+        senha: '',
         perfil: '',
         descricao: '',
       });
@@ -77,12 +80,15 @@ export const UsuarioFormModal = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSave({
+    const saveData = {
       id: data?.id || crypto.randomUUID(),
       ...formData,
+      // Manter senha atual se estiver editando e não preencheu nova senha
+      senha: formData.senha || data?.senha || '',
       dataCadastro: data?.dataCadastro || new Date().toLocaleDateString('pt-BR'),
       usuarioCadastro: data?.usuarioCadastro || user?.nome || 'Admin',
-    });
+    };
+    onSave(saveData);
     onClose();
   };
 
@@ -147,6 +153,24 @@ export const UsuarioFormModal = ({
                     required
                   />
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="senha">Senha *</Label>
+                <Input
+                  id="senha"
+                  type="password"
+                  value={formData.senha}
+                  onChange={(e) => setFormData({ ...formData, senha: e.target.value })}
+                  maxLength={50}
+                  required={!data}
+                  placeholder={data ? '••••••••' : ''}
+                />
+                {data && (
+                  <p className="text-xs text-muted-foreground">
+                    Deixe em branco para manter a senha atual
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">
