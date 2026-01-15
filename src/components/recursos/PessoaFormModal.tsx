@@ -128,7 +128,7 @@ export const PessoaFormModal = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-[800px] max-w-[800px] max-h-[80vh] overflow-y-auto">
+      <DialogContent className="w-[900px] max-w-[900px] max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{data ? 'Editar Pessoa' : 'Nova Pessoa'}</DialogTitle>
         </DialogHeader>
