@@ -57,6 +57,19 @@ interface OcupacaoItem {
   gravacao: string;
   gravacaoId: string;
   horario: string;
+  recursoHumanoId?: string;
+  statusCor?: string;
+}
+
+interface Tarefa {
+  id: string;
+  gravacaoId: string;
+  recursoHumanoId: string;
+  recursoTecnicoId?: string;
+  statusId: string;
+  statusCor?: string;
+  dataInicio?: string;
+  dataFim?: string;
 }
 
 const Mapas = () => {
@@ -81,6 +94,7 @@ const Mapas = () => {
   const [recursosFisicos, setRecursosFisicos] = useState<RecursoFisico[]>([]);
   const [recursosHumanos, setRecursosHumanos] = useState<RecursoHumano[]>([]);
   const [alocacoesPorGravacao, setAlocacoesPorGravacao] = useState<Record<string, RecursoAlocado[]>>({});
+  const [tarefas, setTarefas] = useState<Tarefa[]>([]);
 
   useEffect(() => {
     // Carregar gravações
@@ -95,6 +109,10 @@ const Mapas = () => {
     // Carregar recursos humanos
     const storedHumanos = localStorage.getItem('kreato_recursos_humanos');
     setRecursosHumanos(storedHumanos ? JSON.parse(storedHumanos) : []);
+
+    // Carregar tarefas
+    const storedTarefas = localStorage.getItem('kreato_tarefas');
+    setTarefas(storedTarefas ? JSON.parse(storedTarefas) : []);
 
     // Carregar alocações de cada gravação
     const alocacoes: Record<string, RecursoAlocado[]> = {};
@@ -200,10 +218,20 @@ const Mapas = () => {
                 ocupacoes[rh.recursoHumanoId][dia] = [];
               }
 
+              // Buscar a tarefa correspondente para obter a cor do status
+              const tarefaCorrespondente = tarefas.find(
+                (t) =>
+                  t.gravacaoId === gravacaoId &&
+                  t.recursoHumanoId === rh.recursoHumanoId &&
+                  t.recursoTecnicoId === recurso.recursoId
+              );
+
               ocupacoes[rh.recursoHumanoId][dia].push({
                 gravacao: gravacao.nome,
                 gravacaoId: gravacao.id,
                 horario: `${rh.horaInicio} - ${rh.horaFim}`,
+                recursoHumanoId: rh.recursoHumanoId,
+                statusCor: tarefaCorrespondente?.statusCor,
               });
             });
           });
@@ -211,7 +239,7 @@ const Mapas = () => {
     });
 
     return ocupacoes;
-  }, [alocacoesPorGravacao, gravacoes]);
+  }, [alocacoesPorGravacao, gravacoes, tarefas]);
 
   // Obter tipos únicos de recursos físicos
   const tiposRecursoFisico = useMemo(() => {
@@ -433,9 +461,22 @@ const Mapas = () => {
                 items.forEach((oc, idx) => {
                   const cellY = currentY + 4 + idx * 6;
                   const gravNome = oc.gravacao.length > 12 ? oc.gravacao.substring(0, 12) + '..' : oc.gravacao;
+                  
+                  // Aplicar cor do status se disponível (para recursos humanos)
+                  if (oc.statusCor) {
+                    // Converter hex para RGB
+                    const hex = oc.statusCor.replace('#', '');
+                    const r = parseInt(hex.substring(0, 2), 16);
+                    const g = parseInt(hex.substring(2, 4), 16);
+                    const b = parseInt(hex.substring(4, 6), 16);
+                    doc.setTextColor(r, g, b);
+                  } else {
+                    doc.setTextColor(0, 0, 0);
+                  }
+                  
                   doc.setFont('helvetica', 'bold');
-                  doc.setTextColor(0, 0, 0);
                   doc.text(gravNome, x + 1, cellY);
+                  doc.setTextColor(100, 100, 100);
                   if (viewMode === 'week') {
                     doc.setFont('helvetica', 'normal');
                     const horario = oc.horario.length > 15 ? oc.horario.substring(0, 15) : oc.horario;
@@ -689,19 +730,37 @@ const Mapas = () => {
                           >
                             {ocupacoesDia.length > 0 ? (
                               <div className="flex flex-col gap-1">
-                                {ocupacoesDia.map((oc, idx) => (
-                                  <div
-                                    key={idx}
-                                    className={`bg-primary/10 border border-primary/30 rounded text-xs ${viewMode === 'month' ? 'p-0.5' : 'p-1.5'}`}
-                                  >
-                                    <div className="font-medium text-primary truncate" title={oc.gravacao}>
-                                      {viewMode === 'month' ? oc.gravacao.substring(0, 8) + (oc.gravacao.length > 8 ? '...' : '') : oc.gravacao}
+                                {ocupacoesDia.map((oc, idx) => {
+                                  const bgColor = oc.statusCor || undefined;
+                                  return (
+                                    <div
+                                      key={idx}
+                                      className={`rounded text-xs ${viewMode === 'month' ? 'p-0.5' : 'p-1.5'}`}
+                                      style={bgColor ? {
+                                        backgroundColor: `${bgColor}20`,
+                                        borderColor: `${bgColor}50`,
+                                        borderWidth: '1px',
+                                        borderStyle: 'solid',
+                                      } : {
+                                        backgroundColor: 'hsl(var(--primary) / 0.1)',
+                                        borderColor: 'hsl(var(--primary) / 0.3)',
+                                        borderWidth: '1px',
+                                        borderStyle: 'solid',
+                                      }}
+                                    >
+                                      <div 
+                                        className="font-medium truncate" 
+                                        title={oc.gravacao}
+                                        style={bgColor ? { color: bgColor } : { color: 'hsl(var(--primary))' }}
+                                      >
+                                        {viewMode === 'month' ? oc.gravacao.substring(0, 8) + (oc.gravacao.length > 8 ? '...' : '') : oc.gravacao}
+                                      </div>
+                                      {viewMode === 'week' && (
+                                        <div className="text-muted-foreground">{oc.horario}</div>
+                                      )}
                                     </div>
-                                    {viewMode === 'week' && (
-                                      <div className="text-muted-foreground">{oc.horario}</div>
-                                    )}
-                                  </div>
-                                ))}
+                                  );
+                                })}
                               </div>
                             ) : (
                               <span className="text-muted-foreground/50">-</span>
