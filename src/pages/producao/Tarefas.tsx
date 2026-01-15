@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Plus, Search, Filter, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { Plus, Search, CheckCircle2, Clock, AlertCircle, ArrowUpDown, ArrowUp, ArrowDown, Edit, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -11,16 +11,35 @@ import {
 } from '@/components/ui/select';
 import {
   Card,
-  CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
-import { PageHeader } from '@/components/shared/PageComponents';
+import { PageHeader, DataCard } from '@/components/shared/PageComponents';
 import { TarefaFormModal } from '@/components/producao/TarefaFormModal';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 
 interface Tarefa {
   id: string;
@@ -173,6 +192,68 @@ const Tarefas = () => {
     return matchesSearch && matchesStatus && matchesGravacao;
   });
 
+  // Sorting
+  type SortKey = 'titulo' | 'gravacaoNome' | 'recursoHumanoNome' | 'statusNome' | 'prioridade' | 'dataFim';
+  const [sortKey, setSortKey] = useState<SortKey | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+
+  const handleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortKey(key);
+      setSortDirection('asc');
+    }
+  };
+
+  const sortedTarefas = useMemo(() => {
+    if (!sortKey) return filteredTarefas;
+
+    return [...filteredTarefas].sort((a, b) => {
+      let aVal: string | number = a[sortKey] || '';
+      let bVal: string | number = b[sortKey] || '';
+      
+      // Priority special sorting
+      if (sortKey === 'prioridade') {
+        const prioOrder: Record<string, number> = { alta: 3, media: 2, baixa: 1 };
+        aVal = prioOrder[a.prioridade] || 0;
+        bVal = prioOrder[b.prioridade] || 0;
+      }
+      
+      // Date sorting
+      if (sortKey === 'dataFim') {
+        aVal = a.dataFim ? new Date(a.dataFim).getTime() : 0;
+        bVal = b.dataFim ? new Date(b.dataFim).getTime() : 0;
+      }
+
+      if (typeof aVal === 'string' && typeof bVal === 'string') {
+        return sortDirection === 'asc' 
+          ? aVal.localeCompare(bVal)
+          : bVal.localeCompare(aVal);
+      }
+      
+      return sortDirection === 'asc' 
+        ? (aVal as number) - (bVal as number)
+        : (bVal as number) - (aVal as number);
+    });
+  }, [filteredTarefas, sortKey, sortDirection]);
+
+  const SortHeader = ({ label, sortKeyName }: { label: string; sortKeyName: SortKey }) => (
+    <TableHead 
+      className="cursor-pointer hover:bg-muted/50 select-none"
+      onClick={() => handleSort(sortKeyName)}
+    >
+      <div className="flex items-center gap-1">
+        {label}
+        {sortKey === sortKeyName ? (
+          sortDirection === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+        ) : (
+          <ArrowUpDown className="h-3 w-3 opacity-30" />
+        )}
+      </div>
+    </TableHead>
+  );
+
   // Statistics
   const totalTarefas = tarefas.length;
   const tarefasPendentes = tarefas.filter(t => 
@@ -267,8 +348,8 @@ const Tarefas = () => {
           </Select>
         </div>
 
-        {/* Tasks List */}
-        {filteredTarefas.length === 0 ? (
+        {/* Tasks Table */}
+        {sortedTarefas.length === 0 ? (
           <div className="text-center py-12 border-2 border-dashed rounded-lg">
             <p className="text-muted-foreground mb-4">{t('tasks.empty')}</p>
             <Button variant="outline" onClick={() => { setEditingTarefa(null); setIsModalOpen(true); }}>
@@ -277,51 +358,83 @@ const Tarefas = () => {
             </Button>
           </div>
         ) : (
-          <div className="grid gap-4">
-            {filteredTarefas.map(tarefa => (
-              <Card 
-                key={tarefa.id} 
-                className="cursor-pointer hover:shadow-md transition-shadow"
-                onClick={() => handleEdit(tarefa)}
-              >
-                <CardContent className="p-4">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <div 
-                          className={`w-3 h-3 rounded-full ${getPrioridadeColor(tarefa.prioridade)}`}
-                          title={getPrioridadeLabel(tarefa.prioridade)}
-                        />
-                        <h3 className="font-semibold">{tarefa.titulo}</h3>
-                        {tarefa.statusNome && (
-                          <Badge 
-                            style={{ backgroundColor: tarefa.statusCor || '#888' }}
-                            className="text-white"
-                          >
-                            {tarefa.statusNome}
-                          </Badge>
-                        )}
+          <DataCard>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <SortHeader label={t('tasks.taskTitle')} sortKeyName="titulo" />
+                  <SortHeader label={t('tasks.recording')} sortKeyName="gravacaoNome" />
+                  <SortHeader label={t('tasks.assignee')} sortKeyName="recursoHumanoNome" />
+                  <SortHeader label={t('tasks.status')} sortKeyName="statusNome" />
+                  <SortHeader label={t('tasks.priority')} sortKeyName="prioridade" />
+                  <SortHeader label={t('tasks.dueDate')} sortKeyName="dataFim" />
+                  <TableHead className="w-[100px]">{t('common.actions')}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {sortedTarefas.map(tarefa => (
+                  <TableRow 
+                    key={tarefa.id} 
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => handleEdit(tarefa)}
+                  >
+                    <TableCell className="font-medium">{tarefa.titulo}</TableCell>
+                    <TableCell>{tarefa.gravacaoNome || '-'}</TableCell>
+                    <TableCell>{tarefa.recursoHumanoNome || '-'}</TableCell>
+                    <TableCell>
+                      {tarefa.statusNome && (
+                        <Badge 
+                          style={{ backgroundColor: tarefa.statusCor || '#888' }}
+                          className="text-white"
+                        >
+                          {tarefa.statusNome}
+                        </Badge>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <div className={cn("w-2.5 h-2.5 rounded-full", getPrioridadeColor(tarefa.prioridade))} />
+                        {getPrioridadeLabel(tarefa.prioridade)}
                       </div>
-                      <p className="text-sm text-muted-foreground line-clamp-2 mb-2">
-                        {tarefa.descricao}
-                      </p>
-                      <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
-                        {tarefa.gravacaoNome && (
-                          <span>{t('tasks.recording')}: {tarefa.gravacaoNome}</span>
-                        )}
-                        {tarefa.recursoHumanoNome && (
-                          <span>{t('tasks.assignee')}: {tarefa.recursoHumanoNome}</span>
-                        )}
-                        {tarefa.dataFim && (
-                          <span>{t('tasks.dueDate')}: {formatDate(tarefa.dataFim)}</span>
-                        )}
+                    </TableCell>
+                    <TableCell>{tarefa.dataFim ? formatDate(tarefa.dataFim) : '-'}</TableCell>
+                    <TableCell>
+                      <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleEdit(tarefa)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>{t('common.confirm.delete')}</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                {t('tasks.deleteConfirmation')}
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleDelete(tarefa.id)}>
+                                {t('common.delete')}
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </DataCard>
         )}
       </div>
 
