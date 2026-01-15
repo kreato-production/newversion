@@ -858,33 +858,38 @@ const Mapas = () => {
 
   return (
     <div className="p-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-        <h1 className="text-2xl font-bold text-foreground">Mapas de Ocupação</h1>
-        <div className="flex items-center gap-2">
-          {renderNavigator()}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowFilters(!showFilters)}
-            className="gap-2"
-          >
-            <Filter className="h-4 w-4" />
-            Filtros
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleExportPDF}
-            disabled={isExporting}
-            className="gap-2"
-          >
-            {isExporting ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <FileDown className="h-4 w-4" />
-            )}
-            Exportar PDF
-          </Button>
+      <div className="rounded-lg mb-6 overflow-hidden shadow-sm">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 bg-gradient-to-r from-kreato-cyan via-primary to-kreato-orange">
+          <div>
+            <h1 className="text-2xl font-bold text-white">Mapas de Ocupação</h1>
+            <p className="text-white/80 mt-1">Visualize a alocação de recursos por período</p>
+          </div>
+          <div className="flex items-center gap-2">
+            {renderNavigator()}
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setShowFilters(!showFilters)}
+              className="gap-2 bg-white text-primary hover:bg-white/90"
+            >
+              <Filter className="h-4 w-4" />
+              Filtros
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={handleExportPDF}
+              disabled={isExporting}
+              className="gap-2 bg-white text-primary hover:bg-white/90"
+            >
+              {isExporting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <FileDown className="h-4 w-4" />
+              )}
+              Exportar PDF
+            </Button>
+          </div>
         </div>
       </div>
 

@@ -134,13 +134,15 @@ const Dashboard = () => {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-foreground">
-          {t('dashboard.hello')}, {user?.nome}!
-        </h1>
-        <p className="text-muted-foreground mt-1">
-          {t('dashboard.welcome')}
-        </p>
+      <div className="rounded-lg overflow-hidden shadow-sm">
+        <div className="p-4 bg-gradient-to-r from-kreato-cyan via-primary to-kreato-orange">
+          <h1 className="text-2xl font-bold text-white">
+            {t('dashboard.hello')}, {user?.nome}!
+          </h1>
+          <p className="text-white/80 mt-1">
+            {t('dashboard.welcome')}
+          </p>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
