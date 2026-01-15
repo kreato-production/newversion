@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { usePermissions } from '@/hooks/usePermissions';
 import { cn } from '@/lib/utils';
 import kreatoLogo from '@/assets/kreato-logo.png';
 
@@ -34,6 +35,12 @@ interface MenuItemData {
   icon: React.ElementType;
   path?: string;
   children?: MenuItemData[];
+  // Permissão: modulo, subModulo1, subModulo2
+  permission?: {
+    modulo: string;
+    subModulo1?: string;
+    subModulo2?: string;
+  };
 }
 
 const getMenuItems = (): MenuItemData[] => [
@@ -41,23 +48,26 @@ const getMenuItems = (): MenuItemData[] => [
     labelKey: 'menu.dashboard',
     icon: LayoutDashboard,
     path: '/dashboard',
+    permission: { modulo: 'Dashboard' },
   },
   {
     labelKey: 'menu.production',
     icon: Video,
+    permission: { modulo: 'Produção' },
     children: [
-      { labelKey: 'menu.content', icon: Film, path: '/producao/conteudo' },
-      { labelKey: 'menu.recordings', icon: Video, path: '/producao/gravacao' },
-      { labelKey: 'menu.tasks', icon: ListTodo, path: '/producao/tarefas' },
-      { labelKey: 'menu.maps', icon: Map, path: '/producao/mapas' },
+      { labelKey: 'menu.content', icon: Film, path: '/producao/conteudo', permission: { modulo: 'Produção', subModulo1: 'Conteúdo' } },
+      { labelKey: 'menu.recordings', icon: Video, path: '/producao/gravacao', permission: { modulo: 'Produção', subModulo1: 'Gravação' } },
+      { labelKey: 'menu.tasks', icon: ListTodo, path: '/producao/tarefas', permission: { modulo: 'Produção', subModulo1: 'Tarefas' } },
+      { labelKey: 'menu.maps', icon: Map, path: '/producao/mapas', permission: { modulo: 'Produção', subModulo1: 'Mapas' } },
       {
         labelKey: 'menu.parameters',
         icon: Settings,
+        permission: { modulo: 'Produção', subModulo1: 'Parametrizações' },
         children: [
-          { labelKey: 'menu.recordingTypes', icon: Settings, path: '/producao/tipos-gravacao' },
-          { labelKey: 'menu.classification', icon: Settings, path: '/producao/classificacao' },
-          { labelKey: 'menu.recordingStatus', icon: Settings, path: '/producao/status' },
-          { labelKey: 'menu.taskStatus', icon: Settings, path: '/producao/status-tarefa' },
+          { labelKey: 'menu.recordingTypes', icon: Settings, path: '/producao/tipos-gravacao', permission: { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Tipo de gravação' } },
+          { labelKey: 'menu.classification', icon: Settings, path: '/producao/classificacao', permission: { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Classificação' } },
+          { labelKey: 'menu.recordingStatus', icon: Settings, path: '/producao/status', permission: { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Status de Gravação' } },
+          { labelKey: 'menu.taskStatus', icon: Settings, path: '/producao/status-tarefa', permission: { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Status da Tarefa' } },
         ],
       },
     ],
@@ -65,25 +75,27 @@ const getMenuItems = (): MenuItemData[] => [
   {
     labelKey: 'menu.resources',
     icon: Users,
+    permission: { modulo: 'Recursos' },
     children: [
-      { labelKey: 'menu.humanResources', icon: Users, path: '/recursos/humanos' },
-      { labelKey: 'menu.technicalResources', icon: Wrench, path: '/recursos/tecnicos' },
-      { labelKey: 'menu.physicalResources', icon: MapPin, path: '/recursos/fisicos' },
-      { labelKey: 'menu.suppliers', icon: Truck, path: '/recursos/fornecedores' },
-      { labelKey: 'menu.people', icon: Contact, path: '/recursos/pessoas' },
-      { labelKey: 'menu.costumes', icon: Shirt, path: '/recursos/figurinos' },
+      { labelKey: 'menu.humanResources', icon: Users, path: '/recursos/humanos', permission: { modulo: 'Recursos', subModulo1: 'Recursos Humanos' } },
+      { labelKey: 'menu.technicalResources', icon: Wrench, path: '/recursos/tecnicos', permission: { modulo: 'Recursos', subModulo1: 'Recursos Técnicos' } },
+      { labelKey: 'menu.physicalResources', icon: MapPin, path: '/recursos/fisicos', permission: { modulo: 'Recursos', subModulo1: 'Recursos Físicos' } },
+      { labelKey: 'menu.suppliers', icon: Truck, path: '/recursos/fornecedores', permission: { modulo: 'Recursos', subModulo1: 'Fornecedores' } },
+      { labelKey: 'menu.people', icon: Contact, path: '/recursos/pessoas', permission: { modulo: 'Recursos', subModulo1: 'Pessoas' } },
+      { labelKey: 'menu.costumes', icon: Shirt, path: '/recursos/figurinos', permission: { modulo: 'Recursos', subModulo1: 'Figurinos' } },
       {
         labelKey: 'menu.parameters',
         icon: FolderCog,
+        permission: { modulo: 'Recursos', subModulo1: 'Parametrizações' },
         children: [
-          { labelKey: 'menu.positions', icon: Briefcase, path: '/recursos/cargos' },
-          { labelKey: 'menu.departments', icon: Building2, path: '/recursos/departamentos' },
-          { labelKey: 'menu.functions', icon: Settings, path: '/recursos/funcoes' },
-          { labelKey: 'menu.services', icon: Settings, path: '/recursos/servicos' },
-          { labelKey: 'menu.supplierCategory', icon: Settings, path: '/recursos/categoria-fornecedores' },
-          { labelKey: 'menu.peopleClassification', icon: Tag, path: '/recursos/classificacao-pessoas' },
-          { labelKey: 'menu.costumeType', icon: Shirt, path: '/recursos/tipo-figurino' },
-          { labelKey: 'menu.material', icon: Settings, path: '/recursos/material' },
+          { labelKey: 'menu.positions', icon: Briefcase, path: '/recursos/cargos', permission: { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Cargos' } },
+          { labelKey: 'menu.departments', icon: Building2, path: '/recursos/departamentos', permission: { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Departamentos' } },
+          { labelKey: 'menu.functions', icon: Settings, path: '/recursos/funcoes', permission: { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Funções' } },
+          { labelKey: 'menu.services', icon: Settings, path: '/recursos/servicos', permission: { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Serviços' } },
+          { labelKey: 'menu.supplierCategory', icon: Settings, path: '/recursos/categoria-fornecedores', permission: { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Categoria de Fornecedores' } },
+          { labelKey: 'menu.peopleClassification', icon: Tag, path: '/recursos/classificacao-pessoas', permission: { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Classificação de Pessoas' } },
+          { labelKey: 'menu.costumeType', icon: Shirt, path: '/recursos/tipo-figurino', permission: { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Tipo de Figurino' } },
+          { labelKey: 'menu.material', icon: Settings, path: '/recursos/material', permission: { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Material' } },
         ],
       },
     ],
@@ -91,11 +103,12 @@ const getMenuItems = (): MenuItemData[] => [
   {
     labelKey: 'menu.admin',
     icon: Building2,
+    permission: { modulo: 'Administração' },
     children: [
-      { labelKey: 'menu.businessUnits', icon: Building2, path: '/admin/unidades' },
-      { labelKey: 'menu.profitCenters', icon: Landmark, path: '/admin/centros-lucro' },
-      { labelKey: 'menu.users', icon: UserCog, path: '/admin/usuarios' },
-      { labelKey: 'menu.accessProfiles', icon: Shield, path: '/admin/perfis' },
+      { labelKey: 'menu.businessUnits', icon: Building2, path: '/admin/unidades', permission: { modulo: 'Administração', subModulo1: 'Unidades de Negócio' } },
+      { labelKey: 'menu.profitCenters', icon: Landmark, path: '/admin/centros-lucro', permission: { modulo: 'Administração', subModulo1: 'Centros de Lucro' } },
+      { labelKey: 'menu.users', icon: UserCog, path: '/admin/usuarios', permission: { modulo: 'Administração', subModulo1: 'Usuários' } },
+      { labelKey: 'menu.accessProfiles', icon: Shield, path: '/admin/perfis', permission: { modulo: 'Administração', subModulo1: 'Perfis de Acesso' } },
     ],
   },
 ];
@@ -103,14 +116,32 @@ const getMenuItems = (): MenuItemData[] => [
 const MenuItemComponent = ({
   item,
   level = 0,
+  checkPermission,
 }: {
   item: MenuItemData;
   level?: number;
+  checkPermission: (modulo: string, subModulo1?: string, subModulo2?: string) => boolean;
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
   const { t } = useLanguage();
-  const hasChildren = item.children && item.children.length > 0;
+  
+  // Verifica permissão do item
+  if (item.permission) {
+    const { modulo, subModulo1, subModulo2 } = item.permission;
+    if (!checkPermission(modulo, subModulo1, subModulo2)) {
+      return null;
+    }
+  }
+  
+  // Filtra children visíveis
+  const visibleChildren = item.children?.filter((child) => {
+    if (!child.permission) return true;
+    const { modulo, subModulo1, subModulo2 } = child.permission;
+    return checkPermission(modulo, subModulo1, subModulo2);
+  });
+  
+  const hasChildren = visibleChildren && visibleChildren.length > 0;
   const isActive = item.path === location.pathname;
   const Icon = item.icon;
 
@@ -122,7 +153,12 @@ const MenuItemComponent = ({
     });
   };
 
-  const isParentActive = hasChildren && item.children ? isChildActive(item.children) : false;
+  const isParentActive = hasChildren && visibleChildren ? isChildActive(visibleChildren) : false;
+
+  // Se tem children mas nenhum visível, não renderiza o pai
+  if (item.children && item.children.length > 0 && (!visibleChildren || visibleChildren.length === 0)) {
+    return null;
+  }
 
   return (
     <div>
@@ -159,8 +195,8 @@ const MenuItemComponent = ({
       
       {hasChildren && isOpen && (
         <div className="mt-1 space-y-1">
-          {item.children?.map((child, idx) => (
-            <MenuItemComponent key={idx} item={child} level={level + 1} />
+          {visibleChildren?.map((child, idx) => (
+            <MenuItemComponent key={idx} item={child} level={level + 1} checkPermission={checkPermission} />
           ))}
         </div>
       )}
@@ -171,7 +207,13 @@ const MenuItemComponent = ({
 const AppSidebar = () => {
   const { user, logout } = useAuth();
   const { t } = useLanguage();
+  const { isVisible } = usePermissions();
   const menuItems = getMenuItems();
+
+  // Função para verificar permissão
+  const checkPermission = (modulo: string, subModulo1?: string, subModulo2?: string): boolean => {
+    return isVisible(modulo, subModulo1 || '-', subModulo2 || '-', '-');
+  };
 
   return (
     <aside className="w-64 h-screen bg-sidebar flex flex-col border-r border-sidebar-border">
@@ -181,7 +223,7 @@ const AppSidebar = () => {
 
       <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
         {menuItems.map((item, idx) => (
-          <MenuItemComponent key={idx} item={item} />
+          <MenuItemComponent key={idx} item={item} checkPermission={checkPermission} />
         ))}
       </nav>
 
