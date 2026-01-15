@@ -30,6 +30,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { usePermissions } from '@/hooks/usePermissions';
 import { type Gravacao, generateCodigoGravacao } from '@/pages/producao/GravacaoList';
 import { RecursosTab } from './RecursosTab';
 import { CustosTab } from './CustosTab';
@@ -61,6 +62,7 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
 }, ref) => {
   const { user } = useAuth();
   const { t, language, formatDate } = useLanguage();
+  const { isVisible } = usePermissions();
   const [codigoGerado, setCodigoGerado] = useState('');
   const [dataPrevista, setDataPrevista] = useState<Date | undefined>(undefined);
   const [formData, setFormData] = useState({
@@ -197,15 +199,29 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
         </DialogHeader>
 
         <Tabs defaultValue="dados" className="w-full">
-          <TabsList className="grid w-full grid-cols-8">
-            <TabsTrigger value="dados">{t('recordings.generalData')}</TabsTrigger>
-            <TabsTrigger value="roteiro" disabled={!data}>{t('script.title').split(' ')[0]}</TabsTrigger>
-            <TabsTrigger value="recursos" disabled={!data}>{t('recordings.resources')}</TabsTrigger>
-            <TabsTrigger value="elenco" disabled={!data}>{t('recordings.cast')}</TabsTrigger>
-            <TabsTrigger value="convidados" disabled={!data}>{t('recordings.guests')}</TabsTrigger>
-            <TabsTrigger value="figurinos" disabled={!data}>{t('recordings.costumes')}</TabsTrigger>
-            <TabsTrigger value="terceiros" disabled={!data}>{t('recordings.thirdParties')}</TabsTrigger>
-            <TabsTrigger value="custos" disabled={!data}>{t('recordings.costs')}</TabsTrigger>
+          <TabsList className="flex w-full">
+            <TabsTrigger value="dados" className="flex-1">{t('recordings.generalData')}</TabsTrigger>
+            {isVisible('Produção', 'Gravação', '-', 'Tabulador "Roteiro"') && (
+              <TabsTrigger value="roteiro" disabled={!data} className="flex-1">{t('script.title').split(' ')[0]}</TabsTrigger>
+            )}
+            {isVisible('Produção', 'Gravação', '-', 'Tabulador "Recursos"') && (
+              <TabsTrigger value="recursos" disabled={!data} className="flex-1">{t('recordings.resources')}</TabsTrigger>
+            )}
+            {isVisible('Produção', 'Gravação', '-', 'Tabulador "Elenco"') && (
+              <TabsTrigger value="elenco" disabled={!data} className="flex-1">{t('recordings.cast')}</TabsTrigger>
+            )}
+            {isVisible('Produção', 'Gravação', '-', 'Tabulador "Convidados"') && (
+              <TabsTrigger value="convidados" disabled={!data} className="flex-1">{t('recordings.guests')}</TabsTrigger>
+            )}
+            {isVisible('Produção', 'Gravação', '-', 'Tabulador "Figurinos"') && (
+              <TabsTrigger value="figurinos" disabled={!data} className="flex-1">{t('recordings.costumes')}</TabsTrigger>
+            )}
+            {isVisible('Produção', 'Gravação', '-', 'Tabulador "Terceiros"') && (
+              <TabsTrigger value="terceiros" disabled={!data} className="flex-1">{t('recordings.thirdParties')}</TabsTrigger>
+            )}
+            {isVisible('Produção', 'Gravação', '-', 'Tabulador "Custos"') && (
+              <TabsTrigger value="custos" disabled={!data} className="flex-1">{t('recordings.costs')}</TabsTrigger>
+            )}
           </TabsList>
 
           <TabsContent value="dados">
@@ -396,33 +412,47 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
             </form>
           </TabsContent>
 
-          <TabsContent value="roteiro">
-            {data && <RoteiroTab gravacaoId={data.id} />}
-          </TabsContent>
+          {isVisible('Produção', 'Gravação', '-', 'Tabulador "Roteiro"') && (
+            <TabsContent value="roteiro">
+              {data && <RoteiroTab gravacaoId={data.id} />}
+            </TabsContent>
+          )}
 
-          <TabsContent value="recursos">
-            {data && <RecursosTab gravacaoId={data.id} />}
-          </TabsContent>
+          {isVisible('Produção', 'Gravação', '-', 'Tabulador "Recursos"') && (
+            <TabsContent value="recursos">
+              {data && <RecursosTab gravacaoId={data.id} />}
+            </TabsContent>
+          )}
 
-          <TabsContent value="elenco">
-            {data && <ElencoTab entityId={data.id} storagePrefix="gravacao" />}
-          </TabsContent>
+          {isVisible('Produção', 'Gravação', '-', 'Tabulador "Elenco"') && (
+            <TabsContent value="elenco">
+              {data && <ElencoTab entityId={data.id} storagePrefix="gravacao" />}
+            </TabsContent>
+          )}
 
-          <TabsContent value="convidados">
-            {data && <ConvidadosTab gravacaoId={data.id} />}
-          </TabsContent>
+          {isVisible('Produção', 'Gravação', '-', 'Tabulador "Convidados"') && (
+            <TabsContent value="convidados">
+              {data && <ConvidadosTab gravacaoId={data.id} />}
+            </TabsContent>
+          )}
 
-          <TabsContent value="figurinos">
-            {data && <FigurinosTab gravacaoId={data.id} />}
-          </TabsContent>
+          {isVisible('Produção', 'Gravação', '-', 'Tabulador "Figurinos"') && (
+            <TabsContent value="figurinos">
+              {data && <FigurinosTab gravacaoId={data.id} />}
+            </TabsContent>
+          )}
 
-          <TabsContent value="terceiros">
-            {data && <TerceirosTab gravacaoId={data.id} />}
-          </TabsContent>
+          {isVisible('Produção', 'Gravação', '-', 'Tabulador "Terceiros"') && (
+            <TabsContent value="terceiros">
+              {data && <TerceirosTab gravacaoId={data.id} />}
+            </TabsContent>
+          )}
 
-          <TabsContent value="custos">
-            {data && <CustosTab gravacaoId={data.id} />}
-          </TabsContent>
+          {isVisible('Produção', 'Gravação', '-', 'Tabulador "Custos"') && (
+            <TabsContent value="custos">
+              {data && <CustosTab gravacaoId={data.id} />}
+            </TabsContent>
+          )}
         </Tabs>
       </DialogContent>
     </Dialog>
