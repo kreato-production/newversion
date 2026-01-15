@@ -36,6 +36,7 @@ import { TerceirosTab } from './TerceirosTab';
 import { ConvidadosTab } from './ConvidadosTab';
 import FigurinosTab from './FigurinosTab';
 import { ElencoTab } from './ElencoTab';
+import { RoteiroTab } from './RoteiroTab';
 import { cn } from '@/lib/utils';
 
 interface GravacaoFormModalProps {
@@ -186,8 +187,9 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
         </DialogHeader>
 
         <Tabs defaultValue="dados" className="w-full">
-          <TabsList className="grid w-full grid-cols-7">
+          <TabsList className="grid w-full grid-cols-8">
             <TabsTrigger value="dados">Dados Gerais</TabsTrigger>
+            <TabsTrigger value="roteiro" disabled={!data}>Roteiro</TabsTrigger>
             <TabsTrigger value="recursos" disabled={!data}>Recursos</TabsTrigger>
             <TabsTrigger value="elenco" disabled={!data}>Elenco</TabsTrigger>
             <TabsTrigger value="convidados" disabled={!data}>Convidados</TabsTrigger>
@@ -382,6 +384,10 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
                 </Button>
               </DialogFooter>
             </form>
+          </TabsContent>
+
+          <TabsContent value="roteiro">
+            {data && <RoteiroTab gravacaoId={data.id} />}
           </TabsContent>
 
           <TabsContent value="recursos">
