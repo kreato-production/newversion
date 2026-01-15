@@ -140,19 +140,33 @@ const Dashboard = () => {
     const conteudos = JSON.parse(localStorage.getItem('kreato_conteudos') || '[]');
     const anoCorrente = new Date().getFullYear();
     
+    // Determinar o ano a ser exibido (usa o ano mais recente com dados, ou ano corrente)
+    let anoExibicao = anoCorrente;
+    const anosComDados = new Set<number>();
+    gravacoes.forEach((g: any) => {
+      if (g.dataPrevista) {
+        anosComDados.add(getYear(parseISO(g.dataPrevista)));
+      }
+    });
+    if (anosComDados.size > 0 && !anosComDados.has(anoCorrente)) {
+      // Se não há dados no ano corrente, usa o ano mais recente com dados
+      anoExibicao = Math.max(...Array.from(anosComDados));
+    }
+    
     // Inicializar meses
     const meses = Array.from({ length: 12 }, (_, i) => ({
-      mes: format(new Date(anoCorrente, i, 1), 'MMM', { locale: ptBR }),
+      mes: format(new Date(anoExibicao, i, 1), 'MMM', { locale: ptBR }),
       mesNumero: i,
       custosGravacoes: 0,
       custosConteudos: 0,
+      ano: anoExibicao,
     }));
 
     // Calcular custos de gravações por mês (baseado na data prevista)
     gravacoes.forEach((gravacao: any) => {
       if (!gravacao.dataPrevista) return;
       const data = parseISO(gravacao.dataPrevista);
-      if (getYear(data) !== anoCorrente) return;
+      if (getYear(data) !== anoExibicao) return;
       
       const mesIndex = getMonth(data);
       let custoTotal = 0;
@@ -190,8 +204,8 @@ const Dashboard = () => {
 
     // Calcular custos de conteúdos por mês (baseado no ano de produção)
     conteudos.forEach((conteudo: any) => {
-      // Se o ano de produção for o ano corrente, distribuir custos
-      if (conteudo.anoProducao !== anoCorrente.toString()) return;
+      // Se o ano de produção for o ano de exibição, distribuir custos
+      if (conteudo.anoProducao !== anoExibicao.toString()) return;
       
       // Buscar gravações deste conteúdo
       const gravacoesConteudo = gravacoes.filter((g: any) => g.conteudoId === conteudo.id);
@@ -225,7 +239,7 @@ const Dashboard = () => {
       gravacoesConteudo.forEach((gravacao: any) => {
         if (!gravacao.dataPrevista) return;
         const data = parseISO(gravacao.dataPrevista);
-        if (getYear(data) !== anoCorrente) return;
+        if (getYear(data) !== anoExibicao) return;
         const mesIndex = getMonth(data);
         
         let custoGravacao = 0;
@@ -432,7 +446,7 @@ const Dashboard = () => {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Clapperboard className="w-5 h-5 text-kreato-orange" />
-              Custos de Conteúdos - {new Date().getFullYear()}
+              Custos de Conteúdos - {custosAnuais[0]?.ano || new Date().getFullYear()}
             </CardTitle>
             <CardDescription>
               Somatório mensal dos custos de conteúdos
@@ -483,7 +497,7 @@ const Dashboard = () => {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Video className="w-5 h-5 text-kreato-blue" />
-              Custos de Gravações - {new Date().getFullYear()}
+              Custos de Gravações - {custosAnuais[0]?.ano || new Date().getFullYear()}
             </CardTitle>
             <CardDescription>
               Somatório mensal dos custos de gravações
