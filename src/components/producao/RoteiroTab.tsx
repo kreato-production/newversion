@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Plus, Trash2, GripVertical, ChevronDown, ChevronUp, Check, X } from 'lucide-react';
+import { Plus, Trash2, GripVertical, ChevronDown, ChevronUp, Check, X, FileDown } from 'lucide-react';
+import jsPDF from 'jspdf';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -241,6 +242,150 @@ export const RoteiroTab = ({ gravacaoId }: RoteiroTabProps) => {
     return option?.label || value;
   };
 
+  const stripHtml = (html: string) => {
+    const tmp = document.createElement('div');
+    tmp.innerHTML = html;
+    return tmp.textContent || tmp.innerText || '';
+  };
+
+  const handleExportPDF = () => {
+    if (cenas.length === 0) {
+      toast.error(t('script.noScenesToExport'));
+      return;
+    }
+
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const margin = 20;
+    const contentWidth = pageWidth - (margin * 2);
+
+    cenas.forEach((cena, index) => {
+      if (index > 0) {
+        pdf.addPage();
+      }
+
+      let y = margin;
+
+      // Header
+      pdf.setFillColor(59, 130, 246);
+      pdf.rect(0, 0, pageWidth, 35, 'F');
+      
+      pdf.setTextColor(255, 255, 255);
+      pdf.setFontSize(18);
+      pdf.setFont('helvetica', 'bold');
+      const headerText = `${t('script.scene')} ${cena.ordem}`;
+      pdf.text(headerText, margin, 22);
+
+      if (cena.capitulo && cena.numeroCena) {
+        pdf.setFontSize(12);
+        pdf.setFont('helvetica', 'normal');
+        pdf.text(`${t('script.chapter')} ${cena.capitulo} - ${t('script.scene')} ${cena.numeroCena}`, margin, 30);
+      }
+
+      y = 50;
+      pdf.setTextColor(0, 0, 0);
+
+      // Info Grid
+      const infoItems = [
+        { label: t('script.environment'), value: cena.ambiente },
+        { label: t('script.environmentType'), value: getDisplayLabel(cena.tipoAmbiente, TIPOS_AMBIENTE) },
+        { label: t('script.period'), value: getDisplayLabel(cena.periodo, PERIODOS) },
+        { label: t('script.rhythm'), value: getDisplayLabel(cena.ritmo, RITMOS) },
+        { label: t('script.recordingLocation'), value: cena.localGravacao },
+        { label: t('script.approximateTime'), value: cena.tempoAproximado },
+      ];
+
+      pdf.setFontSize(10);
+      const colWidth = contentWidth / 2;
+      
+      infoItems.forEach((item, i) => {
+        if (!item.value) return;
+        const col = i % 2;
+        const x = margin + (col * colWidth);
+        
+        if (col === 0 && i > 0) y += 12;
+        
+        pdf.setFont('helvetica', 'bold');
+        pdf.text(`${item.label}:`, x, y);
+        pdf.setFont('helvetica', 'normal');
+        pdf.text(item.value, x + pdf.getTextWidth(`${item.label}: `), y);
+      });
+
+      y += 20;
+
+      // Characters
+      if (cena.personagens.length > 0) {
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(11);
+        pdf.text(t('script.charactersInScene').split(' (')[0] + ':', margin, y);
+        y += 6;
+        
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(10);
+        const personagensText = cena.personagens
+          .map(pId => {
+            const membro = elenco.find(e => e.id === pId);
+            return membro ? getElencoDisplayName(membro) : '';
+          })
+          .filter(Boolean)
+          .join(', ');
+        
+        const personagensLines = pdf.splitTextToSize(personagensText, contentWidth);
+        pdf.text(personagensLines, margin, y);
+        y += (personagensLines.length * 5) + 8;
+      }
+
+      // Extras
+      if (cena.figurantes.length > 0) {
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(11);
+        pdf.text(t('script.extras').split(' (')[0] + ':', margin, y);
+        y += 6;
+        
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(10);
+        const figurantesText = cena.figurantes
+          .map(fId => {
+            const pessoa = figurantes.find(f => f.id === fId);
+            return pessoa ? getFiguranteDisplayName(pessoa) : '';
+          })
+          .filter(Boolean)
+          .join(', ');
+        
+        const figurantesLines = pdf.splitTextToSize(figurantesText, contentWidth);
+        pdf.text(figurantesLines, margin, y);
+        y += (figurantesLines.length * 5) + 8;
+      }
+
+      // Description
+      if (cena.descricao) {
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(11);
+        pdf.text(t('script.sceneDescription') + ':', margin, y);
+        y += 6;
+        
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(10);
+        const descricaoText = stripHtml(cena.descricao);
+        const descricaoLines = pdf.splitTextToSize(descricaoText, contentWidth);
+        
+        // Check if we need to limit lines to fit page
+        const maxLines = Math.floor((pageHeight - y - margin) / 5);
+        const linesToPrint = descricaoLines.slice(0, maxLines);
+        pdf.text(linesToPrint, margin, y);
+      }
+
+      // Footer
+      pdf.setFontSize(8);
+      pdf.setTextColor(128, 128, 128);
+      pdf.text(`${t('script.scene')} ${index + 1} ${t('common.of')} ${cenas.length}`, pageWidth / 2, pageHeight - 10, { align: 'center' });
+    });
+
+    pdf.save(`roteiro_${new Date().toISOString().split('T')[0]}.pdf`);
+    toast.success(t('script.exportSuccess'));
+  };
+
   return (
     <div className="space-y-4 py-4">
       <div className="flex justify-between items-center">
@@ -250,10 +395,18 @@ export const RoteiroTab = ({ gravacaoId }: RoteiroTabProps) => {
             {t('script.description')}
           </p>
         </div>
-        <Button onClick={handleAddCena} className="gradient-primary hover:opacity-90">
-          <Plus className="h-4 w-4 mr-2" />
-          {t('script.addScene')}
-        </Button>
+        <div className="flex gap-2">
+          {cenas.length > 0 && (
+            <Button variant="outline" onClick={handleExportPDF}>
+              <FileDown className="h-4 w-4 mr-2" />
+              {t('script.exportPDF')}
+            </Button>
+          )}
+          <Button onClick={handleAddCena} className="gradient-primary hover:opacity-90">
+            <Plus className="h-4 w-4 mr-2" />
+            {t('script.addScene')}
+          </Button>
+        </div>
       </div>
 
       {cenas.length === 0 ? (
