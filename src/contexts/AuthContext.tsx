@@ -51,37 +51,42 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const login = (usuario: string, senha: string): boolean => {
-    // Primeiro verifica credenciais do admin padrão
-    if (usuario.toLowerCase() === 'admin' && senha === 'kreato') {
-      setUser(ADMIN_USER);
-      localStorage.setItem('kreato_user', JSON.stringify(ADMIN_USER));
-      return true;
-    }
-
-    // Busca usuários cadastrados no sistema
-    const storedUsuarios = localStorage.getItem('kreato_usuarios');
-    if (storedUsuarios) {
-      const usuarios: StoredUsuario[] = JSON.parse(storedUsuarios);
-      const foundUser = usuarios.find(
-        (u) => u.usuario.toLowerCase() === usuario.toLowerCase() && u.senha === senha
-      );
-
-      if (foundUser) {
-        const loggedUser: User = {
-          id: foundUser.id,
-          nome: foundUser.nome,
-          email: foundUser.email,
-          usuario: foundUser.usuario,
-          perfil: foundUser.perfil,
-          foto: foundUser.foto,
-        };
-        setUser(loggedUser);
-        localStorage.setItem('kreato_user', JSON.stringify(loggedUser));
+    try {
+      // Primeiro verifica credenciais do admin padrão
+      if (usuario.toLowerCase() === 'admin' && senha === 'kreato') {
+        setUser(ADMIN_USER);
+        localStorage.setItem('kreato_user', JSON.stringify(ADMIN_USER));
         return true;
       }
-    }
 
-    return false;
+      // Busca usuários cadastrados no sistema
+      const storedUsuarios = localStorage.getItem('kreato_usuarios');
+      if (storedUsuarios) {
+        const usuarios: StoredUsuario[] = JSON.parse(storedUsuarios);
+        const foundUser = usuarios.find(
+          (u) => u.usuario.toLowerCase() === usuario.toLowerCase() && u.senha === senha
+        );
+
+        if (foundUser) {
+          // Não armazena a foto na sessão para evitar estouro de quota
+          const loggedUser: User = {
+            id: foundUser.id,
+            nome: foundUser.nome,
+            email: foundUser.email,
+            usuario: foundUser.usuario,
+            perfil: foundUser.perfil,
+          };
+          setUser(loggedUser);
+          localStorage.setItem('kreato_user', JSON.stringify(loggedUser));
+          return true;
+        }
+      }
+
+      return false;
+    } catch (error) {
+      console.error('Erro no login:', error);
+      return false;
+    }
   };
 
   const logout = () => {
