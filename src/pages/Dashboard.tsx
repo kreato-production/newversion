@@ -145,12 +145,20 @@ const Dashboard = () => {
     const anosComDados = new Set<number>();
     gravacoes.forEach((g: any) => {
       if (g.dataPrevista) {
-        anosComDados.add(getYear(parseISO(g.dataPrevista)));
+        try {
+          const parsed = parseISO(g.dataPrevista);
+          if (!isNaN(parsed.getTime())) {
+            anosComDados.add(getYear(parsed));
+          }
+        } catch {
+          // Ignora datas inválidas
+        }
       }
     });
     if (anosComDados.size > 0 && !anosComDados.has(anoCorrente)) {
       // Se não há dados no ano corrente, usa o ano mais recente com dados
-      anoExibicao = Math.max(...Array.from(anosComDados));
+      const anosArray = Array.from(anosComDados);
+      anoExibicao = Math.max(...anosArray);
     }
     
     // Inicializar meses
