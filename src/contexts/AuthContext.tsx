@@ -6,6 +6,21 @@ export interface User {
   email: string;
   usuario: string;
   perfil: string;
+  foto?: string;
+}
+
+interface StoredUsuario {
+  id: string;
+  codigoExterno: string;
+  nome: string;
+  email: string;
+  usuario: string;
+  senha: string;
+  foto?: string;
+  perfil: string;
+  descricao: string;
+  dataCadastro: string;
+  usuarioCadastro: string;
 }
 
 interface AuthContextType {
@@ -36,11 +51,36 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const login = (usuario: string, senha: string): boolean => {
+    // Primeiro verifica credenciais do admin padrão
     if (usuario.toLowerCase() === 'admin' && senha === 'kreato') {
       setUser(ADMIN_USER);
       localStorage.setItem('kreato_user', JSON.stringify(ADMIN_USER));
       return true;
     }
+
+    // Busca usuários cadastrados no sistema
+    const storedUsuarios = localStorage.getItem('kreato_usuarios');
+    if (storedUsuarios) {
+      const usuarios: StoredUsuario[] = JSON.parse(storedUsuarios);
+      const foundUser = usuarios.find(
+        (u) => u.usuario.toLowerCase() === usuario.toLowerCase() && u.senha === senha
+      );
+
+      if (foundUser) {
+        const loggedUser: User = {
+          id: foundUser.id,
+          nome: foundUser.nome,
+          email: foundUser.email,
+          usuario: foundUser.usuario,
+          perfil: foundUser.perfil,
+          foto: foundUser.foto,
+        };
+        setUser(loggedUser);
+        localStorage.setItem('kreato_user', JSON.stringify(loggedUser));
+        return true;
+      }
+    }
+
     return false;
   };
 
