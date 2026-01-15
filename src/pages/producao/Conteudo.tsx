@@ -154,14 +154,6 @@ const Conteudo = () => {
 
   const columns: Column<Conteudo>[] = [
     {
-      key: 'codigoExterno',
-      label: 'Cód. Externo',
-      className: 'w-28',
-      render: (item) => (
-        <span className="font-mono text-sm font-medium text-primary">{item.codigoExterno || '-'}</span>
-      ),
-    },
-    {
       key: 'descricao',
       label: 'Descrição',
       render: (item) => <span className="font-medium">{item.descricao}</span>,

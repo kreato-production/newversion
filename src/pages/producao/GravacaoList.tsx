@@ -141,14 +141,6 @@ const GravacaoList = () => {
       ),
     },
     {
-      key: 'codigoExterno',
-      label: t('common.externalCode'),
-      className: 'w-24',
-      render: (item) => (
-        <span className="font-mono text-sm text-muted-foreground">{item.codigoExterno || '-'}</span>
-      ),
-    },
-    {
       key: 'nome',
       label: t('common.name'),
       render: (item) => <span className="font-medium">{item.nome}</span>,
