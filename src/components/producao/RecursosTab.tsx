@@ -291,14 +291,15 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
     const tarefasStorage = localStorage.getItem('kreato_tarefas');
     const tarefas = tarefasStorage ? JSON.parse(tarefasStorage) : [];
     
-    // Verificar se já existe uma tarefa para este colaborador, recurso técnico e gravação
+    // Verificar se já existe uma tarefa para este colaborador, recurso técnico, gravação e DATA
     const tarefaExistente = tarefas.find((t: any) => 
       t.gravacaoId === gravacaoId && 
       t.recursoHumanoId === rhId && 
-      t.recursoTecnicoId === recursoTecnicoId
+      t.recursoTecnicoId === recursoTecnicoId &&
+      t.dataInicio === dia
     );
     
-    if (tarefaExistente) return; // Já existe tarefa
+    if (tarefaExistente) return; // Já existe tarefa para esta data
     
     // Criar nova tarefa
     const novaTarefa = {
