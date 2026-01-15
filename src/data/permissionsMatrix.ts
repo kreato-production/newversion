@@ -255,6 +255,37 @@ export const basePermissionsMatrix: Omit<PermissionItem, 'id'>[] = [
   { modulo: 'Administração', subModulo1: 'Usuários', subModulo2: '-', campo: 'Perfil de Acesso', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
   { modulo: 'Administração', subModulo1: 'Usuários', subModulo2: '-', campo: 'Tabulador "Dados Gerais"', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
   { modulo: 'Administração', subModulo1: 'Usuários', subModulo2: '-', campo: 'Tabulador "Unidade de Negócio"', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  
+  // Administração > Perfis de Acesso
+  { modulo: 'Administração', subModulo1: 'Perfis de Acesso', subModulo2: '-', campo: '-', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'submodulo1' },
+  { modulo: 'Administração', subModulo1: 'Perfis de Acesso', subModulo2: '-', campo: 'Código Externo', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Administração', subModulo1: 'Perfis de Acesso', subModulo2: '-', campo: 'Nome', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Administração', subModulo1: 'Perfis de Acesso', subModulo2: '-', campo: 'Descrição', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Administração', subModulo1: 'Perfis de Acesso', subModulo2: '-', campo: 'Tabulador "Permissões"', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  
+  // Configurações
+  { modulo: 'Configurações', subModulo1: '-', subModulo2: '-', campo: '-', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'modulo' },
+  
+  // Configurações > Idiomas
+  { modulo: 'Configurações', subModulo1: 'Idiomas', subModulo2: '-', campo: '-', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'submodulo1' },
+  
+  // Configurações > Tema
+  { modulo: 'Configurações', subModulo1: 'Tema', subModulo2: '-', campo: '-', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'submodulo1' },
+  
+  // Configurações > Notificações
+  { modulo: 'Configurações', subModulo1: 'Notificações', subModulo2: '-', campo: '-', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'submodulo1' },
+  
+  // Configurações > Segurança
+  { modulo: 'Configurações', subModulo1: 'Segurança', subModulo2: '-', campo: '-', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'submodulo1' },
+  
+  // Configurações > Integrações
+  { modulo: 'Configurações', subModulo1: 'Integrações', subModulo2: '-', campo: '-', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'submodulo1' },
+  
+  // Configurações > Backup
+  { modulo: 'Configurações', subModulo1: 'Backup', subModulo2: '-', campo: '-', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'submodulo1' },
+  
+  // Configurações > Logs
+  { modulo: 'Configurações', subModulo1: 'Logs', subModulo2: '-', campo: '-', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'submodulo1' },
 ];
 
 // Gera a matriz com IDs
