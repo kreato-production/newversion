@@ -87,6 +87,13 @@ const Tarefas = () => {
 
   useEffect(() => {
     loadData();
+
+    const handleTarefasUpdated = () => loadData();
+    window.addEventListener('kreato:tarefas-updated', handleTarefasUpdated);
+
+    return () => {
+      window.removeEventListener('kreato:tarefas-updated', handleTarefasUpdated);
+    };
   }, []);
 
   const loadData = () => {

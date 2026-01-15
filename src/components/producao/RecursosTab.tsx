@@ -323,6 +323,7 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
     };
     
     localStorage.setItem('kreato_tarefas', JSON.stringify([...tarefas, novaTarefa]));
+    window.dispatchEvent(new CustomEvent('kreato:tarefas-updated'));
   };
 
   // Função para remover tarefa automática
@@ -338,6 +339,7 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
     );
     
     localStorage.setItem('kreato_tarefas', JSON.stringify(tarefasAtualizadas));
+    window.dispatchEvent(new CustomEvent('kreato:tarefas-updated'));
   };
 
   const handleAddRH = () => {
