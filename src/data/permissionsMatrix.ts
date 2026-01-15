@@ -263,29 +263,11 @@ export const basePermissionsMatrix: Omit<PermissionItem, 'id'>[] = [
   { modulo: 'Administração', subModulo1: 'Perfis de Acesso', subModulo2: '-', campo: 'Descrição', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
   { modulo: 'Administração', subModulo1: 'Perfis de Acesso', subModulo2: '-', campo: 'Tabulador "Permissões"', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
   
-  // Configurações
-  { modulo: 'Configurações', subModulo1: '-', subModulo2: '-', campo: '-', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'modulo' },
+  // Produção > Parametrizações (item pai)
+  { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: '-', campo: '-', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'submodulo1' },
   
-  // Configurações > Idiomas
-  { modulo: 'Configurações', subModulo1: 'Idiomas', subModulo2: '-', campo: '-', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'submodulo1' },
-  
-  // Configurações > Tema
-  { modulo: 'Configurações', subModulo1: 'Tema', subModulo2: '-', campo: '-', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'submodulo1' },
-  
-  // Configurações > Notificações
-  { modulo: 'Configurações', subModulo1: 'Notificações', subModulo2: '-', campo: '-', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'submodulo1' },
-  
-  // Configurações > Segurança
-  { modulo: 'Configurações', subModulo1: 'Segurança', subModulo2: '-', campo: '-', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'submodulo1' },
-  
-  // Configurações > Integrações
-  { modulo: 'Configurações', subModulo1: 'Integrações', subModulo2: '-', campo: '-', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'submodulo1' },
-  
-  // Configurações > Backup
-  { modulo: 'Configurações', subModulo1: 'Backup', subModulo2: '-', campo: '-', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'submodulo1' },
-  
-  // Configurações > Logs
-  { modulo: 'Configurações', subModulo1: 'Logs', subModulo2: '-', campo: '-', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'submodulo1' },
+  // Recursos > Parametrizações (item pai)
+  { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: '-', campo: '-', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'submodulo1' },
 ];
 
 // Gera a matriz com IDs
