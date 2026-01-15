@@ -45,7 +45,18 @@ interface Cena {
 interface Pessoa {
   id: string;
   nome: string;
+  sobrenome?: string;
+  nomeTrabalho?: string;
   classificacao?: string;
+  status?: string;
+}
+
+interface ElencoMembro {
+  id: string;
+  pessoaId: string;
+  nome: string;
+  nomeTrabalho?: string;
+  personagem: string;
 }
 
 interface RoteiroTabProps {
@@ -58,7 +69,8 @@ const TIPOS_AMBIENTE = ['Externo', 'Interno'];
 
 export const RoteiroTab = ({ gravacaoId }: RoteiroTabProps) => {
   const [cenas, setCenas] = useState<Cena[]>([]);
-  const [pessoas, setPessoas] = useState<Pessoa[]>([]);
+  const [elenco, setElenco] = useState<ElencoMembro[]>([]);
+  const [figurantes, setFigurantes] = useState<Pessoa[]>([]);
   const [expandedCenas, setExpandedCenas] = useState<Set<string>>(new Set());
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
@@ -69,10 +81,21 @@ export const RoteiroTab = ({ gravacaoId }: RoteiroTabProps) => {
       setCenas(JSON.parse(storedCenas));
     }
 
-    // Carregar pessoas para seleção de figurantes
+    // Carregar elenco da gravação para seleção de personagens
+    const storedElenco = localStorage.getItem(`kreato_gravacao_elenco_${gravacaoId}`);
+    if (storedElenco) {
+      setElenco(JSON.parse(storedElenco));
+    }
+
+    // Carregar pessoas classificadas como "Figurante" ou "Figurantes"
     const storedPessoas = localStorage.getItem('kreato_pessoas');
     if (storedPessoas) {
-      setPessoas(JSON.parse(storedPessoas));
+      const allPessoas: Pessoa[] = JSON.parse(storedPessoas);
+      const figurantesOnly = allPessoas.filter(p => 
+        p.status === 'Ativo' && 
+        p.classificacao?.toLowerCase().includes('figurante')
+      );
+      setFigurantes(figurantesOnly);
     }
   }, [gravacaoId]);
 
@@ -151,13 +174,13 @@ export const RoteiroTab = ({ gravacaoId }: RoteiroTabProps) => {
     setDraggedIndex(null);
   };
 
-  const handlePersonagemToggle = (cenaId: string, personagem: string) => {
+  const handlePersonagemToggle = (cenaId: string, elencoId: string) => {
     const cena = cenas.find(c => c.id === cenaId);
     if (!cena) return;
     
-    const newPersonagens = cena.personagens.includes(personagem)
-      ? cena.personagens.filter(p => p !== personagem)
-      : [...cena.personagens, personagem];
+    const newPersonagens = cena.personagens.includes(elencoId)
+      ? cena.personagens.filter(p => p !== elencoId)
+      : [...cena.personagens, elencoId];
     
     handleUpdateCena(cenaId, 'personagens', newPersonagens);
   };
@@ -173,15 +196,14 @@ export const RoteiroTab = ({ gravacaoId }: RoteiroTabProps) => {
     handleUpdateCena(cenaId, 'figurantes', newFigurantes);
   };
 
-  // Personagens pré-definidos (podem vir do elenco cadastrado)
-  const personagensDisponiveis = [
-    'Protagonista 1',
-    'Protagonista 2', 
-    'Antagonista',
-    'Personagem Secundário 1',
-    'Personagem Secundário 2',
-    'Personagem Secundário 3',
-  ];
+  const getElencoDisplayName = (membro: ElencoMembro) => {
+    const atorName = membro.nomeTrabalho || membro.nome;
+    return `${membro.personagem} (${atorName})`;
+  };
+
+  const getFiguranteDisplayName = (pessoa: Pessoa) => {
+    return pessoa.nomeTrabalho || `${pessoa.nome} ${pessoa.sobrenome || ''}`.trim();
+  };
 
   return (
     <div className="space-y-4 py-4">
@@ -368,36 +390,42 @@ export const RoteiroTab = ({ gravacaoId }: RoteiroTabProps) => {
 
                     {/* Personagens em Cena */}
                     <div className="space-y-2">
-                      <Label>Personagens em Cena</Label>
-                      <div className="flex flex-wrap gap-2 p-3 border rounded-md bg-muted/30">
-                        {personagensDisponiveis.map((personagem) => (
-                          <div key={personagem} className="flex items-center space-x-2">
-                            <Checkbox
-                              id={`${cena.id}-${personagem}`}
-                              checked={cena.personagens.includes(personagem)}
-                              onCheckedChange={() => handlePersonagemToggle(cena.id, personagem)}
-                            />
-                            <label
-                              htmlFor={`${cena.id}-${personagem}`}
-                              className="text-sm cursor-pointer"
-                            >
-                              {personagem}
-                            </label>
-                          </div>
-                        ))}
+                      <Label>Personagens em Cena (do Elenco)</Label>
+                      <div className="flex flex-wrap gap-2 p-3 border rounded-md bg-muted/30 max-h-40 overflow-y-auto">
+                        {elenco.length === 0 ? (
+                          <p className="text-sm text-muted-foreground">
+                            Nenhum elenco cadastrado. Adicione membros ao elenco no tabulador "Elenco".
+                          </p>
+                        ) : (
+                          elenco.map((membro) => (
+                            <div key={membro.id} className="flex items-center space-x-2">
+                              <Checkbox
+                                id={`${cena.id}-personagem-${membro.id}`}
+                                checked={cena.personagens.includes(membro.id)}
+                                onCheckedChange={() => handlePersonagemToggle(cena.id, membro.id)}
+                              />
+                              <label
+                                htmlFor={`${cena.id}-personagem-${membro.id}`}
+                                className="text-sm cursor-pointer"
+                              >
+                                {getElencoDisplayName(membro)}
+                              </label>
+                            </div>
+                          ))
+                        )}
                       </div>
                     </div>
 
                     {/* Figurantes */}
                     <div className="space-y-2">
-                      <Label>Figurantes</Label>
-                      <div className="flex flex-wrap gap-2 p-3 border rounded-md bg-muted/30 max-h-32 overflow-y-auto">
-                        {pessoas.length === 0 ? (
+                      <Label>Figurantes (Pessoas classificadas como Figurante)</Label>
+                      <div className="flex flex-wrap gap-2 p-3 border rounded-md bg-muted/30 max-h-40 overflow-y-auto">
+                        {figurantes.length === 0 ? (
                           <p className="text-sm text-muted-foreground">
-                            Nenhuma pessoa cadastrada. Cadastre pessoas no módulo Recursos.
+                            Nenhuma pessoa classificada como "Figurante". Cadastre pessoas no módulo Recursos &gt; Pessoas.
                           </p>
                         ) : (
-                          pessoas.map((pessoa) => (
+                          figurantes.map((pessoa) => (
                             <div key={pessoa.id} className="flex items-center space-x-2">
                               <Checkbox
                                 id={`${cena.id}-figurante-${pessoa.id}`}
@@ -408,7 +436,7 @@ export const RoteiroTab = ({ gravacaoId }: RoteiroTabProps) => {
                                 htmlFor={`${cena.id}-figurante-${pessoa.id}`}
                                 className="text-sm cursor-pointer"
                               >
-                                {pessoa.nome}
+                                {getFiguranteDisplayName(pessoa)}
                               </label>
                             </div>
                           ))
