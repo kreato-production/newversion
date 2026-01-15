@@ -138,7 +138,7 @@ export const UsuarioFormModal = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-[900px] max-w-[900px] max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{data ? 'Editar Usuário' : 'Novo Usuário'}</DialogTitle>
           <DialogDescription>
