@@ -402,6 +402,10 @@ const translations: Record<Language, Record<string, string>> = {
     'script.fastScene': 'Cena Rápida',
     'script.contemplative': 'Contemplativa',
     'script.scene': 'Cena',
+    'script.selectCharacters': 'Selecionar Personagens',
+    'script.searchCharacter': 'Buscar personagem...',
+    'script.selectExtras': 'Selecionar Figurantes',
+    'script.searchExtra': 'Buscar figurante...',
     
     // Costs Tab
     'costsTab.noCosts': 'Nenhum custo estimado',
@@ -815,6 +819,10 @@ const translations: Record<Language, Record<string, string>> = {
     'script.fastScene': 'Fast Scene',
     'script.contemplative': 'Contemplative',
     'script.scene': 'Scene',
+    'script.selectCharacters': 'Select Characters',
+    'script.searchCharacter': 'Search character...',
+    'script.selectExtras': 'Select Extras',
+    'script.searchExtra': 'Search extra...',
     
     // Costs Tab
     'costsTab.noCosts': 'No estimated costs',
@@ -1228,6 +1236,10 @@ const translations: Record<Language, Record<string, string>> = {
     'script.fastScene': 'Escena Rápida',
     'script.contemplative': 'Contemplativa',
     'script.scene': 'Escena',
+    'script.selectCharacters': 'Seleccionar Personajes',
+    'script.searchCharacter': 'Buscar personaje...',
+    'script.selectExtras': 'Seleccionar Figurantes',
+    'script.searchExtra': 'Buscar figurante...',
     
     // Costs Tab
     'costsTab.noCosts': 'Sin costos estimados',

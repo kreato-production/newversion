@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Trash2, GripVertical, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, Trash2, GripVertical, ChevronDown, ChevronUp, Check, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -23,9 +23,22 @@ import {
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
 import { Badge } from '@/components/ui/badge';
-import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import { toast } from 'sonner';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { cn } from '@/lib/utils';
 
 interface Cena {
   id: string;
@@ -414,57 +427,125 @@ export const RoteiroTab = ({ gravacaoId }: RoteiroTabProps) => {
                     {/* Personagens em Cena */}
                     <div className="space-y-2">
                       <Label>{t('script.charactersInScene')}</Label>
-                      <div className="flex flex-wrap gap-2 p-3 border rounded-md bg-muted/30 max-h-40 overflow-y-auto">
-                        {elenco.length === 0 ? (
-                          <p className="text-sm text-muted-foreground">
-                            {t('script.noCast')}
-                          </p>
-                        ) : (
-                          elenco.map((membro) => (
-                            <div key={membro.id} className="flex items-center space-x-2">
-                              <Checkbox
-                                id={`${cena.id}-personagem-${membro.id}`}
-                                checked={cena.personagens.includes(membro.id)}
-                                onCheckedChange={() => handlePersonagemToggle(cena.id, membro.id)}
-                              />
-                              <label
-                                htmlFor={`${cena.id}-personagem-${membro.id}`}
-                                className="text-sm cursor-pointer"
-                              >
-                                {getElencoDisplayName(membro)}
-                              </label>
+                      {elenco.length === 0 ? (
+                        <p className="text-sm text-muted-foreground p-3 border rounded-md bg-muted/30">
+                          {t('script.noCast')}
+                        </p>
+                      ) : (
+                        <div className="space-y-2">
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button variant="outline" className="w-full justify-start">
+                                <Plus className="h-4 w-4 mr-2" />
+                                {t('script.selectCharacters')}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-80 p-0 bg-popover" align="start">
+                              <Command>
+                                <CommandInput placeholder={t('script.searchCharacter')} />
+                                <CommandList>
+                                  <CommandEmpty>{t('common.noResults')}</CommandEmpty>
+                                  <CommandGroup>
+                                    {elenco
+                                      .filter(m => !cena.personagens.includes(m.id))
+                                      .map((membro) => (
+                                        <CommandItem
+                                          key={membro.id}
+                                          value={getElencoDisplayName(membro)}
+                                          onSelect={() => handlePersonagemToggle(cena.id, membro.id)}
+                                        >
+                                          <Check className={cn("mr-2 h-4 w-4", "opacity-0")} />
+                                          {getElencoDisplayName(membro)}
+                                        </CommandItem>
+                                      ))}
+                                  </CommandGroup>
+                                </CommandList>
+                              </Command>
+                            </PopoverContent>
+                          </Popover>
+                          {cena.personagens.length > 0 && (
+                            <div className="flex flex-wrap gap-2">
+                              {cena.personagens.map((pId) => {
+                                const membro = elenco.find(e => e.id === pId);
+                                if (!membro) return null;
+                                return (
+                                  <Badge key={pId} variant="secondary" className="flex items-center gap-1">
+                                    {getElencoDisplayName(membro)}
+                                    <button
+                                      onClick={() => handlePersonagemToggle(cena.id, pId)}
+                                      className="ml-1 hover:text-destructive"
+                                    >
+                                      <X className="h-3 w-3" />
+                                    </button>
+                                  </Badge>
+                                );
+                              })}
                             </div>
-                          ))
-                        )}
-                      </div>
+                          )}
+                        </div>
+                      )}
                     </div>
 
                     {/* Figurantes */}
                     <div className="space-y-2">
                       <Label>{t('script.extras')}</Label>
-                      <div className="flex flex-wrap gap-2 p-3 border rounded-md bg-muted/30 max-h-40 overflow-y-auto">
-                        {figurantes.length === 0 ? (
-                          <p className="text-sm text-muted-foreground">
-                            {t('script.noExtras')}
-                          </p>
-                        ) : (
-                          figurantes.map((pessoa) => (
-                            <div key={pessoa.id} className="flex items-center space-x-2">
-                              <Checkbox
-                                id={`${cena.id}-figurante-${pessoa.id}`}
-                                checked={cena.figurantes.includes(pessoa.id)}
-                                onCheckedChange={() => handleFiguranteToggle(cena.id, pessoa.id)}
-                              />
-                              <label
-                                htmlFor={`${cena.id}-figurante-${pessoa.id}`}
-                                className="text-sm cursor-pointer"
-                              >
-                                {getFiguranteDisplayName(pessoa)}
-                              </label>
+                      {figurantes.length === 0 ? (
+                        <p className="text-sm text-muted-foreground p-3 border rounded-md bg-muted/30">
+                          {t('script.noExtras')}
+                        </p>
+                      ) : (
+                        <div className="space-y-2">
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button variant="outline" className="w-full justify-start">
+                                <Plus className="h-4 w-4 mr-2" />
+                                {t('script.selectExtras')}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-80 p-0 bg-popover" align="start">
+                              <Command>
+                                <CommandInput placeholder={t('script.searchExtra')} />
+                                <CommandList>
+                                  <CommandEmpty>{t('common.noResults')}</CommandEmpty>
+                                  <CommandGroup>
+                                    {figurantes
+                                      .filter(f => !cena.figurantes.includes(f.id))
+                                      .map((pessoa) => (
+                                        <CommandItem
+                                          key={pessoa.id}
+                                          value={getFiguranteDisplayName(pessoa)}
+                                          onSelect={() => handleFiguranteToggle(cena.id, pessoa.id)}
+                                        >
+                                          <Check className={cn("mr-2 h-4 w-4", "opacity-0")} />
+                                          {getFiguranteDisplayName(pessoa)}
+                                        </CommandItem>
+                                      ))}
+                                  </CommandGroup>
+                                </CommandList>
+                              </Command>
+                            </PopoverContent>
+                          </Popover>
+                          {cena.figurantes.length > 0 && (
+                            <div className="flex flex-wrap gap-2">
+                              {cena.figurantes.map((fId) => {
+                                const pessoa = figurantes.find(f => f.id === fId);
+                                if (!pessoa) return null;
+                                return (
+                                  <Badge key={fId} variant="secondary" className="flex items-center gap-1">
+                                    {getFiguranteDisplayName(pessoa)}
+                                    <button
+                                      onClick={() => handleFiguranteToggle(cena.id, fId)}
+                                      className="ml-1 hover:text-destructive"
+                                    >
+                                      <X className="h-3 w-3" />
+                                    </button>
+                                  </Badge>
+                                );
+                              })}
                             </div>
-                          ))
-                        )}
-                      </div>
+                          )}
+                        </div>
+                      )}
                     </div>
 
                     {/* Descrição da Cena */}
