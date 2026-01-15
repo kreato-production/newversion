@@ -275,6 +275,71 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
     setRhModalOpen(true);
   };
 
+  // Função para criar tarefa automática
+  const createTaskForRH = (rhId: string, rhNome: string, recursoTecnicoId: string, recursoTecnicoNome: string, dia: string) => {
+    // Buscar informações da gravação
+    const gravacoes = localStorage.getItem('kreato_gravacoes');
+    const listaGravacoes = gravacoes ? JSON.parse(gravacoes) : [];
+    const gravacao = listaGravacoes.find((g: any) => g.id === gravacaoId);
+    
+    // Buscar status de tarefa padrão (Pendente)
+    const statusList = localStorage.getItem('kreato_status_tarefa');
+    const statuses = statusList ? JSON.parse(statusList) : [];
+    const statusPendente = statuses.find((s: any) => s.codigo === 'PEND') || statuses[0];
+    
+    // Buscar tarefas existentes
+    const tarefasStorage = localStorage.getItem('kreato_tarefas');
+    const tarefas = tarefasStorage ? JSON.parse(tarefasStorage) : [];
+    
+    // Verificar se já existe uma tarefa para este colaborador, recurso técnico e gravação
+    const tarefaExistente = tarefas.find((t: any) => 
+      t.gravacaoId === gravacaoId && 
+      t.recursoHumanoId === rhId && 
+      t.recursoTecnicoId === recursoTecnicoId
+    );
+    
+    if (tarefaExistente) return; // Já existe tarefa
+    
+    // Criar nova tarefa
+    const novaTarefa = {
+      id: crypto.randomUUID(),
+      gravacaoId: gravacaoId,
+      gravacaoNome: gravacao?.nome || gravacao?.codigo || '',
+      recursoHumanoId: rhId,
+      recursoHumanoNome: rhNome,
+      recursoTecnicoId: recursoTecnicoId,
+      recursoTecnicoNome: recursoTecnicoNome,
+      titulo: `Operação: ${recursoTecnicoNome}`,
+      descricao: `Tarefa automática criada para operação do recurso técnico "${recursoTecnicoNome}" na gravação "${gravacao?.nome || gravacao?.codigo || ''}"`,
+      statusId: statusPendente?.id || '',
+      statusNome: statusPendente?.nome || 'Pendente',
+      statusCor: statusPendente?.cor || '#f59e0b',
+      prioridade: 'media' as const,
+      dataInicio: dia,
+      dataFim: dia,
+      dataCriacao: new Date().toISOString(),
+      dataAtualizacao: new Date().toISOString(),
+      observacoes: '',
+    };
+    
+    localStorage.setItem('kreato_tarefas', JSON.stringify([...tarefas, novaTarefa]));
+  };
+
+  // Função para remover tarefa automática
+  const removeTaskForRH = (rhId: string, recursoTecnicoId: string) => {
+    const tarefasStorage = localStorage.getItem('kreato_tarefas');
+    const tarefas = tarefasStorage ? JSON.parse(tarefasStorage) : [];
+    
+    // Remover tarefa associada a este colaborador e recurso técnico nesta gravação
+    const tarefasAtualizadas = tarefas.filter((t: any) => 
+      !(t.gravacaoId === gravacaoId && 
+        t.recursoHumanoId === rhId && 
+        t.recursoTecnicoId === recursoTecnicoId)
+    );
+    
+    localStorage.setItem('kreato_tarefas', JSON.stringify(tarefasAtualizadas));
+  };
+
   const handleAddRH = () => {
     if (!selectedRH || !rhModalRecurso) return;
     
@@ -304,12 +369,31 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
     });
 
     saveToStorage(updated);
+    
+    // Criar tarefa automática para o colaborador
+    createTaskForRH(
+      selectedRH, 
+      rh.nome, 
+      rhModalRecurso.recursoId, 
+      rhModalRecurso.recursoNome, 
+      rhModalDia
+    );
+    
+    toast({
+      title: 'Colaborador alocado',
+      description: `${rh.nome} foi alocado e uma tarefa foi criada automaticamente.`,
+    });
+    
     setSelectedRH('');
     setHoraInicio('08:00');
     setHoraFim('18:00');
   };
 
   const handleRemoveRH = (recursoId: string, dia: string, rhId: string) => {
+    // Encontrar o recurso e o RH para obter informações antes de remover
+    const recurso = recursos.find((r) => r.id === recursoId);
+    const rhInfo = recurso?.recursosHumanos[dia]?.find((rh) => rh.id === rhId);
+    
     const updated = recursos.map((r) => {
       if (r.id === recursoId) {
         return {
@@ -323,6 +407,25 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
       return r;
     });
     saveToStorage(updated);
+    
+    // Remover tarefa automática se o colaborador não estiver mais alocado a este recurso
+    if (rhInfo && recurso) {
+      // Verificar se o colaborador ainda está alocado em outros dias para este recurso
+      const aindaAlocado = updated.some((r) => {
+        if (r.id !== recursoId) return false;
+        return Object.values(r.recursosHumanos).some(rhList => 
+          rhList.some(rh => rh.recursoHumanoId === rhInfo.recursoHumanoId)
+        );
+      });
+      
+      if (!aindaAlocado) {
+        removeTaskForRH(rhInfo.recursoHumanoId, recurso.recursoId);
+        toast({
+          title: 'Colaborador desalocado',
+          description: `${rhInfo.nome} foi removido e a tarefa associada foi excluída.`,
+        });
+      }
+    }
   };
 
   const getRHCount = (recurso: RecursoAlocado, dia: string) => {
