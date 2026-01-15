@@ -7,7 +7,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { Calendar, ChevronLeft, ChevronRight, Filter, MapPin, Users, CalendarDays, CalendarRange, FileDown, Loader2 } from 'lucide-react';
+import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
+import { Calendar, ChevronLeft, ChevronRight, Filter, MapPin, Users, CalendarDays, CalendarRange, FileDown, Loader2, Clock, Film, User } from 'lucide-react';
 import { format, addDays, startOfWeek, addWeeks, subWeeks, startOfMonth, endOfMonth, addMonths, subMonths, eachDayOfInterval, getDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import jsPDF from 'jspdf';
@@ -640,19 +641,50 @@ const Mapas = () => {
                     >
                       {ocupacoesDia.length > 0 ? (
                         <div className="flex flex-col gap-1">
-                          {ocupacoesDia.map((oc, idx) => (
-                            <div
-                              key={idx}
-                              className={`bg-primary/10 border border-primary/30 rounded text-xs ${viewMode === 'month' ? 'p-0.5' : 'p-1.5'}`}
-                            >
-                              <div className="font-medium text-primary truncate" title={oc.gravacao}>
-                                {viewMode === 'month' ? oc.gravacao.substring(0, 8) + (oc.gravacao.length > 8 ? '...' : '') : oc.gravacao}
-                              </div>
-                              {viewMode === 'week' && (
-                                <div className="text-muted-foreground">{oc.horario}</div>
-                              )}
-                            </div>
-                          ))}
+                          {ocupacoesDia.map((oc, idx) => {
+                            const gravacaoData = gravacoes.find(g => g.id === oc.gravacaoId);
+                            return (
+                              <HoverCard key={idx} openDelay={200} closeDelay={100}>
+                                <HoverCardTrigger asChild>
+                                  <div
+                                    className={`bg-primary/10 border border-primary/30 rounded text-xs cursor-pointer hover:bg-primary/20 transition-colors ${viewMode === 'month' ? 'p-0.5' : 'p-1.5'}`}
+                                  >
+                                    <div className="font-medium text-primary truncate" title={oc.gravacao}>
+                                      {viewMode === 'month' ? oc.gravacao.substring(0, 8) + (oc.gravacao.length > 8 ? '...' : '') : oc.gravacao}
+                                    </div>
+                                    {viewMode === 'week' && (
+                                      <div className="text-muted-foreground">{oc.horario}</div>
+                                    )}
+                                  </div>
+                                </HoverCardTrigger>
+                                <HoverCardContent className="w-72" side="top" align="center">
+                                  <div className="space-y-3">
+                                    <div className="flex items-start gap-2">
+                                      <Film className="h-4 w-4 text-primary mt-0.5" />
+                                      <div>
+                                        <p className="text-sm font-semibold">{oc.gravacao}</p>
+                                        {gravacaoData?.codigoExterno && (
+                                          <p className="text-xs text-muted-foreground">Cód: {gravacaoData.codigoExterno}</p>
+                                        )}
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <Calendar className="h-4 w-4 text-muted-foreground" />
+                                      <p className="text-sm">{format(day, "EEEE, dd 'de' MMMM", { locale: ptBR })}</p>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <Clock className="h-4 w-4 text-muted-foreground" />
+                                      <p className="text-sm">{oc.horario}</p>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <MapPin className="h-4 w-4 text-muted-foreground" />
+                                      <p className="text-sm">{recurso.nome}</p>
+                                    </div>
+                                  </div>
+                                </HoverCardContent>
+                              </HoverCard>
+                            );
+                          })}
                         </div>
                       ) : (
                         <span className="text-muted-foreground/50">-</span>
@@ -733,33 +765,77 @@ const Mapas = () => {
                               <div className="flex flex-col gap-1">
                                 {ocupacoesDia.map((oc, idx) => {
                                   const bgColor = oc.statusCor || undefined;
+                                  const gravacaoData = gravacoes.find(g => g.id === oc.gravacaoId);
+                                  const recursoHumanoData = recursosHumanos.find(rh => rh.id === oc.recursoHumanoId);
                                   return (
-                                    <div
-                                      key={idx}
-                                      className={`rounded text-xs ${viewMode === 'month' ? 'p-0.5' : 'p-1.5'}`}
-                                      style={bgColor ? {
-                                        backgroundColor: `${bgColor}20`,
-                                        borderColor: `${bgColor}50`,
-                                        borderWidth: '1px',
-                                        borderStyle: 'solid',
-                                      } : {
-                                        backgroundColor: 'hsl(var(--primary) / 0.1)',
-                                        borderColor: 'hsl(var(--primary) / 0.3)',
-                                        borderWidth: '1px',
-                                        borderStyle: 'solid',
-                                      }}
-                                    >
-                                      <div 
-                                        className="font-medium truncate" 
-                                        title={oc.gravacao}
-                                        style={bgColor ? { color: bgColor } : { color: 'hsl(var(--primary))' }}
-                                      >
-                                        {viewMode === 'month' ? oc.gravacao.substring(0, 8) + (oc.gravacao.length > 8 ? '...' : '') : oc.gravacao}
-                                      </div>
-                                      {viewMode === 'week' && (
-                                        <div className="text-muted-foreground">{oc.horario}</div>
-                                      )}
-                                    </div>
+                                    <HoverCard key={idx} openDelay={200} closeDelay={100}>
+                                      <HoverCardTrigger asChild>
+                                        <div
+                                          className={`rounded text-xs cursor-pointer transition-opacity hover:opacity-80 ${viewMode === 'month' ? 'p-0.5' : 'p-1.5'}`}
+                                          style={bgColor ? {
+                                            backgroundColor: `${bgColor}20`,
+                                            borderColor: `${bgColor}50`,
+                                            borderWidth: '1px',
+                                            borderStyle: 'solid',
+                                          } : {
+                                            backgroundColor: 'hsl(var(--primary) / 0.1)',
+                                            borderColor: 'hsl(var(--primary) / 0.3)',
+                                            borderWidth: '1px',
+                                            borderStyle: 'solid',
+                                          }}
+                                        >
+                                          <div 
+                                            className="font-medium truncate" 
+                                            style={bgColor ? { color: bgColor } : { color: 'hsl(var(--primary))' }}
+                                          >
+                                            {viewMode === 'month' ? oc.gravacao.substring(0, 8) + (oc.gravacao.length > 8 ? '...' : '') : oc.gravacao}
+                                          </div>
+                                          {viewMode === 'week' && (
+                                            <div className="text-muted-foreground">{oc.horario}</div>
+                                          )}
+                                        </div>
+                                      </HoverCardTrigger>
+                                      <HoverCardContent className="w-72" side="top" align="center">
+                                        <div className="space-y-3">
+                                          <div className="flex items-start gap-2">
+                                            <Film className="h-4 w-4 text-primary mt-0.5" />
+                                            <div>
+                                              <p className="text-sm font-semibold">{oc.gravacao}</p>
+                                              {gravacaoData?.codigoExterno && (
+                                                <p className="text-xs text-muted-foreground">Cód: {gravacaoData.codigoExterno}</p>
+                                              )}
+                                            </div>
+                                          </div>
+                                          <div className="flex items-center gap-2">
+                                            <Calendar className="h-4 w-4 text-muted-foreground" />
+                                            <p className="text-sm">{format(day, "EEEE, dd 'de' MMMM", { locale: ptBR })}</p>
+                                          </div>
+                                          <div className="flex items-center gap-2">
+                                            <Clock className="h-4 w-4 text-muted-foreground" />
+                                            <p className="text-sm">{oc.horario}</p>
+                                          </div>
+                                          <div className="flex items-center gap-2">
+                                            <User className="h-4 w-4 text-muted-foreground" />
+                                            <p className="text-sm">{recurso.nome}</p>
+                                          </div>
+                                          {recursoHumanoData?.funcao && (
+                                            <div className="flex items-center gap-2">
+                                              <Users className="h-4 w-4 text-muted-foreground" />
+                                              <p className="text-sm text-muted-foreground">{recursoHumanoData.funcao}</p>
+                                            </div>
+                                          )}
+                                          {bgColor && (
+                                            <div className="flex items-center gap-2">
+                                              <div 
+                                                className="w-3 h-3 rounded-full" 
+                                                style={{ backgroundColor: bgColor }}
+                                              />
+                                              <p className="text-sm text-muted-foreground">Status da tarefa</p>
+                                            </div>
+                                          )}
+                                        </div>
+                                      </HoverCardContent>
+                                    </HoverCard>
                                   );
                                 })}
                               </div>
