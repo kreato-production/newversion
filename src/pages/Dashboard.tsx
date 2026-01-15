@@ -1,9 +1,11 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Video, Users, Building2, Calendar, TrendingUp, Clock, Clapperboard, Wrench, MapPin } from 'lucide-react';
+import { Video, Users, Building2, Calendar, TrendingUp, Clock, Clapperboard, Wrench, MapPin, DollarSign } from 'lucide-react';
 import { useMemo } from 'react';
-import { isAfter, isBefore, addDays, parseISO, startOfWeek, endOfWeek } from 'date-fns';
+import { isAfter, isBefore, addDays, parseISO, startOfWeek, endOfWeek, format, getMonth, getYear } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 const StatCard = ({
   title,
@@ -131,6 +133,139 @@ const Dashboard = () => {
         return getFirstDate(a) - getFirstDate(b);
       });
   }, []);
+
+  // Dados para o gráfico de custos por mês
+  const custosAnuais = useMemo(() => {
+    const gravacoes = JSON.parse(localStorage.getItem('kreato_gravacoes') || '[]');
+    const conteudos = JSON.parse(localStorage.getItem('kreato_conteudos') || '[]');
+    const anoCorrente = new Date().getFullYear();
+    
+    // Inicializar meses
+    const meses = Array.from({ length: 12 }, (_, i) => ({
+      mes: format(new Date(anoCorrente, i, 1), 'MMM', { locale: ptBR }),
+      mesNumero: i,
+      custosGravacoes: 0,
+      custosConteudos: 0,
+    }));
+
+    // Calcular custos de gravações por mês (baseado na data prevista)
+    gravacoes.forEach((gravacao: any) => {
+      if (!gravacao.dataPrevista) return;
+      const data = parseISO(gravacao.dataPrevista);
+      if (getYear(data) !== anoCorrente) return;
+      
+      const mesIndex = getMonth(data);
+      let custoTotal = 0;
+
+      // Somar custos de recursos humanos
+      if (gravacao.recursosHumanos) {
+        gravacao.recursosHumanos.forEach((rh: any) => {
+          custoTotal += parseFloat(rh.custoTotal || 0);
+        });
+      }
+
+      // Somar custos de recursos físicos
+      if (gravacao.recursosFisicos) {
+        gravacao.recursosFisicos.forEach((rf: any) => {
+          custoTotal += parseFloat(rf.custoTotal || 0);
+        });
+      }
+
+      // Somar custos de recursos técnicos
+      if (gravacao.recursosTecnicos) {
+        gravacao.recursosTecnicos.forEach((rt: any) => {
+          custoTotal += parseFloat(rt.custoTotal || 0);
+        });
+      }
+
+      // Somar custos de terceiros
+      if (gravacao.terceiros) {
+        gravacao.terceiros.forEach((t: any) => {
+          custoTotal += parseFloat(t.valor || 0);
+        });
+      }
+
+      meses[mesIndex].custosGravacoes += custoTotal;
+    });
+
+    // Calcular custos de conteúdos por mês (baseado no ano de produção)
+    conteudos.forEach((conteudo: any) => {
+      // Se o ano de produção for o ano corrente, distribuir custos
+      if (conteudo.anoProducao !== anoCorrente.toString()) return;
+      
+      // Buscar gravações deste conteúdo
+      const gravacoesConteudo = gravacoes.filter((g: any) => g.conteudoId === conteudo.id);
+      
+      let custoTotalConteudo = 0;
+      gravacoesConteudo.forEach((gravacao: any) => {
+        // Somar todos os custos
+        if (gravacao.recursosHumanos) {
+          gravacao.recursosHumanos.forEach((rh: any) => {
+            custoTotalConteudo += parseFloat(rh.custoTotal || 0);
+          });
+        }
+        if (gravacao.recursosFisicos) {
+          gravacao.recursosFisicos.forEach((rf: any) => {
+            custoTotalConteudo += parseFloat(rf.custoTotal || 0);
+          });
+        }
+        if (gravacao.recursosTecnicos) {
+          gravacao.recursosTecnicos.forEach((rt: any) => {
+            custoTotalConteudo += parseFloat(rt.custoTotal || 0);
+          });
+        }
+        if (gravacao.terceiros) {
+          gravacao.terceiros.forEach((t: any) => {
+            custoTotalConteudo += parseFloat(t.valor || 0);
+          });
+        }
+      });
+
+      // Distribuir custo pelo mês da data prevista das gravações
+      gravacoesConteudo.forEach((gravacao: any) => {
+        if (!gravacao.dataPrevista) return;
+        const data = parseISO(gravacao.dataPrevista);
+        if (getYear(data) !== anoCorrente) return;
+        const mesIndex = getMonth(data);
+        
+        let custoGravacao = 0;
+        if (gravacao.recursosHumanos) {
+          gravacao.recursosHumanos.forEach((rh: any) => {
+            custoGravacao += parseFloat(rh.custoTotal || 0);
+          });
+        }
+        if (gravacao.recursosFisicos) {
+          gravacao.recursosFisicos.forEach((rf: any) => {
+            custoGravacao += parseFloat(rf.custoTotal || 0);
+          });
+        }
+        if (gravacao.recursosTecnicos) {
+          gravacao.recursosTecnicos.forEach((rt: any) => {
+            custoGravacao += parseFloat(rt.custoTotal || 0);
+          });
+        }
+        if (gravacao.terceiros) {
+          gravacao.terceiros.forEach((t: any) => {
+            custoGravacao += parseFloat(t.valor || 0);
+          });
+        }
+        
+        meses[mesIndex].custosConteudos += custoGravacao;
+      });
+    });
+
+    return meses;
+  }, []);
+
+  // Formatar valores para exibição
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(value);
+  };
 
   return (
     <div className="space-y-6">
@@ -289,6 +424,63 @@ const Dashboard = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Gráfico de Custos Anuais */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <DollarSign className="w-5 h-5 text-kreato-orange" />
+            Comparativo de Custos - {new Date().getFullYear()}
+          </CardTitle>
+          <CardDescription>
+            Custos mensais de gravações e conteúdos no ano corrente
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="h-80">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={custosAnuais}
+                margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <XAxis 
+                  dataKey="mes" 
+                  className="text-xs"
+                  tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                />
+                <YAxis 
+                  className="text-xs"
+                  tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                  tickFormatter={(value) => formatCurrency(value)}
+                />
+                <Tooltip 
+                  formatter={(value: number) => formatCurrency(value)}
+                  contentStyle={{
+                    backgroundColor: 'hsl(var(--card))',
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: '8px',
+                  }}
+                  labelStyle={{ color: 'hsl(var(--foreground))' }}
+                />
+                <Legend />
+                <Bar 
+                  dataKey="custosGravacoes" 
+                  name="Custos de Gravações" 
+                  fill="hsl(var(--primary))" 
+                  radius={[4, 4, 0, 0]}
+                />
+                <Bar 
+                  dataKey="custosConteudos" 
+                  name="Custos de Conteúdos" 
+                  fill="hsl(24, 95%, 53%)" 
+                  radius={[4, 4, 0, 0]}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };
