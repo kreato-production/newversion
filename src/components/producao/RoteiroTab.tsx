@@ -3,7 +3,7 @@ import { Plus, Trash2, GripVertical, ChevronDown, ChevronUp, Check, X } from 'lu
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
+import { RichTextEditor } from '@/components/shared/RichTextEditor';
 import {
   Select,
   SelectContent,
@@ -551,16 +551,11 @@ export const RoteiroTab = ({ gravacaoId }: RoteiroTabProps) => {
                     {/* Descrição da Cena */}
                     <div className="space-y-2">
                       <Label>{t('script.sceneDescription')}</Label>
-                      <Textarea
+                      <RichTextEditor
                         value={cena.descricao}
-                        onChange={(e) => handleUpdateCena(cena.id, 'descricao', e.target.value)}
+                        onChange={(value) => handleUpdateCena(cena.id, 'descricao', value)}
                         placeholder={t('script.sceneDescription') + '...'}
-                        rows={4}
-                        className="resize-y min-h-[100px]"
                       />
-                      <p className="text-xs text-muted-foreground">
-                        {t('script.formatHint')}
-                      </p>
                     </div>
                   </CardContent>
                 </CollapsibleContent>
