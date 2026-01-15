@@ -35,6 +35,7 @@ import { CalendarIcon, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR, enUS, es } from 'date-fns/locale';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { usePermissions } from '@/hooks/usePermissions';
 import { cn } from '@/lib/utils';
 
 interface Tarefa {
@@ -93,10 +94,15 @@ export const TarefaFormModal = ({
   gravacoes,
 }: TarefaFormModalProps) => {
   const { t, language } = useLanguage();
+  const { isReadOnly, isVisible } = usePermissions();
   const [formData, setFormData] = useState<Partial<Tarefa>>({});
   const [recursosHumanos, setRecursosHumanos] = useState<RecursoHumano[]>([]);
 
   const localeMap = { pt: ptBR, en: enUS, es: es };
+
+  // Verificar permissões de campos
+  const isDataLimiteReadOnly = isReadOnly('Produção', 'Tarefas', '-', 'Data Limite');
+  const isDataInicioReadOnly = isReadOnly('Produção', 'Tarefas', '-', 'Data Início');
 
   useEffect(() => {
     if (data) {
@@ -276,60 +282,82 @@ export const TarefaFormModal = ({
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>{t('tasks.startDate')}</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !formData.dataInicio && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {formData.dataInicio 
-                      ? format(new Date(formData.dataInicio), 'PPP', { locale: localeMap[language] })
-                      : t('common.select')
-                    }
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 bg-popover" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={formData.dataInicio ? new Date(formData.dataInicio) : undefined}
-                    onSelect={(date) => updateField('dataInicio', date?.toISOString() || '')}
-                    locale={localeMap[language]}
-                  />
-                </PopoverContent>
-              </Popover>
+              {isDataInicioReadOnly ? (
+                <Input
+                  value={formData.dataInicio 
+                    ? format(new Date(formData.dataInicio), 'PPP', { locale: localeMap[language] })
+                    : '-'
+                  }
+                  disabled
+                  className="bg-muted"
+                />
+              ) : (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !formData.dataInicio && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {formData.dataInicio 
+                        ? format(new Date(formData.dataInicio), 'PPP', { locale: localeMap[language] })
+                        : t('common.select')
+                      }
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0 bg-popover" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={formData.dataInicio ? new Date(formData.dataInicio) : undefined}
+                      onSelect={(date) => updateField('dataInicio', date?.toISOString() || '')}
+                      locale={localeMap[language]}
+                    />
+                  </PopoverContent>
+                </Popover>
+              )}
             </div>
 
             <div className="space-y-2">
               <Label>{t('tasks.dueDate')}</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !formData.dataFim && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {formData.dataFim 
-                      ? format(new Date(formData.dataFim), 'PPP', { locale: localeMap[language] })
-                      : t('common.select')
-                    }
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 bg-popover" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={formData.dataFim ? new Date(formData.dataFim) : undefined}
-                    onSelect={(date) => updateField('dataFim', date?.toISOString() || '')}
-                    locale={localeMap[language]}
-                  />
-                </PopoverContent>
-              </Popover>
+              {isDataLimiteReadOnly ? (
+                <Input
+                  value={formData.dataFim 
+                    ? format(new Date(formData.dataFim), 'PPP', { locale: localeMap[language] })
+                    : '-'
+                  }
+                  disabled
+                  className="bg-muted"
+                />
+              ) : (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !formData.dataFim && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {formData.dataFim 
+                        ? format(new Date(formData.dataFim), 'PPP', { locale: localeMap[language] })
+                        : t('common.select')
+                      }
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0 bg-popover" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={formData.dataFim ? new Date(formData.dataFim) : undefined}
+                      onSelect={(date) => updateField('dataFim', date?.toISOString() || '')}
+                      locale={localeMap[language]}
+                    />
+                  </PopoverContent>
+                </Popover>
+              )}
             </div>
           </div>
 
