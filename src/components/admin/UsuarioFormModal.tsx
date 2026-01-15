@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -22,6 +22,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import type { Usuario } from '@/pages/admin/Usuarios';
 import { UnidadesNegocioTab } from './UnidadesNegocioTab';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Camera, X } from 'lucide-react';
 
 interface UsuarioFormModalProps {
   isOpen: boolean;
@@ -38,6 +40,8 @@ export const UsuarioFormModal = ({
 }: UsuarioFormModalProps) => {
   const { user } = useAuth();
   const [perfis, setPerfis] = useState<{ id: string; nome: string }[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [fotoPreview, setFotoPreview] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     codigoExterno: '',
@@ -45,6 +49,7 @@ export const UsuarioFormModal = ({
     email: '',
     usuario: '',
     senha: '',
+    foto: '',
     perfil: '',
     descricao: '',
   });
@@ -62,9 +67,11 @@ export const UsuarioFormModal = ({
         email: data.email,
         usuario: data.usuario,
         senha: data.senha || '',
+        foto: data.foto || '',
         perfil: data.perfil,
         descricao: data.descricao,
       });
+      setFotoPreview(data.foto || null);
     } else {
       setFormData({
         codigoExterno: '',
@@ -72,11 +79,38 @@ export const UsuarioFormModal = ({
         email: '',
         usuario: '',
         senha: '',
+        foto: '',
         perfil: '',
         descricao: '',
       });
+      setFotoPreview(null);
     }
   }, [data, isOpen]);
+
+  const handleFotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 2 * 1024 * 1024) {
+        alert('A imagem deve ter no máximo 2MB');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64 = reader.result as string;
+        setFotoPreview(base64);
+        setFormData({ ...formData, foto: base64 });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleRemoveFoto = () => {
+    setFotoPreview(null);
+    setFormData({ ...formData, foto: '' });
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,11 +119,21 @@ export const UsuarioFormModal = ({
       ...formData,
       // Manter senha atual se estiver editando e não preencheu nova senha
       senha: formData.senha || data?.senha || '',
+      foto: formData.foto || data?.foto || '',
       dataCadastro: data?.dataCadastro || new Date().toLocaleDateString('pt-BR'),
       usuarioCadastro: data?.usuarioCadastro || user?.nome || 'Admin',
     };
     onSave(saveData);
     onClose();
+  };
+
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map((n) => n[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
   };
 
   return (
@@ -110,6 +154,51 @@ export const UsuarioFormModal = ({
 
           <TabsContent value="dados">
             <form onSubmit={handleSubmit} className="space-y-4 mt-4">
+              {/* Foto do usuário */}
+              <div className="flex items-center gap-4">
+                <div className="relative">
+                  <Avatar className="h-20 w-20 border-2 border-border">
+                    <AvatarImage src={fotoPreview || undefined} alt={formData.nome} />
+                    <AvatarFallback className="text-lg bg-muted">
+                      {formData.nome ? getInitials(formData.nome) : <Camera className="h-6 w-6 text-muted-foreground" />}
+                    </AvatarFallback>
+                  </Avatar>
+                  {fotoPreview && (
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="destructive"
+                      className="absolute -top-1 -right-1 h-6 w-6 rounded-full"
+                      onClick={handleRemoveFoto}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  )}
+                </div>
+                <div className="space-y-1">
+                  <Label>Foto do Usuário</Label>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      <Camera className="h-4 w-4 mr-2" />
+                      {fotoPreview ? 'Alterar Foto' : 'Adicionar Foto'}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">JPG, PNG ou GIF. Máximo 2MB.</p>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/gif"
+                    className="hidden"
+                    onChange={handleFotoChange}
+                  />
+                </div>
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="codigoExterno">Código Externo</Label>
