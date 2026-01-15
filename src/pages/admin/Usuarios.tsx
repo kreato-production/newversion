@@ -12,6 +12,7 @@ export interface Usuario {
   nome: string;
   email: string;
   usuario: string;
+  senha: string;
   perfil: string;
   descricao: string;
   dataCadastro: string;
