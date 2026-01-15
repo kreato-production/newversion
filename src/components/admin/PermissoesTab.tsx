@@ -35,18 +35,33 @@ const PermissoesTab = ({ perfilId, perfilNome }: PermissoesTabProps) => {
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
-    if (perfilId) {
-      let perfilPermissions = getPerfilPermissions(perfilId);
-      if (!perfilPermissions) {
-        perfilPermissions = createDefaultPermissions(perfilId);
-        savePerfilPermissions(perfilPermissions);
-      }
-      setPermissions(perfilPermissions);
-      
-      // Expande todos os módulos por padrão
-      const modulos = getModulos();
-      setExpandedNodes(new Set(modulos.map(m => `modulo_${m}`)));
+    if (!perfilId) return;
+
+    let perfilPermissions = getPerfilPermissions(perfilId);
+    if (!perfilPermissions) {
+      perfilPermissions = createDefaultPermissions(perfilId);
+      savePerfilPermissions(perfilPermissions);
     }
+
+    // Perfis já existentes no storage não recebem automaticamente novos itens adicionados na matriz base.
+    // Aqui fazemos o merge (apenas adicionando os que faltam) para que "Mapas" e novas vistas apareçam.
+    const matrix = getPermissionsMatrixWithIds();
+    const existingIds = new Set(perfilPermissions.permissoes.map((p) => p.id));
+    const missing = matrix.filter((p) => !existingIds.has(p.id));
+
+    if (missing.length > 0) {
+      perfilPermissions = {
+        ...perfilPermissions,
+        permissoes: [...perfilPermissions.permissoes, ...missing],
+      };
+      savePerfilPermissions(perfilPermissions);
+    }
+
+    setPermissions(perfilPermissions);
+
+    // Expande todos os módulos por padrão
+    const modulos = getModulos();
+    setExpandedNodes(new Set(modulos.map((m) => `modulo_${m}`)));
   }, [perfilId]);
 
   const buildTree = useMemo((): TreeNode[] => {
