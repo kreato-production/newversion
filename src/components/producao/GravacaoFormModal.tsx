@@ -190,7 +190,7 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-[900px] max-w-[900px] max-h-[80vh] overflow-y-auto">
+      <DialogContent className="w-[95vw] max-w-[1400px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{data ? t('recordings.edit') : t('recordings.new')}</DialogTitle>
           <DialogDescription>
