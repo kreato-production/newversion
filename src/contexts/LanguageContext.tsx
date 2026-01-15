@@ -406,6 +406,10 @@ const translations: Record<Language, Record<string, string>> = {
     'script.searchCharacter': 'Buscar personagem...',
     'script.selectExtras': 'Selecionar Figurantes',
     'script.searchExtra': 'Buscar figurante...',
+    'script.exportPDF': 'Exportar PDF',
+    'script.exportSuccess': 'Roteiro exportado com sucesso!',
+    'script.noScenesToExport': 'Nenhuma cena para exportar',
+    'common.of': 'de',
     
     // Costs Tab
     'costsTab.noCosts': 'Nenhum custo estimado',
@@ -823,6 +827,10 @@ const translations: Record<Language, Record<string, string>> = {
     'script.searchCharacter': 'Search character...',
     'script.selectExtras': 'Select Extras',
     'script.searchExtra': 'Search extra...',
+    'script.exportPDF': 'Export PDF',
+    'script.exportSuccess': 'Script exported successfully!',
+    'script.noScenesToExport': 'No scenes to export',
+    'common.of': 'of',
     
     // Costs Tab
     'costsTab.noCosts': 'No estimated costs',
@@ -1240,6 +1248,10 @@ const translations: Record<Language, Record<string, string>> = {
     'script.searchCharacter': 'Buscar personaje...',
     'script.selectExtras': 'Seleccionar Figurantes',
     'script.searchExtra': 'Buscar figurante...',
+    'script.exportPDF': 'Exportar PDF',
+    'script.exportSuccess': '¡Guión exportado con éxito!',
+    'script.noScenesToExport': 'No hay escenas para exportar',
+    'common.of': 'de',
     
     // Costs Tab
     'costsTab.noCosts': 'Sin costos estimados',
