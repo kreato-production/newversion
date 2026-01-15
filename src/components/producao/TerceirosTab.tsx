@@ -85,12 +85,23 @@ export const TerceirosTab = ({ gravacaoId }: TerceirosTabProps) => {
   const servicosFornecedor = useMemo(() => {
     if (!selectedFornecedor) return [];
     
-    const fornecedor = fornecedores.find(f => f.id === selectedFornecedor);
-    if (!fornecedor?.servicos || fornecedor.servicos.length === 0) {
-      return servicos;
+    // Buscar serviços vinculados ao fornecedor (salvos em ServicosTab)
+    const storedFornecedorServicos = localStorage.getItem(`kreato_fornecedor_servicos_${selectedFornecedor}`);
+    if (storedFornecedorServicos) {
+      const servicosVinculados: Servico[] = JSON.parse(storedFornecedorServicos);
+      if (servicosVinculados.length > 0) {
+        return servicosVinculados;
+      }
     }
     
-    return servicos.filter(s => fornecedor.servicos?.includes(s.id));
+    // Fallback: verificar se o fornecedor tem array de IDs de serviços
+    const fornecedor = fornecedores.find(f => f.id === selectedFornecedor);
+    if (fornecedor?.servicos && fornecedor.servicos.length > 0) {
+      return servicos.filter(s => fornecedor.servicos?.includes(s.id));
+    }
+    
+    // Se não houver serviços vinculados, retorna lista vazia
+    return [];
   }, [selectedFornecedor, fornecedores, servicos]);
 
   const saveToStorage = (data: TerceiroAlocado[]) => {
