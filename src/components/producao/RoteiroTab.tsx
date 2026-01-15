@@ -25,6 +25,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface Cena {
   id: string;
@@ -63,16 +64,33 @@ interface RoteiroTabProps {
   gravacaoId: string;
 }
 
-const PERIODOS = ['Dia', 'Noite', 'Manhã', 'Tarde', 'Madrugada'];
-const RITMOS = ['Dramático', 'Cena Rápida', 'Contemplativa'];
-const TIPOS_AMBIENTE = ['Externo', 'Interno'];
-
 export const RoteiroTab = ({ gravacaoId }: RoteiroTabProps) => {
+  const { t, language } = useLanguage();
   const [cenas, setCenas] = useState<Cena[]>([]);
   const [elenco, setElenco] = useState<ElencoMembro[]>([]);
   const [figurantes, setFigurantes] = useState<Pessoa[]>([]);
   const [expandedCenas, setExpandedCenas] = useState<Set<string>>(new Set());
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+
+  // Translated options based on language
+  const PERIODOS = [
+    { value: 'Dia', label: t('script.day') },
+    { value: 'Noite', label: t('script.night') },
+    { value: 'Manhã', label: t('script.morning') },
+    { value: 'Tarde', label: t('script.afternoon') },
+    { value: 'Madrugada', label: t('script.dawn') },
+  ];
+
+  const RITMOS = [
+    { value: 'Dramático', label: t('script.dramatic') },
+    { value: 'Cena Rápida', label: t('script.fastScene') },
+    { value: 'Contemplativa', label: t('script.contemplative') },
+  ];
+
+  const TIPOS_AMBIENTE = [
+    { value: 'Externo', label: t('script.external') },
+    { value: 'Interno', label: t('script.internal') },
+  ];
 
   useEffect(() => {
     // Carregar cenas do localStorage
@@ -123,7 +141,7 @@ export const RoteiroTab = ({ gravacaoId }: RoteiroTabProps) => {
     const newCenas = [...cenas, novaCena];
     saveCenas(newCenas);
     setExpandedCenas(new Set([...expandedCenas, novaCena.id]));
-    toast.success('Cena adicionada com sucesso!');
+    toast.success(t('script.sceneAdded'));
   };
 
   const handleRemoveCena = (id: string) => {
@@ -131,7 +149,7 @@ export const RoteiroTab = ({ gravacaoId }: RoteiroTabProps) => {
       .filter(c => c.id !== id)
       .map((c, index) => ({ ...c, ordem: index + 1 }));
     saveCenas(newCenas);
-    toast.success('Cena removida com sucesso!');
+    toast.success(t('script.sceneRemoved'));
   };
 
   const handleUpdateCena = (id: string, field: keyof Cena, value: any) => {
@@ -205,27 +223,32 @@ export const RoteiroTab = ({ gravacaoId }: RoteiroTabProps) => {
     return pessoa.nomeTrabalho || `${pessoa.nome} ${pessoa.sobrenome || ''}`.trim();
   };
 
+  const getDisplayLabel = (value: string, options: { value: string; label: string }[]) => {
+    const option = options.find(o => o.value === value);
+    return option?.label || value;
+  };
+
   return (
     <div className="space-y-4 py-4">
       <div className="flex justify-between items-center">
         <div>
-          <h3 className="text-lg font-medium">Roteiro de Gravação</h3>
+          <h3 className="text-lg font-medium">{t('script.title')}</h3>
           <p className="text-sm text-muted-foreground">
-            Organize a ordem das cenas a serem gravadas
+            {t('script.description')}
           </p>
         </div>
         <Button onClick={handleAddCena} className="gradient-primary hover:opacity-90">
           <Plus className="h-4 w-4 mr-2" />
-          Adicionar Cena
+          {t('script.addScene')}
         </Button>
       </div>
 
       {cenas.length === 0 ? (
         <div className="text-center py-12 border-2 border-dashed rounded-lg">
-          <p className="text-muted-foreground mb-4">Nenhuma cena cadastrada</p>
+          <p className="text-muted-foreground mb-4">{t('script.noScenes')}</p>
           <Button variant="outline" onClick={handleAddCena}>
             <Plus className="h-4 w-4 mr-2" />
-            Adicionar primeira cena
+            {t('script.addFirstScene')}
           </Button>
         </div>
       ) : (
@@ -249,16 +272,16 @@ export const RoteiroTab = ({ gravacaoId }: RoteiroTabProps) => {
                       </Badge>
                       <CardTitle className="text-base">
                         {cena.capitulo && cena.numeroCena 
-                          ? `Cap. ${cena.capitulo} - Cena ${cena.numeroCena}`
-                          : `Cena ${cena.ordem}`}
+                          ? `${t('script.chapter').slice(0,3)}. ${cena.capitulo} - ${t('script.scene')} ${cena.numeroCena}`
+                          : `${t('script.scene')} ${cena.ordem}`}
                       </CardTitle>
                       {cena.tipoAmbiente && (
                         <Badge variant={cena.tipoAmbiente === 'Externo' ? 'default' : 'secondary'}>
-                          {cena.tipoAmbiente}
+                          {getDisplayLabel(cena.tipoAmbiente, TIPOS_AMBIENTE)}
                         </Badge>
                       )}
                       {cena.periodo && (
-                        <Badge variant="outline">{cena.periodo}</Badge>
+                        <Badge variant="outline">{getDisplayLabel(cena.periodo, PERIODOS)}</Badge>
                       )}
                     </div>
                     <div className="flex items-center gap-2">
@@ -291,7 +314,7 @@ export const RoteiroTab = ({ gravacaoId }: RoteiroTabProps) => {
                     {/* Linha 1: Capítulo, Número da Cena, Ambiente */}
                     <div className="grid grid-cols-3 gap-4">
                       <div className="space-y-2">
-                        <Label>Capítulo</Label>
+                        <Label>{t('script.chapter')}</Label>
                         <Input
                           value={cena.capitulo}
                           onChange={(e) => handleUpdateCena(cena.id, 'capitulo', e.target.value)}
@@ -299,7 +322,7 @@ export const RoteiroTab = ({ gravacaoId }: RoteiroTabProps) => {
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label>Número da Cena</Label>
+                        <Label>{t('script.sceneNumber')}</Label>
                         <Input
                           value={cena.numeroCena}
                           onChange={(e) => handleUpdateCena(cena.id, 'numeroCena', e.target.value)}
@@ -307,7 +330,7 @@ export const RoteiroTab = ({ gravacaoId }: RoteiroTabProps) => {
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label>Ambiente</Label>
+                        <Label>{t('script.environment')}</Label>
                         <Input
                           value={cena.ambiente}
                           onChange={(e) => handleUpdateCena(cena.id, 'ambiente', e.target.value)}
@@ -319,49 +342,49 @@ export const RoteiroTab = ({ gravacaoId }: RoteiroTabProps) => {
                     {/* Linha 2: Tipo Ambiente, Período, Ritmo */}
                     <div className="grid grid-cols-3 gap-4">
                       <div className="space-y-2">
-                        <Label>Tipo de Ambiente</Label>
+                        <Label>{t('script.environmentType')}</Label>
                         <Select
                           value={cena.tipoAmbiente}
                           onValueChange={(value) => handleUpdateCena(cena.id, 'tipoAmbiente', value)}
                         >
                           <SelectTrigger>
-                            <SelectValue placeholder="Selecione..." />
+                            <SelectValue placeholder={t('common.select')} />
                           </SelectTrigger>
                           <SelectContent>
                             {TIPOS_AMBIENTE.map((tipo) => (
-                              <SelectItem key={tipo} value={tipo}>{tipo}</SelectItem>
+                              <SelectItem key={tipo.value} value={tipo.value}>{tipo.label}</SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
                       </div>
                       <div className="space-y-2">
-                        <Label>Período</Label>
+                        <Label>{t('script.period')}</Label>
                         <Select
                           value={cena.periodo}
                           onValueChange={(value) => handleUpdateCena(cena.id, 'periodo', value)}
                         >
                           <SelectTrigger>
-                            <SelectValue placeholder="Selecione..." />
+                            <SelectValue placeholder={t('common.select')} />
                           </SelectTrigger>
                           <SelectContent>
                             {PERIODOS.map((periodo) => (
-                              <SelectItem key={periodo} value={periodo}>{periodo}</SelectItem>
+                              <SelectItem key={periodo.value} value={periodo.value}>{periodo.label}</SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
                       </div>
                       <div className="space-y-2">
-                        <Label>Ritmo</Label>
+                        <Label>{t('script.rhythm')}</Label>
                         <Select
                           value={cena.ritmo}
                           onValueChange={(value) => handleUpdateCena(cena.id, 'ritmo', value)}
                         >
                           <SelectTrigger>
-                            <SelectValue placeholder="Selecione..." />
+                            <SelectValue placeholder={t('common.select')} />
                           </SelectTrigger>
                           <SelectContent>
                             {RITMOS.map((ritmo) => (
-                              <SelectItem key={ritmo} value={ritmo}>{ritmo}</SelectItem>
+                              <SelectItem key={ritmo.value} value={ritmo.value}>{ritmo.label}</SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
@@ -371,7 +394,7 @@ export const RoteiroTab = ({ gravacaoId }: RoteiroTabProps) => {
                     {/* Linha 3: Local, Tempo */}
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label>Local da Gravação</Label>
+                        <Label>{t('script.recordingLocation')}</Label>
                         <Input
                           value={cena.localGravacao}
                           onChange={(e) => handleUpdateCena(cena.id, 'localGravacao', e.target.value)}
@@ -379,7 +402,7 @@ export const RoteiroTab = ({ gravacaoId }: RoteiroTabProps) => {
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label>Tempo Aproximado</Label>
+                        <Label>{t('script.approximateTime')}</Label>
                         <Input
                           value={cena.tempoAproximado}
                           onChange={(e) => handleUpdateCena(cena.id, 'tempoAproximado', e.target.value)}
@@ -390,11 +413,11 @@ export const RoteiroTab = ({ gravacaoId }: RoteiroTabProps) => {
 
                     {/* Personagens em Cena */}
                     <div className="space-y-2">
-                      <Label>Personagens em Cena (do Elenco)</Label>
+                      <Label>{t('script.charactersInScene')}</Label>
                       <div className="flex flex-wrap gap-2 p-3 border rounded-md bg-muted/30 max-h-40 overflow-y-auto">
                         {elenco.length === 0 ? (
                           <p className="text-sm text-muted-foreground">
-                            Nenhum elenco cadastrado. Adicione membros ao elenco no tabulador "Elenco".
+                            {t('script.noCast')}
                           </p>
                         ) : (
                           elenco.map((membro) => (
@@ -418,11 +441,11 @@ export const RoteiroTab = ({ gravacaoId }: RoteiroTabProps) => {
 
                     {/* Figurantes */}
                     <div className="space-y-2">
-                      <Label>Figurantes (Pessoas classificadas como Figurante)</Label>
+                      <Label>{t('script.extras')}</Label>
                       <div className="flex flex-wrap gap-2 p-3 border rounded-md bg-muted/30 max-h-40 overflow-y-auto">
                         {figurantes.length === 0 ? (
                           <p className="text-sm text-muted-foreground">
-                            Nenhuma pessoa classificada como "Figurante". Cadastre pessoas no módulo Recursos &gt; Pessoas.
+                            {t('script.noExtras')}
                           </p>
                         ) : (
                           figurantes.map((pessoa) => (
@@ -446,16 +469,16 @@ export const RoteiroTab = ({ gravacaoId }: RoteiroTabProps) => {
 
                     {/* Descrição da Cena */}
                     <div className="space-y-2">
-                      <Label>Descrição da Cena</Label>
+                      <Label>{t('script.sceneDescription')}</Label>
                       <Textarea
                         value={cena.descricao}
                         onChange={(e) => handleUpdateCena(cena.id, 'descricao', e.target.value)}
-                        placeholder="Descreva a cena em detalhes..."
+                        placeholder={t('script.sceneDescription') + '...'}
                         rows={4}
                         className="resize-y min-h-[100px]"
                       />
                       <p className="text-xs text-muted-foreground">
-                        Use marcações de texto: *texto* para itálico, **texto** para negrito
+                        {t('script.formatHint')}
                       </p>
                     </div>
                   </CardContent>
