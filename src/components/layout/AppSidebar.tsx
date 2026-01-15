@@ -22,6 +22,7 @@ import {
   Contact,
   Tag,
   Shirt,
+  ListTodo,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -47,6 +48,7 @@ const getMenuItems = (): MenuItemData[] => [
     children: [
       { labelKey: 'menu.content', icon: Film, path: '/producao/conteudo' },
       { labelKey: 'menu.recordings', icon: Video, path: '/producao/gravacao' },
+      { labelKey: 'menu.tasks', icon: ListTodo, path: '/producao/tarefas' },
       { labelKey: 'menu.maps', icon: Map, path: '/producao/mapas' },
       {
         labelKey: 'menu.parameters',
@@ -55,6 +57,7 @@ const getMenuItems = (): MenuItemData[] => [
           { labelKey: 'menu.recordingTypes', icon: Settings, path: '/producao/tipos-gravacao' },
           { labelKey: 'menu.classification', icon: Settings, path: '/producao/classificacao' },
           { labelKey: 'menu.recordingStatus', icon: Settings, path: '/producao/status' },
+          { labelKey: 'menu.taskStatus', icon: Settings, path: '/producao/status-tarefa' },
         ],
       },
     ],

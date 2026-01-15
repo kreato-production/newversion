@@ -1,0 +1,292 @@
+import { useState, useEffect } from 'react';
+import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
+import { Settings, Edit, Trash2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { toast } from 'sonner';
+import { useLanguage } from '@/contexts/LanguageContext';
+
+interface StatusTarefaItem {
+  id: string;
+  codigo: string;
+  nome: string;
+  cor?: string;
+  descricao?: string;
+  dataCadastro: string;
+  usuarioCadastro: string;
+}
+
+const StatusTarefa = () => {
+  const { t } = useLanguage();
+  const [search, setSearch] = useState('');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [items, setItems] = useState<StatusTarefaItem[]>([]);
+  const [editingItem, setEditingItem] = useState<StatusTarefaItem | null>(null);
+  const [formData, setFormData] = useState<Partial<StatusTarefaItem>>({});
+
+  const storageKey = 'kreato_status_tarefa';
+
+  useEffect(() => {
+    const stored = localStorage.getItem(storageKey);
+    if (stored) {
+      setItems(JSON.parse(stored));
+    } else {
+      const defaultData: StatusTarefaItem[] = [
+        { id: '1', codigo: 'PEND', nome: 'Pendente', cor: '#f59e0b', descricao: 'Tarefa aguardando início', dataCadastro: new Date().toISOString(), usuarioCadastro: 'Admin' },
+        { id: '2', codigo: 'PROG', nome: 'Em Progresso', cor: '#3b82f6', descricao: 'Tarefa em andamento', dataCadastro: new Date().toISOString(), usuarioCadastro: 'Admin' },
+        { id: '3', codigo: 'CONC', nome: 'Concluída', cor: '#22c55e', descricao: 'Tarefa finalizada', dataCadastro: new Date().toISOString(), usuarioCadastro: 'Admin' },
+        { id: '4', codigo: 'CANC', nome: 'Cancelada', cor: '#ef4444', descricao: 'Tarefa cancelada', dataCadastro: new Date().toISOString(), usuarioCadastro: 'Admin' },
+      ];
+      localStorage.setItem(storageKey, JSON.stringify(defaultData));
+      setItems(defaultData);
+    }
+  }, []);
+
+  const saveItems = (newItems: StatusTarefaItem[]) => {
+    localStorage.setItem(storageKey, JSON.stringify(newItems));
+    setItems(newItems);
+  };
+
+  const handleOpenModal = (item?: StatusTarefaItem) => {
+    if (item) {
+      setEditingItem(item);
+      setFormData(item);
+    } else {
+      setEditingItem(null);
+      setFormData({});
+    }
+    setIsModalOpen(true);
+  };
+
+  const handleSave = () => {
+    if (!formData.codigo || !formData.nome) {
+      toast.error(t('common.requiredFields'));
+      return;
+    }
+
+    if (editingItem) {
+      const updated = items.map(item => 
+        item.id === editingItem.id ? { ...item, ...formData } : item
+      );
+      saveItems(updated);
+      toast.success(t('common.savedSuccessfully'));
+    } else {
+      const newItem: StatusTarefaItem = {
+        ...formData as StatusTarefaItem,
+        id: crypto.randomUUID(),
+        dataCadastro: new Date().toISOString(),
+        usuarioCadastro: 'Admin',
+      };
+      saveItems([...items, newItem]);
+      toast.success(t('common.savedSuccessfully'));
+    }
+    setIsModalOpen(false);
+    setEditingItem(null);
+    setFormData({});
+  };
+
+  const handleDelete = (id: string) => {
+    saveItems(items.filter(item => item.id !== id));
+    toast.success(t('common.deleted'));
+  };
+
+  const filteredItems = items.filter(item =>
+    item.nome.toLowerCase().includes(search.toLowerCase()) ||
+    item.codigo.toLowerCase().includes(search.toLowerCase())
+  );
+
+  return (
+    <>
+      <PageHeader
+        title={t('parameters.taskStatus')}
+        description={t('parameters.taskStatusDescription')}
+        onAdd={() => handleOpenModal()}
+        addLabel={t('common.new')}
+      >
+        <SearchBar
+          value={search}
+          onChange={setSearch}
+          placeholder={t('common.search')}
+        />
+      </PageHeader>
+
+      {filteredItems.length === 0 ? (
+        <EmptyState
+          title={t('common.noResults')}
+          description={t('parameters.taskStatusDescription')}
+          icon={Settings}
+          onAction={() => handleOpenModal()}
+          actionLabel={t('common.add')}
+        />
+      ) : (
+        <DataCard>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{t('common.code')}</TableHead>
+                <TableHead>{t('common.name')}</TableHead>
+                <TableHead>{t('common.color')}</TableHead>
+                <TableHead>{t('common.description')}</TableHead>
+                <TableHead className="w-[100px]">{t('common.actions')}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredItems.map(item => (
+                <TableRow key={item.id}>
+                  <TableCell className="font-medium">{item.codigo}</TableCell>
+                  <TableCell>{item.nome}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <div 
+                        className="w-6 h-6 rounded border"
+                        style={{ backgroundColor: item.cor || '#888' }}
+                      />
+                      {item.cor}
+                    </div>
+                  </TableCell>
+                  <TableCell>{item.descricao}</TableCell>
+                  <TableCell>
+                    <div className="flex gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleOpenModal(item)}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="icon">
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>{t('common.confirm.delete')}</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              {t('common.deleteConfirmation')}
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => handleDelete(item.id)}>
+                              {t('common.delete')}
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </DataCard>
+      )}
+
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {editingItem ? t('common.edit') : t('common.new')} {t('parameters.taskStatus')}
+            </DialogTitle>
+            <DialogDescription>
+              {t('parameters.taskStatusDescription')}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="codigo">{t('common.code')} *</Label>
+              <Input
+                id="codigo"
+                value={formData.codigo || ''}
+                onChange={(e) => setFormData({ ...formData, codigo: e.target.value })}
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="nome">{t('common.name')} *</Label>
+              <Input
+                id="nome"
+                value={formData.nome || ''}
+                onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="cor">{t('common.color')}</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="cor"
+                  type="color"
+                  value={formData.cor || '#888888'}
+                  onChange={(e) => setFormData({ ...formData, cor: e.target.value })}
+                  className="w-16 h-10 p-1"
+                />
+                <Input
+                  value={formData.cor || ''}
+                  onChange={(e) => setFormData({ ...formData, cor: e.target.value })}
+                  placeholder="#000000"
+                  className="flex-1"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="descricao">{t('common.description')}</Label>
+              <Textarea
+                id="descricao"
+                value={formData.descricao || ''}
+                onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
+                rows={3}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsModalOpen(false)}>
+              {t('common.cancel')}
+            </Button>
+            <Button onClick={handleSave} className="gradient-primary">
+              {t('common.save')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+};
+
+export default StatusTarefa;

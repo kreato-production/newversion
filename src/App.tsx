@@ -14,6 +14,8 @@ import Conteudo from "@/pages/producao/Conteudo";
 import TiposGravacao from "@/pages/producao/TiposGravacao";
 import Classificacao from "@/pages/producao/Classificacao";
 import StatusGravacao from "@/pages/producao/StatusGravacao";
+import Tarefas from "@/pages/producao/Tarefas";
+import StatusTarefa from "@/pages/producao/StatusTarefa";
 import Mapas from "@/pages/producao/Mapas";
 import RecursosHumanos from "@/pages/recursos/RecursosHumanos";
 import RecursosTecnicos from "@/pages/recursos/RecursosTecnicos";
@@ -57,6 +59,8 @@ const App = () => (
                 <Route path="/producao/tipos-gravacao" element={<TiposGravacao />} />
                 <Route path="/producao/classificacao" element={<Classificacao />} />
                 <Route path="/producao/status" element={<StatusGravacao />} />
+                <Route path="/producao/tarefas" element={<Tarefas />} />
+                <Route path="/producao/status-tarefa" element={<StatusTarefa />} />
                 <Route path="/recursos/humanos" element={<RecursosHumanos />} />
                 <Route path="/recursos/tecnicos" element={<RecursosTecnicos />} />
                 <Route path="/recursos/fisicos" element={<RecursosFisicos />} />
