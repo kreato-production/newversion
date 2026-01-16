@@ -1,13 +1,11 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
-import { ParametroFormModal } from '@/components/shared/ParametroFormModal';
+import { DepartamentoFormModal } from '@/components/recursos/DepartamentoFormModal';
 import { SortableTable, Column } from '@/components/shared/SortableTable';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Edit, Trash2, Settings, Building2, Briefcase, ArrowLeft } from 'lucide-react';
+import { Edit, Trash2, Building2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
-import DepartamentoFuncoesTab from '@/components/recursos/DepartamentoFuncoesTab';
 
 interface Departamento {
   id: string;
@@ -24,8 +22,6 @@ const Departamentos = () => {
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Departamento | null>(null);
-  const [selectedDepartamento, setSelectedDepartamento] = useState<Departamento | null>(null);
-  const [activeTab, setActiveTab] = useState('dados');
   const [items, setItems] = useState<Departamento[]>(() => {
     const stored = localStorage.getItem('kreato_departamentos');
     return stored ? JSON.parse(stored) : [];
@@ -51,6 +47,8 @@ const Departamentos = () => {
   const handleDelete = (id: string) => {
     if (confirm(t('common.confirm.delete'))) {
       saveToStorage(items.filter((item) => item.id !== id));
+      // Remover também as funções associadas
+      localStorage.removeItem(`kreato_departamento_funcoes_${id}`);
       toast({ title: t('common.deleted'), description: `Departamento ${t('common.deleted').toLowerCase()}!` });
     }
   };
@@ -58,15 +56,6 @@ const Departamentos = () => {
   const handleEdit = (item: Departamento) => {
     setEditingItem(item);
     setIsModalOpen(true);
-  };
-
-  const handleSelectDepartamento = (item: Departamento) => {
-    setSelectedDepartamento(item);
-    setActiveTab('dados');
-  };
-
-  const handleVoltar = () => {
-    setSelectedDepartamento(null);
   };
 
   const filteredItems = items.filter(
@@ -86,12 +75,10 @@ const Departamentos = () => {
       key: 'nome',
       label: t('common.name'),
       render: (item) => (
-        <button
-          className="font-medium text-primary hover:underline text-left"
-          onClick={() => handleSelectDepartamento(item)}
-        >
-          {item.nome}
-        </button>
+        <div className="flex items-center gap-2">
+          <Building2 className="h-4 w-4 text-primary" />
+          <span className="font-medium">{item.nome}</span>
+        </div>
       ),
     },
     {
@@ -135,99 +122,6 @@ const Departamentos = () => {
     },
   ];
 
-  // Vista de detalhe do departamento com tabs
-  if (selectedDepartamento) {
-    return (
-      <div>
-        <div className="mb-6">
-          <Button variant="ghost" size="sm" onClick={handleVoltar} className="mb-4">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Voltar à lista
-          </Button>
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-              <Building2 className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold">{selectedDepartamento.nome}</h1>
-              <p className="text-sm text-muted-foreground">
-                Código: {selectedDepartamento.codigoExterno || '-'}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList>
-            <TabsTrigger value="dados" className="gap-2">
-              <Building2 className="h-4 w-4" />
-              Dados
-            </TabsTrigger>
-            <TabsTrigger value="funcoes" className="gap-2">
-              <Briefcase className="h-4 w-4" />
-              Funções
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="dados" className="mt-6">
-            <DataCard>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Nome</label>
-                  <p className="mt-1 font-medium">{selectedDepartamento.nome}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Código Externo</label>
-                  <p className="mt-1 font-medium">{selectedDepartamento.codigoExterno || '-'}</p>
-                </div>
-                <div className="md:col-span-2">
-                  <label className="text-sm font-medium text-muted-foreground">Descrição</label>
-                  <p className="mt-1">{selectedDepartamento.descricao || '-'}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Data de Cadastro</label>
-                  <p className="mt-1">{selectedDepartamento.dataCadastro}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Usuário de Cadastro</label>
-                  <p className="mt-1">{selectedDepartamento.usuarioCadastro}</p>
-                </div>
-              </div>
-              <div className="mt-6 flex justify-end">
-                <Button onClick={() => handleEdit(selectedDepartamento)}>
-                  <Edit className="h-4 w-4 mr-2" />
-                  Editar
-                </Button>
-              </div>
-            </DataCard>
-          </TabsContent>
-
-          <TabsContent value="funcoes" className="mt-6">
-            <DataCard>
-              <DepartamentoFuncoesTab departamentoId={selectedDepartamento.id} />
-            </DataCard>
-          </TabsContent>
-        </Tabs>
-
-        <ParametroFormModal
-          isOpen={isModalOpen}
-          onClose={() => {
-            setIsModalOpen(false);
-            setEditingItem(null);
-          }}
-          onSave={(data) => {
-            const departamento = data as Departamento;
-            handleSave(departamento);
-            setSelectedDepartamento(departamento);
-          }}
-          title="Departamento"
-          data={editingItem}
-        />
-      </div>
-    );
-  }
-
-  // Vista de lista
   return (
     <div>
       <PageHeader
@@ -247,7 +141,7 @@ const Departamentos = () => {
           <EmptyState
             title={t('common.noResults')}
             description="Adicione um departamento."
-            icon={Settings}
+            icon={Building2}
             onAction={() => setIsModalOpen(true)}
             actionLabel="Adicionar Departamento"
           />
@@ -261,14 +155,13 @@ const Departamentos = () => {
         )}
       </DataCard>
 
-      <ParametroFormModal
+      <DepartamentoFormModal
         isOpen={isModalOpen}
         onClose={() => {
           setIsModalOpen(false);
           setEditingItem(null);
         }}
-        onSave={handleSave}
-        title="Departamento"
+        onSave={(data) => handleSave(data as Departamento)}
         data={editingItem}
       />
     </div>
