@@ -27,8 +27,8 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useAuth } from '@/contexts/AuthContext';
-import type { RecursoHumano, Anexo, Ausencia } from '@/pages/recursos/RecursosHumanos';
-import { Upload, X, User, FileText, Plus, Trash2, CalendarOff, AlertCircle } from 'lucide-react';
+import type { RecursoHumano, Anexo, Ausencia, Escala } from '@/pages/recursos/RecursosHumanos';
+import { Upload, X, User, FileText, Plus, Trash2, CalendarOff, AlertCircle, Clock } from 'lucide-react';
 import { toast } from 'sonner';
 import { differenceInDays, parseISO, isWithinInterval, format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -80,12 +80,21 @@ export const RecursoHumanoFormModal = ({
 
   const [anexos, setAnexos] = useState<Anexo[]>([]);
   const [ausencias, setAusencias] = useState<Ausencia[]>([]);
+  const [escalas, setEscalas] = useState<Escala[]>([]);
 
   // Estados para nova ausência
   const [novaAusencia, setNovaAusencia] = useState({
     motivo: '' as Ausencia['motivo'] | '',
     dataInicio: '',
     dataFim: '',
+  });
+
+  // Estados para nova escala
+  const [novaEscala, setNovaEscala] = useState({
+    dataInicio: '',
+    horaInicio: '',
+    dataFim: '',
+    horaFim: '',
   });
 
   useEffect(() => {
@@ -114,6 +123,7 @@ export const RecursoHumanoFormModal = ({
       });
       setAnexos(data.anexos || []);
       setAusencias(data.ausencias || []);
+      setEscalas(data.escalas || []);
     } else {
       setFormData({
         codigoExterno: '',
@@ -132,9 +142,11 @@ export const RecursoHumanoFormModal = ({
       });
       setAnexos([]);
       setAusencias([]);
+      setEscalas([]);
     }
     setActiveTab('dados');
     setNovaAusencia({ motivo: '', dataInicio: '', dataFim: '' });
+    setNovaEscala({ dataInicio: '', horaInicio: '', dataFim: '', horaFim: '' });
   }, [data, isOpen]);
 
   // Calcular dias automaticamente
@@ -199,6 +211,62 @@ export const RecursoHumanoFormModal = ({
     setAusencias(ausencias.filter((a) => a.id !== id));
     toast.success('Ausência removida');
   };
+
+  // Verificar sobreposição de escalas
+  const verificarSobreposicaoEscala = (nova: typeof novaEscala, excludeId?: string): boolean => {
+    const novoInicio = new Date(`${nova.dataInicio}T${nova.horaInicio}`);
+    const novoFim = new Date(`${nova.dataFim}T${nova.horaFim}`);
+
+    return escalas.some((e) => {
+      if (excludeId && e.id === excludeId) return false;
+      const escalaInicio = new Date(`${e.dataInicio}T${e.horaInicio}`);
+      const escalaFim = new Date(`${e.dataFim}T${e.horaFim}`);
+      return novoInicio < escalaFim && novoFim > escalaInicio;
+    });
+  };
+
+  const handleAddEscala = () => {
+    if (!novaEscala.dataInicio || !novaEscala.horaInicio || !novaEscala.dataFim || !novaEscala.horaFim) {
+      toast.error('Preencha todos os campos da escala');
+      return;
+    }
+
+    const inicio = new Date(`${novaEscala.dataInicio}T${novaEscala.horaInicio}`);
+    const fim = new Date(`${novaEscala.dataFim}T${novaEscala.horaFim}`);
+
+    if (fim <= inicio) {
+      toast.error('A data/hora fim deve ser posterior à data/hora início');
+      return;
+    }
+
+    if (verificarSobreposicaoEscala(novaEscala)) {
+      toast.error('O período informado se sobrepõe a uma escala existente');
+      return;
+    }
+
+    const nova: Escala = {
+      id: crypto.randomUUID(),
+      dataInicio: novaEscala.dataInicio,
+      horaInicio: novaEscala.horaInicio,
+      dataFim: novaEscala.dataFim,
+      horaFim: novaEscala.horaFim,
+    };
+
+    setEscalas([...escalas, nova]);
+    setNovaEscala({ dataInicio: '', horaInicio: '', dataFim: '', horaFim: '' });
+    toast.success('Escala adicionada');
+  };
+
+  const handleRemoveEscala = (id: string) => {
+    setEscalas(escalas.filter((e) => e.id !== id));
+    toast.success('Escala removida');
+  };
+
+  const escalasOrdenadas = useMemo(() => {
+    return [...escalas].sort((a, b) => 
+      new Date(`${a.dataInicio}T${a.horaInicio}`).getTime() - new Date(`${b.dataInicio}T${b.horaInicio}`).getTime()
+    );
+  }, [escalas]);
 
   const handleFotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -267,6 +335,7 @@ export const RecursoHumanoFormModal = ({
       ...formData,
       anexos,
       ausencias,
+      escalas,
       dataCadastro: data?.dataCadastro || new Date().toLocaleDateString('pt-BR'),
       usuarioCadastro: data?.usuarioCadastro || user?.nome || 'Admin',
     });
@@ -291,7 +360,7 @@ export const RecursoHumanoFormModal = ({
         </DialogHeader>
         
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="dados">Dados Pessoais</TabsTrigger>
             <TabsTrigger value="ausencias" className="flex items-center gap-2">
               <CalendarOff className="w-4 h-4" />
@@ -299,6 +368,15 @@ export const RecursoHumanoFormModal = ({
               {ausencias.length > 0 && (
                 <span className="bg-primary text-primary-foreground text-xs px-1.5 py-0.5 rounded-full">
                   {ausencias.length}
+                </span>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="escalas" className="flex items-center gap-2">
+              <Clock className="w-4 h-4" />
+              Escalas
+              {escalas.length > 0 && (
+                <span className="bg-primary text-primary-foreground text-xs px-1.5 py-0.5 rounded-full">
+                  {escalas.length}
                 </span>
               )}
             </TabsTrigger>
@@ -691,6 +769,131 @@ export const RecursoHumanoFormModal = ({
               <p>
                 O sistema não permite cadastrar ausências com datas sobrepostas. 
                 Verifique se o período informado não conflita com ausências já existentes.
+              </p>
+            </div>
+
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={onClose}>
+                Cancelar
+              </Button>
+              <Button 
+                type="button" 
+                className="gradient-primary hover:opacity-90"
+                onClick={handleSubmit}
+              >
+                Salvar
+              </Button>
+            </DialogFooter>
+          </TabsContent>
+
+          <TabsContent value="escalas" className="mt-4 space-y-4">
+            {/* Formulário para adicionar escala */}
+            <div className="border rounded-lg p-4 bg-muted/20">
+              <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
+                <Plus className="w-4 h-4" />
+                Adicionar Escala de Trabalho
+              </h4>
+              <div className="grid grid-cols-5 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Data Início <span className="text-destructive">*</span></Label>
+                  <Input
+                    type="date"
+                    value={novaEscala.dataInicio}
+                    onChange={(e) => setNovaEscala({ ...novaEscala, dataInicio: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Hora Início <span className="text-destructive">*</span></Label>
+                  <Input
+                    type="time"
+                    value={novaEscala.horaInicio}
+                    onChange={(e) => setNovaEscala({ ...novaEscala, horaInicio: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Data Fim <span className="text-destructive">*</span></Label>
+                  <Input
+                    type="date"
+                    value={novaEscala.dataFim}
+                    onChange={(e) => setNovaEscala({ ...novaEscala, dataFim: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Hora Fim <span className="text-destructive">*</span></Label>
+                  <Input
+                    type="time"
+                    value={novaEscala.horaFim}
+                    onChange={(e) => setNovaEscala({ ...novaEscala, horaFim: e.target.value })}
+                  />
+                </div>
+                <div className="flex items-end">
+                  <Button
+                    type="button"
+                    onClick={handleAddEscala}
+                    disabled={!novaEscala.dataInicio || !novaEscala.horaInicio || !novaEscala.dataFim || !novaEscala.horaFim}
+                  >
+                    <Plus className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            {/* Lista de escalas */}
+            {escalasOrdenadas.length > 0 ? (
+              <div className="border rounded-lg overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Data Início</TableHead>
+                      <TableHead>Hora Início</TableHead>
+                      <TableHead>Data Fim</TableHead>
+                      <TableHead>Hora Fim</TableHead>
+                      <TableHead className="w-16"></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {escalasOrdenadas.map((escala) => (
+                      <TableRow key={escala.id}>
+                        <TableCell>
+                          {format(parseISO(escala.dataInicio), 'dd/MM/yyyy', { locale: ptBR })}
+                        </TableCell>
+                        <TableCell>{escala.horaInicio}</TableCell>
+                        <TableCell>
+                          {format(parseISO(escala.dataFim), 'dd/MM/yyyy', { locale: ptBR })}
+                        </TableCell>
+                        <TableCell>{escala.horaFim}</TableCell>
+                        <TableCell>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-destructive hover:text-destructive"
+                            onClick={() => handleRemoveEscala(escala.id)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            ) : (
+              <div className="border rounded-lg p-8 text-center border-dashed">
+                <Clock className="w-12 h-12 mx-auto text-muted-foreground/50 mb-3" />
+                <p className="text-muted-foreground">Nenhuma escala cadastrada</p>
+                <p className="text-sm text-muted-foreground/70">
+                  Adicione os horários de trabalho do colaborador
+                </p>
+              </div>
+            )}
+
+            {/* Info sobre sobreposição */}
+            <div className="flex items-start gap-2 text-xs text-muted-foreground bg-muted/30 rounded-lg p-3">
+              <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+              <p>
+                O sistema não permite cadastrar escalas com horários sobrepostos. 
+                Verifique se o período informado não conflita com escalas já existentes.
               </p>
             </div>
 

@@ -26,6 +26,14 @@ export interface Ausencia {
   dias: number;
 }
 
+export interface Escala {
+  id: string;
+  dataInicio: string;
+  horaInicio: string;
+  dataFim: string;
+  horaFim: string;
+}
+
 export interface RecursoHumano {
   id: string;
   codigoExterno: string;
@@ -45,6 +53,7 @@ export interface RecursoHumano {
   usuarioCadastro: string;
   anexos?: Anexo[];
   ausencias?: Ausencia[];
+  escalas?: Escala[];
 }
 
 const RecursosHumanos = () => {
