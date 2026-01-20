@@ -296,7 +296,7 @@ export const MapaEscalasModal = ({
                   <div
                     key={dia.toISOString()}
                     className={`w-10 min-w-10 px-1 py-2 text-center text-xs border-r ${
-                      isFimDeSemana ? 'bg-muted/80' : 'bg-muted/30'
+                      isFimDeSemana ? 'bg-orange-100' : 'bg-muted/30'
                     }`}
                   >
                     <div className="font-medium">{format(dia, 'dd')}</div>
@@ -332,11 +332,13 @@ export const MapaEscalasModal = ({
                       {diasExibidos.map((dia) => {
                         const status = getStatusDia(recurso, dia);
                         const config = getStatusConfig(status);
+                        const diaSemana = getDay(dia);
+                        const isFimDeSemana = diaSemana === 0 || diaSemana === 6;
                         return (
                           <TooltipProvider key={dia.toISOString()}>
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <div className="w-10 min-w-10 p-0.5 border-r flex items-center justify-center">
+                                <div className={`w-10 min-w-10 p-0.5 border-r flex items-center justify-center ${isFimDeSemana ? 'bg-orange-100' : ''}`}>
                                   <span
                                     className={`w-7 h-5 rounded flex items-center justify-center text-[10px] font-bold ${config.bg} ${config.text}`}
                                   >
