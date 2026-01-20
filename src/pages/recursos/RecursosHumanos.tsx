@@ -2,10 +2,11 @@ import { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
-import { Edit, Trash2, Users, UserX } from 'lucide-react';
+import { Edit, Trash2, Users, UserX, Calendar } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { RecursoHumanoFormModal } from '@/components/recursos/RecursoHumanoFormModal';
+import { MapaEscalasModal } from '@/components/recursos/MapaEscalasModal';
 import { parseISO, isWithinInterval, startOfDay } from 'date-fns';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { SortableTable, Column } from '@/components/shared/SortableTable';
@@ -32,6 +33,7 @@ export interface Escala {
   horaInicio: string;
   dataFim: string;
   horaFim: string;
+  diasSemana: number[]; // 0 = Domingo, 1 = Segunda, ..., 6 = Sábado
 }
 
 export interface RecursoHumano {
@@ -60,6 +62,7 @@ const RecursosHumanos = () => {
   const { toast } = useToast();
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isMapaOpen, setIsMapaOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<RecursoHumano | null>(null);
   const [items, setItems] = useState<RecursoHumano[]>(() => {
     const stored = localStorage.getItem('kreato_recursos_humanos');
@@ -236,6 +239,14 @@ const RecursosHumanos = () => {
         }}
         addLabel="Novo Colaborador"
       >
+        <Button
+          variant="outline"
+          onClick={() => setIsMapaOpen(true)}
+          className="flex items-center gap-2"
+        >
+          <Calendar className="w-4 h-4" />
+          Mapa de Escalas
+        </Button>
         <SearchBar value={search} onChange={setSearch} />
       </PageHeader>
 
@@ -266,6 +277,12 @@ const RecursosHumanos = () => {
         }}
         onSave={handleSave}
         data={editingItem}
+      />
+
+      <MapaEscalasModal
+        isOpen={isMapaOpen}
+        onClose={() => setIsMapaOpen(false)}
+        recursos={items}
       />
     </div>
   );

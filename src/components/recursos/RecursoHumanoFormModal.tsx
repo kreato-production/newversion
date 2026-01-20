@@ -32,6 +32,17 @@ import { Upload, X, User, FileText, Plus, Trash2, CalendarOff, AlertCircle, Cloc
 import { toast } from 'sonner';
 import { differenceInDays, parseISO, isWithinInterval, format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { Checkbox } from '@/components/ui/checkbox';
+
+const DIAS_SEMANA = [
+  { value: 0, label: 'Dom' },
+  { value: 1, label: 'Seg' },
+  { value: 2, label: 'Ter' },
+  { value: 3, label: 'Qua' },
+  { value: 4, label: 'Qui' },
+  { value: 5, label: 'Sex' },
+  { value: 6, label: 'Sáb' },
+];
 
 const MOTIVOS_AUSENCIA = [
   'Férias',
@@ -95,6 +106,7 @@ export const RecursoHumanoFormModal = ({
     horaInicio: '',
     dataFim: '',
     horaFim: '',
+    diasSemana: [1, 2, 3, 4, 5] as number[], // Segunda a Sexta por padrão
   });
 
   useEffect(() => {
@@ -146,7 +158,7 @@ export const RecursoHumanoFormModal = ({
     }
     setActiveTab('dados');
     setNovaAusencia({ motivo: '', dataInicio: '', dataFim: '' });
-    setNovaEscala({ dataInicio: '', horaInicio: '', dataFim: '', horaFim: '' });
+    setNovaEscala({ dataInicio: '', horaInicio: '', dataFim: '', horaFim: '', diasSemana: [1, 2, 3, 4, 5] });
   }, [data, isOpen]);
 
   // Calcular dias automaticamente
@@ -244,16 +256,22 @@ export const RecursoHumanoFormModal = ({
       return;
     }
 
+    if (novaEscala.diasSemana.length === 0) {
+      toast.error('Selecione pelo menos um dia da semana');
+      return;
+    }
+
     const nova: Escala = {
       id: crypto.randomUUID(),
       dataInicio: novaEscala.dataInicio,
       horaInicio: novaEscala.horaInicio,
       dataFim: novaEscala.dataFim,
       horaFim: novaEscala.horaFim,
+      diasSemana: novaEscala.diasSemana,
     };
 
     setEscalas([...escalas, nova]);
-    setNovaEscala({ dataInicio: '', horaInicio: '', dataFim: '', horaFim: '' });
+    setNovaEscala({ dataInicio: '', horaInicio: '', dataFim: '', horaFim: '', diasSemana: [1, 2, 3, 4, 5] });
     toast.success('Escala adicionada');
   };
 
@@ -836,6 +854,37 @@ export const RecursoHumanoFormModal = ({
                   </Button>
                 </div>
               </div>
+
+              {/* Dias da semana */}
+              <div className="mt-3 pt-3 border-t">
+                <Label className="text-xs mb-2 block">Dias da Semana <span className="text-destructive">*</span></Label>
+                <div className="flex gap-4 flex-wrap">
+                  {DIAS_SEMANA.map((dia) => (
+                    <label
+                      key={dia.value}
+                      className="flex items-center gap-2 cursor-pointer"
+                    >
+                      <Checkbox
+                        checked={novaEscala.diasSemana.includes(dia.value)}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            setNovaEscala({
+                              ...novaEscala,
+                              diasSemana: [...novaEscala.diasSemana, dia.value].sort(),
+                            });
+                          } else {
+                            setNovaEscala({
+                              ...novaEscala,
+                              diasSemana: novaEscala.diasSemana.filter((d) => d !== dia.value),
+                            });
+                          }
+                        }}
+                      />
+                      <span className="text-sm">{dia.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
             </div>
 
             {/* Lista de escalas */}
@@ -848,6 +897,7 @@ export const RecursoHumanoFormModal = ({
                       <TableHead>Hora Início</TableHead>
                       <TableHead>Data Fim</TableHead>
                       <TableHead>Hora Fim</TableHead>
+                      <TableHead>Dias</TableHead>
                       <TableHead className="w-16"></TableHead>
                     </TableRow>
                   </TableHeader>
@@ -862,6 +912,19 @@ export const RecursoHumanoFormModal = ({
                           {format(parseISO(escala.dataFim), 'dd/MM/yyyy', { locale: ptBR })}
                         </TableCell>
                         <TableCell>{escala.horaFim}</TableCell>
+                        <TableCell>
+                          <div className="flex gap-1 flex-wrap">
+                            {escala.diasSemana && escala.diasSemana.length > 0 ? (
+                              escala.diasSemana.sort().map((d) => (
+                                <span key={d} className="px-1.5 py-0.5 text-[10px] bg-primary/10 text-primary rounded">
+                                  {DIAS_SEMANA.find((ds) => ds.value === d)?.label}
+                                </span>
+                              ))
+                            ) : (
+                              <span className="text-muted-foreground text-xs">-</span>
+                            )}
+                          </div>
+                        </TableCell>
                         <TableCell>
                           <Button
                             type="button"
