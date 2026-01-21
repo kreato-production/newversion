@@ -318,6 +318,12 @@ const RecursosHumanos = () => {
         isOpen={isMapaOpen}
         onClose={() => setIsMapaOpen(false)}
         recursos={items}
+        onUpdateRecurso={(updatedRecurso) => {
+          const updated = items.map((item) => 
+            item.id === updatedRecurso.id ? updatedRecurso : item
+          );
+          saveToStorage(updated);
+        }}
       />
     </div>
   );

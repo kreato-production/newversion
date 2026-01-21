@@ -15,6 +15,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
@@ -32,15 +38,17 @@ import {
   endOfWeek,
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import type { RecursoHumano } from '@/pages/recursos/RecursosHumanos';
+import type { RecursoHumano, Escala} from '@/pages/recursos/RecursosHumanos';
 
 interface MapaEscalasModalProps {
   isOpen: boolean;
   onClose: () => void;
   recursos: RecursoHumano[];
+  onUpdateRecurso?: (recurso: RecursoHumano) => void;
 }
 
 type ViewMode = 'semana' | 'mes' | 'periodo';
+type StatusType = 'FG' | 'AU' | 'DI';
 
 const DIAS_SEMANA_ABREV = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
@@ -48,6 +56,7 @@ export const MapaEscalasModal = ({
   isOpen,
   onClose,
   recursos,
+  onUpdateRecurso,
 }: MapaEscalasModalProps) => {
   const [viewMode, setViewMode] = useState<ViewMode>('mes');
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -334,31 +343,120 @@ export const MapaEscalasModal = ({
                         const config = getStatusConfig(status);
                         const diaSemana = getDay(dia);
                         const isFimDeSemana = diaSemana === 0 || diaSemana === 6;
+                        const isEditable = status !== 'AU';
+                        
+                        const handleStatusChange = (newStatus: StatusType) => {
+                          if (!onUpdateRecurso || newStatus === status) return;
+                          
+                          const diaStr = format(dia, 'yyyy-MM-dd');
+                          const diaNum = getDay(dia);
+                          let updatedRecurso = { ...recurso };
+                          
+                          if (newStatus === 'DI') {
+                            // Adicionar escala para este dia específico
+                            const novaEscala: Escala = {
+                              id: crypto.randomUUID(),
+                              dataInicio: diaStr,
+                              horaInicio: '08:00',
+                              dataFim: diaStr,
+                              horaFim: '18:00',
+                              diasSemana: [diaNum],
+                            };
+                            updatedRecurso.escalas = [...(recurso.escalas || []), novaEscala];
+                          } else if (newStatus === 'FG') {
+                            // Remover escala(s) que afetam este dia
+                            updatedRecurso.escalas = (recurso.escalas || []).filter((escala) => {
+                              try {
+                                const inicio = parseISO(escala.dataInicio);
+                                const fim = parseISO(escala.dataFim);
+                                const dentroIntervalo = isWithinInterval(dia, { start: inicio, end: fim });
+                                
+                                if (!dentroIntervalo) return true;
+                                
+                                // Se é exatamente este dia, remover completamente
+                                if (escala.dataInicio === diaStr && escala.dataFim === diaStr) {
+                                  return false;
+                                }
+                                
+                                // Se tem o dia da semana incluído, remover o dia da semana
+                                if (escala.diasSemana?.includes(diaNum)) {
+                                  escala.diasSemana = escala.diasSemana.filter(d => d !== diaNum);
+                                  return escala.diasSemana.length > 0;
+                                }
+                                
+                                return true;
+                              } catch {
+                                return true;
+                              }
+                            });
+                          }
+                          
+                          onUpdateRecurso(updatedRecurso);
+                        };
+                        
                         return (
-                          <TooltipProvider key={dia.toISOString()}>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <div className={`w-10 min-w-10 p-0.5 border-r flex items-center justify-center ${isFimDeSemana ? 'bg-orange-100' : ''}`}>
-                                  <span
-                                    className={`w-7 h-5 rounded flex items-center justify-center text-[10px] font-bold ${config.bg} ${config.text}`}
+                          <div 
+                            key={dia.toISOString()} 
+                            className={`w-10 min-w-10 p-0.5 border-r flex items-center justify-center ${isFimDeSemana ? 'bg-orange-100' : ''}`}
+                          >
+                            {isEditable && onUpdateRecurso ? (
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <button
+                                    className={`w-7 h-5 rounded flex items-center justify-center text-[10px] font-bold cursor-pointer hover:opacity-80 transition-opacity ${config.bg} ${config.text}`}
                                   >
                                     {config.label}
-                                  </span>
-                                </div>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p className="font-medium">
-                                  {recurso.nome} {recurso.sobrenome}
-                                </p>
-                                <p className="text-xs">
-                                  {format(dia, 'EEEE, dd/MM/yyyy', { locale: ptBR })}
-                                </p>
-                                <p className="text-xs">
-                                  Status: <span className="font-medium">{config.title}</span>
-                                </p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
+                                  </button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="center" className="min-w-[100px] bg-background z-50">
+                                  <DropdownMenuItem 
+                                    onClick={() => handleStatusChange('DI')}
+                                    className={`flex items-center gap-2 cursor-pointer ${status === 'DI' ? 'bg-muted' : ''}`}
+                                  >
+                                    <span className="w-5 h-4 bg-blue-500 rounded flex items-center justify-center text-[9px] font-bold text-white">
+                                      DI
+                                    </span>
+                                    <span className="text-xs">Disponível</span>
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem 
+                                    onClick={() => handleStatusChange('FG')}
+                                    className={`flex items-center gap-2 cursor-pointer ${status === 'FG' ? 'bg-muted' : ''}`}
+                                  >
+                                    <span className="w-5 h-4 bg-green-500 rounded flex items-center justify-center text-[9px] font-bold text-white">
+                                      FG
+                                    </span>
+                                    <span className="text-xs">Folga</span>
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            ) : (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span
+                                      className={`w-7 h-5 rounded flex items-center justify-center text-[10px] font-bold ${config.bg} ${config.text}`}
+                                    >
+                                      {config.label}
+                                    </span>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p className="font-medium">
+                                      {recurso.nome} {recurso.sobrenome}
+                                    </p>
+                                    <p className="text-xs">
+                                      {format(dia, 'EEEE, dd/MM/yyyy', { locale: ptBR })}
+                                    </p>
+                                    <p className="text-xs">
+                                      Status: <span className="font-medium">{config.title}</span>
+                                    </p>
+                                    <p className="text-xs text-muted-foreground italic">
+                                      (Ausências não podem ser alteradas aqui)
+                                    </p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            )}
+                          </div>
                         );
                       })}
                     </div>
