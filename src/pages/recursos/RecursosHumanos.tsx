@@ -66,7 +66,42 @@ const RecursosHumanos = () => {
   const [editingItem, setEditingItem] = useState<RecursoHumano | null>(null);
   const [items, setItems] = useState<RecursoHumano[]>(() => {
     const stored = localStorage.getItem('kreato_recursos_humanos');
-    return stored ? JSON.parse(stored) : [];
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      if (parsed.length > 0) return parsed;
+    }
+    // Colaborador de exemplo
+    const exemploColaborador: RecursoHumano = {
+      id: crypto.randomUUID(),
+      codigoExterno: 'COL001',
+      nome: 'Maria',
+      sobrenome: 'Silva',
+      dataNascimento: '1990-05-15',
+      sexo: 'Feminino',
+      telefone: '(11) 99999-1234',
+      email: 'maria.silva@empresa.com',
+      departamento: 'Produção',
+      funcao: 'Coordenadora',
+      custoHora: 85,
+      dataContratacao: '2022-03-01',
+      status: 'Ativo',
+      dataCadastro: new Date().toLocaleDateString('pt-BR'),
+      usuarioCadastro: 'Sistema',
+      anexos: [],
+      ausencias: [],
+      escalas: [
+        {
+          id: crypto.randomUUID(),
+          dataInicio: '2026-01-01',
+          horaInicio: '08:00',
+          dataFim: '2026-12-31',
+          horaFim: '17:00',
+          diasSemana: [1, 2, 3, 4, 5],
+        },
+      ],
+    };
+    localStorage.setItem('kreato_recursos_humanos', JSON.stringify([exemploColaborador]));
+    return [exemploColaborador];
   });
 
   const saveToStorage = (data: RecursoHumano[]) => {
