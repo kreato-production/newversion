@@ -6,11 +6,21 @@ import { useToast } from '@/hooks/use-toast';
 import { RecursoFisicoFormModal } from '@/components/recursos/RecursoFisicoFormModal';
 import { SortableTable, Column } from '@/components/shared/SortableTable';
 
+export interface FaixaDisponibilidade {
+  id: string;
+  dataInicio: string;
+  dataFim: string;
+  horaInicio: string;
+  horaFim: string;
+  diasSemana: number[]; // 0 = Dom, 1 = Seg, ..., 6 = Sáb
+}
+
 export interface RecursoFisico {
   id: string;
   codigoExterno: string;
   nome: string;
   custoHora: number;
+  faixasDisponibilidade: FaixaDisponibilidade[];
   dataCadastro: string;
   usuarioCadastro: string;
 }
