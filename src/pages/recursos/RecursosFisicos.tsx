@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
-import { Edit, Trash2, MapPin } from 'lucide-react';
+import { Edit, Trash2, MapPin, Calendar } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { RecursoFisicoFormModal } from '@/components/recursos/RecursoFisicoFormModal';
+import { MapaRecursosFisicosModal } from '@/components/recursos/MapaRecursosFisicosModal';
 import { SortableTable, Column } from '@/components/shared/SortableTable';
 
 export interface FaixaDisponibilidade {
@@ -29,6 +30,7 @@ const RecursosFisicos = () => {
   const { toast } = useToast();
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isMapaOpen, setIsMapaOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<RecursoFisico | null>(null);
   const [items, setItems] = useState<RecursoFisico[]>(() => {
     const stored = localStorage.getItem('kreato_recursos_fisicos');
@@ -143,6 +145,14 @@ const RecursosFisicos = () => {
         }}
         addLabel="Novo Recurso"
       >
+        <Button
+          variant="outline"
+          onClick={() => setIsMapaOpen(true)}
+          className="flex items-center gap-2"
+        >
+          <Calendar className="w-4 h-4" />
+          Mapa de Disponibilidade
+        </Button>
         <SearchBar value={search} onChange={setSearch} />
       </PageHeader>
 
@@ -173,6 +183,12 @@ const RecursosFisicos = () => {
         }}
         onSave={handleSave}
         data={editingItem}
+      />
+
+      <MapaRecursosFisicosModal
+        isOpen={isMapaOpen}
+        onClose={() => setIsMapaOpen(false)}
+        recursos={items}
       />
     </div>
   );
