@@ -1,0 +1,419 @@
+import { useState, useMemo } from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { ChevronLeft, ChevronRight, MapPin, Loader2 } from 'lucide-react';
+import {
+  format,
+  startOfMonth,
+  endOfMonth,
+  eachDayOfInterval,
+  addMonths,
+  subMonths,
+  getDay,
+  isWithinInterval,
+  parseISO,
+  startOfWeek,
+  endOfWeek,
+  isSameDay,
+  addDays,
+} from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import type { RecursoFisico, FaixaDisponibilidade } from '@/pages/recursos/RecursosFisicos';
+import { useWeatherForecast } from '@/hooks/useWeatherForecast';
+
+interface MapaRecursosFisicosModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  recursos: RecursoFisico[];
+}
+
+type ViewMode = 'semana' | 'mes' | 'periodo';
+type StatusType = 'DI' | 'IN'; // Disponível ou Indisponível
+
+const DIAS_SEMANA_ABREV = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+
+export const MapaRecursosFisicosModal = ({
+  isOpen,
+  onClose,
+  recursos,
+}: MapaRecursosFisicosModalProps) => {
+  const [viewMode, setViewMode] = useState<ViewMode>('mes');
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [periodoInicio, setPeriodoInicio] = useState('');
+  const [periodoFim, setPeriodoFim] = useState('');
+  
+  const { weather, loading: weatherLoading, getWeatherForDate } = useWeatherForecast(16);
+
+  // Calcular dias a exibir baseado no modo de visualização
+  const diasExibidos = useMemo(() => {
+    if (viewMode === 'semana') {
+      const inicio = startOfWeek(currentDate, { locale: ptBR });
+      const fim = endOfWeek(currentDate, { locale: ptBR });
+      return eachDayOfInterval({ start: inicio, end: fim });
+    } else if (viewMode === 'mes') {
+      const inicio = startOfMonth(currentDate);
+      const fim = endOfMonth(currentDate);
+      return eachDayOfInterval({ start: inicio, end: fim });
+    } else if (viewMode === 'periodo' && periodoInicio && periodoFim) {
+      try {
+        const inicio = parseISO(periodoInicio);
+        const fim = parseISO(periodoFim);
+        if (fim >= inicio) {
+          return eachDayOfInterval({ start: inicio, end: fim });
+        }
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  }, [viewMode, currentDate, periodoInicio, periodoFim]);
+
+  // Verificar se um dia está dentro dos próximos 15 dias (para mostrar previsão)
+  const isWithinForecastRange = (dia: Date): boolean => {
+    const today = new Date();
+    const maxDate = addDays(today, 15);
+    return dia >= today && dia <= maxDate;
+  };
+
+  // Verificar status do recurso em um dia específico
+  const getStatusDia = (recurso: RecursoFisico, dia: Date): StatusType => {
+    const diaNum = getDay(dia); // 0 = Domingo, 6 = Sábado
+
+    if (!recurso.faixasDisponibilidade || recurso.faixasDisponibilidade.length === 0) {
+      return 'IN';
+    }
+
+    // Verificar se há alguma faixa que cubra este dia
+    const temDisponibilidade = recurso.faixasDisponibilidade.some((faixa) => {
+      try {
+        const inicio = parseISO(faixa.dataInicio);
+        const fim = parseISO(faixa.dataFim);
+        const dentroDoIntervalo = isWithinInterval(dia, { start: inicio, end: fim });
+        
+        if (!dentroDoIntervalo) return false;
+
+        // Verificar se o dia da semana está incluído
+        if (faixa.diasSemana && faixa.diasSemana.length > 0) {
+          return faixa.diasSemana.includes(diaNum);
+        }
+
+        return true;
+      } catch {
+        return false;
+      }
+    });
+
+    return temDisponibilidade ? 'DI' : 'IN';
+  };
+
+  // Obter horário de disponibilidade para um dia
+  const getHorarioDisponivel = (recurso: RecursoFisico, dia: Date): string | null => {
+    const diaNum = getDay(dia);
+
+    if (!recurso.faixasDisponibilidade) return null;
+
+    for (const faixa of recurso.faixasDisponibilidade) {
+      try {
+        const inicio = parseISO(faixa.dataInicio);
+        const fim = parseISO(faixa.dataFim);
+        const dentroDoIntervalo = isWithinInterval(dia, { start: inicio, end: fim });
+        
+        if (dentroDoIntervalo && faixa.diasSemana?.includes(diaNum)) {
+          return `${faixa.horaInicio} - ${faixa.horaFim}`;
+        }
+      } catch {
+        continue;
+      }
+    }
+    return null;
+  };
+
+  const getStatusConfig = (status: StatusType) => {
+    switch (status) {
+      case 'DI':
+        return {
+          label: 'DI',
+          bg: 'bg-emerald-500',
+          text: 'text-white',
+          title: 'Disponível',
+        };
+      case 'IN':
+        return {
+          label: 'IN',
+          bg: 'bg-gray-400',
+          text: 'text-white',
+          title: 'Indisponível',
+        };
+    }
+  };
+
+  const handlePrevious = () => {
+    if (viewMode === 'semana') {
+      setCurrentDate((prev) => new Date(prev.getTime() - 7 * 24 * 60 * 60 * 1000));
+    } else if (viewMode === 'mes') {
+      setCurrentDate((prev) => subMonths(prev, 1));
+    }
+  };
+
+  const handleNext = () => {
+    if (viewMode === 'semana') {
+      setCurrentDate((prev) => new Date(prev.getTime() + 7 * 24 * 60 * 60 * 1000));
+    } else if (viewMode === 'mes') {
+      setCurrentDate((prev) => addMonths(prev, 1));
+    }
+  };
+
+  const getTituloNavegacao = () => {
+    if (viewMode === 'semana') {
+      const inicio = startOfWeek(currentDate, { locale: ptBR });
+      const fim = endOfWeek(currentDate, { locale: ptBR });
+      return `${format(inicio, 'dd/MM', { locale: ptBR })} - ${format(fim, 'dd/MM/yyyy', { locale: ptBR })}`;
+    } else if (viewMode === 'mes') {
+      return format(currentDate, 'MMMM yyyy', { locale: ptBR });
+    } else if (periodoInicio && periodoFim) {
+      return `${format(parseISO(periodoInicio), 'dd/MM/yyyy')} - ${format(parseISO(periodoFim), 'dd/MM/yyyy')}`;
+    }
+    return 'Selecione um período';
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="w-[95vw] max-w-[95vw] max-h-[90vh] overflow-hidden">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <MapPin className="w-5 h-5" />
+            Mapa de Disponibilidade - Recursos Físicos
+          </DialogTitle>
+        </DialogHeader>
+
+        {/* Controles */}
+        <div className="flex items-center gap-4 flex-wrap">
+          <div className="flex items-center gap-2">
+            <Label className="text-sm">Visualização:</Label>
+            <Select value={viewMode} onValueChange={(v) => setViewMode(v as ViewMode)}>
+              <SelectTrigger className="w-32">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="semana">Semana</SelectItem>
+                <SelectItem value="mes">Mês</SelectItem>
+                <SelectItem value="periodo">Período</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {viewMode === 'periodo' && (
+            <div className="flex items-center gap-2">
+              <Input
+                type="date"
+                value={periodoInicio}
+                onChange={(e) => setPeriodoInicio(e.target.value)}
+                className="w-36"
+              />
+              <span className="text-muted-foreground">até</span>
+              <Input
+                type="date"
+                value={periodoFim}
+                onChange={(e) => setPeriodoFim(e.target.value)}
+                className="w-36"
+              />
+            </div>
+          )}
+
+          {viewMode !== 'periodo' && (
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="icon" onClick={handlePrevious}>
+                <ChevronLeft className="w-4 h-4" />
+              </Button>
+              <span className="min-w-[180px] text-center font-medium capitalize">
+                {getTituloNavegacao()}
+              </span>
+              <Button variant="outline" size="icon" onClick={handleNext}>
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+            </div>
+          )}
+
+          {/* Legenda */}
+          <div className="flex items-center gap-3 ml-auto text-xs">
+            <span className="font-medium">Legenda:</span>
+            <div className="flex items-center gap-1">
+              <span className="w-6 h-5 bg-emerald-500 rounded flex items-center justify-center text-white text-[10px] font-bold">
+                DI
+              </span>
+              <span>Disponível</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="w-6 h-5 bg-gray-400 rounded flex items-center justify-center text-white text-[10px] font-bold">
+                IN
+              </span>
+              <span>Indisponível</span>
+            </div>
+            {weatherLoading && (
+              <div className="flex items-center gap-1 text-muted-foreground">
+                <Loader2 className="w-3 h-3 animate-spin" />
+                <span>Carregando clima...</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Mapa */}
+        <ScrollArea className="h-[calc(90vh-200px)] border rounded-lg">
+          <div className="min-w-max">
+            {/* Cabeçalho com dias */}
+            <div className="flex sticky top-0 bg-background z-10 border-b">
+              <div className="w-56 min-w-56 px-3 py-2 font-medium text-sm border-r bg-muted/50 flex items-center">
+                Recurso Físico
+              </div>
+              {diasExibidos.map((dia) => {
+                const diaSemana = getDay(dia);
+                const isFimDeSemana = diaSemana === 0 || diaSemana === 6;
+                const isToday = isSameDay(dia, new Date());
+                const weatherData = isWithinForecastRange(dia) ? getWeatherForDate(dia) : undefined;
+                
+                return (
+                  <TooltipProvider key={dia.toISOString()}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div
+                          className={`w-14 min-w-14 px-1 py-1 text-center text-xs border-r ${
+                            isToday 
+                              ? 'bg-primary/20 ring-2 ring-primary ring-inset' 
+                              : isFimDeSemana 
+                                ? 'bg-orange-100 dark:bg-orange-900/30' 
+                                : 'bg-muted/30'
+                          }`}
+                        >
+                          <div className="font-medium">{format(dia, 'dd')}</div>
+                          <div className="text-[10px] text-muted-foreground">
+                            {DIAS_SEMANA_ABREV[diaSemana]}
+                          </div>
+                          {weatherData && (
+                            <div className="mt-0.5 flex flex-col items-center">
+                              <span className="text-sm leading-none">{weatherData.weatherIcon}</span>
+                              <span className="text-[9px] text-muted-foreground font-medium">
+                                {weatherData.temperature}°
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <div className="text-center">
+                          <div className="font-medium">
+                            {format(dia, "EEEE, dd 'de' MMMM", { locale: ptBR })}
+                          </div>
+                          {weatherData && (
+                            <div className="mt-1 text-xs">
+                              <span className="text-lg mr-1">{weatherData.weatherIcon}</span>
+                              {weatherData.weatherDescription} - {weatherData.temperature}°C
+                            </div>
+                          )}
+                          {!weatherData && isWithinForecastRange(dia) && weatherLoading && (
+                            <div className="text-xs text-muted-foreground">
+                              Carregando previsão...
+                            </div>
+                          )}
+                          {!isWithinForecastRange(dia) && (
+                            <div className="text-xs text-muted-foreground">
+                              Previsão não disponível
+                            </div>
+                          )}
+                        </div>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                );
+              })}
+            </div>
+
+            {/* Corpo com recursos */}
+            {recursos.length === 0 ? (
+              <div className="flex items-center justify-center py-12 text-muted-foreground">
+                <MapPin className="w-8 h-8 mr-2" />
+                Nenhum recurso físico cadastrado.
+              </div>
+            ) : (
+              recursos.map((recurso) => (
+                <div key={recurso.id} className="flex border-b hover:bg-muted/20">
+                  <div className="w-56 min-w-56 px-3 py-1.5 text-xs border-r">
+                    <div className="font-medium truncate">{recurso.nome}</div>
+                    {recurso.codigoExterno && (
+                      <div className="text-[10px] text-muted-foreground font-mono">
+                        {recurso.codigoExterno}
+                      </div>
+                    )}
+                  </div>
+                  {diasExibidos.map((dia) => {
+                    const status = getStatusDia(recurso, dia);
+                    const config = getStatusConfig(status);
+                    const diaSemana = getDay(dia);
+                    const isFimDeSemana = diaSemana === 0 || diaSemana === 6;
+                    const isToday = isSameDay(dia, new Date());
+                    const horario = status === 'DI' ? getHorarioDisponivel(recurso, dia) : null;
+                    
+                    return (
+                      <TooltipProvider key={dia.toISOString()}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div 
+                              className={`w-14 min-w-14 p-0.5 border-r flex items-center justify-center ${
+                                isToday 
+                                  ? 'bg-primary/10' 
+                                  : isFimDeSemana 
+                                    ? 'bg-orange-50 dark:bg-orange-900/20' 
+                                    : ''
+                              }`}
+                            >
+                              <span
+                                className={`w-8 h-5 rounded flex items-center justify-center text-[10px] font-bold ${config.bg} ${config.text}`}
+                              >
+                                {config.label}
+                              </span>
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <div className="text-center">
+                              <div className="font-medium">{recurso.nome}</div>
+                              <div className="text-xs">{format(dia, 'dd/MM/yyyy')}</div>
+                              <div className={`text-xs font-medium ${status === 'DI' ? 'text-emerald-600' : 'text-gray-500'}`}>
+                                {config.title}
+                              </div>
+                              {horario && (
+                                <div className="text-xs text-muted-foreground mt-1">
+                                  Horário: {horario}
+                                </div>
+                              )}
+                            </div>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    );
+                  })}
+                </div>
+              ))
+            )}
+          </div>
+          <ScrollBar orientation="horizontal" />
+        </ScrollArea>
+      </DialogContent>
+    </Dialog>
+  );
+};
