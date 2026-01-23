@@ -8,10 +8,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Calendar, ChevronLeft, ChevronRight, Filter, MapPin, Users, CalendarDays, CalendarRange, FileDown, Loader2, Clock, Film, User, DollarSign, Building2, Briefcase } from 'lucide-react';
-import { format, addDays, startOfWeek, addWeeks, subWeeks, startOfMonth, endOfMonth, addMonths, subMonths, eachDayOfInterval, getDay, parseISO, getMonth, getYear } from 'date-fns';
+import { format, addDays, startOfWeek, addWeeks, subWeeks, startOfMonth, endOfMonth, addMonths, subMonths, eachDayOfInterval, getDay, parseISO, getMonth, getYear, isSameDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import jsPDF from 'jspdf';
+import { useWeatherForecast } from '@/hooks/useWeatherForecast';
 
 interface RecursoHumanoAlocado {
   id: string;
@@ -100,6 +102,15 @@ const Mapas = () => {
   const [isExporting, setIsExporting] = useState(false);
   const [activeTab, setActiveTab] = useState('fisicos');
   
+  // Weather forecast hook
+  const { getWeatherForDate, loading: weatherLoading } = useWeatherForecast(16);
+  
+  // Helper para verificar se dia está dentro do range de previsão (próximos 15 dias)
+  const isWithinForecastRange = (dia: Date): boolean => {
+    const today = new Date();
+    const maxDate = addDays(today, 15);
+    return dia >= today && dia <= maxDate;
+  };
   // Filtros para apropriação de custos
   const [filtroCentroLucro, setFiltroCentroLucro] = useState('Todos');
   const [filtroUnidadeNegocio, setFiltroUnidadeNegocio] = useState('Todas');
@@ -824,7 +835,8 @@ const Mapas = () => {
   const renderOcupacaoMatriz = (
     recursos: { id: string; nome: string }[],
     ocupacoes: Record<string, Record<string, OcupacaoItem[]>>,
-    emptyMessage: string
+    emptyMessage: string,
+    showWeather: boolean = false
   ) => (
     <div className="overflow-x-auto">
       <Table>
@@ -833,17 +845,57 @@ const Mapas = () => {
             <TableHead className="sticky left-0 bg-background z-10 min-w-[180px]">Recurso</TableHead>
             {displayDays.map((day) => {
               const isWeekend = getDay(day) === 0 || getDay(day) === 6;
+              const isToday = isSameDay(day, new Date());
+              const weatherData = showWeather && isWithinForecastRange(day) ? getWeatherForDate(day) : undefined;
+              
               return (
                 <TableHead 
                   key={day.toISOString()} 
-                  className={`text-center ${viewMode === 'month' ? 'min-w-[80px] px-1' : 'min-w-[140px]'} ${isWeekend ? 'bg-muted/50' : ''}`}
+                  className={`text-center ${viewMode === 'month' ? 'min-w-[80px] px-1' : 'min-w-[140px]'} ${isWeekend ? 'bg-muted/50' : ''} ${isToday ? 'bg-primary/10 ring-2 ring-primary ring-inset' : ''}`}
                 >
-                  <div className="flex flex-col">
-                    <span className="text-xs text-muted-foreground">
-                      {viewMode === 'week' ? format(day, 'EEEE', { locale: ptBR }) : format(day, 'EEE', { locale: ptBR })}
-                    </span>
-                    <span className="font-semibold">{format(day, 'dd/MM')}</span>
-                  </div>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="flex flex-col items-center">
+                          <span className="text-xs text-muted-foreground">
+                            {viewMode === 'week' ? format(day, 'EEEE', { locale: ptBR }) : format(day, 'EEE', { locale: ptBR })}
+                          </span>
+                          <span className="font-semibold">{format(day, 'dd/MM')}</span>
+                          {showWeather && weatherData && (
+                            <div className="flex items-center gap-0.5 mt-0.5">
+                              <span className="text-sm leading-none">{weatherData.weatherIcon}</span>
+                              <span className="text-[10px] text-muted-foreground font-medium">
+                                {weatherData.temperature}°
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <div className="text-center">
+                          <div className="font-medium">
+                            {format(day, "EEEE, dd 'de' MMMM", { locale: ptBR })}
+                          </div>
+                          {showWeather && weatherData && (
+                            <div className="mt-1 text-xs">
+                              <span className="text-lg mr-1">{weatherData.weatherIcon}</span>
+                              {weatherData.weatherDescription} - {weatherData.temperature}°C
+                            </div>
+                          )}
+                          {showWeather && !weatherData && isWithinForecastRange(day) && weatherLoading && (
+                            <div className="text-xs text-muted-foreground">
+                              Carregando previsão...
+                            </div>
+                          )}
+                          {showWeather && !isWithinForecastRange(day) && (
+                            <div className="text-xs text-muted-foreground">
+                              Previsão não disponível
+                            </div>
+                          )}
+                        </div>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </TableHead>
               );
             })}
@@ -1198,7 +1250,8 @@ const Mapas = () => {
                 {renderOcupacaoMatriz(
                   filteredRecursosFisicos,
                   ocupacoesFisicas,
-                  'Nenhum recurso físico encontrado. Cadastre recursos físicos e aloque-os em gravações.'
+                  'Nenhum recurso físico encontrado. Cadastre recursos físicos e aloque-os em gravações.',
+                  true // showWeather - mostrar previsão do tempo para recursos físicos
                 )}
               </CardContent>
             </Card>
