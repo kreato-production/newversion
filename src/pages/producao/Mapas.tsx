@@ -9,11 +9,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Progress } from '@/components/ui/progress';
 import { Calendar, ChevronLeft, ChevronRight, Filter, MapPin, Users, CalendarDays, CalendarRange, FileDown, Loader2, Clock, Film, User, DollarSign, Building2, Briefcase } from 'lucide-react';
-import { format, addDays, startOfWeek, addWeeks, subWeeks, startOfMonth, endOfMonth, addMonths, subMonths, eachDayOfInterval, getDay, parseISO, getMonth, getYear, isSameDay } from 'date-fns';
+import { format, addDays, startOfWeek, addWeeks, subWeeks, startOfMonth, endOfMonth, addMonths, subMonths, eachDayOfInterval, getDay, parseISO, getMonth, getYear, isSameDay, isWithinInterval } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import jsPDF from 'jspdf';
 import { useWeatherForecast } from '@/hooks/useWeatherForecast';
+import { useRecursoFisicoDisponibilidade } from '@/hooks/useRecursoFisicoDisponibilidade';
 
 interface RecursoHumanoAlocado {
   id: string;
@@ -63,6 +65,9 @@ interface OcupacaoItem {
   gravacao: string;
   gravacaoId: string;
   horario: string;
+  horaInicio?: string;
+  horaFim?: string;
+  duracaoMinutos?: number;
   recursoHumanoId?: string;
   statusCor?: string;
 }
@@ -104,6 +109,9 @@ const Mapas = () => {
   
   // Weather forecast hook
   const { getWeatherForDate, loading: weatherLoading } = useWeatherForecast(16);
+  
+  // Hook de disponibilidade de recursos físicos
+  const { getOcupacaoDetalhada, getFaixasDisponiveis } = useRecursoFisicoDisponibilidade();
   
   // Helper para verificar se dia está dentro do range de previsão (próximos 15 dias)
   const isWithinForecastRange = (dia: Date): boolean => {
@@ -274,6 +282,14 @@ const Mapas = () => {
                 ? `${horario.horaInicio} - ${horario.horaFim}`
                 : 'Horário não definido';
 
+              // Calcular duração em minutos
+              let duracaoMinutos = 0;
+              if (horario) {
+                const [horaIni, minIni] = horario.horaInicio.split(':').map(Number);
+                const [horaFim, minFim] = horario.horaFim.split(':').map(Number);
+                duracaoMinutos = (horaFim * 60 + minFim) - (horaIni * 60 + minIni);
+              }
+
               if (!ocupacoes[recurso.recursoId][dia]) {
                 ocupacoes[recurso.recursoId][dia] = [];
               }
@@ -282,6 +298,9 @@ const Mapas = () => {
                 gravacao: gravacao.nome,
                 gravacaoId: gravacao.id,
                 horario: horarioStr,
+                horaInicio: horario?.horaInicio,
+                horaFim: horario?.horaFim,
+                duracaoMinutos,
               });
             }
           });
@@ -917,6 +936,20 @@ const Mapas = () => {
                 {displayDays.map((day) => {
                   const ocupacoesDia = getOcupacaoCelula(ocupacoes, recurso.id, day);
                   const isWeekend = getDay(day) === 0 || getDay(day) === 6;
+                  const dataStr = format(day, 'yyyy-MM-dd');
+                  
+                  // Obter informações de disponibilidade e ocupação para recursos físicos
+                  const ocupacaoDetalhada = showWeather ? getOcupacaoDetalhada(recurso.id, dataStr) : null;
+                  const temFaixas = ocupacaoDetalhada && ocupacaoDetalhada.totalDisponivel > 0;
+                  
+                  // Calcular duração total ocupada neste dia
+                  const duracaoTotalMinutos = ocupacoesDia.reduce((sum, oc) => sum + (oc.duracaoMinutos || 0), 0);
+                  const duracaoHoras = Math.floor(duracaoTotalMinutos / 60);
+                  const duracaoMinutos = duracaoTotalMinutos % 60;
+                  const duracaoStr = duracaoTotalMinutos > 0 
+                    ? `${duracaoHoras}h${duracaoMinutos > 0 ? `${duracaoMinutos}min` : ''}`
+                    : '';
+                  
                   return (
                     <TableCell 
                       key={day.toISOString()} 
@@ -936,11 +969,18 @@ const Mapas = () => {
                                       {viewMode === 'month' ? oc.gravacao.substring(0, 8) + (oc.gravacao.length > 8 ? '...' : '') : oc.gravacao}
                                     </div>
                                     {viewMode === 'week' && (
-                                      <div className="text-muted-foreground">{oc.horario}</div>
+                                      <>
+                                        <div className="text-muted-foreground">{oc.horario}</div>
+                                        {oc.duracaoMinutos && oc.duracaoMinutos > 0 && (
+                                          <div className="text-[10px] text-muted-foreground/70 mt-0.5">
+                                            ({Math.floor(oc.duracaoMinutos / 60)}h{oc.duracaoMinutos % 60 > 0 ? `${oc.duracaoMinutos % 60}min` : ''})
+                                          </div>
+                                        )}
+                                      </>
                                     )}
                                   </div>
                                 </HoverCardTrigger>
-                                <HoverCardContent className="w-72" side="top" align="center">
+                                <HoverCardContent className="w-80" side="top" align="center">
                                   <div className="space-y-3">
                                     <div className="flex items-start gap-2">
                                       <Film className="h-4 w-4 text-primary mt-0.5" />
@@ -957,17 +997,66 @@ const Mapas = () => {
                                     </div>
                                     <div className="flex items-center gap-2">
                                       <Clock className="h-4 w-4 text-muted-foreground" />
-                                      <p className="text-sm">{oc.horario}</p>
+                                      <div>
+                                        <p className="text-sm">{oc.horario}</p>
+                                        {oc.duracaoMinutos && oc.duracaoMinutos > 0 && (
+                                          <p className="text-xs text-muted-foreground">
+                                            Duração: {Math.floor(oc.duracaoMinutos / 60)}h{oc.duracaoMinutos % 60 > 0 ? `${oc.duracaoMinutos % 60}min` : ''}
+                                          </p>
+                                        )}
+                                      </div>
                                     </div>
                                     <div className="flex items-center gap-2">
                                       <MapPin className="h-4 w-4 text-muted-foreground" />
                                       <p className="text-sm">{recurso.nome}</p>
                                     </div>
+                                    
+                                    {/* Informação de ocupação do dia */}
+                                    {showWeather && ocupacaoDetalhada && temFaixas && (
+                                      <div className="pt-2 border-t space-y-2">
+                                        <div className="flex items-center justify-between text-xs">
+                                          <span className="text-muted-foreground">Ocupação do dia:</span>
+                                          <span className="font-medium">{ocupacaoDetalhada.percentualOcupacao}%</span>
+                                        </div>
+                                        <Progress value={ocupacaoDetalhada.percentualOcupacao} className="h-1.5" />
+                                        <div className="flex justify-between text-[10px] text-muted-foreground">
+                                          <span>Disponível: {Math.floor(ocupacaoDetalhada.totalDisponivel / 60)}h{ocupacaoDetalhada.totalDisponivel % 60 > 0 ? `${ocupacaoDetalhada.totalDisponivel % 60}min` : ''}</span>
+                                          <span>Ocupado: {Math.floor(ocupacaoDetalhada.totalOcupado / 60)}h{ocupacaoDetalhada.totalOcupado % 60 > 0 ? `${ocupacaoDetalhada.totalOcupado % 60}min` : ''}</span>
+                                        </div>
+                                      </div>
+                                    )}
                                   </div>
                                 </HoverCardContent>
                               </HoverCard>
                             );
                           })}
+                          
+                          {/* Barra de ocupação do dia (apenas para recursos físicos com faixas) */}
+                          {showWeather && ocupacaoDetalhada && temFaixas && ocupacoesDia.length > 0 && viewMode === 'week' && (
+                            <div className="mt-1">
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <div className="space-y-0.5">
+                                      <Progress 
+                                        value={ocupacaoDetalhada.percentualOcupacao} 
+                                        className="h-1"
+                                      />
+                                      <div className="text-[9px] text-muted-foreground text-center">
+                                        {ocupacaoDetalhada.percentualOcupacao}% ocupado
+                                      </div>
+                                    </div>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <div className="text-xs">
+                                      <p>Ocupado: {Math.floor(ocupacaoDetalhada.totalOcupado / 60)}h{ocupacaoDetalhada.totalOcupado % 60 > 0 ? ` ${ocupacaoDetalhada.totalOcupado % 60}min` : ''}</p>
+                                      <p>Disponível: {Math.floor(ocupacaoDetalhada.totalDisponivel / 60)}h{ocupacaoDetalhada.totalDisponivel % 60 > 0 ? ` ${ocupacaoDetalhada.totalDisponivel % 60}min` : ''}</p>
+                                    </div>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            </div>
+                          )}
                         </div>
                       ) : (
                         <span className="text-muted-foreground/50">-</span>
