@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { parseISO, isWithinInterval } from 'date-fns';
+import { parseISO, isWithinInterval, getDay } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -27,9 +27,11 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { Plus, Trash2, Users, X, Clock, AlertTriangle } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Plus, Trash2, Users, X, Clock, AlertTriangle, Ban, CheckCircle2 } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
+import { useRecursoFisicoDisponibilidade } from '@/hooks/useRecursoFisicoDisponibilidade';
 
 interface RecursoHumanoAlocado {
   id: string;
@@ -77,6 +79,7 @@ interface RecursosTabProps {
 
 export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
   const { toast } = useToast();
+  const { verificarDisponibilidade, getFaixasDisponiveis, getOcupacoesRecurso } = useRecursoFisicoDisponibilidade();
   const [mesAno, setMesAno] = useState(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -238,8 +241,9 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
     const recursoAtual = recursos.find((r) => r.id === recursoId);
     if (!recursoAtual) return;
 
-    // Se está tentando alocar (valor > 0), verificar conflito
+    // Se está tentando alocar (valor > 0), verificar conflito e disponibilidade
     if (valor > 0) {
+      // Verificar conflito com outras gravações (para recursos técnicos)
       const conflito = getConflito(recursoAtual.recursoId, recursoAtual.tipo, dia);
       if (conflito) {
         toast({
@@ -247,7 +251,20 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
           description: `Este recurso já está alocado para a gravação "${conflito.gravacaoNome}" nesta data.`,
           variant: 'destructive',
         });
-        return; // Não permite a alocação
+        return;
+      }
+
+      // Verificar disponibilidade para recursos físicos
+      if (recursoAtual.tipo === 'fisico') {
+        const disponibilidade = verificarDisponibilidade(recursoAtual.recursoId, dia, undefined, undefined, gravacaoId);
+        if (!disponibilidade.disponivel) {
+          toast({
+            title: 'Recurso indisponível',
+            description: disponibilidade.motivo || 'Este recurso físico não está disponível nesta data.',
+            variant: 'destructive',
+          });
+          return;
+        }
       }
     }
 
@@ -440,13 +457,57 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
     setHorarioModalRecurso(recurso);
     setHorarioModalDia(dia);
     const horarioExistente = recurso.horarios[dia];
-    setHorarioInicio(horarioExistente?.horaInicio || '08:00');
-    setHorarioFim(horarioExistente?.horaFim || '18:00');
+    
+    // Se há faixas de disponibilidade, usar como padrão
+    const faixas = getFaixasDisponiveis(recurso.recursoId, dia);
+    if (faixas.length > 0 && !horarioExistente) {
+      setHorarioInicio(faixas[0].horaInicio);
+      setHorarioFim(faixas[0].horaFim);
+    } else {
+      setHorarioInicio(horarioExistente?.horaInicio || '08:00');
+      setHorarioFim(horarioExistente?.horaFim || '18:00');
+    }
+    
     setHorarioModalOpen(true);
   };
 
+  // Obter informações de disponibilidade para o modal de horário
+  const horarioModalDisponibilidade = useMemo(() => {
+    if (!horarioModalRecurso || !horarioModalDia) return null;
+    
+    const faixas = getFaixasDisponiveis(horarioModalRecurso.recursoId, horarioModalDia);
+    const ocupacoes = getOcupacoesRecurso(horarioModalRecurso.recursoId, horarioModalDia, gravacaoId);
+    const disponibilidade = verificarDisponibilidade(
+      horarioModalRecurso.recursoId,
+      horarioModalDia,
+      horarioInicio,
+      horarioFim,
+      gravacaoId
+    );
+    
+    return { faixas, ocupacoes, disponibilidade };
+  }, [horarioModalRecurso, horarioModalDia, horarioInicio, horarioFim, gravacaoId, getFaixasDisponiveis, getOcupacoesRecurso, verificarDisponibilidade]);
+
   const handleSaveHorario = () => {
     if (!horarioModalRecurso) return;
+
+    // Verificar disponibilidade antes de salvar
+    const disponibilidade = verificarDisponibilidade(
+      horarioModalRecurso.recursoId,
+      horarioModalDia,
+      horarioInicio,
+      horarioFim,
+      gravacaoId
+    );
+
+    if (!disponibilidade.disponivel) {
+      toast({
+        title: 'Horário indisponível',
+        description: disponibilidade.motivo || 'O horário selecionado não está disponível.',
+        variant: 'destructive',
+      });
+      return;
+    }
 
     const updated = recursos.map((r) => {
       if (r.id === horarioModalRecurso.id) {
@@ -977,7 +1038,7 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
 
       {/* Modal para definir horário de ocupação (recursos físicos) */}
       <Dialog open={horarioModalOpen} onOpenChange={setHorarioModalOpen}>
-        <DialogContent className="sm:max-w-sm">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Clock className="w-5 h-5" />
@@ -989,6 +1050,69 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
           </DialogHeader>
 
           <div className="space-y-4">
+            {/* Informações de disponibilidade */}
+            {horarioModalDisponibilidade && (
+              <div className="space-y-2">
+                {horarioModalDisponibilidade.faixas.length > 0 ? (
+                  <div className="bg-muted/50 rounded-lg p-3 space-y-2">
+                    <Label className="text-xs font-medium flex items-center gap-1.5">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-primary" />
+                      Faixas de Disponibilidade
+                    </Label>
+                    <div className="space-y-1">
+                      {horarioModalDisponibilidade.faixas.map((faixa, idx) => (
+                        <div key={idx} className="flex items-center gap-2 text-xs">
+                          <Badge variant="outline" className="font-mono">
+                            {faixa.horaInicio} - {faixa.horaFim}
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-muted/30 border border-dashed rounded-lg p-3 text-center">
+                    <p className="text-xs text-muted-foreground">
+                      Nenhuma faixa de disponibilidade definida para esta data.
+                    </p>
+                  </div>
+                )}
+
+                {/* Ocupações existentes de outras gravações */}
+                {horarioModalDisponibilidade.ocupacoes.length > 0 && (
+                  <div className="bg-destructive/5 border border-destructive/20 rounded-lg p-3 space-y-2">
+                    <Label className="text-xs font-medium flex items-center gap-1.5 text-destructive">
+                      <Ban className="w-3.5 h-3.5" />
+                      Períodos já ocupados
+                    </Label>
+                    <div className="space-y-1">
+                      {horarioModalDisponibilidade.ocupacoes.map((oc, idx) => (
+                        <div key={idx} className="flex items-center justify-between text-xs">
+                          <span className="text-muted-foreground truncate max-w-[150px]" title={oc.gravacaoNome}>
+                            {oc.gravacaoNome}
+                          </span>
+                          <Badge variant="secondary" className="font-mono text-[10px]">
+                            {oc.horaInicio} - {oc.horaFim}
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Status da disponibilidade atual */}
+                {!horarioModalDisponibilidade.disponibilidade.disponivel && (
+                  <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-3">
+                    <div className="flex items-start gap-2">
+                      <AlertTriangle className="w-4 h-4 text-destructive mt-0.5 flex-shrink-0" />
+                      <p className="text-xs text-destructive">
+                        {horarioModalDisponibilidade.disponibilidade.motivo}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">Hora Início</Label>
@@ -1018,7 +1142,10 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
             <Button variant="outline" onClick={() => setHorarioModalOpen(false)}>
               Cancelar
             </Button>
-            <Button onClick={handleSaveHorario}>
+            <Button 
+              onClick={handleSaveHorario}
+              disabled={horarioModalDisponibilidade && !horarioModalDisponibilidade.disponibilidade.disponivel}
+            >
               Salvar
             </Button>
           </DialogFooter>
