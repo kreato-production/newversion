@@ -1019,9 +1019,15 @@ const Mapas = () => {
                                           <span className="font-medium">{ocupacaoDetalhada.percentualOcupacao}%</span>
                                         </div>
                                         <Progress value={ocupacaoDetalhada.percentualOcupacao} className="h-1.5" />
-                                        <div className="flex justify-between text-[10px] text-muted-foreground">
+                                        <div className="grid grid-cols-2 gap-x-4 text-[10px] text-muted-foreground">
                                           <span>Disponível: {Math.floor(ocupacaoDetalhada.totalDisponivel / 60)}h{ocupacaoDetalhada.totalDisponivel % 60 > 0 ? `${ocupacaoDetalhada.totalDisponivel % 60}min` : ''}</span>
                                           <span>Ocupado: {Math.floor(ocupacaoDetalhada.totalOcupado / 60)}h{ocupacaoDetalhada.totalOcupado % 60 > 0 ? `${ocupacaoDetalhada.totalOcupado % 60}min` : ''}</span>
+                                        </div>
+                                        <div className="flex items-center justify-between text-xs pt-1 border-t">
+                                          <span className="font-medium text-emerald-600">Tempo livre:</span>
+                                          <span className="font-bold text-emerald-600">
+                                            {Math.floor(ocupacaoDetalhada.tempoLivre / 60)}h{ocupacaoDetalhada.tempoLivre % 60 > 0 ? `${ocupacaoDetalhada.tempoLivre % 60}min` : ''}
+                                          </span>
                                         </div>
                                       </div>
                                     )}
@@ -1043,14 +1049,15 @@ const Mapas = () => {
                                         className="h-1"
                                       />
                                       <div className="text-[9px] text-muted-foreground text-center">
-                                        {ocupacaoDetalhada.percentualOcupacao}% ocupado
+                                        Livre: {Math.floor(ocupacaoDetalhada.tempoLivre / 60)}h{ocupacaoDetalhada.tempoLivre % 60 > 0 ? `${ocupacaoDetalhada.tempoLivre % 60}min` : ''}
                                       </div>
                                     </div>
                                   </TooltipTrigger>
                                   <TooltipContent>
-                                    <div className="text-xs">
+                                    <div className="text-xs space-y-1">
                                       <p>Ocupado: {Math.floor(ocupacaoDetalhada.totalOcupado / 60)}h{ocupacaoDetalhada.totalOcupado % 60 > 0 ? ` ${ocupacaoDetalhada.totalOcupado % 60}min` : ''}</p>
                                       <p>Disponível: {Math.floor(ocupacaoDetalhada.totalDisponivel / 60)}h{ocupacaoDetalhada.totalDisponivel % 60 > 0 ? ` ${ocupacaoDetalhada.totalDisponivel % 60}min` : ''}</p>
+                                      <p className="font-medium text-emerald-600">Livre para uso: {Math.floor(ocupacaoDetalhada.tempoLivre / 60)}h{ocupacaoDetalhada.tempoLivre % 60 > 0 ? ` ${ocupacaoDetalhada.tempoLivre % 60}min` : ''}</p>
                                     </div>
                                   </TooltipContent>
                                 </Tooltip>

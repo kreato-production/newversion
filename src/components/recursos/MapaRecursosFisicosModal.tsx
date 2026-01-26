@@ -17,7 +17,8 @@ import {
 } from '@/components/ui/select';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { ChevronLeft, ChevronRight, MapPin, Loader2 } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
+import { ChevronLeft, ChevronRight, MapPin, Loader2, Clock, Film } from 'lucide-react';
 import {
   format,
   startOfMonth,
@@ -36,6 +37,7 @@ import {
 import { ptBR } from 'date-fns/locale';
 import type { RecursoFisico, FaixaDisponibilidade } from '@/pages/recursos/RecursosFisicos';
 import { useWeatherForecast } from '@/hooks/useWeatherForecast';
+import { useRecursoFisicoDisponibilidade } from '@/hooks/useRecursoFisicoDisponibilidade';
 
 interface MapaRecursosFisicosModalProps {
   isOpen: boolean;
@@ -59,6 +61,7 @@ export const MapaRecursosFisicosModal = ({
   const [periodoFim, setPeriodoFim] = useState('');
   
   const { weather, loading: weatherLoading, getWeatherForDate } = useWeatherForecast(16);
+  const { getOcupacaoDetalhada, formatarMinutos } = useRecursoFisicoDisponibilidade();
 
   // Calcular dias a exibir baseado no modo de visualização
   const diasExibidos = useMemo(() => {
@@ -251,13 +254,25 @@ export const MapaRecursosFisicosModal = ({
           )}
 
           {/* Legenda */}
-          <div className="flex items-center gap-3 ml-auto text-xs">
+          <div className="flex items-center gap-3 ml-auto text-xs flex-wrap">
             <span className="font-medium">Legenda:</span>
             <div className="flex items-center gap-1">
               <span className="w-6 h-5 bg-emerald-500 rounded flex items-center justify-center text-white text-[10px] font-bold">
                 DI
               </span>
               <span>Disponível</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="w-6 h-5 bg-amber-500 rounded flex items-center justify-center text-white text-[10px] font-bold">
+                50%
+              </span>
+              <span>Parcial</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="w-6 h-5 bg-red-500 rounded flex items-center justify-center text-white text-[10px] font-bold">
+                OC
+              </span>
+              <span>Ocupado</span>
             </div>
             <div className="flex items-center gap-1">
               <span className="w-6 h-5 bg-gray-400 rounded flex items-center justify-center text-white text-[10px] font-bold">
@@ -368,13 +383,37 @@ export const MapaRecursosFisicosModal = ({
                     const isFimDeSemana = diaSemana === 0 || diaSemana === 6;
                     const isToday = isSameDay(dia, new Date());
                     const horario = status === 'DI' ? getHorarioDisponivel(recurso, dia) : null;
+                    const dataStr = format(dia, 'yyyy-MM-dd');
+                    
+                    // Obter ocupação detalhada
+                    const ocupacaoDetalhada = getOcupacaoDetalhada(recurso.id, dataStr);
+                    const temOcupacoes = ocupacaoDetalhada.ocupacoes.length > 0;
+                    const temDisponibilidade = ocupacaoDetalhada.totalDisponivel > 0;
+                    
+                    // Determinar cor baseado na ocupação
+                    let bgColor = config.bg;
+                    let label = config.label;
+                    
+                    if (status === 'DI' && temOcupacoes) {
+                      // Se tem ocupações, mostrar percentual ou "OC" se totalmente ocupado
+                      if (ocupacaoDetalhada.percentualOcupacao >= 100) {
+                        bgColor = 'bg-red-500';
+                        label = 'OC';
+                      } else if (ocupacaoDetalhada.percentualOcupacao >= 50) {
+                        bgColor = 'bg-amber-500';
+                        label = `${ocupacaoDetalhada.percentualOcupacao}%`;
+                      } else {
+                        bgColor = 'bg-emerald-500';
+                        label = `${ocupacaoDetalhada.percentualOcupacao}%`;
+                      }
+                    }
                     
                     return (
                       <TooltipProvider key={dia.toISOString()}>
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <div 
-                              className={`w-14 min-w-14 p-0.5 border-r flex items-center justify-center ${
+                              className={`w-14 min-w-14 p-0.5 border-r flex flex-col items-center justify-center gap-0.5 ${
                                 isToday 
                                   ? 'bg-primary/10' 
                                   : isFimDeSemana 
@@ -383,23 +422,68 @@ export const MapaRecursosFisicosModal = ({
                               }`}
                             >
                               <span
-                                className={`w-8 h-5 rounded flex items-center justify-center text-[10px] font-bold ${config.bg} ${config.text}`}
+                                className={`w-10 h-5 rounded flex items-center justify-center text-[9px] font-bold ${bgColor} text-white`}
                               >
-                                {config.label}
+                                {label}
                               </span>
+                              {temDisponibilidade && temOcupacoes && ocupacaoDetalhada.percentualOcupacao < 100 && (
+                                <Progress 
+                                  value={ocupacaoDetalhada.percentualOcupacao} 
+                                  className="h-1 w-10"
+                                />
+                              )}
                             </div>
                           </TooltipTrigger>
-                          <TooltipContent>
-                            <div className="text-center">
+                          <TooltipContent className="max-w-xs">
+                            <div className="space-y-2">
                               <div className="font-medium">{recurso.nome}</div>
                               <div className="text-xs">{format(dia, 'dd/MM/yyyy')}</div>
-                              <div className={`text-xs font-medium ${status === 'DI' ? 'text-emerald-600' : 'text-gray-500'}`}>
-                                {config.title}
-                              </div>
-                              {horario && (
-                                <div className="text-xs text-muted-foreground mt-1">
-                                  Horário: {horario}
+                              
+                              {status === 'IN' ? (
+                                <div className="text-xs text-muted-foreground">
+                                  Recurso indisponível nesta data
                                 </div>
+                              ) : (
+                                <>
+                                  {horario && (
+                                    <div className="text-xs">
+                                      <Clock className="inline w-3 h-3 mr-1" />
+                                      Disponível: {horario}
+                                    </div>
+                                  )}
+                                  
+                                  {temDisponibilidade && (
+                                    <div className="pt-1 border-t space-y-1">
+                                      <div className="flex justify-between text-xs">
+                                        <span>Total disponível:</span>
+                                        <span className="font-medium">{formatarMinutos(ocupacaoDetalhada.totalDisponivel)}</span>
+                                      </div>
+                                      <div className="flex justify-between text-xs">
+                                        <span>Ocupado:</span>
+                                        <span className="font-medium text-amber-600">{formatarMinutos(ocupacaoDetalhada.totalOcupado)}</span>
+                                      </div>
+                                      <div className="flex justify-between text-xs">
+                                        <span>Livre para uso:</span>
+                                        <span className="font-medium text-emerald-600">{formatarMinutos(ocupacaoDetalhada.tempoLivre)}</span>
+                                      </div>
+                                    </div>
+                                  )}
+                                  
+                                  {temOcupacoes && (
+                                    <div className="pt-1 border-t">
+                                      <div className="text-xs font-medium mb-1">Gravações alocadas:</div>
+                                      {ocupacaoDetalhada.ocupacoes.map((oc, idx) => (
+                                        <div key={idx} className="text-xs flex items-center gap-1 py-0.5">
+                                          <Film className="w-3 h-3 text-muted-foreground" />
+                                          <span className="font-medium">{oc.gravacaoNome}</span>
+                                          <span className="text-muted-foreground">
+                                            ({oc.horaInicio} - {oc.horaFim})
+                                          </span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </>
                               )}
                             </div>
                           </TooltipContent>

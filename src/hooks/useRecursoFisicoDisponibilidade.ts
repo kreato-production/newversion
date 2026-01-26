@@ -261,6 +261,7 @@ export const useRecursoFisicoDisponibilidade = () => {
     ocupacoes: (OcupacaoExistente & { duracaoMinutos: number })[];
     totalDisponivel: number;
     totalOcupado: number;
+    tempoLivre: number;
     percentualOcupacao: number;
   } => {
     const faixas = getFaixasDisponiveis(recursoId, dataStr);
@@ -279,21 +280,34 @@ export const useRecursoFisicoDisponibilidade = () => {
     
     const totalDisponivel = faixasInfo.reduce((sum, f) => sum + f.duracaoMinutos, 0);
     const totalOcupado = ocupacoesInfo.reduce((sum, o) => sum + o.duracaoMinutos, 0);
+    const tempoLivre = Math.max(0, totalDisponivel - totalOcupado);
     
     return {
       faixasDisponiveis: faixasInfo,
       ocupacoes: ocupacoesInfo,
       totalDisponivel,
       totalOcupado,
+      tempoLivre,
       percentualOcupacao: totalDisponivel > 0 ? Math.round((totalOcupado / totalDisponivel) * 100) : 0,
     };
   }, [getFaixasDisponiveis, getOcupacoesRecurso]);
+
+  // Formatar minutos em string legível (ex: "3h30min" ou "45min")
+  const formatarMinutos = useCallback((minutos: number): string => {
+    if (minutos <= 0) return '0min';
+    const horas = Math.floor(minutos / 60);
+    const mins = minutos % 60;
+    if (horas === 0) return `${mins}min`;
+    if (mins === 0) return `${horas}h`;
+    return `${horas}h${mins}min`;
+  }, []);
 
   return {
     verificarDisponibilidade,
     getFaixasDisponiveis,
     getOcupacoesRecurso,
     getOcupacaoDetalhada,
+    formatarMinutos,
     recursosFisicos,
   };
 };
