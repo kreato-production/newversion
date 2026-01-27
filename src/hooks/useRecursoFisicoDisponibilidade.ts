@@ -1,4 +1,4 @@
-import { useMemo, useCallback } from 'react';
+import { useCallback } from 'react';
 import { parseISO, isWithinInterval, getDay } from 'date-fns';
 
 interface FaixaDisponibilidade {
@@ -70,12 +70,13 @@ const horariosSeOverlap = (
   return i1 < f2 && f1 > i2;
 };
 
+// Função helper para carregar recursos físicos do localStorage (sempre atualizado)
+const getRecursosFisicos = (): RecursoFisico[] => {
+  const stored = localStorage.getItem('kreato_recursos_fisicos');
+  return stored ? JSON.parse(stored) : [];
+};
+
 export const useRecursoFisicoDisponibilidade = () => {
-  // Carrega recursos físicos do localStorage
-  const recursosFisicos = useMemo<RecursoFisico[]>(() => {
-    const stored = localStorage.getItem('kreato_recursos_fisicos');
-    return stored ? JSON.parse(stored) : [];
-  }, []);
 
   // Busca todas as ocupações de um recurso físico em uma data específica (de todas as gravações)
   const getOcupacoesRecurso = useCallback((
@@ -124,6 +125,7 @@ export const useRecursoFisicoDisponibilidade = () => {
     horaFim?: string,
     gravacaoIdAtual?: string
   ): DisponibilidadeResult => {
+    const recursosFisicos = getRecursosFisicos();
     const recurso = recursosFisicos.find(r => r.id === recursoId);
     
     if (!recurso) {
@@ -230,13 +232,14 @@ export const useRecursoFisicoDisponibilidade = () => {
       tempoLivreMinutos: tempoLivreTotal,
       ocupacoesExistentes,
     };
-  }, [recursosFisicos, getOcupacoesRecurso]);
+  }, [getOcupacoesRecurso]);
 
   // Retorna as faixas de disponibilidade válidas para uma data
   const getFaixasDisponiveis = useCallback((
     recursoId: string,
     dataStr: string
   ): FaixaDisponibilidade[] => {
+    const recursosFisicos = getRecursosFisicos();
     const recurso = recursosFisicos.find(r => r.id === recursoId);
     if (!recurso || !recurso.faixasDisponibilidade) return [];
     
@@ -250,7 +253,7 @@ export const useRecursoFisicoDisponibilidade = () => {
       return isWithinInterval(data, { start: inicio, end: fim }) &&
              faixa.diasSemana.includes(diaSemana);
     });
-  }, [recursosFisicos]);
+  }, []);
 
   // Calcula ocupação detalhada de um recurso em uma data (para mapa de ocupação)
   const getOcupacaoDetalhada = useCallback((
@@ -308,6 +311,6 @@ export const useRecursoFisicoDisponibilidade = () => {
     getOcupacoesRecurso,
     getOcupacaoDetalhada,
     formatarMinutos,
-    recursosFisicos,
+    getRecursosFisicos,
   };
 };
