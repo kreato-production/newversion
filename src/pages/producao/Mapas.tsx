@@ -190,7 +190,8 @@ const Mapas = () => {
     return custoTotal;
   };
 
-  useEffect(() => {
+  // Função para recarregar dados do localStorage
+  const recarregarDados = () => {
     // Carregar gravações
     const storedGravacoes = localStorage.getItem('kreato_gravacoes');
     const gravacoesList: Gravacao[] = storedGravacoes ? JSON.parse(storedGravacoes) : [];
@@ -225,6 +226,18 @@ const Mapas = () => {
       }
     });
     setAlocacoesPorGravacao(alocacoes);
+  };
+
+  // Carregar dados inicialmente e quando a aba mudar
+  useEffect(() => {
+    recarregarDados();
+  }, [activeTab]);
+
+  // Também recarregar quando o componente ganhar foco (para pegar mudanças feitas em outras páginas)
+  useEffect(() => {
+    const handleFocus = () => recarregarDados();
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
   }, []);
 
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(currentWeekStart, i));
@@ -260,14 +273,20 @@ const Mapas = () => {
     }
   };
 
-  // Calcular ocupações de recursos físicos baseado nas alocações
+  // Calcular ocupações de recursos físicos baseado nas alocações (lendo diretamente do localStorage para dados atualizados)
   const ocupacoesFisicas = useMemo(() => {
     const ocupacoes: Record<string, Record<string, OcupacaoItem[]>> = {};
-
-    Object.entries(alocacoesPorGravacao).forEach(([gravacaoId, recursos]) => {
-      const gravacao = gravacoes.find((g) => g.id === gravacaoId);
-      if (!gravacao) return;
-
+    
+    // Carregar todas as gravações diretamente do localStorage para ter dados atualizados
+    const gravacoesList = JSON.parse(localStorage.getItem('kreato_gravacoes') || '[]') as Gravacao[];
+    
+    // Para cada gravação, carregar seus recursos alocados
+    gravacoesList.forEach((gravacao) => {
+      const recursosStored = localStorage.getItem(`kreato_gravacao_recursos_${gravacao.id}`);
+      if (!recursosStored) return;
+      
+      const recursos: RecursoAlocado[] = JSON.parse(recursosStored);
+      
       recursos
         .filter((r) => r.tipo === 'fisico')
         .forEach((recurso) => {
