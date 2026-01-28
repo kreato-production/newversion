@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import {
   Table,
   TableBody,
@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/table';
 import { ArrowUpDown, ArrowUp, ArrowDown, GripVertical } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { TablePagination } from './TablePagination';
 
 export interface Column<T> {
   key: string;
@@ -24,6 +25,8 @@ interface SortableTableProps<T> {
   getRowKey: (item: T) => string;
   onColumnsReorder?: (columns: Column<T>[]) => void;
   storageKey?: string;
+  paginated?: boolean;
+  defaultPageSize?: number;
 }
 
 type SortDirection = 'asc' | 'desc' | null;
@@ -33,6 +36,8 @@ export function SortableTable<T>({
   columns: initialColumns,
   getRowKey,
   storageKey,
+  paginated = true,
+  defaultPageSize = 20,
 }: SortableTableProps<T>) {
   // Load saved column order from localStorage
   const [columns, setColumns] = useState<Column<T>[]>(() => {
@@ -57,6 +62,16 @@ export function SortableTable<T>({
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
   const [draggedColumn, setDraggedColumn] = useState<string | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(() => {
+    if (storageKey) {
+      const savedPageSize = localStorage.getItem(`${storageKey}_pageSize`);
+      if (savedPageSize) return Number(savedPageSize);
+    }
+    return defaultPageSize;
+  });
 
   const handleSort = (key: string) => {
     if (sortKey === key) {
@@ -72,7 +87,7 @@ export function SortableTable<T>({
     }
   };
 
-  const sortedData = useCallback(() => {
+  const sortedData = useMemo(() => {
     if (!sortKey || !sortDirection) return data;
 
     return [...data].sort((a, b) => {
@@ -93,7 +108,36 @@ export function SortableTable<T>({
 
       return sortDirection === 'asc' ? comparison : -comparison;
     });
-  }, [data, sortKey, sortDirection])();
+  }, [data, sortKey, sortDirection]);
+
+  // Paginated data
+  const paginatedData = useMemo(() => {
+    if (!paginated) return sortedData;
+    const start = (currentPage - 1) * pageSize;
+    const end = start + pageSize;
+    return sortedData.slice(start, end);
+  }, [sortedData, currentPage, pageSize, paginated]);
+
+  const totalPages = Math.ceil(data.length / pageSize);
+
+  // Reset to page 1 when data changes significantly
+  useMemo(() => {
+    if (currentPage > Math.ceil(data.length / pageSize) && data.length > 0) {
+      setCurrentPage(1);
+    }
+  }, [data.length, pageSize, currentPage]);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const handlePageSizeChange = (size: number) => {
+    setPageSize(size);
+    setCurrentPage(1);
+    if (storageKey) {
+      localStorage.setItem(`${storageKey}_pageSize`, String(size));
+    }
+  };
 
   const handleDragStart = (e: React.DragEvent, columnKey: string) => {
     setDraggedColumn(columnKey);
@@ -156,48 +200,61 @@ export function SortableTable<T>({
   };
 
   return (
-    <Table>
-      <TableHeader>
-        <TableRow className="h-9">
-          {columns.map((column) => (
-            <TableHead
-              key={column.key}
-              className={cn(
-                'cursor-pointer select-none transition-colors hover:bg-muted/50 py-2',
-                column.className,
-                dragOverColumn === column.key && 'bg-primary/10 border-l-2 border-primary',
-                draggedColumn === column.key && 'opacity-50'
-              )}
-              draggable
-              onDragStart={(e) => handleDragStart(e, column.key)}
-              onDragOver={(e) => handleDragOver(e, column.key)}
-              onDragLeave={handleDragLeave}
-              onDrop={(e) => handleDrop(e, column.key)}
-              onDragEnd={handleDragEnd}
-              onClick={() => column.sortable !== false && handleSort(column.key)}
-            >
-              <div className="flex items-center gap-1">
-                <GripVertical className="w-3 h-3 opacity-30 cursor-grab" />
-                <span>{column.label}</span>
-                {column.sortable !== false && getSortIcon(column.key)}
-              </div>
-            </TableHead>
-          ))}
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {sortedData.map((item) => (
-          <TableRow key={getRowKey(item)} className="h-10">
+    <div>
+      <Table>
+        <TableHeader>
+          <TableRow className="h-9">
             {columns.map((column) => (
-              <TableCell key={column.key} className={cn('py-2', column.className)}>
-                {column.render 
-                  ? column.render(item) 
-                  : ((item as Record<string, unknown>)[column.key] as React.ReactNode) || '-'}
-              </TableCell>
+              <TableHead
+                key={column.key}
+                className={cn(
+                  'cursor-pointer select-none transition-colors hover:bg-muted/50 py-2',
+                  column.className,
+                  dragOverColumn === column.key && 'bg-primary/10 border-l-2 border-primary',
+                  draggedColumn === column.key && 'opacity-50'
+                )}
+                draggable
+                onDragStart={(e) => handleDragStart(e, column.key)}
+                onDragOver={(e) => handleDragOver(e, column.key)}
+                onDragLeave={handleDragLeave}
+                onDrop={(e) => handleDrop(e, column.key)}
+                onDragEnd={handleDragEnd}
+                onClick={() => column.sortable !== false && handleSort(column.key)}
+              >
+                <div className="flex items-center gap-1">
+                  <GripVertical className="w-3 h-3 opacity-30 cursor-grab" />
+                  <span>{column.label}</span>
+                  {column.sortable !== false && getSortIcon(column.key)}
+                </div>
+              </TableHead>
             ))}
           </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+        </TableHeader>
+        <TableBody>
+          {paginatedData.map((item) => (
+            <TableRow key={getRowKey(item)} className="h-10">
+              {columns.map((column) => (
+                <TableCell key={column.key} className={cn('py-2', column.className)}>
+                  {column.render 
+                    ? column.render(item) 
+                    : ((item as Record<string, unknown>)[column.key] as React.ReactNode) || '-'}
+                </TableCell>
+              ))}
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+      
+      {paginated && data.length > 0 && (
+        <TablePagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          pageSize={pageSize}
+          totalItems={data.length}
+          onPageChange={handlePageChange}
+          onPageSizeChange={handlePageSizeChange}
+        />
+      )}
+    </div>
   );
 }
