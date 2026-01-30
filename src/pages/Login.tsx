@@ -6,18 +6,32 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Eye, EyeOff, LogIn, Zap } from 'lucide-react';
+import { Eye, EyeOff, LogIn, Zap, UserPlus } from 'lucide-react';
 import { LanguageSelector } from '@/components/shared/LanguageSelector';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import kreatoLogo from '@/assets/kreato-logo.png';
 
 const Login = () => {
-  const [usuario, setUsuario] = useState('');
+  // Login form state
+  const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const { login } = useAuth();
+  
+  // Signup form state
+  const [signupNome, setSignupNome] = useState('');
+  const [signupUsuario, setSignupUsuario] = useState('');
+  const [signupEmail, setSignupEmail] = useState('');
+  const [signupSenha, setSignupSenha] = useState('');
+  const [signupConfirmSenha, setSignupConfirmSenha] = useState('');
+  const [showSignupPassword, setShowSignupPassword] = useState(false);
+  const [signupError, setSignupError] = useState('');
+  const [signupSuccess, setSignupSuccess] = useState('');
+  const [isSigningUp, setIsSigningUp] = useState(false);
+  
+  const { login, signup, isAuthenticated, isLoading: authLoading } = useAuth();
   const { t } = useLanguage();
   const navigate = useNavigate();
 
@@ -25,21 +39,66 @@ const Login = () => {
     setMounted(true);
   }, []);
 
+  useEffect(() => {
+    if (!authLoading && isAuthenticated) {
+      navigate('/dashboard');
+    }
+  }, [isAuthenticated, authLoading, navigate]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setIsLoading(true);
 
-    setTimeout(() => {
-      const success = login(usuario, senha);
-      if (success) {
-        navigate('/dashboard');
-      } else {
-        setError(t('login.error'));
-      }
-      setIsLoading(false);
-    }, 500);
+    const result = await login(email, senha);
+    
+    if (result.success) {
+      navigate('/dashboard');
+    } else {
+      setError(result.error || t('login.error'));
+    }
+    setIsLoading(false);
   };
+
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSignupError('');
+    setSignupSuccess('');
+
+    if (signupSenha !== signupConfirmSenha) {
+      setSignupError('As senhas não coincidem');
+      return;
+    }
+
+    if (signupSenha.length < 6) {
+      setSignupError('A senha deve ter pelo menos 6 caracteres');
+      return;
+    }
+
+    setIsSigningUp(true);
+
+    const result = await signup(signupEmail, signupSenha, signupNome, signupUsuario);
+    
+    if (result.success) {
+      setSignupSuccess('Conta criada com sucesso! Verifique seu e-mail para confirmar o cadastro.');
+      setSignupNome('');
+      setSignupUsuario('');
+      setSignupEmail('');
+      setSignupSenha('');
+      setSignupConfirmSenha('');
+    } else {
+      setSignupError(result.error || 'Erro ao criar conta');
+    }
+    setIsSigningUp(false);
+  };
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
+        <div className="w-8 h-8 border-2 border-kreato-cyan border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-4 overflow-hidden">
@@ -120,87 +179,225 @@ const Login = () => {
           </CardHeader>
           
           <CardContent className={`transition-all duration-700 delay-700 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-            <form onSubmit={handleSubmit} className="space-y-5">
-              <div className="space-y-2">
-                <Label htmlFor="usuario" className="text-slate-300 text-sm font-medium">
-                  {t('login.user')}
-                </Label>
-                <div className="relative group">
-                  <div className="absolute -inset-[1px] bg-gradient-to-r from-kreato-cyan/0 via-kreato-cyan/50 to-kreato-cyan/0 rounded-md opacity-0 group-focus-within:opacity-100 transition-opacity duration-300 blur-sm" />
-                  <Input
-                    id="usuario"
-                    type="text"
-                    placeholder={t('login.user.placeholder')}
-                    value={usuario}
-                    onChange={(e) => setUsuario(e.target.value)}
-                    required
-                    className="h-12 bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-500 focus:border-kreato-cyan/50 focus:ring-kreato-cyan/20 transition-all duration-300 relative"
-                  />
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="senha" className="text-slate-300 text-sm font-medium">
-                  {t('login.password')}
-                </Label>
-                <div className="relative group">
-                  <div className="absolute -inset-[1px] bg-gradient-to-r from-kreato-cyan/0 via-kreato-cyan/50 to-kreato-cyan/0 rounded-md opacity-0 group-focus-within:opacity-100 transition-opacity duration-300 blur-sm" />
-                  <Input
-                    id="senha"
-                    type={showPassword ? 'text' : 'password'}
-                    placeholder={t('login.password.placeholder')}
-                    value={senha}
-                    onChange={(e) => setSenha(e.target.value)}
-                    required
-                    className="h-12 bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-500 focus:border-kreato-cyan/50 focus:ring-kreato-cyan/20 pr-12 transition-all duration-300 relative"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-kreato-cyan transition-colors duration-300"
+            <Tabs defaultValue="login" className="w-full">
+              <TabsList className="grid w-full grid-cols-2 mb-4 bg-slate-800/50">
+                <TabsTrigger value="login" className="data-[state=active]:bg-kreato-cyan/20">
+                  <LogIn size={16} className="mr-2" />
+                  Entrar
+                </TabsTrigger>
+                <TabsTrigger value="signup" className="data-[state=active]:bg-kreato-cyan/20">
+                  <UserPlus size={16} className="mr-2" />
+                  Cadastrar
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="login">
+                <form onSubmit={handleSubmit} className="space-y-5">
+                  <div className="space-y-2">
+                    <Label htmlFor="email" className="text-slate-300 text-sm font-medium">
+                      E-mail
+                    </Label>
+                    <div className="relative group">
+                      <div className="absolute -inset-[1px] bg-gradient-to-r from-kreato-cyan/0 via-kreato-cyan/50 to-kreato-cyan/0 rounded-md opacity-0 group-focus-within:opacity-100 transition-opacity duration-300 blur-sm" />
+                      <Input
+                        id="email"
+                        type="email"
+                        placeholder="seu@email.com"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        required
+                        className="h-12 bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-500 focus:border-kreato-cyan/50 focus:ring-kreato-cyan/20 transition-all duration-300 relative"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="senha" className="text-slate-300 text-sm font-medium">
+                      {t('login.password')}
+                    </Label>
+                    <div className="relative group">
+                      <div className="absolute -inset-[1px] bg-gradient-to-r from-kreato-cyan/0 via-kreato-cyan/50 to-kreato-cyan/0 rounded-md opacity-0 group-focus-within:opacity-100 transition-opacity duration-300 blur-sm" />
+                      <Input
+                        id="senha"
+                        type={showPassword ? 'text' : 'password'}
+                        placeholder={t('login.password.placeholder')}
+                        value={senha}
+                        onChange={(e) => setSenha(e.target.value)}
+                        required
+                        className="h-12 bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-500 focus:border-kreato-cyan/50 focus:ring-kreato-cyan/20 pr-12 transition-all duration-300 relative"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-kreato-cyan transition-colors duration-300"
+                      >
+                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {error && (
+                    <div className="relative overflow-hidden rounded-md">
+                      <div className="absolute inset-0 bg-destructive/20 animate-pulse" />
+                      <p className="text-sm text-destructive text-center py-2 relative">
+                        {error}
+                      </p>
+                    </div>
+                  )}
+
+                  <Button
+                    type="submit"
+                    className="w-full h-12 relative overflow-hidden group bg-gradient-to-r from-kreato-cyan via-primary to-kreato-orange hover:opacity-90 transition-all duration-300 text-white font-semibold"
+                    disabled={isLoading}
                   >
-                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
-                </div>
-              </div>
+                    {/* Button Shine Effect */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+                    
+                    {isLoading ? (
+                      <span className="flex items-center gap-2 relative z-10">
+                        <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        {t('login.loading')}
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-2 relative z-10">
+                        <LogIn size={18} />
+                        {t('login.submit')}
+                      </span>
+                    )}
+                  </Button>
+                </form>
+              </TabsContent>
 
-              {error && (
-                <div className="relative overflow-hidden rounded-md">
-                  <div className="absolute inset-0 bg-destructive/20 animate-pulse" />
-                  <p className="text-sm text-destructive text-center py-2 relative">
-                    {error}
-                  </p>
-                </div>
-              )}
+              <TabsContent value="signup">
+                <form onSubmit={handleSignup} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="signupNome" className="text-slate-300 text-sm font-medium">
+                      Nome Completo
+                    </Label>
+                    <Input
+                      id="signupNome"
+                      type="text"
+                      placeholder="Seu nome completo"
+                      value={signupNome}
+                      onChange={(e) => setSignupNome(e.target.value)}
+                      required
+                      className="h-10 bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-500 focus:border-kreato-cyan/50 focus:ring-kreato-cyan/20"
+                    />
+                  </div>
 
-              <Button
-                type="submit"
-                className="w-full h-12 relative overflow-hidden group bg-gradient-to-r from-kreato-cyan via-primary to-kreato-orange hover:opacity-90 transition-all duration-300 text-white font-semibold"
-                disabled={isLoading}
-              >
-                {/* Button Shine Effect */}
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
-                
-                {isLoading ? (
-                  <span className="flex items-center gap-2 relative z-10">
-                    <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    {t('login.loading')}
-                  </span>
-                ) : (
-                  <span className="flex items-center gap-2 relative z-10">
-                    <LogIn size={18} />
-                    {t('login.submit')}
-                  </span>
-                )}
-              </Button>
-            </form>
+                  <div className="space-y-2">
+                    <Label htmlFor="signupUsuario" className="text-slate-300 text-sm font-medium">
+                      Nome de Usuário
+                    </Label>
+                    <Input
+                      id="signupUsuario"
+                      type="text"
+                      placeholder="seu_usuario"
+                      value={signupUsuario}
+                      onChange={(e) => setSignupUsuario(e.target.value)}
+                      required
+                      className="h-10 bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-500 focus:border-kreato-cyan/50 focus:ring-kreato-cyan/20"
+                    />
+                  </div>
 
-            <div className={`mt-6 pt-4 border-t border-slate-700/50 transition-all duration-700 delay-1000 ${mounted ? 'opacity-100' : 'opacity-0'}`}>
-              <p className="text-xs text-slate-500 text-center flex items-center justify-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                {t('login.hint')}
-              </p>
-            </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="signupEmail" className="text-slate-300 text-sm font-medium">
+                      E-mail
+                    </Label>
+                    <Input
+                      id="signupEmail"
+                      type="email"
+                      placeholder="seu@email.com"
+                      value={signupEmail}
+                      onChange={(e) => setSignupEmail(e.target.value)}
+                      required
+                      className="h-10 bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-500 focus:border-kreato-cyan/50 focus:ring-kreato-cyan/20"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label htmlFor="signupSenha" className="text-slate-300 text-sm font-medium">
+                        Senha
+                      </Label>
+                      <div className="relative">
+                        <Input
+                          id="signupSenha"
+                          type={showSignupPassword ? 'text' : 'password'}
+                          placeholder="••••••"
+                          value={signupSenha}
+                          onChange={(e) => setSignupSenha(e.target.value)}
+                          required
+                          minLength={6}
+                          className="h-10 bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-500 focus:border-kreato-cyan/50 focus:ring-kreato-cyan/20 pr-10"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowSignupPassword(!showSignupPassword)}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-kreato-cyan"
+                        >
+                          {showSignupPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="signupConfirmSenha" className="text-slate-300 text-sm font-medium">
+                        Confirmar
+                      </Label>
+                      <Input
+                        id="signupConfirmSenha"
+                        type={showSignupPassword ? 'text' : 'password'}
+                        placeholder="••••••"
+                        value={signupConfirmSenha}
+                        onChange={(e) => setSignupConfirmSenha(e.target.value)}
+                        required
+                        minLength={6}
+                        className="h-10 bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-500 focus:border-kreato-cyan/50 focus:ring-kreato-cyan/20"
+                      />
+                    </div>
+                  </div>
+
+                  {signupError && (
+                    <div className="relative overflow-hidden rounded-md">
+                      <div className="absolute inset-0 bg-destructive/20" />
+                      <p className="text-sm text-destructive text-center py-2 relative">
+                        {signupError}
+                      </p>
+                    </div>
+                  )}
+
+                  {signupSuccess && (
+                    <div className="relative overflow-hidden rounded-md">
+                      <div className="absolute inset-0 bg-green-500/20" />
+                      <p className="text-sm text-green-400 text-center py-2 relative">
+                        {signupSuccess}
+                      </p>
+                    </div>
+                  )}
+
+                  <Button
+                    type="submit"
+                    className="w-full h-12 relative overflow-hidden group bg-gradient-to-r from-kreato-cyan via-primary to-kreato-orange hover:opacity-90 transition-all duration-300 text-white font-semibold"
+                    disabled={isSigningUp}
+                  >
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+                    
+                    {isSigningUp ? (
+                      <span className="flex items-center gap-2 relative z-10">
+                        <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        Criando conta...
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-2 relative z-10">
+                        <UserPlus size={18} />
+                        Criar Conta
+                      </span>
+                    )}
+                  </Button>
+                </form>
+              </TabsContent>
+            </Tabs>
           </CardContent>
         </Card>
       </div>
