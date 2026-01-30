@@ -1,8 +1,8 @@
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
-import { Edit, Trash2, Users, UserX, Calendar } from 'lucide-react';
+import { Edit, Trash2, Users, UserX, Calendar, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { RecursoHumanoFormModal } from '@/components/recursos/RecursoHumanoFormModal';
@@ -10,6 +10,10 @@ import { MapaEscalasModal } from '@/components/recursos/MapaEscalasModal';
 import { parseISO, isWithinInterval, startOfDay } from 'date-fns';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { SortableTable, Column } from '@/components/shared/SortableTable';
+import { supabase } from '@/integrations/supabase/client';
+import type { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
+
+type RecursoHumanoDB = Tables<'recursos_humanos'>;
 
 export interface Anexo {
   id: string;
@@ -33,7 +37,7 @@ export interface Escala {
   horaInicio: string;
   dataFim: string;
   horaFim: string;
-  diasSemana: number[]; // 0 = Domingo, 1 = Segunda, ..., 6 = Sábado
+  diasSemana: number[];
 }
 
 export interface RecursoHumano {
@@ -47,7 +51,9 @@ export interface RecursoHumano {
   telefone: string;
   email: string;
   departamento: string;
+  departamentoId?: string;
   funcao: string;
+  funcaoId?: string;
   custoHora: number;
   dataContratacao: string;
   status: 'Ativo' | 'Inativo';
@@ -58,73 +64,195 @@ export interface RecursoHumano {
   escalas?: Escala[];
 }
 
+const mapDbToRecursoHumano = (
+  db: RecursoHumanoDB & { 
+    departamentos?: { nome: string } | null; 
+    funcoes?: { nome: string } | null;
+  },
+  ausencias: Ausencia[] = [],
+  escalas: Escala[] = [],
+  anexos: Anexo[] = []
+): RecursoHumano => ({
+  id: db.id,
+  codigoExterno: db.codigo_externo || '',
+  nome: db.nome,
+  sobrenome: db.sobrenome,
+  foto: db.foto_url || undefined,
+  dataNascimento: db.data_nascimento || '',
+  sexo: db.sexo || '',
+  telefone: db.telefone || '',
+  email: db.email || '',
+  departamento: db.departamentos?.nome || '',
+  departamentoId: db.departamento_id || undefined,
+  funcao: db.funcoes?.nome || '',
+  funcaoId: db.funcao_id || undefined,
+  custoHora: db.custo_hora || 0,
+  dataContratacao: db.data_contratacao || '',
+  status: db.status || 'Ativo',
+  dataCadastro: db.created_at ? new Date(db.created_at).toLocaleDateString('pt-BR') : '',
+  usuarioCadastro: '',
+  ausencias,
+  escalas,
+  anexos,
+});
+
 const RecursosHumanos = () => {
   const { toast } = useToast();
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isMapaOpen, setIsMapaOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<RecursoHumano | null>(null);
-  const [items, setItems] = useState<RecursoHumano[]>(() => {
-    const stored = localStorage.getItem('kreato_recursos_humanos');
-    if (stored) {
-      const parsed = JSON.parse(stored);
-      if (parsed.length > 0) return parsed;
-    }
-    // Colaborador de exemplo
-    const exemploColaborador: RecursoHumano = {
-      id: crypto.randomUUID(),
-      codigoExterno: 'COL001',
-      nome: 'Maria',
-      sobrenome: 'Silva',
-      dataNascimento: '1990-05-15',
-      sexo: 'Feminino',
-      telefone: '(11) 99999-1234',
-      email: 'maria.silva@empresa.com',
-      departamento: 'Produção',
-      funcao: 'Coordenadora',
-      custoHora: 85,
-      dataContratacao: '2022-03-01',
-      status: 'Ativo',
-      dataCadastro: new Date().toLocaleDateString('pt-BR'),
-      usuarioCadastro: 'Sistema',
-      anexos: [],
-      ausencias: [],
-      escalas: [
-        {
-          id: crypto.randomUUID(),
-          dataInicio: '2026-01-01',
-          horaInicio: '08:00',
-          dataFim: '2026-12-31',
-          horaFim: '17:00',
-          diasSemana: [1, 2, 3, 4, 5],
-        },
-      ],
-    };
-    localStorage.setItem('kreato_recursos_humanos', JSON.stringify([exemploColaborador]));
-    return [exemploColaborador];
-  });
+  const [items, setItems] = useState<RecursoHumano[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const saveToStorage = (data: RecursoHumano[]) => {
-    localStorage.setItem('kreato_recursos_humanos', JSON.stringify(data));
-    setItems(data);
+  const fetchRecursosHumanos = async () => {
+    setIsLoading(true);
+    try {
+      const { data: recursosData, error: recursosError } = await supabase
+        .from('recursos_humanos')
+        .select('*, departamentos:departamento_id(nome), funcoes:funcao_id(nome)')
+        .order('nome');
+
+      if (recursosError) throw recursosError;
+
+      const recursosWithDetails = await Promise.all(
+        (recursosData || []).map(async (rh) => {
+          const [ausenciasRes, escalasRes, anexosRes] = await Promise.all([
+            supabase.from('rh_ausencias').select('*').eq('recurso_humano_id', rh.id),
+            supabase.from('rh_escalas').select('*').eq('recurso_humano_id', rh.id),
+            supabase.from('rh_anexos').select('*').eq('recurso_humano_id', rh.id),
+          ]);
+
+          const ausencias: Ausencia[] = (ausenciasRes.data || []).map((a) => ({
+            id: a.id,
+            motivo: a.motivo as Ausencia['motivo'],
+            dataInicio: a.data_inicio,
+            dataFim: a.data_fim,
+            dias: a.dias,
+          }));
+
+          const escalas: Escala[] = (escalasRes.data || []).map((e) => ({
+            id: e.id,
+            dataInicio: e.data_inicio,
+            horaInicio: e.hora_inicio,
+            dataFim: e.data_fim,
+            horaFim: e.hora_fim,
+            diasSemana: e.dias_semana || [1, 2, 3, 4, 5],
+          }));
+
+          const anexos: Anexo[] = (anexosRes.data || []).map((a) => ({
+            id: a.id,
+            nome: a.nome,
+            tipo: a.tipo || '',
+            tamanho: a.tamanho || 0,
+            dataUrl: a.url,
+          }));
+
+          return mapDbToRecursoHumano(rh, ausencias, escalas, anexos);
+        })
+      );
+
+      setItems(recursosWithDetails);
+    } catch (error) {
+      console.error('Error fetching recursos humanos:', error);
+      toast({ title: 'Erro', description: 'Erro ao carregar colaboradores', variant: 'destructive' });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleSave = (data: RecursoHumano) => {
-    if (editingItem) {
-      const updated = items.map((item) => (item.id === data.id ? data : item));
-      saveToStorage(updated);
-      toast({ title: 'Sucesso', description: 'Colaborador atualizado!' });
-    } else {
-      saveToStorage([...items, data]);
-      toast({ title: 'Sucesso', description: 'Colaborador cadastrado!' });
+  useEffect(() => {
+    fetchRecursosHumanos();
+  }, []);
+
+  const handleSave = async (data: RecursoHumano) => {
+    try {
+      const dbData: TablesInsert<'recursos_humanos'> = {
+        id: data.id || undefined,
+        codigo_externo: data.codigoExterno || null,
+        nome: data.nome,
+        sobrenome: data.sobrenome,
+        foto_url: data.foto || null,
+        data_nascimento: data.dataNascimento || null,
+        sexo: data.sexo as 'Masculino' | 'Feminino' | 'Outro' | null,
+        telefone: data.telefone || null,
+        email: data.email || null,
+        departamento_id: data.departamentoId || null,
+        funcao_id: data.funcaoId || null,
+        custo_hora: data.custoHora || 0,
+        data_contratacao: data.dataContratacao || null,
+        status: data.status as 'Ativo' | 'Inativo',
+      };
+
+      let recursoId = data.id;
+
+      if (editingItem) {
+        const { error } = await supabase
+          .from('recursos_humanos')
+          .update(dbData as TablesUpdate<'recursos_humanos'>)
+          .eq('id', data.id);
+        if (error) throw error;
+      } else {
+        const { data: inserted, error } = await supabase
+          .from('recursos_humanos')
+          .insert(dbData)
+          .select()
+          .single();
+        if (error) throw error;
+        recursoId = inserted.id;
+      }
+
+      // Handle escalas
+      if (data.escalas) {
+        await supabase.from('rh_escalas').delete().eq('recurso_humano_id', recursoId);
+        if (data.escalas.length > 0) {
+          const escalasData = data.escalas.map((e) => ({
+            recurso_humano_id: recursoId,
+            data_inicio: e.dataInicio,
+            hora_inicio: e.horaInicio,
+            data_fim: e.dataFim,
+            hora_fim: e.horaFim,
+            dias_semana: e.diasSemana,
+          }));
+          await supabase.from('rh_escalas').insert(escalasData);
+        }
+      }
+
+      // Handle ausencias
+      if (data.ausencias) {
+        await supabase.from('rh_ausencias').delete().eq('recurso_humano_id', recursoId);
+        if (data.ausencias.length > 0) {
+          const ausenciasData = data.ausencias.map((a) => ({
+            recurso_humano_id: recursoId,
+            motivo: a.motivo,
+            data_inicio: a.dataInicio,
+            data_fim: a.dataFim,
+            dias: a.dias,
+          }));
+          await supabase.from('rh_ausencias').insert(ausenciasData);
+        }
+      }
+
+      toast({ title: 'Sucesso', description: editingItem ? 'Colaborador atualizado!' : 'Colaborador cadastrado!' });
+      await fetchRecursosHumanos();
+      setEditingItem(null);
+    } catch (error) {
+      console.error('Error saving recurso humano:', error);
+      toast({ title: 'Erro', description: 'Erro ao salvar colaborador', variant: 'destructive' });
     }
-    setEditingItem(null);
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (confirm('Deseja realmente excluir este colaborador?')) {
-      saveToStorage(items.filter((item) => item.id !== id));
-      toast({ title: 'Excluído', description: 'Colaborador removido!' });
+      try {
+        const { error } = await supabase.from('recursos_humanos').delete().eq('id', id);
+        if (error) throw error;
+        toast({ title: 'Excluído', description: 'Colaborador removido!' });
+        await fetchRecursosHumanos();
+      } catch (error) {
+        console.error('Error deleting recurso humano:', error);
+        toast({ title: 'Erro', description: 'Erro ao excluir colaborador', variant: 'destructive' });
+      }
     }
   };
 
@@ -286,7 +414,11 @@ const RecursosHumanos = () => {
       </PageHeader>
 
       <DataCard>
-        {filteredItems.length === 0 ? (
+        {isLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : filteredItems.length === 0 ? (
           <EmptyState
             title="Nenhum colaborador cadastrado"
             description="Adicione colaboradores para gerenciar sua equipe."
@@ -318,11 +450,8 @@ const RecursosHumanos = () => {
         isOpen={isMapaOpen}
         onClose={() => setIsMapaOpen(false)}
         recursos={items}
-        onUpdateRecurso={(updatedRecurso) => {
-          const updated = items.map((item) => 
-            item.id === updatedRecurso.id ? updatedRecurso : item
-          );
-          saveToStorage(updated);
+        onUpdateRecurso={async (updatedRecurso) => {
+          await handleSave(updatedRecurso);
         }}
       />
     </div>

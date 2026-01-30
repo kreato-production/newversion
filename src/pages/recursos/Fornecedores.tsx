@@ -1,16 +1,21 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
-import { Edit, Trash2, Truck } from 'lucide-react';
+import { Edit, Trash2, Truck, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { FornecedorFormModal } from '@/components/recursos/FornecedorFormModal';
 import { SortableTable, Column } from '@/components/shared/SortableTable';
+import { supabase } from '@/integrations/supabase/client';
+import type { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
+
+type FornecedorDB = Tables<'fornecedores'>;
 
 export interface Fornecedor {
   id: string;
   codigoExterno: string;
   nome: string;
   categoria: string;
+  categoriaId?: string;
   email: string;
   pais: string;
   identificacaoFiscal: string;
@@ -19,37 +24,97 @@ export interface Fornecedor {
   usuarioCadastro: string;
 }
 
+const mapDbToFornecedor = (
+  db: FornecedorDB & { categorias_fornecedor?: { nome: string } | null }
+): Fornecedor => ({
+  id: db.id,
+  codigoExterno: db.codigo_externo || '',
+  nome: db.nome,
+  categoria: db.categorias_fornecedor?.nome || '',
+  categoriaId: db.categoria_id || undefined,
+  email: db.email || '',
+  pais: db.pais || '',
+  identificacaoFiscal: db.identificacao_fiscal || '',
+  descricao: db.descricao || '',
+  dataCadastro: db.created_at ? new Date(db.created_at).toLocaleDateString('pt-BR') : '',
+  usuarioCadastro: '',
+});
+
 const Fornecedores = () => {
   const { toast } = useToast();
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Fornecedor | null>(null);
-  const [items, setItems] = useState<Fornecedor[]>(() => {
-    const stored = localStorage.getItem('kreato_fornecedores');
-    return stored ? JSON.parse(stored) : [];
-  });
+  const [items, setItems] = useState<Fornecedor[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const saveToStorage = (data: Fornecedor[]) => {
-    localStorage.setItem('kreato_fornecedores', JSON.stringify(data));
-    setItems(data);
-  };
+  const fetchFornecedores = async () => {
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('fornecedores')
+        .select('*, categorias_fornecedor:categoria_id(nome)')
+        .order('nome');
 
-  const handleSave = (data: Fornecedor) => {
-    if (editingItem) {
-      const updated = items.map((item) => (item.id === data.id ? data : item));
-      saveToStorage(updated);
-      toast({ title: 'Sucesso', description: 'Fornecedor atualizado!' });
-    } else {
-      saveToStorage([...items, data]);
-      toast({ title: 'Sucesso', description: 'Fornecedor cadastrado!' });
+      if (error) throw error;
+      setItems((data || []).map(mapDbToFornecedor));
+    } catch (error) {
+      console.error('Error fetching fornecedores:', error);
+      toast({ title: 'Erro', description: 'Erro ao carregar fornecedores', variant: 'destructive' });
+    } finally {
+      setIsLoading(false);
     }
-    setEditingItem(null);
   };
 
-  const handleDelete = (id: string) => {
+  useEffect(() => {
+    fetchFornecedores();
+  }, []);
+
+  const handleSave = async (data: Fornecedor) => {
+    try {
+      const dbData: TablesInsert<'fornecedores'> = {
+        id: data.id || undefined,
+        codigo_externo: data.codigoExterno || null,
+        nome: data.nome,
+        categoria_id: data.categoriaId || null,
+        email: data.email || null,
+        pais: data.pais || null,
+        identificacao_fiscal: data.identificacaoFiscal || null,
+        descricao: data.descricao || null,
+      };
+
+      if (editingItem) {
+        const { error } = await supabase
+          .from('fornecedores')
+          .update(dbData as TablesUpdate<'fornecedores'>)
+          .eq('id', data.id);
+        if (error) throw error;
+        toast({ title: 'Sucesso', description: 'Fornecedor atualizado!' });
+      } else {
+        const { error } = await supabase.from('fornecedores').insert(dbData);
+        if (error) throw error;
+        toast({ title: 'Sucesso', description: 'Fornecedor cadastrado!' });
+      }
+
+      await fetchFornecedores();
+      setEditingItem(null);
+    } catch (error) {
+      console.error('Error saving fornecedor:', error);
+      toast({ title: 'Erro', description: 'Erro ao salvar fornecedor', variant: 'destructive' });
+    }
+  };
+
+  const handleDelete = async (id: string) => {
     if (confirm('Deseja realmente excluir este fornecedor?')) {
-      saveToStorage(items.filter((item) => item.id !== id));
-      toast({ title: 'Excluído', description: 'Fornecedor removido!' });
+      try {
+        const { error } = await supabase.from('fornecedores').delete().eq('id', id);
+        if (error) throw error;
+        toast({ title: 'Excluído', description: 'Fornecedor removido!' });
+        await fetchFornecedores();
+      } catch (error) {
+        console.error('Error deleting fornecedor:', error);
+        toast({ title: 'Erro', description: 'Erro ao excluir fornecedor', variant: 'destructive' });
+      }
     }
   };
 
@@ -136,7 +201,11 @@ const Fornecedores = () => {
       </PageHeader>
 
       <DataCard>
-        {filteredItems.length === 0 ? (
+        {isLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : filteredItems.length === 0 ? (
           <EmptyState
             title="Nenhum fornecedor cadastrado"
             description="Adicione fornecedores para gerenciar parcerias."

@@ -2,11 +2,15 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
-import { Edit, Trash2, Users } from 'lucide-react';
+import { Edit, Trash2, Users, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { PessoaFormModal } from '@/components/recursos/PessoaFormModal';
 import { SortableTable, Column } from '@/components/shared/SortableTable';
+import { supabase } from '@/integrations/supabase/client';
+import type { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
+
+type PessoaDB = Tables<'pessoas'>;
 
 export interface Pessoa {
   id: string;
@@ -20,6 +24,7 @@ export interface Pessoa {
   telefone: string;
   email: string;
   classificacao: string;
+  classificacaoId?: string;
   documento: string;
   endereco: string;
   cidade: string;
@@ -31,37 +36,116 @@ export interface Pessoa {
   usuarioCadastro: string;
 }
 
+const mapDbToPessoa = (db: PessoaDB & { classificacoes_pessoa?: { nome: string } | null }): Pessoa => ({
+  id: db.id,
+  codigoExterno: db.codigo_externo || '',
+  nome: db.nome,
+  sobrenome: db.sobrenome,
+  nomeTrabalho: db.nome_trabalho || '',
+  foto: db.foto_url || undefined,
+  dataNascimento: db.data_nascimento || '',
+  sexo: db.sexo || '',
+  telefone: db.telefone || '',
+  email: db.email || '',
+  classificacao: db.classificacoes_pessoa?.nome || '',
+  classificacaoId: db.classificacao_id || undefined,
+  documento: db.documento || '',
+  endereco: db.endereco || '',
+  cidade: db.cidade || '',
+  estado: db.estado || '',
+  cep: db.cep || '',
+  observacoes: db.observacoes || '',
+  status: db.status || 'Ativo',
+  dataCadastro: db.created_at ? new Date(db.created_at).toLocaleDateString('pt-BR') : '',
+  usuarioCadastro: '',
+});
+
 const Pessoas = () => {
   const { toast } = useToast();
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Pessoa | null>(null);
-  const [items, setItems] = useState<Pessoa[]>(() => {
-    const stored = localStorage.getItem('kreato_pessoas');
-    return stored ? JSON.parse(stored) : [];
-  });
+  const [items, setItems] = useState<Pessoa[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const saveToStorage = (data: Pessoa[]) => {
-    localStorage.setItem('kreato_pessoas', JSON.stringify(data));
-    setItems(data);
-  };
+  const fetchPessoas = async () => {
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('pessoas')
+        .select('*, classificacoes_pessoa:classificacao_id(nome)')
+        .order('nome');
 
-  const handleSave = (data: Pessoa) => {
-    if (editingItem) {
-      const updated = items.map((item) => (item.id === data.id ? data : item));
-      saveToStorage(updated);
-      toast({ title: 'Sucesso', description: 'Pessoa atualizada!' });
-    } else {
-      saveToStorage([...items, data]);
-      toast({ title: 'Sucesso', description: 'Pessoa cadastrada!' });
+      if (error) throw error;
+      setItems((data || []).map(mapDbToPessoa));
+    } catch (error) {
+      console.error('Error fetching pessoas:', error);
+      toast({ title: 'Erro', description: 'Erro ao carregar pessoas', variant: 'destructive' });
+    } finally {
+      setIsLoading(false);
     }
-    setEditingItem(null);
   };
 
-  const handleDelete = (id: string) => {
+  useEffect(() => {
+    fetchPessoas();
+  }, []);
+
+  const handleSave = async (data: Pessoa) => {
+    try {
+      const dbData: TablesInsert<'pessoas'> = {
+        id: data.id || undefined,
+        codigo_externo: data.codigoExterno || null,
+        nome: data.nome,
+        sobrenome: data.sobrenome,
+        nome_trabalho: data.nomeTrabalho || null,
+        foto_url: data.foto || null,
+        data_nascimento: data.dataNascimento || null,
+        sexo: data.sexo as 'Masculino' | 'Feminino' | 'Outro' | null,
+        telefone: data.telefone || null,
+        email: data.email || null,
+        classificacao_id: data.classificacaoId || null,
+        documento: data.documento || null,
+        endereco: data.endereco || null,
+        cidade: data.cidade || null,
+        estado: data.estado || null,
+        cep: data.cep || null,
+        observacoes: data.observacoes || null,
+        status: data.status as 'Ativo' | 'Inativo',
+      };
+
+      if (editingItem) {
+        const { error } = await supabase
+          .from('pessoas')
+          .update(dbData as TablesUpdate<'pessoas'>)
+          .eq('id', data.id);
+
+        if (error) throw error;
+        toast({ title: 'Sucesso', description: 'Pessoa atualizada!' });
+      } else {
+        const { error } = await supabase.from('pessoas').insert(dbData);
+        if (error) throw error;
+        toast({ title: 'Sucesso', description: 'Pessoa cadastrada!' });
+      }
+
+      await fetchPessoas();
+      setEditingItem(null);
+    } catch (error) {
+      console.error('Error saving pessoa:', error);
+      toast({ title: 'Erro', description: 'Erro ao salvar pessoa', variant: 'destructive' });
+    }
+  };
+
+  const handleDelete = async (id: string) => {
     if (confirm('Deseja realmente excluir esta pessoa?')) {
-      saveToStorage(items.filter((item) => item.id !== id));
-      toast({ title: 'Excluído', description: 'Pessoa removida!' });
+      try {
+        const { error } = await supabase.from('pessoas').delete().eq('id', id);
+        if (error) throw error;
+        toast({ title: 'Excluído', description: 'Pessoa removida!' });
+        await fetchPessoas();
+      } catch (error) {
+        console.error('Error deleting pessoa:', error);
+        toast({ title: 'Erro', description: 'Erro ao excluir pessoa', variant: 'destructive' });
+      }
     }
   };
 
@@ -172,7 +256,11 @@ const Pessoas = () => {
       </PageHeader>
 
       <DataCard>
-        {filteredItems.length === 0 ? (
+        {isLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : filteredItems.length === 0 ? (
           <EmptyState
             title="Nenhuma pessoa cadastrada"
             description="Adicione pessoas para gerenciar seu cadastro."
