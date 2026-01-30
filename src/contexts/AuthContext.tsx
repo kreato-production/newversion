@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { User as SupabaseUser, Session } from '@supabase/supabase-js';
+import { clearKreatoLocalStorage } from '@/hooks/useSupabaseData';
 
 export interface User {
   id: string;
@@ -181,9 +182,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(null);
       setSupabaseUser(null);
       setSession(null);
-      // Clear any remaining localStorage data
-      localStorage.removeItem('kreato_user');
-      localStorage.removeItem('kreato_usuarios');
+      
+      // SECURITY: Clear ALL kreato_* localStorage data on logout
+      // This prevents sensitive data from persisting after logout
+      clearKreatoLocalStorage();
     } catch (error) {
       console.error('Logout error:', error);
     }

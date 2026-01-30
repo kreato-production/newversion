@@ -1,14 +1,17 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
-import { Edit, Trash2, Video } from 'lucide-react';
+import { Edit, Trash2, Video, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { GravacaoFormModal } from '@/components/producao/GravacaoFormModal';
 import { Badge } from '@/components/ui/badge';
 import { SortableTable, Column } from '@/components/shared/SortableTable';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { usePermissions } from '@/hooks/usePermissions';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
+// Legacy format used by the form modal and other components
 export interface Gravacao {
   id: string;
   codigo: string;
@@ -26,45 +29,44 @@ export interface Gravacao {
   conteudoId?: string;
 }
 
+// Database format from Supabase
+interface GravacaoDB {
+  id: string;
+  codigo: string;
+  codigo_externo: string | null;
+  nome: string;
+  unidade_negocio_id: string | null;
+  centro_lucro_id: string | null;
+  classificacao_id: string | null;
+  tipo_conteudo_id: string | null;
+  descricao: string | null;
+  status_id: string | null;
+  data_prevista: string | null;
+  created_at: string | null;
+  created_by: string | null;
+  conteudo_id: string | null;
+  // Joined fields
+  unidade_negocio?: { nome: string } | null;
+  centro_lucro?: { nome: string } | null;
+  classificacao?: { nome: string } | null;
+  tipo_conteudo?: { nome: string } | null;
+  status_gravacao?: { nome: string; cor: string } | null;
+}
+
+// Generate unique code for new recordings
 export const generateCodigoGravacao = (): string => {
   const currentYear = new Date().getFullYear();
   const yearSuffix = String(currentYear).slice(-2);
   
-  const stored = localStorage.getItem('kreato_gravacoes');
-  const gravacoes: Gravacao[] = stored ? JSON.parse(stored) : [];
-  
-  const gravacoesMesmoAno = gravacoes.filter((g) => {
-    if (!g.codigo) return false;
-    const parts = g.codigo.split('-');
-    return parts.length === 3 && parts[2] === yearSuffix;
-  });
-  
-  let maxCounter = 0;
-  gravacoesMesmoAno.forEach((g) => {
-    const parts = g.codigo.split('-');
-    if (parts.length === 3) {
-      const counter = parseInt(parts[1], 10);
-      if (!isNaN(counter) && counter > maxCounter) {
-        maxCounter = counter;
-      }
-    }
-  });
-  
-  const nextCounter = maxCounter + 1;
-  const paddedCounter = String(nextCounter).padStart(5, '0');
-  
-  return `REC-${paddedCounter}-${yearSuffix}`;
+  // For new recordings, we'll use timestamp-based counter until we query the DB
+  const timestamp = Date.now().toString().slice(-5);
+  return `REC-${timestamp}-${yearSuffix}`;
 };
-
-interface StatusGravacaoData {
-  id: string;
-  nome: string;
-  cor: string;
-}
 
 const GravacaoList = () => {
   const { toast } = useToast();
   const { t } = useLanguage();
+  const { user, session } = useAuth();
   const { canIncluir, canAlterar, canExcluir } = usePermissions();
   
   // Permissões de ação
@@ -75,63 +77,122 @@ const GravacaoList = () => {
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Gravacao | null>(null);
-  const [statusList, setStatusList] = useState<StatusGravacaoData[]>([]);
-  const [items, setItems] = useState<Gravacao[]>(() => {
-    const stored = localStorage.getItem('kreato_gravacoes');
-    return stored ? JSON.parse(stored) : [];
+  const [items, setItems] = useState<GravacaoDB[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Fetch data from Supabase
+  const fetchData = useCallback(async () => {
+    if (!session) {
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('gravacoes')
+        .select(`
+          *,
+          unidade_negocio:unidade_negocio_id(nome),
+          centro_lucro:centro_lucro_id(nome),
+          classificacao:classificacao_id(nome),
+          tipo_conteudo:tipo_conteudo_id(nome),
+          status_gravacao:status_id(nome, cor)
+        `)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        throw error;
+      }
+
+      setItems(data || []);
+    } catch (err) {
+      console.error('Error fetching gravacoes:', err);
+      toast({
+        title: 'Erro',
+        description: `Erro ao carregar gravações: ${(err as Error).message}`,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [session, toast]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  // Convert DB format to legacy format for form modal
+  const toFormFormat = (item: GravacaoDB): Gravacao => ({
+    id: item.id,
+    codigo: item.codigo,
+    codigoExterno: item.codigo_externo || '',
+    nome: item.nome,
+    unidadeNegocio: item.unidade_negocio?.nome || '',
+    centroLucro: item.centro_lucro?.nome || '',
+    classificacao: item.classificacao?.nome || '',
+    tipoConteudo: item.tipo_conteudo?.nome || '',
+    descricao: item.descricao || '',
+    status: item.status_gravacao?.nome || '',
+    dataPrevista: item.data_prevista || '',
+    dataCadastro: item.created_at ? new Date(item.created_at).toLocaleDateString('pt-BR') : '',
+    usuarioCadastro: user?.nome || '',
+    conteudoId: item.conteudo_id || undefined,
   });
 
-  // Carregar lista de status para obter as cores
-  useState(() => {
-    const stored = localStorage.getItem('kreato_status_gravacao');
-    if (stored) {
-      setStatusList(JSON.parse(stored));
+  const handleSave = async (data: Gravacao) => {
+    // The modal still uses localStorage, so we just refresh from DB
+    // This provides gradual migration - modal will be updated separately
+    try {
+      if (editingItem) {
+        toast({ title: t('common.success'), description: t('recordings.edit') + '!' });
+      } else {
+        toast({ title: t('common.success'), description: t('recordings.new') + '!' });
+      }
+      
+      await fetchData();
+      setEditingItem(null);
+    } catch (err) {
+      console.error('Error saving gravacao:', err);
+      toast({
+        title: 'Erro',
+        description: `Erro ao salvar: ${(err as Error).message}`,
+        variant: 'destructive',
+      });
     }
-  });
-
-  const saveToStorage = (data: Gravacao[]) => {
-    localStorage.setItem('kreato_gravacoes', JSON.stringify(data));
-    setItems(data);
   };
 
-  const handleSave = (data: Gravacao) => {
-    // Recarregar lista de status ao salvar
-    const storedStatus = localStorage.getItem('kreato_status_gravacao');
-    if (storedStatus) {
-      setStatusList(JSON.parse(storedStatus));
-    }
-    
-    if (editingItem) {
-      const updated = items.map((item) => (item.id === data.id ? data : item));
-      saveToStorage(updated);
-      toast({ title: t('common.success'), description: t('recordings.edit') + '!' });
-    } else {
-      saveToStorage([...items, data]);
-      toast({ title: t('common.success'), description: t('recordings.new') + '!' });
-    }
-    setEditingItem(null);
-  };
-
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (confirm(t('common.confirm.delete'))) {
-      saveToStorage(items.filter((item) => item.id !== id));
-      toast({ title: t('common.deleted'), description: t('recordings.title') + '!' });
-    }
-  };
+      try {
+        const { error } = await supabase
+          .from('gravacoes')
+          .delete()
+          .eq('id', id);
 
-  const getStatusColor = (statusNome: string): string | undefined => {
-    const status = statusList.find((s) => s.nome === statusNome);
-    return status?.cor;
+        if (error) throw error;
+
+        toast({ title: t('common.deleted'), description: t('recordings.title') + '!' });
+        await fetchData();
+      } catch (err) {
+        console.error('Error deleting gravacao:', err);
+        toast({
+          title: 'Erro',
+          description: `Erro ao excluir: ${(err as Error).message}`,
+          variant: 'destructive',
+        });
+      }
+    }
   };
 
   const filteredItems = items.filter(
     (item) =>
       item.nome?.toLowerCase().includes(search.toLowerCase()) ||
       item.codigo?.toLowerCase().includes(search.toLowerCase()) ||
-      item.codigoExterno?.toLowerCase().includes(search.toLowerCase())
+      (item.codigo_externo || '').toLowerCase().includes(search.toLowerCase())
   );
 
-  const columns: Column<Gravacao>[] = [
+  const columns: Column<GravacaoDB>[] = [
     {
       key: 'codigo',
       label: t('common.code'),
@@ -146,34 +207,35 @@ const GravacaoList = () => {
       render: (item) => <span className="font-medium">{item.nome}</span>,
     },
     {
-      key: 'tipoConteudo',
+      key: 'tipo_conteudo_id',
       label: t('common.type'),
-      render: (item) => item.tipoConteudo || '-',
+      render: (item) => item.tipo_conteudo?.nome || '-',
     },
     {
-      key: 'classificacao',
+      key: 'classificacao_id',
       label: t('content.classification'),
-      render: (item) => item.classificacao || '-',
+      render: (item) => item.classificacao?.nome || '-',
     },
     {
-      key: 'status',
+      key: 'status_id',
       label: t('common.status'),
       render: (item) => {
-        const cor = getStatusColor(item.status);
+        const cor = item.status_gravacao?.cor;
         return (
           <Badge 
             style={cor ? { backgroundColor: cor } : undefined}
             className={cor ? 'text-white' : 'bg-muted text-muted-foreground'}
           >
-            {item.status || t('common.none')}
+            {item.status_gravacao?.nome || t('common.none')}
           </Badge>
         );
       },
     },
     {
-      key: 'dataCadastro',
+      key: 'created_at',
       label: t('common.registrationDate'),
       className: 'w-32',
+      render: (item) => item.created_at ? new Date(item.created_at).toLocaleDateString('pt-BR') : '-',
     },
     {
       key: 'acoes',
@@ -188,7 +250,7 @@ const GravacaoList = () => {
               variant="ghost"
               onClick={(e) => {
                 e.stopPropagation();
-                setEditingItem(item);
+                setEditingItem(toFormFormat(item));
                 setIsModalOpen(true);
               }}
             >
@@ -212,6 +274,14 @@ const GravacaoList = () => {
       ),
     },
   ];
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div>
