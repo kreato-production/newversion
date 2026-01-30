@@ -2,10 +2,14 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
 import { SortableTable, Column } from '@/components/shared/SortableTable';
-import { Edit, Trash2, Settings } from 'lucide-react';
+import { Edit, Trash2, Settings, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { StatusGravacaoFormModal } from '@/components/producao/StatusGravacaoFormModal';
 import { Badge } from '@/components/ui/badge';
+import { supabase } from '@/integrations/supabase/client';
+import type { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
+
+type StatusGravacaoDB = Tables<'status_gravacao'>;
 
 export interface StatusGravacaoItem {
   id: string;
@@ -17,37 +21,88 @@ export interface StatusGravacaoItem {
   usuarioCadastro: string;
 }
 
+const mapDbToStatusGravacao = (db: StatusGravacaoDB): StatusGravacaoItem => ({
+  id: db.id,
+  codigoExterno: db.codigo_externo || '',
+  nome: db.nome,
+  descricao: db.descricao || '',
+  cor: db.cor || '#888888',
+  dataCadastro: db.created_at ? new Date(db.created_at).toLocaleDateString('pt-BR') : '',
+  usuarioCadastro: '',
+});
+
 const StatusGravacao = () => {
   const { toast } = useToast();
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<StatusGravacaoItem | null>(null);
-  const [items, setItems] = useState<StatusGravacaoItem[]>(() => {
-    const stored = localStorage.getItem('kreato_status_gravacao');
-    return stored ? JSON.parse(stored) : [];
-  });
+  const [items, setItems] = useState<StatusGravacaoItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const saveToStorage = (data: StatusGravacaoItem[]) => {
-    localStorage.setItem('kreato_status_gravacao', JSON.stringify(data));
-    setItems(data);
-  };
+  const fetchStatusGravacao = async () => {
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('status_gravacao')
+        .select('*')
+        .order('nome');
 
-  const handleSave = (data: StatusGravacaoItem) => {
-    if (editingItem) {
-      const updated = items.map((item) => (item.id === data.id ? data : item));
-      saveToStorage(updated);
-      toast({ title: 'Sucesso', description: 'Status atualizado com sucesso!' });
-    } else {
-      saveToStorage([...items, data]);
-      toast({ title: 'Sucesso', description: 'Status cadastrado com sucesso!' });
+      if (error) throw error;
+      setItems((data || []).map(mapDbToStatusGravacao));
+    } catch (error) {
+      console.error('Error fetching status_gravacao:', error);
+      toast({ title: 'Erro', description: 'Erro ao carregar status de gravação', variant: 'destructive' });
+    } finally {
+      setIsLoading(false);
     }
-    setEditingItem(null);
   };
 
-  const handleDelete = (id: string) => {
+  useEffect(() => {
+    fetchStatusGravacao();
+  }, []);
+
+  const handleSave = async (data: StatusGravacaoItem) => {
+    try {
+      const dbData: TablesInsert<'status_gravacao'> = {
+        id: data.id || undefined,
+        codigo_externo: data.codigoExterno || null,
+        nome: data.nome,
+        descricao: data.descricao || null,
+        cor: data.cor || '#888888',
+      };
+
+      if (editingItem) {
+        const { error } = await supabase
+          .from('status_gravacao')
+          .update(dbData as TablesUpdate<'status_gravacao'>)
+          .eq('id', data.id);
+        if (error) throw error;
+        toast({ title: 'Sucesso', description: 'Status atualizado com sucesso!' });
+      } else {
+        const { error } = await supabase.from('status_gravacao').insert(dbData);
+        if (error) throw error;
+        toast({ title: 'Sucesso', description: 'Status cadastrado com sucesso!' });
+      }
+
+      await fetchStatusGravacao();
+      setEditingItem(null);
+    } catch (error) {
+      console.error('Error saving status_gravacao:', error);
+      toast({ title: 'Erro', description: 'Erro ao salvar status', variant: 'destructive' });
+    }
+  };
+
+  const handleDelete = async (id: string) => {
     if (confirm('Deseja realmente excluir este status?')) {
-      saveToStorage(items.filter((item) => item.id !== id));
-      toast({ title: 'Excluído', description: 'Status removido com sucesso!' });
+      try {
+        const { error } = await supabase.from('status_gravacao').delete().eq('id', id);
+        if (error) throw error;
+        toast({ title: 'Excluído', description: 'Status removido com sucesso!' });
+        await fetchStatusGravacao();
+      } catch (error) {
+        console.error('Error deleting status_gravacao:', error);
+        toast({ title: 'Erro', description: 'Erro ao excluir status', variant: 'destructive' });
+      }
     }
   };
 
@@ -146,7 +201,11 @@ const StatusGravacao = () => {
       </PageHeader>
 
       <DataCard>
-        {filteredItems.length === 0 ? (
+        {isLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : filteredItems.length === 0 ? (
           <EmptyState
             title="Nenhum status cadastrado"
             description="Comece adicionando status para organizar seu sistema."

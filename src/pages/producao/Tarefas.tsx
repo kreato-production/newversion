@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Plus, Search, CheckCircle2, Clock, AlertCircle, ArrowUpDown, ArrowUp, ArrowDown, Edit } from 'lucide-react';
+import { Plus, Search, CheckCircle2, Clock, AlertCircle, ArrowUpDown, ArrowUp, ArrowDown, Edit, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -30,6 +30,12 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
+import type { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
+
+type TarefaDB = Tables<'tarefas'>;
+type StatusTarefaDB = Tables<'status_tarefa'>;
+type GravacaoDB = Tables<'gravacoes'>;
 
 interface Tarefa {
   id: string;
@@ -66,9 +72,8 @@ interface Gravacao {
 
 const Tarefas = () => {
   const { t, formatDate } = useLanguage();
-  const { canIncluir, canAlterar, canExcluir, isVisible } = usePermissions();
+  const { canIncluir, canAlterar, canExcluir } = usePermissions();
   
-  // Permissões de ação
   const podeIncluir = canIncluir('Produção', 'Tarefas');
   const podeAlterar = canAlterar('Produção', 'Tarefas');
   const podeExcluir = canExcluir('Produção', 'Tarefas');
@@ -81,84 +86,131 @@ const Tarefas = () => {
   const [filterGravacao, setFilterGravacao] = useState<string>('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTarefa, setEditingTarefa] = useState<Tarefa | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const loadData = async () => {
+    setIsLoading(true);
+    try {
+      // Load status list
+      const { data: statusData, error: statusError } = await supabase
+        .from('status_tarefa')
+        .select('*')
+        .order('nome');
+
+      if (statusError) throw statusError;
+      
+      const mappedStatus: StatusTarefa[] = (statusData || []).map(s => ({
+        id: s.id,
+        codigo: s.codigo,
+        nome: s.nome,
+        cor: s.cor || undefined,
+      }));
+      setStatusList(mappedStatus);
+
+      // Load gravacoes
+      const { data: gravacoesData, error: gravacoesError } = await supabase
+        .from('gravacoes')
+        .select('id, nome')
+        .order('nome');
+
+      if (gravacoesError) throw gravacoesError;
+      setGravacoes(gravacoesData || []);
+
+      // Load tarefas with relations
+      const { data: tarefasData, error: tarefasError } = await supabase
+        .from('tarefas')
+        .select(`
+          *,
+          gravacoes:gravacao_id(nome),
+          recursos_humanos:recurso_humano_id(nome, sobrenome),
+          recursos_tecnicos:recurso_tecnico_id(nome),
+          status_tarefa:status_id(nome, cor)
+        `)
+        .order('created_at', { ascending: false });
+
+      if (tarefasError) throw tarefasError;
+
+      const mappedTarefas: Tarefa[] = (tarefasData || []).map(t => ({
+        id: t.id,
+        gravacaoId: t.gravacao_id || '',
+        gravacaoNome: t.gravacoes?.nome || undefined,
+        recursoHumanoId: t.recurso_humano_id || '',
+        recursoHumanoNome: t.recursos_humanos ? `${t.recursos_humanos.nome} ${t.recursos_humanos.sobrenome}` : undefined,
+        recursoTecnicoId: t.recurso_tecnico_id || undefined,
+        recursoTecnicoNome: t.recursos_tecnicos?.nome || undefined,
+        titulo: t.titulo,
+        descricao: t.descricao || '',
+        statusId: t.status_id || '',
+        statusNome: t.status_tarefa?.nome || undefined,
+        statusCor: t.status_tarefa?.cor || undefined,
+        prioridade: t.prioridade || 'media',
+        dataInicio: t.data_inicio || '',
+        dataFim: t.data_fim || '',
+        dataCriacao: t.created_at || '',
+        dataAtualizacao: t.updated_at || '',
+        observacoes: t.observacoes || undefined,
+      }));
+      setTarefas(mappedTarefas);
+    } catch (error) {
+      console.error('Error loading data:', error);
+      toast.error('Erro ao carregar dados');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
     loadData();
-
-    const handleTarefasUpdated = () => loadData();
-    window.addEventListener('kreato:tarefas-updated', handleTarefasUpdated);
-
-    return () => {
-      window.removeEventListener('kreato:tarefas-updated', handleTarefasUpdated);
-    };
   }, []);
 
-  const loadData = () => {
-    // Load status list
-    const storedStatus = localStorage.getItem('kreato_status_tarefa');
-    if (storedStatus) {
-      setStatusList(JSON.parse(storedStatus));
-    } else {
-      // Default status
-      const defaultStatus = [
-        { id: '1', codigo: 'PEND', nome: 'Pendente', cor: '#f59e0b' },
-        { id: '2', codigo: 'PROG', nome: 'Em Progresso', cor: '#3b82f6' },
-        { id: '3', codigo: 'CONC', nome: 'Concluída', cor: '#22c55e' },
-        { id: '4', codigo: 'CANC', nome: 'Cancelada', cor: '#ef4444' },
-      ];
-      localStorage.setItem('kreato_status_tarefa', JSON.stringify(defaultStatus));
-      setStatusList(defaultStatus);
-    }
+  const handleSave = async (tarefa: Tarefa) => {
+    try {
+      const dbData: TablesInsert<'tarefas'> = {
+        id: tarefa.id || undefined,
+        titulo: tarefa.titulo,
+        descricao: tarefa.descricao || null,
+        gravacao_id: tarefa.gravacaoId || null,
+        recurso_humano_id: tarefa.recursoHumanoId || null,
+        recurso_tecnico_id: tarefa.recursoTecnicoId || null,
+        status_id: tarefa.statusId || null,
+        prioridade: tarefa.prioridade,
+        data_inicio: tarefa.dataInicio || null,
+        data_fim: tarefa.dataFim || null,
+        observacoes: tarefa.observacoes || null,
+      };
 
-    // Load gravacoes
-    const storedGravacoes = localStorage.getItem('kreato_gravacoes');
-    if (storedGravacoes) {
-      setGravacoes(JSON.parse(storedGravacoes));
-    }
+      if (editingTarefa) {
+        const { error } = await supabase
+          .from('tarefas')
+          .update(dbData as TablesUpdate<'tarefas'>)
+          .eq('id', tarefa.id);
+        if (error) throw error;
+        toast.success(t('tasks.updated'));
+      } else {
+        const { error } = await supabase.from('tarefas').insert(dbData);
+        if (error) throw error;
+        toast.success(t('tasks.created'));
+      }
 
-    // Load tarefas
-    const storedTarefas = localStorage.getItem('kreato_tarefas');
-    if (storedTarefas) {
-      setTarefas(JSON.parse(storedTarefas));
+      await loadData();
+      setIsModalOpen(false);
+      setEditingTarefa(null);
+    } catch (error) {
+      console.error('Error saving tarefa:', error);
+      toast.error('Erro ao salvar tarefa');
     }
   };
 
-  const saveTarefas = (newTarefas: Tarefa[]) => {
-    localStorage.setItem('kreato_tarefas', JSON.stringify(newTarefas));
-    setTarefas(newTarefas);
-  };
-
-  const handleSave = (tarefa: Tarefa) => {
-    const status = statusList.find(s => s.id === tarefa.statusId);
-    const gravacao = gravacoes.find(g => g.id === tarefa.gravacaoId);
-    
-    const tarefaWithNames = {
-      ...tarefa,
-      statusNome: status?.nome,
-      statusCor: status?.cor,
-      gravacaoNome: gravacao?.nome,
-      dataAtualizacao: new Date().toISOString(),
-    };
-
-    if (editingTarefa) {
-      const newTarefas = tarefas.map(t => 
-        t.id === tarefa.id ? tarefaWithNames : t
-      );
-      saveTarefas(newTarefas);
-      toast.success(t('tasks.updated'));
-    } else {
-      tarefaWithNames.dataCriacao = new Date().toISOString();
-      saveTarefas([...tarefas, tarefaWithNames]);
-      toast.success(t('tasks.created'));
+  const handleDelete = async (id: string) => {
+    try {
+      const { error } = await supabase.from('tarefas').delete().eq('id', id);
+      if (error) throw error;
+      toast.success(t('common.deleted'));
+      await loadData();
+    } catch (error) {
+      console.error('Error deleting tarefa:', error);
+      toast.error('Erro ao excluir tarefa');
     }
-    setIsModalOpen(false);
-    setEditingTarefa(null);
-  };
-
-  const handleDelete = (id: string) => {
-    const newTarefas = tarefas.filter(t => t.id !== id);
-    saveTarefas(newTarefas);
-    toast.success(t('common.deleted'));
   };
 
   const handleEdit = (tarefa: Tarefa) => {
@@ -217,14 +269,12 @@ const Tarefas = () => {
       let aVal: string | number = a[sortKey] || '';
       let bVal: string | number = b[sortKey] || '';
       
-      // Priority special sorting
       if (sortKey === 'prioridade') {
         const prioOrder: Record<string, number> = { alta: 3, media: 2, baixa: 1 };
         aVal = prioOrder[a.prioridade] || 0;
         bVal = prioOrder[b.prioridade] || 0;
       }
       
-      // Date sorting
       if (sortKey === 'dataFim') {
         aVal = a.dataFim ? new Date(a.dataFim).getTime() : 0;
         bVal = b.dataFim ? new Date(b.dataFim).getTime() : 0;
@@ -353,7 +403,11 @@ const Tarefas = () => {
         </div>
 
         {/* Tasks Table */}
-        {sortedTarefas.length === 0 ? (
+        {isLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : sortedTarefas.length === 0 ? (
           <div className="text-center py-12 border-2 border-dashed rounded-lg">
             <p className="text-muted-foreground mb-4">{t('tasks.empty')}</p>
             {podeIncluir && (

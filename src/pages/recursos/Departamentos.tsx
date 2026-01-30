@@ -1,11 +1,15 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
 import { DepartamentoFormModal } from '@/components/recursos/DepartamentoFormModal';
 import { SortableTable, Column } from '@/components/shared/SortableTable';
-import { Edit, Trash2, Building2 } from 'lucide-react';
+import { Edit, Trash2, Building2, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { supabase } from '@/integrations/supabase/client';
+import type { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
+
+type DepartamentoDB = Tables<'departamentos'>;
 
 interface Departamento {
   id: string;
@@ -16,40 +20,90 @@ interface Departamento {
   usuarioCadastro: string;
 }
 
+const mapDbToDepartamento = (db: DepartamentoDB): Departamento => ({
+  id: db.id,
+  codigoExterno: db.codigo_externo || '',
+  nome: db.nome,
+  descricao: db.descricao || '',
+  dataCadastro: db.created_at ? new Date(db.created_at).toLocaleDateString('pt-BR') : '',
+  usuarioCadastro: '',
+});
+
 const Departamentos = () => {
   const { toast } = useToast();
   const { t } = useLanguage();
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Departamento | null>(null);
-  const [items, setItems] = useState<Departamento[]>(() => {
-    const stored = localStorage.getItem('kreato_departamentos');
-    return stored ? JSON.parse(stored) : [];
-  });
+  const [items, setItems] = useState<Departamento[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const saveToStorage = (data: Departamento[]) => {
-    localStorage.setItem('kreato_departamentos', JSON.stringify(data));
-    setItems(data);
-  };
+  const fetchDepartamentos = async () => {
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('departamentos')
+        .select('*')
+        .order('nome');
 
-  const handleSave = (data: Departamento) => {
-    if (editingItem) {
-      const updated = items.map((item) => (item.id === data.id ? data : item));
-      saveToStorage(updated);
-      toast({ title: t('common.success'), description: `Departamento ${t('common.updated').toLowerCase()}!` });
-    } else {
-      saveToStorage([...items, data]);
-      toast({ title: t('common.success'), description: `Departamento ${t('common.save').toLowerCase()}!` });
+      if (error) throw error;
+      setItems((data || []).map(mapDbToDepartamento));
+    } catch (error) {
+      console.error('Error fetching departamentos:', error);
+      toast({ title: 'Erro', description: 'Erro ao carregar departamentos', variant: 'destructive' });
+    } finally {
+      setIsLoading(false);
     }
-    setEditingItem(null);
   };
 
-  const handleDelete = (id: string) => {
+  useEffect(() => {
+    fetchDepartamentos();
+  }, []);
+
+  const handleSave = async (data: Departamento) => {
+    try {
+      const dbData: TablesInsert<'departamentos'> = {
+        id: data.id || undefined,
+        codigo_externo: data.codigoExterno || null,
+        nome: data.nome,
+        descricao: data.descricao || null,
+      };
+
+      if (editingItem) {
+        const { error } = await supabase
+          .from('departamentos')
+          .update(dbData as TablesUpdate<'departamentos'>)
+          .eq('id', data.id);
+        if (error) throw error;
+        toast({ title: t('common.success'), description: `Departamento ${t('common.updated').toLowerCase()}!` });
+      } else {
+        const { error } = await supabase.from('departamentos').insert(dbData);
+        if (error) throw error;
+        toast({ title: t('common.success'), description: `Departamento ${t('common.save').toLowerCase()}!` });
+      }
+
+      await fetchDepartamentos();
+      setEditingItem(null);
+    } catch (error) {
+      console.error('Error saving departamento:', error);
+      toast({ title: 'Erro', description: 'Erro ao salvar departamento', variant: 'destructive' });
+    }
+  };
+
+  const handleDelete = async (id: string) => {
     if (confirm(t('common.confirm.delete'))) {
-      saveToStorage(items.filter((item) => item.id !== id));
-      // Remover também as funções associadas
-      localStorage.removeItem(`kreato_departamento_funcoes_${id}`);
-      toast({ title: t('common.deleted'), description: `Departamento ${t('common.deleted').toLowerCase()}!` });
+      try {
+        // Delete associated funcoes first
+        await supabase.from('departamento_funcoes').delete().eq('departamento_id', id);
+        
+        const { error } = await supabase.from('departamentos').delete().eq('id', id);
+        if (error) throw error;
+        toast({ title: t('common.deleted'), description: `Departamento ${t('common.deleted').toLowerCase()}!` });
+        await fetchDepartamentos();
+      } catch (error) {
+        console.error('Error deleting departamento:', error);
+        toast({ title: 'Erro', description: 'Erro ao excluir departamento', variant: 'destructive' });
+      }
     }
   };
 
@@ -137,7 +191,11 @@ const Departamentos = () => {
       </PageHeader>
 
       <DataCard>
-        {filteredItems.length === 0 ? (
+        {isLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : filteredItems.length === 0 ? (
           <EmptyState
             title={t('common.noResults')}
             description="Adicione um departamento."

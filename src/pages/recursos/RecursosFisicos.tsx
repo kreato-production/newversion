@@ -1,11 +1,15 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
-import { Edit, Trash2, MapPin, Calendar } from 'lucide-react';
+import { Edit, Trash2, MapPin, Calendar, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { RecursoFisicoFormModal } from '@/components/recursos/RecursoFisicoFormModal';
 import { MapaRecursosFisicosModal } from '@/components/recursos/MapaRecursosFisicosModal';
 import { SortableTable, Column } from '@/components/shared/SortableTable';
+import { supabase } from '@/integrations/supabase/client';
+import type { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
+
+type RecursoFisicoDB = Tables<'recursos_fisicos'>;
 
 export interface FaixaDisponibilidade {
   id: string;
@@ -13,7 +17,7 @@ export interface FaixaDisponibilidade {
   dataFim: string;
   horaInicio: string;
   horaFim: string;
-  diasSemana: number[]; // 0 = Dom, 1 = Seg, ..., 6 = Sáb
+  diasSemana: number[];
 }
 
 export interface RecursoFisico {
@@ -26,38 +30,134 @@ export interface RecursoFisico {
   usuarioCadastro: string;
 }
 
+const mapDbToRecursoFisico = (
+  db: RecursoFisicoDB,
+  faixas: FaixaDisponibilidade[] = []
+): RecursoFisico => ({
+  id: db.id,
+  codigoExterno: db.codigo_externo || '',
+  nome: db.nome,
+  custoHora: db.custo_hora || 0,
+  faixasDisponibilidade: faixas,
+  dataCadastro: db.created_at ? new Date(db.created_at).toLocaleDateString('pt-BR') : '',
+  usuarioCadastro: '',
+});
+
 const RecursosFisicos = () => {
   const { toast } = useToast();
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isMapaOpen, setIsMapaOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<RecursoFisico | null>(null);
-  const [items, setItems] = useState<RecursoFisico[]>(() => {
-    const stored = localStorage.getItem('kreato_recursos_fisicos');
-    return stored ? JSON.parse(stored) : [];
-  });
+  const [items, setItems] = useState<RecursoFisico[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const saveToStorage = (data: RecursoFisico[]) => {
-    localStorage.setItem('kreato_recursos_fisicos', JSON.stringify(data));
-    setItems(data);
-  };
+  const fetchRecursosFisicos = async () => {
+    setIsLoading(true);
+    try {
+      const { data: recursosData, error: recursosError } = await supabase
+        .from('recursos_fisicos')
+        .select('*')
+        .order('nome');
 
-  const handleSave = (data: RecursoFisico) => {
-    if (editingItem) {
-      const updated = items.map((item) => (item.id === data.id ? data : item));
-      saveToStorage(updated);
-      toast({ title: 'Sucesso', description: 'Recurso físico atualizado!' });
-    } else {
-      saveToStorage([...items, data]);
-      toast({ title: 'Sucesso', description: 'Recurso físico cadastrado!' });
+      if (recursosError) throw recursosError;
+
+      const recursosWithFaixas = await Promise.all(
+        (recursosData || []).map(async (rf) => {
+          const { data: faixasData } = await supabase
+            .from('rf_faixas_disponibilidade')
+            .select('*')
+            .eq('recurso_fisico_id', rf.id);
+
+          const faixas: FaixaDisponibilidade[] = (faixasData || []).map((f) => ({
+            id: f.id,
+            dataInicio: f.data_inicio,
+            dataFim: f.data_fim,
+            horaInicio: f.hora_inicio,
+            horaFim: f.hora_fim,
+            diasSemana: f.dias_semana || [1, 2, 3, 4, 5],
+          }));
+
+          return mapDbToRecursoFisico(rf, faixas);
+        })
+      );
+
+      setItems(recursosWithFaixas);
+    } catch (error) {
+      console.error('Error fetching recursos fisicos:', error);
+      toast({ title: 'Erro', description: 'Erro ao carregar recursos físicos', variant: 'destructive' });
+    } finally {
+      setIsLoading(false);
     }
-    setEditingItem(null);
   };
 
-  const handleDelete = (id: string) => {
+  useEffect(() => {
+    fetchRecursosFisicos();
+  }, []);
+
+  const handleSave = async (data: RecursoFisico) => {
+    try {
+      const dbData: TablesInsert<'recursos_fisicos'> = {
+        id: data.id || undefined,
+        codigo_externo: data.codigoExterno || null,
+        nome: data.nome,
+        custo_hora: data.custoHora || 0,
+      };
+
+      let recursoId = data.id;
+
+      if (editingItem) {
+        const { error } = await supabase
+          .from('recursos_fisicos')
+          .update(dbData as TablesUpdate<'recursos_fisicos'>)
+          .eq('id', data.id);
+        if (error) throw error;
+      } else {
+        const { data: inserted, error } = await supabase
+          .from('recursos_fisicos')
+          .insert(dbData)
+          .select()
+          .single();
+        if (error) throw error;
+        recursoId = inserted.id;
+      }
+
+      // Handle faixas de disponibilidade
+      if (data.faixasDisponibilidade) {
+        await supabase.from('rf_faixas_disponibilidade').delete().eq('recurso_fisico_id', recursoId);
+        if (data.faixasDisponibilidade.length > 0) {
+          const faixasData = data.faixasDisponibilidade.map((f) => ({
+            recurso_fisico_id: recursoId,
+            data_inicio: f.dataInicio,
+            data_fim: f.dataFim,
+            hora_inicio: f.horaInicio,
+            hora_fim: f.horaFim,
+            dias_semana: f.diasSemana,
+          }));
+          await supabase.from('rf_faixas_disponibilidade').insert(faixasData);
+        }
+      }
+
+      toast({ title: 'Sucesso', description: editingItem ? 'Recurso físico atualizado!' : 'Recurso físico cadastrado!' });
+      await fetchRecursosFisicos();
+      setEditingItem(null);
+    } catch (error) {
+      console.error('Error saving recurso fisico:', error);
+      toast({ title: 'Erro', description: 'Erro ao salvar recurso físico', variant: 'destructive' });
+    }
+  };
+
+  const handleDelete = async (id: string) => {
     if (confirm('Deseja realmente excluir este recurso físico?')) {
-      saveToStorage(items.filter((item) => item.id !== id));
-      toast({ title: 'Excluído', description: 'Recurso físico removido!' });
+      try {
+        const { error } = await supabase.from('recursos_fisicos').delete().eq('id', id);
+        if (error) throw error;
+        toast({ title: 'Excluído', description: 'Recurso físico removido!' });
+        await fetchRecursosFisicos();
+      } catch (error) {
+        console.error('Error deleting recurso fisico:', error);
+        toast({ title: 'Erro', description: 'Erro ao excluir recurso físico', variant: 'destructive' });
+      }
     }
   };
 
@@ -157,7 +257,11 @@ const RecursosFisicos = () => {
       </PageHeader>
 
       <DataCard>
-        {filteredItems.length === 0 ? (
+        {isLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : filteredItems.length === 0 ? (
           <EmptyState
             title="Nenhum recurso físico cadastrado"
             description="Adicione recursos físicos como estúdios e salas."

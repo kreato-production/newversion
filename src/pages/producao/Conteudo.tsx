@@ -1,11 +1,23 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
-import { Edit, Trash2, Film } from 'lucide-react';
+import { Edit, Trash2, Film, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ConteudoFormModal } from '@/components/producao/ConteudoFormModal';
 import { SortableTable, Column } from '@/components/shared/SortableTable';
 import { usePermissions } from '@/hooks/usePermissions';
+import { supabase } from '@/integrations/supabase/client';
+import type { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
+
+type ConteudoDB = Tables<'conteudos'>;
+
+// Helper function to generate content code (for backwards compatibility)
+export const generateCodigoConteudo = (): string => {
+  const currentYear = new Date().getFullYear();
+  const yearSuffix = String(currentYear).slice(-2);
+  const timestamp = Date.now().toString().slice(-5);
+  return `CNT-${timestamp}-${yearSuffix}`;
+};
 
 export interface Conteudo {
   id: string;
@@ -13,50 +25,49 @@ export interface Conteudo {
   descricao: string;
   quantidadeEpisodios: number;
   centroLucro: string;
+  centroLucroId?: string;
   unidadeNegocio: string;
+  unidadeNegocioId?: string;
   tipoConteudo: string;
+  tipoConteudoId?: string;
   classificacao: string;
+  classificacaoId?: string;
   anoProducao: string;
   sinopse: string;
   usuarioCadastro: string;
   dataCadastro: string;
 }
 
-export const generateCodigoConteudo = (): string => {
-  const currentYear = new Date().getFullYear();
-  const yearSuffix = String(currentYear).slice(-2);
-  
-  const stored = localStorage.getItem('kreato_conteudos');
-  const conteudos: Conteudo[] = stored ? JSON.parse(stored) : [];
-  
-  const conteudosMesmoAno = conteudos.filter((c) => {
-    if (!c.codigoExterno) return false;
-    const parts = c.codigoExterno.split('-');
-    return parts.length === 3 && parts[2] === yearSuffix;
-  });
-  
-  let maxCounter = 0;
-  conteudosMesmoAno.forEach((c) => {
-    const parts = c.codigoExterno.split('-');
-    if (parts.length === 3) {
-      const counter = parseInt(parts[1], 10);
-      if (!isNaN(counter) && counter > maxCounter) {
-        maxCounter = counter;
-      }
-    }
-  });
-  
-  const nextCounter = maxCounter + 1;
-  const paddedCounter = String(nextCounter).padStart(5, '0');
-  
-  return `CNT-${paddedCounter}-${yearSuffix}`;
-};
+const mapDbToConteudo = (
+  db: ConteudoDB & {
+    centros_lucro?: { nome: string } | null;
+    unidades_negocio?: { nome: string } | null;
+    tipos_gravacao?: { nome: string } | null;
+    classificacoes?: { nome: string } | null;
+  }
+): Conteudo => ({
+  id: db.id,
+  codigoExterno: db.codigo_externo || '',
+  descricao: db.descricao,
+  quantidadeEpisodios: db.quantidade_episodios || 0,
+  centroLucro: db.centros_lucro?.nome || '',
+  centroLucroId: db.centro_lucro_id || undefined,
+  unidadeNegocio: db.unidades_negocio?.nome || '',
+  unidadeNegocioId: db.unidade_negocio_id || undefined,
+  tipoConteudo: db.tipos_gravacao?.nome || '',
+  tipoConteudoId: db.tipo_conteudo_id || undefined,
+  classificacao: db.classificacoes?.nome || '',
+  classificacaoId: db.classificacao_id || undefined,
+  anoProducao: db.ano_producao || '',
+  sinopse: db.sinopse || '',
+  usuarioCadastro: '',
+  dataCadastro: db.created_at ? new Date(db.created_at).toLocaleDateString('pt-BR') : '',
+});
 
 const Conteudo = () => {
   const { toast } = useToast();
   const { canIncluir, canAlterar, canExcluir } = usePermissions();
   
-  // Permissões de ação
   const podeIncluir = canIncluir('Produção', 'Conteúdo');
   const podeAlterar = canAlterar('Produção', 'Conteúdo');
   const podeExcluir = canExcluir('Produção', 'Conteúdo');
@@ -64,85 +75,118 @@ const Conteudo = () => {
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Conteudo | null>(null);
-  const [items, setItems] = useState<Conteudo[]>(() => {
-    const stored = localStorage.getItem('kreato_conteudos');
-    return stored ? JSON.parse(stored) : [];
-  });
+  const [items, setItems] = useState<Conteudo[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const saveToStorage = (data: Conteudo[]) => {
-    localStorage.setItem('kreato_conteudos', JSON.stringify(data));
-    setItems(data);
-  };
+  const fetchConteudos = async () => {
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('conteudos')
+        .select(`
+          *,
+          centros_lucro:centro_lucro_id(nome),
+          unidades_negocio:unidade_negocio_id(nome),
+          tipos_gravacao:tipo_conteudo_id(nome),
+          classificacoes:classificacao_id(nome)
+        `)
+        .order('descricao');
 
-  const handleSave = (data: Conteudo) => {
-    if (editingItem) {
-      const updated = items.map((item) => (item.id === data.id ? data : item));
-      saveToStorage(updated);
-      toast({ title: 'Sucesso', description: 'Conteúdo atualizado!' });
-    } else {
-      saveToStorage([...items, data]);
-      toast({ title: 'Sucesso', description: 'Conteúdo cadastrado!' });
+      if (error) throw error;
+      setItems((data || []).map(mapDbToConteudo));
+    } catch (error) {
+      console.error('Error fetching conteudos:', error);
+      toast({ title: 'Erro', description: 'Erro ao carregar conteúdos', variant: 'destructive' });
+    } finally {
+      setIsLoading(false);
     }
-    setEditingItem(null);
   };
 
-  const hasAssociatedResources = (conteudoId: string): boolean => {
-    // Buscar gravações associadas a este conteúdo
-    const gravacoes = localStorage.getItem('kreato_gravacoes');
-    const listaGravacoes = gravacoes ? JSON.parse(gravacoes) : [];
-    
-    const gravacoesDoConteudo = listaGravacoes.filter(
-      (g: { conteudoId?: string }) => g.conteudoId === conteudoId
-    );
+  useEffect(() => {
+    fetchConteudos();
+  }, []);
 
-    // Verificar se alguma gravação possui recursos associados
-    for (const gravacao of gravacoesDoConteudo) {
-      // Verificar recursos técnicos e físicos
-      const recursosKey = `kreato_gravacao_recursos_${gravacao.id}`;
-      const recursos = localStorage.getItem(recursosKey);
-      if (recursos) {
-        const recursosData = JSON.parse(recursos);
-        if (recursosData.length > 0) {
-          return true;
+  const handleSave = async (data: Conteudo) => {
+    try {
+      const dbData: TablesInsert<'conteudos'> = {
+        id: data.id || undefined,
+        codigo_externo: data.codigoExterno || null,
+        descricao: data.descricao,
+        quantidade_episodios: data.quantidadeEpisodios || 0,
+        centro_lucro_id: data.centroLucroId || null,
+        unidade_negocio_id: data.unidadeNegocioId || null,
+        tipo_conteudo_id: data.tipoConteudoId || null,
+        classificacao_id: data.classificacaoId || null,
+        ano_producao: data.anoProducao || null,
+        sinopse: data.sinopse || null,
+      };
+
+      if (editingItem) {
+        const { error } = await supabase
+          .from('conteudos')
+          .update(dbData as TablesUpdate<'conteudos'>)
+          .eq('id', data.id);
+        if (error) throw error;
+        toast({ title: 'Sucesso', description: 'Conteúdo atualizado!' });
+      } else {
+        const { error } = await supabase.from('conteudos').insert(dbData);
+        if (error) throw error;
+        toast({ title: 'Sucesso', description: 'Conteúdo cadastrado!' });
+      }
+
+      await fetchConteudos();
+      setEditingItem(null);
+    } catch (error) {
+      console.error('Error saving conteudo:', error);
+      toast({ title: 'Erro', description: 'Erro ao salvar conteúdo', variant: 'destructive' });
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    // Check if has associated recordings with resources
+    try {
+      const { data: gravacoes } = await supabase
+        .from('gravacoes')
+        .select('id')
+        .eq('conteudo_id', id);
+
+      if (gravacoes && gravacoes.length > 0) {
+        const gravacaoIds = gravacoes.map(g => g.id);
+        
+        const { data: recursos } = await supabase
+          .from('gravacao_recursos')
+          .select('id')
+          .in('gravacao_id', gravacaoIds)
+          .limit(1);
+
+        const { data: terceiros } = await supabase
+          .from('gravacao_terceiros')
+          .select('id')
+          .in('gravacao_id', gravacaoIds)
+          .limit(1);
+
+        if ((recursos && recursos.length > 0) || (terceiros && terceiros.length > 0)) {
+          toast({
+            title: 'Exclusão não permitida',
+            description: 'Este conteúdo possui gravações com recursos, técnicos, físicos ou terceiros associados.',
+            variant: 'destructive',
+          });
+          return;
         }
       }
 
-      // Verificar terceiros
-      const terceirosKey = `kreato_gravacao_terceiros_${gravacao.id}`;
-      const terceiros = localStorage.getItem(terceirosKey);
-      if (terceiros) {
-        const terceirosData = JSON.parse(terceiros);
-        if (terceirosData.length > 0) {
-          return true;
-        }
+      if (confirm('Deseja realmente excluir este conteúdo? Todas as gravações associadas também serão removidas.')) {
+        // Delete associated gravações first
+        await supabase.from('gravacoes').delete().eq('conteudo_id', id);
+        
+        const { error } = await supabase.from('conteudos').delete().eq('id', id);
+        if (error) throw error;
+        toast({ title: 'Excluído', description: 'Conteúdo e gravações associadas removidos!' });
+        await fetchConteudos();
       }
-    }
-
-    return false;
-  };
-
-  const handleDelete = (id: string) => {
-    if (hasAssociatedResources(id)) {
-      toast({
-        title: 'Exclusão não permitida',
-        description: 'Este conteúdo possui gravações com recursos, técnicos, físicos ou terceiros associados.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    if (confirm('Deseja realmente excluir este conteúdo? Todas as gravações associadas também serão removidas.')) {
-      // Remover gravações associadas
-      const gravacoes = localStorage.getItem('kreato_gravacoes');
-      const listaGravacoes = gravacoes ? JSON.parse(gravacoes) : [];
-      const gravacoesAtualizadas = listaGravacoes.filter(
-        (g: { conteudoId?: string }) => g.conteudoId !== id
-      );
-      localStorage.setItem('kreato_gravacoes', JSON.stringify(gravacoesAtualizadas));
-
-      // Remover conteúdo
-      saveToStorage(items.filter((item) => item.id !== id));
-      toast({ title: 'Excluído', description: 'Conteúdo e gravações associadas removidos!' });
+    } catch (error) {
+      console.error('Error deleting conteudo:', error);
+      toast({ title: 'Erro', description: 'Erro ao excluir conteúdo', variant: 'destructive' });
     }
   };
 
@@ -235,7 +279,11 @@ const Conteudo = () => {
       </PageHeader>
 
       <DataCard>
-        {filteredItems.length === 0 ? (
+        {isLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : filteredItems.length === 0 ? (
           <EmptyState
             title="Nenhum conteúdo cadastrado"
             description="Comece adicionando seu primeiro conteúdo de produção."
