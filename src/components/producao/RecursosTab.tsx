@@ -653,20 +653,33 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
     setHorarioModalOpen(true);
   };
 
-  const horarioModalDisponibilidade = useMemo(() => {
-    if (!horarioModalRecurso || !horarioModalDia) return null;
+  const [horarioModalDisponibilidade, setHorarioModalDisponibilidade] = useState<{
+    faixas: { horaInicio: string; horaFim: string }[];
+    ocupacoes: { gravacaoId: string; gravacaoNome: string; horaInicio: string; horaFim: string }[];
+    disponibilidade: { disponivel: boolean; motivo?: string };
+  } | null>(null);
 
-    const faixas = getFaixasDisponiveis(horarioModalRecurso.recursoId, horarioModalDia);
-    const ocupacoes = getOcupacoesRecurso(horarioModalRecurso.recursoId, horarioModalDia, gravacaoId);
-    const disponibilidade = verificarDisponibilidade(
-      horarioModalRecurso.recursoId,
-      horarioModalDia,
-      horarioInicio,
-      horarioFim,
-      gravacaoId
-    );
+  useEffect(() => {
+    const loadDisponibilidade = async () => {
+      if (!horarioModalRecurso || !horarioModalDia) {
+        setHorarioModalDisponibilidade(null);
+        return;
+      }
 
-    return { faixas, ocupacoes, disponibilidade };
+      const faixas = getFaixasDisponiveis(horarioModalRecurso.recursoId, horarioModalDia);
+      const ocupacoes = await getOcupacoesRecurso(horarioModalRecurso.recursoId, horarioModalDia, gravacaoId);
+      const disponibilidade = verificarDisponibilidade(
+        horarioModalRecurso.recursoId,
+        horarioModalDia,
+        horarioInicio,
+        horarioFim,
+        gravacaoId
+      );
+
+      setHorarioModalDisponibilidade({ faixas, ocupacoes, disponibilidade });
+    };
+
+    loadDisponibilidade();
   }, [horarioModalRecurso, horarioModalDia, horarioInicio, horarioFim, gravacaoId, getFaixasDisponiveis, getOcupacoesRecurso, verificarDisponibilidade]);
 
   const handleSaveHorario = async () => {
