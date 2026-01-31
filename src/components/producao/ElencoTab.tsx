@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Plus, Trash2, User, Search, Image as ImageIcon, Shirt } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,6 +11,8 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Figurino } from '@/pages/recursos/Figurinos';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Pessoa {
   id: string;
@@ -49,6 +51,7 @@ interface ElencoTabProps {
 }
 
 export const ElencoTab = ({ entityId, storagePrefix = 'gravacao' }: ElencoTabProps) => {
+  const { session } = useAuth();
   const [elenco, setElenco] = useState<ElencoMembro[]>([]);
   const [pessoas, setPessoas] = useState<Pessoa[]>([]);
   const [figurinos, setFigurinos] = useState<Figurino[]>([]);
@@ -60,30 +63,67 @@ export const ElencoTab = ({ entityId, storagePrefix = 'gravacao' }: ElencoTabPro
   const [searchPessoa, setSearchPessoa] = useState('');
   const [searchFigurino, setSearchFigurino] = useState('');
 
-  const storageKey = `kreato_${storagePrefix}_elenco_${entityId}`;
+  const fetchData = useCallback(async () => {
+    if (!session) return;
+
+    try {
+      // Fetch pessoas ativas
+      const { data: pessoasData } = await supabase
+        .from('pessoas')
+        .select('id, nome, sobrenome, nome_trabalho, foto_url, status')
+        .eq('status', 'Ativo')
+        .order('nome');
+
+      setPessoas((pessoasData || []).map((p: any) => ({
+        id: p.id,
+        nome: p.nome,
+        sobrenome: p.sobrenome,
+        nomeTrabalho: p.nome_trabalho,
+        foto: p.foto_url,
+        status: p.status,
+      })));
+
+      // Fetch figurinos
+      const { data: figurinosData } = await supabase
+        .from('figurinos')
+        .select('*, figurino_imagens(*)')
+        .order('codigo_figurino');
+
+      setFigurinos((figurinosData || []).map((f: any) => ({
+        id: f.id,
+        codigoFigurino: f.codigo_figurino,
+        descricao: f.descricao,
+        imagens: (f.figurino_imagens || []).map((img: any) => ({
+          id: img.id,
+          url: img.url,
+          isPrincipal: img.is_principal,
+        })),
+      })));
+
+      // Fetch elenco from gravacao_elenco table
+      const { data: elencoData } = await supabase
+        .from('gravacao_elenco')
+        .select('*, pessoas:pessoa_id(id, nome, sobrenome, nome_trabalho, foto_url)')
+        .eq(storagePrefix === 'gravacao' ? 'gravacao_id' : 'conteudo_id', entityId);
+
+      setElenco((elencoData || []).map((e: any) => ({
+        id: e.id,
+        pessoaId: e.pessoa_id,
+        nome: `${e.pessoas?.nome || ''} ${e.pessoas?.sobrenome || ''}`.trim(),
+        nomeTrabalho: e.pessoas?.nome_trabalho,
+        foto: e.pessoas?.foto_url,
+        personagem: e.personagem || '',
+        descricaoPersonagem: '',
+        figurinos: [],
+      })));
+    } catch (err) {
+      console.error('Error fetching elenco data:', err);
+    }
+  }, [session, entityId, storagePrefix]);
 
   useEffect(() => {
-    const storedPessoas = localStorage.getItem('kreato_pessoas');
-    if (storedPessoas) {
-      const parsed = JSON.parse(storedPessoas);
-      setPessoas(parsed.filter((p: Pessoa) => p.status === 'Ativo'));
-    }
-
-    const storedFigurinos = localStorage.getItem('kreato_figurinos');
-    if (storedFigurinos) {
-      setFigurinos(JSON.parse(storedFigurinos));
-    }
-
-    const storedElenco = localStorage.getItem(storageKey);
-    if (storedElenco) {
-      setElenco(JSON.parse(storedElenco));
-    }
-  }, [storageKey]);
-
-  const saveToStorage = (data: ElencoMembro[]) => {
-    localStorage.setItem(storageKey, JSON.stringify(data));
-    setElenco(data);
-  };
+    fetchData();
+  }, [fetchData]);
 
   const getImagemPrincipal = (figurino: Figurino): string | undefined => {
     const principal = figurino.imagens?.find(img => img.isPrincipal);

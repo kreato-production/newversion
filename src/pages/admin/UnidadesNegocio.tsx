@@ -1,11 +1,22 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
 import { SortableTable, Column } from '@/components/shared/SortableTable';
-import { Edit, Trash2, Building2, ImageIcon } from 'lucide-react';
+import { Edit, Trash2, Building2, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { UnidadeNegocioFormModal } from '@/components/admin/UnidadeNegocioFormModal';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+
+interface UnidadeNegocioDb {
+  id: string;
+  codigo_externo: string | null;
+  nome: string;
+  descricao: string | null;
+  created_at: string | null;
+  created_by: string | null;
+}
 
 export interface UnidadeNegocio {
   id: string;
@@ -17,40 +28,115 @@ export interface UnidadeNegocio {
   usuarioCadastro: string;
 }
 
-const STORAGE_KEY = 'kreato_unidades_negocio';
+const mapDbToUnidade = (db: UnidadeNegocioDb, userName: string): UnidadeNegocio => ({
+  id: db.id,
+  codigoExterno: db.codigo_externo || '',
+  nome: db.nome,
+  descricao: db.descricao || '',
+  dataCadastro: db.created_at ? new Date(db.created_at).toLocaleDateString('pt-BR') : '',
+  usuarioCadastro: userName,
+});
 
 const UnidadesNegocio = () => {
   const { toast } = useToast();
   const { t } = useLanguage();
+  const { user, session } = useAuth();
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<UnidadeNegocio | null>(null);
-  const [items, setItems] = useState<UnidadeNegocio[]>(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    return stored ? JSON.parse(stored) : [];
-  });
+  const [items, setItems] = useState<UnidadeNegocio[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const saveToStorage = (data: UnidadeNegocio[]) => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-    setItems(data);
-  };
-
-  const handleSave = (data: UnidadeNegocio) => {
-    if (editingItem) {
-      const updated = items.map((item) => (item.id === data.id ? data : item));
-      saveToStorage(updated);
-      toast({ title: t('common.success'), description: t('businessUnits.updated') });
-    } else {
-      saveToStorage([...items, data]);
-      toast({ title: t('common.success'), description: t('businessUnits.saved') });
+  const fetchData = useCallback(async () => {
+    if (!session) {
+      setIsLoading(false);
+      return;
     }
-    setEditingItem(null);
+
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('unidades_negocio')
+        .select('*')
+        .order('nome', { ascending: true });
+
+      if (error) throw error;
+
+      setItems((data || []).map((d) => mapDbToUnidade(d, user?.nome || '')));
+    } catch (err) {
+      console.error('Error fetching unidades_negocio:', err);
+      toast({
+        title: 'Erro',
+        description: `Erro ao carregar dados: ${(err as Error).message}`,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [session, toast, user?.nome]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  const handleSave = async (data: UnidadeNegocio) => {
+    try {
+      const dbData = {
+        nome: data.nome,
+        descricao: data.descricao || null,
+        codigo_externo: data.codigoExterno || null,
+        created_by: user?.id || null,
+      };
+
+      if (editingItem) {
+        const { error } = await supabase
+          .from('unidades_negocio')
+          .update(dbData)
+          .eq('id', data.id);
+
+        if (error) throw error;
+        toast({ title: t('common.success'), description: t('businessUnits.updated') });
+      } else {
+        const { error } = await supabase
+          .from('unidades_negocio')
+          .insert(dbData);
+
+        if (error) throw error;
+        toast({ title: t('common.success'), description: t('businessUnits.saved') });
+      }
+
+      await fetchData();
+      setEditingItem(null);
+    } catch (err) {
+      console.error('Error saving unidade:', err);
+      toast({
+        title: 'Erro',
+        description: `Erro ao salvar: ${(err as Error).message}`,
+        variant: 'destructive',
+      });
+    }
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (confirm(t('common.confirm.delete'))) {
-      saveToStorage(items.filter((item) => item.id !== id));
-      toast({ title: t('common.success'), description: t('businessUnits.deleted') });
+      try {
+        const { error } = await supabase
+          .from('unidades_negocio')
+          .delete()
+          .eq('id', id);
+
+        if (error) throw error;
+
+        toast({ title: t('common.success'), description: t('businessUnits.deleted') });
+        await fetchData();
+      } catch (err) {
+        console.error('Error deleting unidade:', err);
+        toast({
+          title: 'Erro',
+          description: `Erro ao excluir: ${(err as Error).message}`,
+          variant: 'destructive',
+        });
+      }
     }
   };
 
@@ -66,25 +152,6 @@ const UnidadesNegocio = () => {
   );
 
   const columns: Column<UnidadeNegocio & { actions?: never }>[] = [
-    {
-      key: 'imagem',
-      label: t('common.logo'),
-      className: 'w-16',
-      sortable: false,
-      render: (item) => (
-        item.imagem ? (
-          <img
-            src={item.imagem}
-            alt={item.nome}
-            className="w-10 h-10 rounded object-contain bg-muted"
-          />
-        ) : (
-          <div className="w-10 h-10 rounded bg-muted flex items-center justify-center">
-            <ImageIcon className="w-5 h-5 text-muted-foreground" />
-          </div>
-        )
-      ),
-    },
     {
       key: 'codigoExterno',
       label: t('common.code'),
@@ -137,6 +204,14 @@ const UnidadesNegocio = () => {
     },
   ];
 
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
   return (
     <div>
       <PageHeader
@@ -165,7 +240,7 @@ const UnidadesNegocio = () => {
             data={filteredItems}
             columns={columns}
             getRowKey={(item) => item.id}
-            storageKey={STORAGE_KEY}
+            storageKey="kreato_unidades_negocio"
           />
         )}
       </DataCard>

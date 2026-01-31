@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -33,6 +33,7 @@ import { toast } from 'sonner';
 import { differenceInDays, parseISO, isWithinInterval, format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Checkbox } from '@/components/ui/checkbox';
+import { supabase } from '@/integrations/supabase/client';
 
 const DIAS_SEMANA = [
   { value: 0, label: 'Dom' },
@@ -110,10 +111,21 @@ export const RecursoHumanoFormModal = ({
   });
 
   useEffect(() => {
-    const storedDep = localStorage.getItem('kreato_departamentos');
-    const storedFuncoes = localStorage.getItem('kreato_funcoes');
-    setDepartamentos(storedDep ? JSON.parse(storedDep) : []);
-    setFuncoes(storedFuncoes ? JSON.parse(storedFuncoes) : []);
+    const fetchDropdowns = async () => {
+      try {
+        const [depRes, funcoesRes] = await Promise.all([
+          supabase.from('departamentos').select('id, nome').order('nome'),
+          supabase.from('funcoes').select('id, nome').order('nome'),
+        ]);
+        setDepartamentos(depRes.data || []);
+        setFuncoes(funcoesRes.data || []);
+      } catch (err) {
+        console.error('Error fetching dropdowns:', err);
+      }
+    };
+    if (isOpen) {
+      fetchDropdowns();
+    }
   }, [isOpen]);
 
   useEffect(() => {

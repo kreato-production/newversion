@@ -1512,6 +1512,36 @@ export type Database = {
           },
         ]
       }
+      servicos: {
+        Row: {
+          codigo_externo: string | null
+          created_at: string | null
+          created_by: string | null
+          descricao: string | null
+          id: string
+          nome: string
+          updated_at: string | null
+        }
+        Insert: {
+          codigo_externo?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          descricao?: string | null
+          id?: string
+          nome: string
+          updated_at?: string | null
+        }
+        Update: {
+          codigo_externo?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          descricao?: string | null
+          id?: string
+          nome?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       status_gravacao: {
         Row: {
           codigo_externo: string | null

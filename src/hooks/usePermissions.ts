@@ -1,6 +1,7 @@
-import { useMemo, useCallback } from 'react';
+import { useMemo, useCallback, useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { getPerfilPermissions, PermissionItem } from '@/data/permissionsMatrix';
+import { supabase } from '@/integrations/supabase/client';
 
 interface UsePermissionsResult {
   hasPermission: (modulo: string, subModulo1?: string, subModulo2?: string, campo?: string) => boolean;
@@ -14,23 +15,41 @@ interface UsePermissionsResult {
 }
 
 export const usePermissions = (): UsePermissionsResult => {
-  const { user } = useAuth();
+  const { user, session } = useAuth();
+  const [perfilId, setPerfilId] = useState<string | null>(null);
+  
+  // Buscar o perfil do usuário do Supabase
+  useEffect(() => {
+    const fetchPerfil = async () => {
+      if (!user?.perfil || !session) return;
+      
+      try {
+        const { data, error } = await supabase
+          .from('perfis_acesso')
+          .select('id')
+          .eq('nome', user.perfil)
+          .single();
+        
+        if (error) {
+          console.error('Error fetching perfil:', error);
+          return;
+        }
+        
+        setPerfilId(data?.id || null);
+      } catch (err) {
+        console.error('Error in fetchPerfil:', err);
+      }
+    };
+    
+    fetchPerfil();
+  }, [user?.perfil, session]);
   
   const permissions = useMemo(() => {
-    if (!user?.perfil) return [];
+    if (!perfilId) return [];
     
-    // Buscar o perfil pelo nome
-    const storedPerfis = localStorage.getItem('kreato_perfis_acesso');
-    if (!storedPerfis) return [];
-    
-    const perfis = JSON.parse(storedPerfis);
-    const perfilEncontrado = perfis.find((p: { nome: string; id: string }) => p.nome === user.perfil);
-    
-    if (!perfilEncontrado) return [];
-    
-    const perfilPermissoes = getPerfilPermissions(perfilEncontrado.id);
+    const perfilPermissoes = getPerfilPermissions(perfilId);
     return perfilPermissoes?.permissoes || [];
-  }, [user?.perfil]);
+  }, [perfilId]);
   
   const findPermission = useCallback((
     modulo: string,

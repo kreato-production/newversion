@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Select,
@@ -15,42 +15,124 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, Loader2 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
 
 interface UnidadesNegocioTabProps {
   usuarioId: string;
 }
 
 export const UnidadesNegocioTab = ({ usuarioId }: UnidadesNegocioTabProps) => {
+  const { session } = useAuth();
+  const { toast } = useToast();
   const [unidades, setUnidades] = useState<{ id: string; nome: string }[]>([]);
   const [unidadesDisponiveis, setUnidadesDisponiveis] = useState<{ id: string; nome: string }[]>([]);
   const [selectedUnidade, setSelectedUnidade] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+
+  const fetchData = useCallback(async () => {
+    if (!session) return;
+
+    setIsLoading(true);
+    try {
+      // Fetch all available units
+      const { data: allUnidades, error: allError } = await supabase
+        .from('unidades_negocio')
+        .select('id, nome')
+        .order('nome');
+
+      if (allError) throw allError;
+      setUnidadesDisponiveis(allUnidades || []);
+
+      // Fetch user's linked units
+      const { data: linkedUnidades, error: linkedError } = await supabase
+        .from('usuario_unidades')
+        .select('unidade_id, unidades_negocio:unidade_id(id, nome)')
+        .eq('usuario_id', usuarioId);
+
+      if (linkedError) throw linkedError;
+
+      const userUnidades = (linkedUnidades || [])
+        .map((item: any) => item.unidades_negocio)
+        .filter(Boolean);
+      
+      setUnidades(userUnidades);
+    } catch (err) {
+      console.error('Error fetching unidades:', err);
+      toast({
+        title: 'Erro',
+        description: 'Erro ao carregar unidades de negócio',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [session, usuarioId, toast]);
 
   useEffect(() => {
-    const stored = localStorage.getItem('kreato_unidades_negocio');
-    setUnidadesDisponiveis(stored ? JSON.parse(stored) : []);
+    fetchData();
+  }, [fetchData]);
 
-    const storedUsuarioUnidades = localStorage.getItem(`kreato_usuario_unidades_${usuarioId}`);
-    setUnidades(storedUsuarioUnidades ? JSON.parse(storedUsuarioUnidades) : []);
-  }, [usuarioId]);
-
-  const saveToStorage = (data: { id: string; nome: string }[]) => {
-    localStorage.setItem(`kreato_usuario_unidades_${usuarioId}`, JSON.stringify(data));
-    setUnidades(data);
-  };
-
-  const handleAdd = () => {
+  const handleAdd = async () => {
     if (!selectedUnidade) return;
+
     const unidade = unidadesDisponiveis.find((u) => u.id === selectedUnidade);
     if (!unidade || unidades.find((u) => u.id === selectedUnidade)) return;
 
-    saveToStorage([...unidades, unidade]);
-    setSelectedUnidade('');
+    try {
+      const { error } = await supabase
+        .from('usuario_unidades')
+        .insert({
+          usuario_id: usuarioId,
+          unidade_id: selectedUnidade,
+        });
+
+      if (error) throw error;
+
+      setUnidades([...unidades, unidade]);
+      setSelectedUnidade('');
+      toast({ title: 'Sucesso', description: 'Unidade vinculada com sucesso' });
+    } catch (err) {
+      console.error('Error adding unidade:', err);
+      toast({
+        title: 'Erro',
+        description: 'Erro ao vincular unidade',
+        variant: 'destructive',
+      });
+    }
   };
 
-  const handleRemove = (id: string) => {
-    saveToStorage(unidades.filter((u) => u.id !== id));
+  const handleRemove = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('usuario_unidades')
+        .delete()
+        .eq('usuario_id', usuarioId)
+        .eq('unidade_id', id);
+
+      if (error) throw error;
+
+      setUnidades(unidades.filter((u) => u.id !== id));
+      toast({ title: 'Sucesso', description: 'Unidade desvinculada com sucesso' });
+    } catch (err) {
+      console.error('Error removing unidade:', err);
+      toast({
+        title: 'Erro',
+        description: 'Erro ao desvincular unidade',
+        variant: 'destructive',
+      });
+    }
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4 mt-4">
