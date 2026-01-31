@@ -416,6 +416,89 @@ const Mapas = () => {
   }, [alocacoesPorGravacao, gravacoes]);
 
   // Calcular ocupações de recursos humanos baseado nas tarefas
+  // Buscar horários reais dos colaboradores alocados (gravacao_recursos)
+  const [rhHorariosAlocados, setRhHorariosAlocados] = useState<Record<string, Record<string, { horaInicio: string; horaFim: string }>>>({});
+  const [rhEscalas, setRhEscalas] = useState<Record<string, any[]>>({});
+
+  // Buscar horários de alocação e escalas dos RH
+  useEffect(() => {
+    const fetchRhData = async () => {
+      // Buscar todas as alocações de RH com horários
+      const { data: alocacoesData } = await supabase
+        .from('gravacao_recursos')
+        .select('gravacao_id, recurso_humano_id, hora_inicio, hora_fim')
+        .not('recurso_humano_id', 'is', null);
+
+      const horariosMap: Record<string, Record<string, { horaInicio: string; horaFim: string }>> = {};
+      (alocacoesData || []).forEach((aloc: any) => {
+        if (!aloc.recurso_humano_id || !aloc.hora_inicio || !aloc.hora_fim) return;
+        
+        // Buscar a data da gravação
+        const gravacao = gravacoes.find(g => g.id === aloc.gravacao_id);
+        if (!gravacao?.dataPrevista) return;
+        
+        const key = `${aloc.recurso_humano_id}_${gravacao.dataPrevista}_${aloc.gravacao_id}`;
+        horariosMap[aloc.recurso_humano_id] = horariosMap[aloc.recurso_humano_id] || {};
+        horariosMap[aloc.recurso_humano_id][key] = {
+          horaInicio: aloc.hora_inicio?.substring(0, 5) || '08:00',
+          horaFim: aloc.hora_fim?.substring(0, 5) || '18:00',
+        };
+      });
+      setRhHorariosAlocados(horariosMap);
+
+      // Buscar escalas de todos os RH
+      const rhIds = recursosHumanos.map(rh => rh.id);
+      if (rhIds.length > 0) {
+        const { data: escalasData } = await supabase
+          .from('rh_escalas')
+          .select('*')
+          .in('recurso_humano_id', rhIds);
+        
+        const escalasMap: Record<string, any[]> = {};
+        (escalasData || []).forEach((escala: any) => {
+          if (!escalasMap[escala.recurso_humano_id]) {
+            escalasMap[escala.recurso_humano_id] = [];
+          }
+          escalasMap[escala.recurso_humano_id].push(escala);
+        });
+        setRhEscalas(escalasMap);
+      }
+    };
+    
+    if (gravacoes.length > 0 && recursosHumanos.length > 0) {
+      fetchRhData();
+    }
+  }, [gravacoes, recursosHumanos]);
+
+  // Função para obter escala do colaborador em um dia específico
+  const getEscalaParaDia = (rhId: string, dia: string): { horaInicio: string; horaFim: string; totalMinutos: number } | null => {
+    const escalas = rhEscalas[rhId] || [];
+    if (escalas.length === 0) return null;
+
+    const dataObj = parseISO(dia);
+    const diaSemana = dataObj.getDay();
+
+    for (const escala of escalas) {
+      const dataInicio = parseISO(escala.data_inicio);
+      const dataFim = parseISO(escala.data_fim);
+      
+      if (isWithinInterval(dataObj, { start: dataInicio, end: dataFim })) {
+        const diasSemana = escala.dias_semana || [1, 2, 3, 4, 5];
+        if (diasSemana.includes(diaSemana)) {
+          const horaInicio = escala.hora_inicio?.substring(0, 5) || '08:00';
+          const horaFim = escala.hora_fim?.substring(0, 5) || '18:00';
+          
+          const [hi, mi] = horaInicio.split(':').map(Number);
+          const [hf, mf] = horaFim.split(':').map(Number);
+          const totalMinutos = (hf * 60 + mf) - (hi * 60 + mi);
+          
+          return { horaInicio, horaFim, totalMinutos };
+        }
+      }
+    }
+    return null;
+  };
+
   const ocupacoesHumanas = useMemo(() => {
     const ocupacoes: Record<string, Record<string, OcupacaoItem[]>> = {};
 
@@ -442,10 +525,27 @@ const Mapas = () => {
       );
 
       if (!jaExiste) {
+        // Buscar horário real da alocação
+        const key = `${tarefa.recursoHumanoId}_${dia}_${gravacao.id}`;
+        const horarioAlocado = rhHorariosAlocados[tarefa.recursoHumanoId]?.[key];
+        
+        let horarioStr = 'Conforme escala';
+        let duracaoMinutos = 0;
+        
+        if (horarioAlocado) {
+          horarioStr = `${horarioAlocado.horaInicio} - ${horarioAlocado.horaFim}`;
+          const [hi, mi] = horarioAlocado.horaInicio.split(':').map(Number);
+          const [hf, mf] = horarioAlocado.horaFim.split(':').map(Number);
+          duracaoMinutos = (hf * 60 + mf) - (hi * 60 + mi);
+        }
+
         ocupacoes[tarefa.recursoHumanoId][dia].push({
           gravacao: gravacao.nome,
           gravacaoId: gravacao.id,
-          horario: 'Conforme escala',
+          horario: horarioStr,
+          horaInicio: horarioAlocado?.horaInicio,
+          horaFim: horarioAlocado?.horaFim,
+          duracaoMinutos,
           recursoHumanoId: tarefa.recursoHumanoId,
           statusCor: tarefa.statusCor,
         });
@@ -453,7 +553,7 @@ const Mapas = () => {
     });
 
     return ocupacoes;
-  }, [gravacoes, tarefas]);
+  }, [gravacoes, tarefas, rhHorariosAlocados]);
 
   // Obter tipos únicos de recursos físicos
   const tiposRecursoFisico = useMemo(() => {
@@ -1286,6 +1386,18 @@ const Mapas = () => {
                                   const bgColor = oc.statusCor || undefined;
                                   const gravacaoData = gravacoes.find(g => g.id === oc.gravacaoId);
                                   const recursoHumanoData = recursosHumanos.find(rh => rh.id === oc.recursoHumanoId);
+                                  const dataStr = format(day, 'yyyy-MM-dd');
+                                  
+                                  // Calcular tempo de escala e ocupação
+                                  const escala = getEscalaParaDia(recurso.id, dataStr);
+                                  const todasOcupacoesDia = ocupacoes[recurso.id]?.[dataStr] || [];
+                                  const tempoTotalOcupadoMinutos = todasOcupacoesDia.reduce((sum, o) => sum + (o.duracaoMinutos || 0), 0);
+                                  const tempoEscalaMinutos = escala?.totalMinutos || 0;
+                                  const tempoOciosoMinutos = Math.max(0, tempoEscalaMinutos - tempoTotalOcupadoMinutos);
+                                  const percentualOcupacao = tempoEscalaMinutos > 0 
+                                    ? Math.round((tempoTotalOcupadoMinutos / tempoEscalaMinutos) * 100)
+                                    : 0;
+
                                   return (
                                     <HoverCard key={idx} openDelay={200} closeDelay={100}>
                                       <HoverCardTrigger asChild>
@@ -1314,7 +1426,7 @@ const Mapas = () => {
                                           )}
                                         </div>
                                       </HoverCardTrigger>
-                                      <HoverCardContent className="w-72" side="top" align="center">
+                                      <HoverCardContent className="w-80" side="top" align="center">
                                         <div className="space-y-3">
                                           <div className="flex items-start gap-2">
                                             <Film className="h-4 w-4 text-primary mt-0.5" />
@@ -1332,6 +1444,11 @@ const Mapas = () => {
                                           <div className="flex items-center gap-2">
                                             <Clock className="h-4 w-4 text-muted-foreground" />
                                             <p className="text-sm">{oc.horario}</p>
+                                            {oc.duracaoMinutos && oc.duracaoMinutos > 0 && (
+                                              <span className="text-xs text-muted-foreground">
+                                                ({Math.floor(oc.duracaoMinutos / 60)}h{oc.duracaoMinutos % 60 > 0 ? ` ${oc.duracaoMinutos % 60}min` : ''})
+                                              </span>
+                                            )}
                                           </div>
                                           <div className="flex items-center gap-2">
                                             <User className="h-4 w-4 text-muted-foreground" />
@@ -1339,7 +1456,7 @@ const Mapas = () => {
                                           </div>
                                           {recursoHumanoData?.funcao && (
                                             <div className="flex items-center gap-2">
-                                              <Users className="h-4 w-4 text-muted-foreground" />
+                                              <Briefcase className="h-4 w-4 text-muted-foreground" />
                                               <p className="text-sm text-muted-foreground">{recursoHumanoData.funcao}</p>
                                             </div>
                                           )}
@@ -1350,6 +1467,43 @@ const Mapas = () => {
                                                 style={{ backgroundColor: bgColor }}
                                               />
                                               <p className="text-sm text-muted-foreground">Status da tarefa</p>
+                                            </div>
+                                          )}
+                                          
+                                          {/* Informações de tempo/ociosidade */}
+                                          {escala && (
+                                            <div className="border-t pt-3 mt-3 space-y-2">
+                                              <div className="flex items-center justify-between text-sm">
+                                                <span className="text-muted-foreground">Escala do dia:</span>
+                                                <span className="font-medium">{escala.horaInicio} - {escala.horaFim} ({Math.floor(tempoEscalaMinutos / 60)}h)</span>
+                                              </div>
+                                              <div className="flex items-center justify-between text-sm">
+                                                <span className="text-muted-foreground">Tempo ocupado:</span>
+                                                <span className="font-medium text-amber-600">
+                                                  {Math.floor(tempoTotalOcupadoMinutos / 60)}h{tempoTotalOcupadoMinutos % 60 > 0 ? ` ${tempoTotalOcupadoMinutos % 60}min` : ''} ({percentualOcupacao}%)
+                                                </span>
+                                              </div>
+                                              <div className="flex items-center justify-between text-sm">
+                                                <span className="text-muted-foreground">Tempo ocioso:</span>
+                                                <span className="font-medium text-emerald-600">
+                                                  {Math.floor(tempoOciosoMinutos / 60)}h{tempoOciosoMinutos % 60 > 0 ? ` ${tempoOciosoMinutos % 60}min` : ''}
+                                                </span>
+                                              </div>
+                                              <div className="pt-1">
+                                                <Progress value={percentualOcupacao} className="h-2" />
+                                              </div>
+                                              {todasOcupacoesDia.length > 1 && (
+                                                <p className="text-xs text-muted-foreground pt-1">
+                                                  * {todasOcupacoesDia.length} gravações neste dia
+                                                </p>
+                                              )}
+                                            </div>
+                                          )}
+                                          {!escala && (
+                                            <div className="border-t pt-3 mt-3">
+                                              <p className="text-xs text-muted-foreground italic">
+                                                Sem escala de trabalho definida para este dia
+                                              </p>
                                             </div>
                                           )}
                                         </div>
