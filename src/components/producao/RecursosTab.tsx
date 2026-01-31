@@ -88,10 +88,8 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
   const { session } = useAuth();
   const { verificarDisponibilidade, getFaixasDisponiveis, getOcupacoesRecurso } = useRecursoFisicoDisponibilidade();
   
-  const [mesAno, setMesAno] = useState(() => {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  });
+  const [mesAno, setMesAno] = useState<string>('');
+  const [gravacaoDataPrevista, setGravacaoDataPrevista] = useState<string | null>(null);
 
   const [recursos, setRecursos] = useState<RecursoAlocado[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -119,15 +117,27 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
   const [horarioInicio, setHorarioInicio] = useState('08:00');
   const [horarioFim, setHorarioFim] = useState('18:00');
 
-  // Fetch gravacao info
+  // Fetch gravacao info and set initial month
   useEffect(() => {
     const fetchGravacao = async () => {
       const { data } = await supabase
         .from('gravacoes')
-        .select('nome, codigo')
+        .select('nome, codigo, data_prevista')
         .eq('id', gravacaoId)
         .single();
-      if (data) setGravacaoInfo(data);
+      if (data) {
+        setGravacaoInfo(data);
+        setGravacaoDataPrevista(data.data_prevista);
+        // Inicializar mesAno com base na data_prevista da gravação
+        if (data.data_prevista) {
+          const [ano, mes] = data.data_prevista.split('-');
+          setMesAno(`${ano}-${mes}`);
+        } else {
+          // Fallback para mês atual
+          const now = new Date();
+          setMesAno(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`);
+        }
+      }
     };
     fetchGravacao();
   }, [gravacaoId]);
@@ -229,6 +239,15 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
 
     setIsLoading(true);
     try {
+      // Primeiro buscar a data_prevista da gravação
+      const { data: gravacaoData } = await supabase
+        .from('gravacoes')
+        .select('data_prevista')
+        .eq('id', gravacaoId)
+        .single();
+      
+      const dataPrevista = gravacaoData?.data_prevista;
+
       const { data: alocacoesData } = await supabase
         .from('gravacao_recursos')
         .select(`
@@ -270,13 +289,24 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
           }
           recurso = resourceMap.get(resourceKey);
 
+          // Marcar alocação na data_prevista
+          if (recurso && dataPrevista) {
+            recurso.alocacoes[dataPrevista] = 1;
+          }
+
           // If there's a human resource allocation for technical resource
-          if (aloc.recurso_humano_id && aloc.recursos_humanos && recurso) {
-            // Extract day from gravacao's data_prevista or use a default logic
-            // We need to store day information - we'll use a workaround
+          if (aloc.recurso_humano_id && aloc.recursos_humanos && recurso && dataPrevista) {
             const rhName = `${aloc.recursos_humanos.nome} ${aloc.recursos_humanos.sobrenome}`;
-            // For now, we'll need to fetch the gravacao date
-            // This is a simplified version - in production, you'd want to store date with allocation
+            if (!recurso.recursosHumanos[dataPrevista]) {
+              recurso.recursosHumanos[dataPrevista] = [];
+            }
+            recurso.recursosHumanos[dataPrevista].push({
+              id: aloc.id,
+              recursoHumanoId: aloc.recurso_humano_id,
+              nome: rhName,
+              horaInicio: aloc.hora_inicio || '08:00',
+              horaFim: aloc.hora_fim || '18:00',
+            });
           }
         } else if (isFisico && aloc.recursos_fisicos) {
           resourceKey = `fisico_${aloc.recurso_fisico_id}`;
@@ -293,9 +323,16 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
           }
           recurso = resourceMap.get(resourceKey);
           
-          // Store horario if available
-          if (recurso && aloc.hora_inicio && aloc.hora_fim) {
-            // We need the date - for now using a placeholder
+          // Marcar alocação na data_prevista e guardar horários
+          if (recurso && dataPrevista) {
+            recurso.alocacoes[dataPrevista] = 1;
+            
+            if (aloc.hora_inicio && aloc.hora_fim) {
+              recurso.horarios[dataPrevista] = {
+                horaInicio: aloc.hora_inicio,
+                horaFim: aloc.hora_fim,
+              };
+            }
           }
         }
       });
