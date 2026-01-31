@@ -93,6 +93,9 @@ export const ElencoTab = ({ entityId, storagePrefix = 'gravacao' }: ElencoTabPro
         id: f.id,
         codigoFigurino: f.codigo_figurino,
         descricao: f.descricao,
+        codigoExterno: f.codigo_externo || '',
+        dataCadastro: f.created_at || new Date().toISOString(),
+        usuarioCadastro: f.created_by || '',
         imagens: (f.figurino_imagens || []).map((img: any) => ({
           id: img.id,
           url: img.url,
@@ -139,7 +142,7 @@ export const ElencoTab = ({ entityId, storagePrefix = 'gravacao' }: ElencoTabPro
       .slice(0, 2);
   };
 
-  const handleAddMembro = () => {
+  const handleAddMembro = async () => {
     if (!selectedPessoa || !personagem.trim()) return;
 
     const pessoa = pessoas.find((p) => p.id === selectedPessoa);
@@ -173,7 +176,17 @@ export const ElencoTab = ({ entityId, storagePrefix = 'gravacao' }: ElencoTabPro
       figurinos: figurinosElenco,
     };
 
-    saveToStorage([...elenco, novoMembro]);
+    // Save to Supabase
+    const insertData = {
+      pessoa_id: novoMembro.pessoaId,
+      personagem: novoMembro.personagem,
+      ...(storagePrefix === 'gravacao' ? { gravacao_id: entityId } : { conteudo_id: entityId }),
+    };
+    
+    const { data: insertedData, error } = await supabase.from('gravacao_elenco').insert(insertData).select().single();
+    if (!error && insertedData) {
+      setElenco([...elenco, { ...novoMembro, id: insertedData.id }]);
+    }
     resetForm();
   };
 
@@ -186,15 +199,25 @@ export const ElencoTab = ({ entityId, storagePrefix = 'gravacao' }: ElencoTabPro
     setSearchFigurino('');
   };
 
-  const handleRemoveMembro = (id: string) => {
-    saveToStorage(elenco.filter((e) => e.id !== id));
+  const handleRemoveMembro = async (id: string) => {
+    await supabase.from('gravacao_elenco').delete().eq('id', id);
+    setElenco(elenco.filter((e) => e.id !== id));
   };
 
-  const handleUpdateMembro = (id: string, field: keyof ElencoMembro, value: any) => {
+  const handleUpdateMembro = async (id: string, field: keyof ElencoMembro, value: any) => {
     const updated = elenco.map((e) =>
       e.id === id ? { ...e, [field]: value } : e
     );
-    saveToStorage(updated);
+    setElenco(updated);
+    
+    // Map field to database column
+    const dbFieldMap: Record<string, string> = {
+      personagem: 'personagem',
+    };
+    
+    if (dbFieldMap[field]) {
+      await supabase.from('gravacao_elenco').update({ [dbFieldMap[field]]: value }).eq('id', id);
+    }
   };
 
   const toggleFigurino = (figurinoId: string) => {
