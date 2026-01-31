@@ -126,6 +126,8 @@ const translations: Record<Language, Record<string, string>> = {
     'common.clickToAdd': 'Clique para adicionar',
     'common.maxChars': 'Máx. 10 caracteres',
     'common.required': 'Campo obrigatório',
+    'common.startTime': 'Hora Início',
+    'common.endTime': 'Hora Fim',
     
     // Theme
     'theme.dark': 'Tema Escuro',
@@ -584,6 +586,8 @@ const translations: Record<Language, Record<string, string>> = {
     'common.clickToAdd': 'Click to add',
     'common.maxChars': 'Max 10 characters',
     'common.required': 'Required field',
+    'common.startTime': 'Start Time',
+    'common.endTime': 'End Time',
     
     // Theme
     'theme.dark': 'Dark Theme',
@@ -1042,6 +1046,8 @@ const translations: Record<Language, Record<string, string>> = {
     'common.clickToAdd': 'Haga clic para agregar',
     'common.maxChars': 'Máx 10 caracteres',
     'common.required': 'Campo obligatorio',
+    'common.startTime': 'Hora Inicio',
+    'common.endTime': 'Hora Fin',
     
     // Theme
     'theme.dark': 'Tema Oscuro',
