@@ -576,6 +576,56 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
     setRhModalOpen(true);
   };
 
+  // Buscar escala do colaborador para preencher horários automaticamente
+  const fetchEscalaColaborador = async (rhId: string, dia: string) => {
+    if (!rhId || !dia) return null;
+    
+    const dataObj = parseISO(dia);
+    const diaSemana = dataObj.getDay(); // 0 = domingo, 1 = segunda, etc.
+
+    // Buscar escalas do colaborador que incluem a data
+    const { data: escalas } = await supabase
+      .from('rh_escalas')
+      .select('*')
+      .eq('recurso_humano_id', rhId)
+      .lte('data_inicio', dia)
+      .gte('data_fim', dia);
+
+    if (!escalas || escalas.length === 0) return null;
+
+    // Encontrar uma escala que inclua o dia da semana
+    for (const escala of escalas) {
+      const diasSemana = escala.dias_semana || [1, 2, 3, 4, 5];
+      if (diasSemana.includes(diaSemana)) {
+        return {
+          horaInicio: escala.hora_inicio?.substring(0, 5) || '08:00',
+          horaFim: escala.hora_fim?.substring(0, 5) || '18:00',
+        };
+      }
+    }
+
+    return null;
+  };
+
+  // Effect para atualizar horários quando colaborador é selecionado
+  useEffect(() => {
+    const updateHorariosFromEscala = async () => {
+      if (!selectedRH || !rhModalDia) return;
+      
+      const escala = await fetchEscalaColaborador(selectedRH, rhModalDia);
+      if (escala) {
+        setHoraInicio(escala.horaInicio);
+        setHoraFim(escala.horaFim);
+      } else {
+        // Se não houver escala, usar horários padrão
+        setHoraInicio('08:00');
+        setHoraFim('18:00');
+      }
+    };
+
+    updateHorariosFromEscala();
+  }, [selectedRH, rhModalDia]);
+
   // Create automatic task for RH
   const createTaskForRH = async (rhId: string, rhNome: string, recursoTecnicoId: string, recursoTecnicoNome: string, dia: string) => {
     // Get default status
