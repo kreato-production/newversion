@@ -74,6 +74,42 @@ export type Database = {
         }
         Relationships: []
       }
+      centro_lucro_unidades: {
+        Row: {
+          centro_lucro_id: string
+          created_at: string | null
+          id: string
+          unidade_negocio_id: string
+        }
+        Insert: {
+          centro_lucro_id: string
+          created_at?: string | null
+          id?: string
+          unidade_negocio_id: string
+        }
+        Update: {
+          centro_lucro_id?: string
+          created_at?: string | null
+          id?: string
+          unidade_negocio_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "centro_lucro_unidades_centro_lucro_id_fkey"
+            columns: ["centro_lucro_id"]
+            isOneToOne: false
+            referencedRelation: "centros_lucro"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "centro_lucro_unidades_unidade_negocio_id_fkey"
+            columns: ["unidade_negocio_id"]
+            isOneToOne: false
+            referencedRelation: "unidades_negocio"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       centros_lucro: {
         Row: {
           codigo_externo: string | null

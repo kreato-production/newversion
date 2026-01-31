@@ -80,6 +80,11 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
 
   const [unidades, setUnidades] = useState<{ id: string; nome: string }[]>([]);
   const [centrosLucro, setCentrosLucro] = useState<{ id: string; nome: string; parentId: string | null; status: string; codigoExterno?: string }[]>([]);
+  const [centroLucroUnidades, setCentroLucroUnidades] = useState<{ centro_lucro_id: string; unidade_negocio_id: string }[]>([]);
+  const [classificacoes, setClassificacoes] = useState<{ id: string; nome: string }[]>([]);
+  const [tipos, setTipos] = useState<{ id: string; nome: string }[]>([]);
+  const [statusList, setStatusList] = useState<{ id: string; nome: string }[]>([]);
+  const [conteudos, setConteudos] = useState<{ id: string; descricao: string }[]>([]);
 
   // Função para construir a hierarquia de centros de lucro
   const buildHierarchy = (items: typeof centrosLucro, parentId: string | null = null, level: number = 0): { id: string; nome: string; displayName: string; level: number }[] => {
@@ -100,19 +105,31 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
     return result;
   };
 
-  const centrosLucroHierarquicos = buildHierarchy(centrosLucro);
-  const [classificacoes, setClassificacoes] = useState<{ id: string; nome: string }[]>([]);
-  const [tipos, setTipos] = useState<{ id: string; nome: string }[]>([]);
-  const [statusList, setStatusList] = useState<{ id: string; nome: string }[]>([]);
-  const [conteudos, setConteudos] = useState<{ id: string; descricao: string }[]>([]);
+  // Filtrar centros de lucro pela unidade de negócio selecionada
+  const getFilteredCentrosLucro = () => {
+    if (!formData.unidadeNegocio) return [];
+    
+    const unidadeSelecionada = unidades.find(u => u.nome === formData.unidadeNegocio);
+    if (!unidadeSelecionada) return [];
+    
+    const centrosAssociados = centroLucroUnidades
+      .filter(clu => clu.unidade_negocio_id === unidadeSelecionada.id)
+      .map(clu => clu.centro_lucro_id);
+    
+    return centrosLucro.filter(cl => centrosAssociados.includes(cl.id));
+  };
+
+  const filteredCentrosLucro = getFilteredCentrosLucro();
+  const centrosLucroHierarquicos = buildHierarchy(filteredCentrosLucro);
 
   const fetchDropdownData = useCallback(async () => {
     if (!session) return;
 
     try {
-      const [unidadesRes, centrosRes, classificacoesRes, tiposRes, statusRes, conteudosRes] = await Promise.all([
+      const [unidadesRes, centrosRes, centroLucroUnidadesRes, classificacoesRes, tiposRes, statusRes, conteudosRes] = await Promise.all([
         supabase.from('unidades_negocio').select('id, nome').order('nome'),
         supabase.from('centros_lucro').select('id, nome, parent_id, status').eq('status', 'Ativo').order('nome'),
+        supabase.from('centro_lucro_unidades').select('centro_lucro_id, unidade_negocio_id'),
         supabase.from('classificacoes').select('id, nome').order('nome'),
         supabase.from('tipos_gravacao').select('id, nome').order('nome'),
         supabase.from('status_gravacao').select('id, nome').order('nome'),
@@ -126,6 +143,7 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
         parentId: c.parent_id,
         status: c.status,
       })));
+      setCentroLucroUnidades(centroLucroUnidadesRes.data || []);
       setClassificacoes(classificacoesRes.data || []);
       setTipos(tiposRes.data || []);
       setStatusList(statusRes.data || []);
@@ -277,7 +295,7 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
                   <Label>{t('recordings.businessUnit')}</Label>
                   <Select
                     value={formData.unidadeNegocio}
-                    onValueChange={(value) => setFormData({ ...formData, unidadeNegocio: value })}
+                    onValueChange={(value) => setFormData({ ...formData, unidadeNegocio: value, centroLucro: '' })}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder={t('common.select')} />
@@ -294,16 +312,23 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
                   <Select
                     value={formData.centroLucro}
                     onValueChange={(value) => setFormData({ ...formData, centroLucro: value })}
+                    disabled={!formData.unidadeNegocio}
                   >
-                    <SelectTrigger>
-                      <SelectValue placeholder={t('common.select')} />
+                    <SelectTrigger className={!formData.unidadeNegocio ? 'opacity-50 cursor-not-allowed' : ''}>
+                      <SelectValue placeholder={!formData.unidadeNegocio ? 'Selecione uma unidade de negócio primeiro' : t('common.select')} />
                     </SelectTrigger>
                     <SelectContent>
-                      {centrosLucroHierarquicos.map((cl) => (
-                        <SelectItem key={cl.id} value={cl.nome}>
-                          <span className="font-mono whitespace-pre">{cl.displayName}</span>
-                        </SelectItem>
-                      ))}
+                      {centrosLucroHierarquicos.length === 0 ? (
+                        <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                          Nenhum centro de lucro associado a esta unidade
+                        </div>
+                      ) : (
+                        centrosLucroHierarquicos.map((cl) => (
+                          <SelectItem key={cl.id} value={cl.nome}>
+                            <span className="font-mono whitespace-pre">{cl.displayName}</span>
+                          </SelectItem>
+                        ))
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
