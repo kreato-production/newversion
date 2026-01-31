@@ -1,11 +1,12 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Video, Users, Building2, Calendar, TrendingUp, Clock, Clapperboard, Wrench, MapPin, DollarSign } from 'lucide-react';
-import { useMemo } from 'react';
+import { Video, Users, Building2, Calendar, TrendingUp, Clock, Clapperboard, Wrench, MapPin, DollarSign, Loader2 } from 'lucide-react';
+import { useMemo, useState, useEffect, useCallback } from 'react';
 import { isAfter, isBefore, addDays, parseISO, startOfWeek, endOfWeek, format, getMonth, getYear } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { supabase } from '@/integrations/supabase/client';
 
 const StatCard = ({
   title,
@@ -36,176 +37,125 @@ const StatCard = ({
   </Card>
 );
 
-interface RecursoAlocado {
-  id: string;
-  dataInicio: string;
-  dataFim: string;
-}
-
 interface Gravacao {
   id: string;
   nome: string;
   codigo: string;
-  dataInicio?: string;
-  dataFim?: string;
-  status?: string;
-  recursosFisicos?: RecursoAlocado[];
-  recursosHumanos?: RecursoAlocado[];
-  recursosTecnicos?: RecursoAlocado[];
+  data_prevista?: string;
+  status_id?: string;
+}
+
+interface DashboardStats {
+  gravacoes: number;
+  gravacoesAtivas: number;
+  conteudos: number;
+  recursosHumanos: number;
+  recursosTecnicos: number;
+  recursosFisicos: number;
+  unidades: number;
+  fornecedores: number;
 }
 
 const Dashboard = () => {
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const { t } = useLanguage();
+  const [isLoading, setIsLoading] = useState(true);
+  const [stats, setStats] = useState<DashboardStats>({
+    gravacoes: 0,
+    gravacoesAtivas: 0,
+    conteudos: 0,
+    recursosHumanos: 0,
+    recursosTecnicos: 0,
+    recursosFisicos: 0,
+    unidades: 0,
+    fornecedores: 0,
+  });
+  const [gravacoesSemana, setGravacoesSemana] = useState<Gravacao[]>([]);
+  const [gravacoesParaCusto, setGravacoesParaCusto] = useState<Gravacao[]>([]);
 
-  // Carregar dados reais do localStorage
-  const stats = useMemo(() => {
-    const gravacoes: Gravacao[] = JSON.parse(localStorage.getItem('kreato_gravacoes') || '[]');
-    const conteudos = JSON.parse(localStorage.getItem('kreato_conteudos') || '[]');
-    const recursosHumanos = JSON.parse(localStorage.getItem('kreato_recursos_humanos') || '[]');
-    const recursosTecnicos = JSON.parse(localStorage.getItem('kreato_recursos_tecnicos') || '[]');
-    const recursosFisicos = JSON.parse(localStorage.getItem('kreato_recursos_fisicos') || '[]');
-    const unidades = JSON.parse(localStorage.getItem('kreato_unidades_negocio') || '[]');
-    const fornecedores = JSON.parse(localStorage.getItem('kreato_fornecedores') || '[]');
+  const fetchDashboardData = useCallback(async () => {
+    if (!session) {
+      setIsLoading(false);
+      return;
+    }
 
-    // Gravações ativas (com data de início no passado e data fim no futuro ou sem data fim)
-    const hoje = new Date();
-    const gravacoesAtivas = gravacoes.filter((g: Gravacao) => {
-      if (!g.dataInicio) return false;
-      const inicio = parseISO(g.dataInicio);
-      const fim = g.dataFim ? parseISO(g.dataFim) : addDays(hoje, 365);
-      return isBefore(inicio, addDays(hoje, 1)) && isAfter(fim, hoje);
-    });
+    setIsLoading(true);
+    try {
+      // Fetch counts from all tables in parallel
+      const [
+        gravacoesRes,
+        conteudosRes,
+        recursosHumanosRes,
+        recursosTecnicosRes,
+        recursosFisicosRes,
+        unidadesRes,
+        fornecedoresRes,
+      ] = await Promise.all([
+        supabase.from('gravacoes').select('id, nome, codigo, data_prevista, status_id'),
+        supabase.from('conteudos').select('id', { count: 'exact', head: true }),
+        supabase.from('recursos_humanos').select('id', { count: 'exact', head: true }),
+        supabase.from('recursos_tecnicos').select('id', { count: 'exact', head: true }),
+        supabase.from('recursos_fisicos').select('id', { count: 'exact', head: true }),
+        supabase.from('unidades_negocio').select('id', { count: 'exact', head: true }),
+        supabase.from('fornecedores').select('id', { count: 'exact', head: true }),
+      ]);
 
-    return {
-      gravacoes: gravacoes.length,
-      gravacoesAtivas: gravacoesAtivas.length,
-      conteudos: conteudos.length,
-      recursosHumanos: recursosHumanos.length,
-      recursosTecnicos: recursosTecnicos.length,
-      recursosFisicos: recursosFisicos.length,
-      unidades: unidades.length,
-      fornecedores: fornecedores.length,
-    };
-  }, []);
-
-  // Gravações da semana corrente (baseado na alocação de recursos)
-  const gravacoesSemana = useMemo(() => {
-    const gravacoes: Gravacao[] = JSON.parse(localStorage.getItem('kreato_gravacoes') || '[]');
-    const hoje = new Date();
-    const inicioSemana = startOfWeek(hoje, { weekStartsOn: 0 }); // Domingo
-    const fimSemana = endOfWeek(hoje, { weekStartsOn: 0 }); // Sábado
-
-    // Função para verificar se alguma alocação está na semana corrente
-    const temAlocacaoNaSemana = (recursos?: RecursoAlocado[]): boolean => {
-      if (!recursos || recursos.length === 0) return false;
-      return recursos.some((r) => {
-        if (!r.dataInicio || !r.dataFim) return false;
-        const inicio = parseISO(r.dataInicio);
-        const fim = parseISO(r.dataFim);
-        // Verifica se há sobreposição com a semana corrente
-        return isBefore(inicio, addDays(fimSemana, 1)) && isAfter(fim, addDays(inicioSemana, -1));
+      const gravacoes = gravacoesRes.data || [];
+      const hoje = new Date();
+      
+      // Gravações ativas (com data prevista no futuro ou sem data)
+      const gravacoesAtivas = gravacoes.filter((g) => {
+        if (!g.data_prevista) return true;
+        const dataPrevista = parseISO(g.data_prevista);
+        return isAfter(dataPrevista, addDays(hoje, -1));
       });
-    };
 
-    // Filtra gravações que têm recursos alocados na semana corrente
-    return gravacoes
-      .filter((g) => {
-        const temFisicos = temAlocacaoNaSemana(g.recursosFisicos);
-        const temHumanos = temAlocacaoNaSemana(g.recursosHumanos);
-        const temTecnicos = temAlocacaoNaSemana(g.recursosTecnicos);
-        return temFisicos || temHumanos || temTecnicos;
-      })
-      .sort((a, b) => {
-        // Ordena pela primeira data de alocação na semana
-        const getFirstDate = (g: Gravacao): number => {
-          const allResources = [
-            ...(g.recursosFisicos || []),
-            ...(g.recursosHumanos || []),
-            ...(g.recursosTecnicos || []),
-          ];
-          const datesInWeek = allResources
-            .filter((r) => r.dataInicio)
-            .map((r) => parseISO(r.dataInicio).getTime())
-            .filter((t) => t >= inicioSemana.getTime() && t <= fimSemana.getTime());
-          return datesInWeek.length > 0 ? Math.min(...datesInWeek) : Infinity;
-        };
-        return getFirstDate(a) - getFirstDate(b);
+      // Gravações da semana
+      const inicioSemana = startOfWeek(hoje, { weekStartsOn: 0 });
+      const fimSemana = endOfWeek(hoje, { weekStartsOn: 0 });
+      
+      const gravacoesNaSemana = gravacoes.filter((g) => {
+        if (!g.data_prevista) return false;
+        const dataPrevista = parseISO(g.data_prevista);
+        return isAfter(dataPrevista, addDays(inicioSemana, -1)) && 
+               isBefore(dataPrevista, addDays(fimSemana, 1));
       });
-  }, []);
 
-  // Função auxiliar para calcular horas entre horários
-  const calcularHorasEntreTempo = (inicio: string, fim: string): number => {
-    if (!inicio || !fim) return 0;
-    const [horaInicio, minInicio] = inicio.split(':').map(Number);
-    const [horaFim, minFim] = fim.split(':').map(Number);
-    const totalMinutosInicio = horaInicio * 60 + minInicio;
-    const totalMinutosFim = horaFim * 60 + minFim;
-    const diferencaMinutos = totalMinutosFim - totalMinutosInicio;
-    return diferencaMinutos > 0 ? diferencaMinutos / 60 : 0;
-  };
+      setStats({
+        gravacoes: gravacoes.length,
+        gravacoesAtivas: gravacoesAtivas.length,
+        conteudos: conteudosRes.count || 0,
+        recursosHumanos: recursosHumanosRes.count || 0,
+        recursosTecnicos: recursosTecnicosRes.count || 0,
+        recursosFisicos: recursosFisicosRes.count || 0,
+        unidades: unidadesRes.count || 0,
+        fornecedores: fornecedoresRes.count || 0,
+      });
 
-  // Função para calcular custo total de uma gravação (mesma lógica do CustosTab)
-  const calcularCustoGravacao = (gravacaoId: string): number => {
-    let custoTotal = 0;
-    
-    // Carregar recursos humanos e físicos cadastrados
-    const recursosHumanosCadastro = JSON.parse(localStorage.getItem('kreato_recursos_humanos') || '[]');
-    const recursosFisicosCadastro = JSON.parse(localStorage.getItem('kreato_recursos_fisicos') || '[]');
-    
-    // Carregar recursos alocados na gravação
-    const recursos = JSON.parse(localStorage.getItem(`kreato_gravacao_recursos_${gravacaoId}`) || '[]');
-    
-    recursos.forEach((recurso: any) => {
-      if (recurso.tipo === 'fisico') {
-        // Custo de recursos físicos - baseado no horário de ocupação
-        const recursoFisico = recursosFisicosCadastro.find((rf: any) => rf.id === recurso.recursoId);
-        const custoHora = parseFloat(recursoFisico?.custoHora || 0);
-        
-        let totalHoras = 0;
-        Object.entries(recurso.horarios || {}).forEach(([, horario]: [string, any]) => {
-          const horas = calcularHorasEntreTempo(horario.horaInicio, horario.horaFim);
-          if (horas > 0) totalHoras += horas;
-        });
-        
-        custoTotal += totalHoras * custoHora;
-      } else if (recurso.tipo === 'tecnico') {
-        // Custo de recursos humanos alocados em recursos técnicos
-        Object.entries(recurso.recursosHumanos || {}).forEach(([, rhList]: [string, any]) => {
-          if (Array.isArray(rhList)) {
-            rhList.forEach((rh: any) => {
-              const horas = calcularHorasEntreTempo(rh.horaInicio, rh.horaFim);
-              const colaborador = recursosHumanosCadastro.find((r: any) => r.id === rh.recursoHumanoId);
-              const custoHora = parseFloat(colaborador?.custoHora || 0);
-              custoTotal += horas * custoHora;
-            });
-          }
-        });
-      }
-    });
-    
-    // Carregar terceiros alocados
-    const terceiros = JSON.parse(localStorage.getItem(`kreato_gravacao_terceiros_${gravacaoId}`) || '[]');
-    terceiros.forEach((terceiro: any) => {
-      custoTotal += parseFloat(terceiro.custo || 0);
-    });
-    
-    return custoTotal;
-  };
+      setGravacoesSemana(gravacoesNaSemana);
+      setGravacoesParaCusto(gravacoes);
+    } catch (err) {
+      console.error('Error fetching dashboard data:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [session]);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [fetchDashboardData]);
 
   // Dados para o gráfico de custos por mês
   const custosAnuais = useMemo(() => {
-    const gravacoes = JSON.parse(localStorage.getItem('kreato_gravacoes') || '[]');
-    const conteudos = JSON.parse(localStorage.getItem('kreato_conteudos') || '[]');
     const anoCorrente = new Date().getFullYear();
     
-    // Determinar o ano a ser exibido (usa o ano mais recente com dados, ou ano corrente)
+    // Determinar o ano a ser exibido
     let anoExibicao = anoCorrente;
     const anosComDados = new Set<number>();
-    gravacoes.forEach((g: any) => {
-      if (g.dataPrevista) {
+    gravacoesParaCusto.forEach((g) => {
+      if (g.data_prevista) {
         try {
-          const parsed = parseISO(g.dataPrevista);
+          const parsed = parseISO(g.data_prevista);
           if (!isNaN(parsed.getTime())) {
             anosComDados.add(getYear(parsed));
           }
@@ -228,43 +178,22 @@ const Dashboard = () => {
       ano: anoExibicao,
     }));
 
-    // Calcular custos de gravações por mês (baseado na data prevista)
-    gravacoes.forEach((gravacao: any) => {
-      if (!gravacao.dataPrevista) return;
+    // Calcular gravações por mês
+    gravacoesParaCusto.forEach((gravacao) => {
+      if (!gravacao.data_prevista) return;
       try {
-        const data = parseISO(gravacao.dataPrevista);
+        const data = parseISO(gravacao.data_prevista);
         if (isNaN(data.getTime()) || getYear(data) !== anoExibicao) return;
         
         const mesIndex = getMonth(data);
-        const custoGravacao = calcularCustoGravacao(gravacao.id);
-        meses[mesIndex].custosGravacoes += custoGravacao;
+        meses[mesIndex].custosGravacoes += 1; // Contando gravações por mês
       } catch {
         // Ignora gravações com datas inválidas
       }
     });
 
-    // Calcular custos de conteúdos por mês
-    conteudos.forEach((conteudo: any) => {
-      // Buscar gravações deste conteúdo
-      const gravacoesConteudo = gravacoes.filter((g: any) => g.conteudoId === conteudo.id);
-      
-      gravacoesConteudo.forEach((gravacao: any) => {
-        if (!gravacao.dataPrevista) return;
-        try {
-          const data = parseISO(gravacao.dataPrevista);
-          if (isNaN(data.getTime()) || getYear(data) !== anoExibicao) return;
-          
-          const mesIndex = getMonth(data);
-          const custoGravacao = calcularCustoGravacao(gravacao.id);
-          meses[mesIndex].custosConteudos += custoGravacao;
-        } catch {
-          // Ignora gravações com datas inválidas
-        }
-      });
-    });
-
     return meses;
-  }, []);
+  }, [gravacoesParaCusto]);
 
   // Formatar valores para exibição
   const formatCurrency = (value: number) => {
@@ -275,6 +204,14 @@ const Dashboard = () => {
       maximumFractionDigits: 0,
     }).format(value);
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -361,31 +298,24 @@ const Dashboard = () => {
               </div>
             ) : (
               <div className="space-y-4 max-h-80 overflow-y-auto">
-                {gravacoesSemana.map((gravacao) => {
-                  const totalRecursos = 
-                    (gravacao.recursosFisicos?.length || 0) + 
-                    (gravacao.recursosHumanos?.length || 0) + 
-                    (gravacao.recursosTecnicos?.length || 0);
-                  
-                  return (
-                    <div key={gravacao.id} className="flex items-center gap-4 p-3 border border-border rounded-lg">
-                      <div className="w-10 h-10 rounded-lg gradient-brand flex items-center justify-center">
-                        <Video className="w-5 h-5 text-primary-foreground" />
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-foreground">{gravacao.nome}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {totalRecursos} {t('common.allocatedResources')}
-                        </p>
-                      </div>
-                      {gravacao.status && (
-                        <span className="text-xs px-2 py-1 rounded-full bg-muted text-muted-foreground">
-                          {gravacao.status}
-                        </span>
-                      )}
+                {gravacoesSemana.map((gravacao) => (
+                  <div key={gravacao.id} className="flex items-center gap-4 p-3 border border-border rounded-lg">
+                    <div className="w-10 h-10 rounded-lg gradient-brand flex items-center justify-center">
+                      <Video className="w-5 h-5 text-primary-foreground" />
                     </div>
-                  );
-                })}
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-foreground">{gravacao.nome}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {gravacao.data_prevista 
+                          ? format(parseISO(gravacao.data_prevista), 'dd/MM/yyyy', { locale: ptBR })
+                          : 'Sem data'}
+                      </p>
+                    </div>
+                    <span className="text-xs font-mono text-muted-foreground">
+                      {gravacao.codigo}
+                    </span>
+                  </div>
+                ))}
               </div>
             )}
           </CardContent>
@@ -434,110 +364,30 @@ const Dashboard = () => {
         </Card>
       </div>
 
-      {/* Gráficos de Custos - Grid com 2 colunas */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Gráfico de Custos de Conteúdos */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Clapperboard className="w-5 h-5 text-kreato-orange" />
-              Custos de Conteúdos - {custosAnuais[0]?.ano || new Date().getFullYear()}
-            </CardTitle>
-            <CardDescription>
-              Somatório mensal dos custos de conteúdos
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="h-72">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={custosAnuais}
-                  margin={{ top: 20, right: 20, left: 10, bottom: 5 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis 
-                    dataKey="mes" 
-                    className="text-xs"
-                    tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
-                  />
-                  <YAxis 
-                    className="text-xs"
-                    tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
-                    tickFormatter={(value) => formatCurrency(value)}
-                    width={70}
-                  />
-                  <Tooltip 
-                    formatter={(value: number) => formatCurrency(value)}
-                    contentStyle={{
-                      backgroundColor: 'hsl(var(--card))',
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '8px',
-                    }}
-                    labelStyle={{ color: 'hsl(var(--foreground))' }}
-                  />
-                  <Bar 
-                    dataKey="custosConteudos" 
-                    name="Custos de Conteúdos" 
-                    fill="hsl(24, 95%, 53%)" 
-                    radius={[4, 4, 0, 0]}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Gráfico de Custos de Gravações */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Video className="w-5 h-5 text-kreato-blue" />
-              Custos de Gravações - {custosAnuais[0]?.ano || new Date().getFullYear()}
-            </CardTitle>
-            <CardDescription>
-              Somatório mensal dos custos de gravações
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="h-72">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={custosAnuais}
-                  margin={{ top: 20, right: 20, left: 10, bottom: 5 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis 
-                    dataKey="mes" 
-                    className="text-xs"
-                    tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
-                  />
-                  <YAxis 
-                    className="text-xs"
-                    tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
-                    tickFormatter={(value) => formatCurrency(value)}
-                    width={70}
-                  />
-                  <Tooltip 
-                    formatter={(value: number) => formatCurrency(value)}
-                    contentStyle={{
-                      backgroundColor: 'hsl(var(--card))',
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '8px',
-                    }}
-                    labelStyle={{ color: 'hsl(var(--foreground))' }}
-                  />
-                  <Bar 
-                    dataKey="custosGravacoes" 
-                    name="Custos de Gravações" 
-                    fill="hsl(var(--primary))" 
-                    radius={[4, 4, 0, 0]}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      {/* Gráfico de Gravações por Mês */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <DollarSign className="w-5 h-5 text-kreato-cyan" />
+            Gravações por Mês ({custosAnuais[0]?.ano || new Date().getFullYear()})
+          </CardTitle>
+          <CardDescription>Distribuição de gravações ao longo do ano</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="h-80">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={custosAnuais}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="mes" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="custosGravacoes" fill="hsl(var(--primary))" name="Gravações" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };

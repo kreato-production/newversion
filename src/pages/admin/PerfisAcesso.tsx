@@ -1,13 +1,24 @@
-import { useState, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
 import { SortableTable, Column } from '@/components/shared/SortableTable';
-import { Edit, Trash2, Settings, Copy, FileText } from 'lucide-react';
+import { Edit, Trash2, Settings, Copy, FileText, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
 import PerfilFormModal from '@/components/admin/PerfilFormModal';
 import { clonePermissions, savePerfilPermissions, getPerfilPermissions } from '@/data/permissionsMatrix';
 import jsPDF from 'jspdf';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+
+interface PerfilDb {
+  id: string;
+  codigo_externo: string | null;
+  nome: string;
+  descricao: string | null;
+  created_at: string | null;
+  created_by: string | null;
+}
 
 interface Perfil {
   id: string;
@@ -18,38 +29,115 @@ interface Perfil {
   usuarioCadastro: string;
 }
 
+const mapDbToPerfil = (db: PerfilDb, userName: string): Perfil => ({
+  id: db.id,
+  codigoExterno: db.codigo_externo || '',
+  nome: db.nome,
+  descricao: db.descricao || '',
+  dataCadastro: db.created_at ? new Date(db.created_at).toLocaleDateString('pt-BR') : '',
+  usuarioCadastro: userName,
+});
+
 const PerfisAcesso = () => {
   const { toast } = useToast();
   const { t } = useLanguage();
+  const { user, session } = useAuth();
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Perfil | null>(null);
-  const [items, setItems] = useState<Perfil[]>(() => {
-    const stored = localStorage.getItem('kreato_perfis_acesso');
-    return stored ? JSON.parse(stored) : [];
-  });
+  const [items, setItems] = useState<Perfil[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const saveToStorage = (data: Perfil[]) => {
-    localStorage.setItem('kreato_perfis_acesso', JSON.stringify(data));
-    setItems(data);
-  };
-
-  const handleSave = (data: Perfil) => {
-    if (editingItem) {
-      const updated = items.map((item) => (item.id === data.id ? data : item));
-      saveToStorage(updated);
-      toast({ title: t('common.success'), description: `Perfil ${t('common.updated').toLowerCase()}!` });
-    } else {
-      saveToStorage([...items, data]);
-      toast({ title: t('common.success'), description: `Perfil ${t('common.save').toLowerCase()}!` });
+  const fetchData = useCallback(async () => {
+    if (!session) {
+      setIsLoading(false);
+      return;
     }
-    setEditingItem(null);
+
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('perfis_acesso')
+        .select('*')
+        .order('nome', { ascending: true });
+
+      if (error) throw error;
+
+      setItems((data || []).map((d) => mapDbToPerfil(d, user?.nome || '')));
+    } catch (err) {
+      console.error('Error fetching perfis_acesso:', err);
+      toast({
+        title: 'Erro',
+        description: `Erro ao carregar dados: ${(err as Error).message}`,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [session, toast, user?.nome]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  const handleSave = async (data: Perfil) => {
+    try {
+      const dbData = {
+        nome: data.nome,
+        descricao: data.descricao || null,
+        codigo_externo: data.codigoExterno || null,
+        created_by: user?.id || null,
+      };
+
+      if (editingItem) {
+        const { error } = await supabase
+          .from('perfis_acesso')
+          .update(dbData)
+          .eq('id', data.id);
+
+        if (error) throw error;
+        toast({ title: t('common.success'), description: `Perfil ${t('common.updated').toLowerCase()}!` });
+      } else {
+        const { error } = await supabase
+          .from('perfis_acesso')
+          .insert(dbData);
+
+        if (error) throw error;
+        toast({ title: t('common.success'), description: `Perfil ${t('common.save').toLowerCase()}!` });
+      }
+
+      await fetchData();
+      setEditingItem(null);
+    } catch (err) {
+      console.error('Error saving perfil:', err);
+      toast({
+        title: 'Erro',
+        description: `Erro ao salvar: ${(err as Error).message}`,
+        variant: 'destructive',
+      });
+    }
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (confirm(t('common.confirm.delete'))) {
-      saveToStorage(items.filter((item) => item.id !== id));
-      toast({ title: t('common.deleted'), description: `Perfil ${t('common.deleted').toLowerCase()}!` });
+      try {
+        const { error } = await supabase
+          .from('perfis_acesso')
+          .delete()
+          .eq('id', id);
+
+        if (error) throw error;
+
+        toast({ title: t('common.deleted'), description: `Perfil ${t('common.deleted').toLowerCase()}!` });
+        await fetchData();
+      } catch (err) {
+        console.error('Error deleting perfil:', err);
+        toast({
+          title: 'Erro',
+          description: `Erro ao excluir: ${(err as Error).message}`,
+          variant: 'destructive',
+        });
+      }
     }
   };
 
@@ -58,27 +146,42 @@ const PerfisAcesso = () => {
     setIsModalOpen(true);
   };
 
-  const handleCopy = (item: Perfil) => {
-    const newId = crypto.randomUUID();
-    const copiedPerfil: Perfil = {
-      ...item,
-      id: newId,
-      nome: `${item.nome} (Cópia)`,
-      codigoExterno: '',
-      dataCadastro: new Date().toLocaleDateString('pt-BR'),
-    };
-    
-    // Clonar as permissões do perfil original
-    const clonedPermissions = clonePermissions(item.id, newId);
-    if (clonedPermissions) {
-      savePerfilPermissions(clonedPermissions);
+  const handleCopy = async (item: Perfil) => {
+    try {
+      const dbData = {
+        nome: `${item.nome} (Cópia)`,
+        descricao: item.descricao || null,
+        codigo_externo: null,
+        created_by: user?.id || null,
+      };
+
+      const { data: newPerfil, error } = await supabase
+        .from('perfis_acesso')
+        .insert(dbData)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Clonar as permissões do perfil original
+      const clonedPermissions = clonePermissions(item.id, newPerfil.id);
+      if (clonedPermissions) {
+        savePerfilPermissions(clonedPermissions);
+      }
+
+      await fetchData();
+      toast({
+        title: t('common.success'),
+        description: `Perfil "${item.nome}" copiado com sucesso!`,
+      });
+    } catch (err) {
+      console.error('Error copying perfil:', err);
+      toast({
+        title: 'Erro',
+        description: `Erro ao copiar: ${(err as Error).message}`,
+        variant: 'destructive',
+      });
     }
-    
-    saveToStorage([...items, copiedPerfil]);
-    toast({
-      title: t('common.success'),
-      description: `Perfil "${item.nome}" copiado com sucesso!`,
-    });
   };
 
   const handleExportPDF = (item: Perfil) => {
@@ -269,6 +372,14 @@ const PerfisAcesso = () => {
       ),
     },
   ];
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div>

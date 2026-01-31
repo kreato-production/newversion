@@ -32,7 +32,7 @@ interface ParametroLegacy {
 const tableMapping: Record<string, string> = {
   'kreato_cargos': 'cargos',
   'kreato_funcoes': 'funcoes',
-  'kreato_servicos': 'funcoes', // Uses funcoes table
+  'kreato_servicos': 'servicos',
   'kreato_classificacao': 'classificacoes',
   'kreato_material': 'materiais',
   'kreato_tipos_gravacao': 'tipos_gravacao',

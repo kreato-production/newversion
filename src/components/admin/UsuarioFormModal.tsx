@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -24,6 +24,7 @@ import type { Usuario } from '@/pages/admin/Usuarios';
 import { UnidadesNegocioTab } from './UnidadesNegocioTab';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Camera, X } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 interface UsuarioFormModalProps {
   isOpen: boolean;
@@ -38,7 +39,7 @@ export const UsuarioFormModal = ({
   onSave,
   data,
 }: UsuarioFormModalProps) => {
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const [perfis, setPerfis] = useState<{ id: string; nome: string }[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [fotoPreview, setFotoPreview] = useState<string | null>(null);
@@ -54,10 +55,28 @@ export const UsuarioFormModal = ({
     descricao: '',
   });
 
+  // Fetch perfis from Supabase
+  const fetchPerfis = useCallback(async () => {
+    if (!session) return;
+    
+    try {
+      const { data: perfisData, error } = await supabase
+        .from('perfis_acesso')
+        .select('id, nome')
+        .order('nome');
+      
+      if (error) throw error;
+      setPerfis(perfisData || []);
+    } catch (err) {
+      console.error('Error fetching perfis:', err);
+    }
+  }, [session]);
+
   useEffect(() => {
-    const stored = localStorage.getItem('kreato_perfis_acesso');
-    setPerfis(stored ? JSON.parse(stored) : []);
-  }, [isOpen]);
+    if (isOpen) {
+      fetchPerfis();
+    }
+  }, [isOpen, fetchPerfis]);
 
   useEffect(() => {
     if (data) {
