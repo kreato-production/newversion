@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,7 @@ import { ptBR } from 'date-fns/locale';
 import jsPDF from 'jspdf';
 import { useWeatherForecast } from '@/hooks/useWeatherForecast';
 import { useRecursoFisicoDisponibilidade } from '@/hooks/useRecursoFisicoDisponibilidade';
+import { supabase } from '@/integrations/supabase/client';
 
 interface RecursoHumanoAlocado {
   id: string;
@@ -148,13 +149,17 @@ const Mapas = () => {
     return diferencaMinutos > 0 ? diferencaMinutos / 60 : 0;
   };
 
+  // Armazenar dados de recursos para cálculo de custos
+  const [recursosHumanosCadastro, setRecursosHumanosCadastro] = useState<any[]>([]);
+  const [recursosFisicosCadastro, setRecursosFisicosCadastro] = useState<any[]>([]);
+  const [gravacaoRecursos, setGravacaoRecursos] = useState<Record<string, any[]>>({});
+  const [gravacaoTerceiros, setGravacaoTerceiros] = useState<Record<string, any[]>>({});
+
   // Função para calcular custo total de uma gravação
   const calcularCustoGravacao = (gravacaoId: string): number => {
     let custoTotal = 0;
     
-    const recursosHumanosCadastro = JSON.parse(localStorage.getItem('kreato_recursos_humanos') || '[]');
-    const recursosFisicosCadastro = JSON.parse(localStorage.getItem('kreato_recursos_fisicos') || '[]');
-    const recursos = JSON.parse(localStorage.getItem(`kreato_gravacao_recursos_${gravacaoId}`) || '[]');
+    const recursos = gravacaoRecursos[gravacaoId] || [];
     
     recursos.forEach((recurso: any) => {
       if (recurso.tipo === 'fisico') {
@@ -182,63 +187,141 @@ const Mapas = () => {
       }
     });
     
-    const terceiros = JSON.parse(localStorage.getItem(`kreato_gravacao_terceiros_${gravacaoId}`) || '[]');
+    const terceiros = gravacaoTerceiros[gravacaoId] || [];
     terceiros.forEach((terceiro: any) => {
-      custoTotal += parseFloat(terceiro.custo || 0);
+      custoTotal += parseFloat(terceiro.valor || 0);
     });
     
     return custoTotal;
   };
 
-  // Função para recarregar dados do localStorage
-  const recarregarDados = () => {
-    // Carregar gravações
-    const storedGravacoes = localStorage.getItem('kreato_gravacoes');
-    const gravacoesList: Gravacao[] = storedGravacoes ? JSON.parse(storedGravacoes) : [];
-    setGravacoes(gravacoesList);
+  // Função para recarregar dados do Supabase
+  const recarregarDados = useCallback(async () => {
+    try {
+      // Carregar gravações
+      const { data: gravData } = await supabase
+        .from('gravacoes')
+        .select('id, nome, codigo_externo, centro_lucro_id, unidade_negocio_id, data_prevista')
+        .order('nome');
+      
+      const gravacoesList: Gravacao[] = (gravData || []).map((g: any) => ({
+        id: g.id,
+        nome: g.nome,
+        codigoExterno: g.codigo_externo || '',
+        centroLucro: g.centro_lucro_id || '',
+        unidadeNegocio: g.unidade_negocio_id || '',
+        dataPrevista: g.data_prevista || '',
+      }));
+      setGravacoes(gravacoesList);
 
-    // Carregar recursos físicos
-    const storedFisicos = localStorage.getItem('kreato_recursos_fisicos');
-    setRecursosFisicos(storedFisicos ? JSON.parse(storedFisicos) : []);
+      // Carregar recursos físicos
+      const { data: fisicosData } = await supabase
+        .from('recursos_fisicos')
+        .select('id, nome, custo_hora')
+        .order('nome');
+      setRecursosFisicos((fisicosData || []).map((rf: any) => ({ id: rf.id, nome: rf.nome })));
+      setRecursosFisicosCadastro((fisicosData || []).map((rf: any) => ({ id: rf.id, nome: rf.nome, custoHora: rf.custo_hora })));
 
-    // Carregar recursos humanos
-    const storedHumanos = localStorage.getItem('kreato_recursos_humanos');
-    setRecursosHumanos(storedHumanos ? JSON.parse(storedHumanos) : []);
+      // Carregar recursos humanos
+      const { data: humanosData } = await supabase
+        .from('recursos_humanos')
+        .select('id, nome, sobrenome, custo_hora, funcao_id, funcoes:funcao_id(nome)')
+        .order('nome');
+      setRecursosHumanos((humanosData || []).map((rh: any) => ({ 
+        id: rh.id, 
+        nome: `${rh.nome} ${rh.sobrenome}`,
+        funcao: rh.funcoes?.nome || '',
+      })));
+      setRecursosHumanosCadastro((humanosData || []).map((rh: any) => ({ 
+        id: rh.id, 
+        nome: `${rh.nome} ${rh.sobrenome}`, 
+        custoHora: rh.custo_hora,
+      })));
 
-    // Carregar tarefas
-    const storedTarefas = localStorage.getItem('kreato_tarefas');
-    setTarefas(storedTarefas ? JSON.parse(storedTarefas) : []);
-    
-    // Carregar centros de lucro
-    const storedCentros = localStorage.getItem('kreato_centros_lucro');
-    setCentrosLucro(storedCentros ? JSON.parse(storedCentros) : []);
-    
-    // Carregar unidades de negócio
-    const storedUnidades = localStorage.getItem('kreato_unidades_negocio');
-    setUnidadesNegocio(storedUnidades ? JSON.parse(storedUnidades) : []);
+      // Carregar tarefas
+      const { data: tarefasData } = await supabase
+        .from('tarefas')
+        .select('id, gravacao_id, recurso_humano_id, recurso_tecnico_id, status_id, data_inicio, data_fim, status_tarefa:status_id(cor)');
+      setTarefas((tarefasData || []).map((t: any) => ({
+        id: t.id,
+        gravacaoId: t.gravacao_id,
+        recursoHumanoId: t.recurso_humano_id,
+        recursoTecnicoId: t.recurso_tecnico_id,
+        statusId: t.status_id,
+        dataInicio: t.data_inicio,
+        dataFim: t.data_fim,
+        statusCor: t.status_tarefa?.cor,
+      })));
+      
+      // Carregar centros de lucro
+      const { data: centrosData } = await supabase
+        .from('centros_lucro')
+        .select('id, nome')
+        .order('nome');
+      setCentrosLucro(centrosData || []);
+      
+      // Carregar unidades de negócio
+      const { data: unidadesData } = await supabase
+        .from('unidades_negocio')
+        .select('id, nome')
+        .order('nome');
+      setUnidadesNegocio(unidadesData || []);
 
-    // Carregar alocações de cada gravação
-    const alocacoes: Record<string, RecursoAlocado[]> = {};
-    gravacoesList.forEach((g) => {
-      const stored = localStorage.getItem(`kreato_gravacao_recursos_${g.id}`);
-      if (stored) {
-        alocacoes[g.id] = JSON.parse(stored);
+      // Carregar alocações de cada gravação
+      const alocacoes: Record<string, RecursoAlocado[]> = {};
+      const recursosMap: Record<string, any[]> = {};
+      const terceirosMap: Record<string, any[]> = {};
+      
+      for (const g of gravacoesList) {
+        const { data: recursosData } = await supabase
+          .from('gravacao_recursos')
+          .select('*')
+          .eq('gravacao_id', g.id);
+        
+        if (recursosData && recursosData.length > 0) {
+          // Transform to legacy format for compatibility
+          const transformed: RecursoAlocado[] = recursosData.map((r: any) => ({
+            id: r.id,
+            tipo: (r.recurso_fisico_id ? 'fisico' : 'tecnico') as 'fisico' | 'tecnico',
+            recursoId: r.recurso_fisico_id || r.recurso_tecnico_id,
+            recursoNome: '',
+            alocacoes: {},
+            recursosHumanos: {},
+            horarios: r.hora_inicio && r.hora_fim ? { [g.dataPrevista || '']: { horaInicio: r.hora_inicio, horaFim: r.hora_fim } } : {},
+          }));
+          alocacoes[g.id] = transformed;
+          recursosMap[g.id] = transformed;
+        }
+
+        const { data: terceirosData } = await supabase
+          .from('gravacao_terceiros')
+          .select('*')
+          .eq('gravacao_id', g.id);
+        
+        if (terceirosData) {
+          terceirosMap[g.id] = terceirosData;
+        }
       }
-    });
-    setAlocacoesPorGravacao(alocacoes);
-  };
+      
+      setAlocacoesPorGravacao(alocacoes);
+      setGravacaoRecursos(recursosMap);
+      setGravacaoTerceiros(terceirosMap);
+    } catch (err) {
+      console.error('Error loading data:', err);
+    }
+  }, []);
 
   // Carregar dados inicialmente e quando a aba mudar
   useEffect(() => {
     recarregarDados();
-  }, [activeTab]);
+  }, [activeTab, recarregarDados]);
 
-  // Também recarregar quando o componente ganhar foco (para pegar mudanças feitas em outras páginas)
+  // Também recarregar quando o componente ganhar foco
   useEffect(() => {
     const handleFocus = () => recarregarDados();
     window.addEventListener('focus', handleFocus);
     return () => window.removeEventListener('focus', handleFocus);
-  }, []);
+  }, [recarregarDados]);
 
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(currentWeekStart, i));
 
@@ -273,19 +356,13 @@ const Mapas = () => {
     }
   };
 
-  // Calcular ocupações de recursos físicos baseado nas alocações (lendo diretamente do localStorage para dados atualizados)
+  // Calcular ocupações de recursos físicos baseado nas alocações do state
   const ocupacoesFisicas = useMemo(() => {
     const ocupacoes: Record<string, Record<string, OcupacaoItem[]>> = {};
     
-    // Carregar todas as gravações diretamente do localStorage para ter dados atualizados
-    const gravacoesList = JSON.parse(localStorage.getItem('kreato_gravacoes') || '[]') as Gravacao[];
-    
-    // Para cada gravação, carregar seus recursos alocados
-    gravacoesList.forEach((gravacao) => {
-      const recursosStored = localStorage.getItem(`kreato_gravacao_recursos_${gravacao.id}`);
-      if (!recursosStored) return;
-      
-      const recursos: RecursoAlocado[] = JSON.parse(recursosStored);
+    // Usar dados do state ao invés de localStorage
+    gravacoes.forEach((gravacao) => {
+      const recursos = alocacoesPorGravacao[gravacao.id] || [];
       
       recursos
         .filter((r) => r.tipo === 'fisico')
