@@ -43,12 +43,21 @@ interface HorarioOcupacao {
   horaFim: string;
 }
 
+interface EstoqueItem {
+  id: string;
+  nome: string;
+  codigo: string | null;
+  numerador: number;
+}
+
 interface RecursoAlocado {
   id: string;
   tipo: 'tecnico' | 'fisico';
   recursoId: string;
   recursoNome: string;
   funcaoOperador?: string;
+  estoqueItemId?: string;
+  estoqueItemNome?: string;
   alocacoes: Record<string, number>;
   recursosHumanos: Record<string, RecursoHumanoAlocado[]>;
   horarios: Record<string, HorarioOcupacao>;
@@ -91,6 +100,8 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
   const [recursosHumanos, setRecursosHumanos] = useState<RecursoHumano[]>([]);
   const [selectedTipo, setSelectedTipo] = useState<'tecnico' | 'fisico'>('tecnico');
   const [selectedRecurso, setSelectedRecurso] = useState('');
+  const [selectedEstoqueItem, setSelectedEstoqueItem] = useState('');
+  const [estoqueItens, setEstoqueItens] = useState<EstoqueItem[]>([]);
   const [gravacaoInfo, setGravacaoInfo] = useState<{ nome: string; codigo: string } | null>(null);
 
   // Modal de recursos humanos (para recursos técnicos)
@@ -190,6 +201,27 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
     };
     fetchResources();
   }, [session]);
+
+  // Fetch stock items when a physical resource is selected
+  useEffect(() => {
+    const fetchEstoqueItens = async () => {
+      if (selectedTipo !== 'fisico' || !selectedRecurso) {
+        setEstoqueItens([]);
+        setSelectedEstoqueItem('');
+        return;
+      }
+
+      const { data } = await supabase
+        .from('rf_estoque_itens')
+        .select('id, nome, codigo, numerador')
+        .eq('recurso_fisico_id', selectedRecurso)
+        .order('numerador');
+
+      setEstoqueItens(data || []);
+      setSelectedEstoqueItem('');
+    };
+    fetchEstoqueItens();
+  }, [selectedTipo, selectedRecurso]);
 
   // Fetch allocated resources for this recording
   const fetchAlocacoes = useCallback(async () => {
@@ -369,15 +401,33 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
     const recurso = lista.find((r) => r.id === selectedRecurso);
     if (!recurso) return;
 
-    const exists = recursos.find((r) => r.recursoId === selectedRecurso && r.tipo === selectedTipo);
-    if (exists) {
-      toast({
-        title: 'Recurso já adicionado',
-        description: 'Este recurso já está na lista.',
-        variant: 'destructive',
-      });
-      return;
+    // Para recursos físicos, verificar se o item de estoque + recurso já existe
+    if (selectedTipo === 'fisico') {
+      const exists = recursos.find(
+        (r) => r.recursoId === selectedRecurso && r.tipo === 'fisico' && r.estoqueItemId === (selectedEstoqueItem || undefined)
+      );
+      if (exists) {
+        toast({
+          title: 'Item já adicionado',
+          description: 'Este item de estoque já está na lista.',
+          variant: 'destructive',
+        });
+        return;
+      }
+    } else {
+      const exists = recursos.find((r) => r.recursoId === selectedRecurso && r.tipo === selectedTipo);
+      if (exists) {
+        toast({
+          title: 'Recurso já adicionado',
+          description: 'Este recurso já está na lista.',
+          variant: 'destructive',
+        });
+        return;
+      }
     }
+
+    // Obter informações do item de estoque selecionado
+    const estoqueItem = selectedEstoqueItem ? estoqueItens.find((e) => e.id === selectedEstoqueItem) : undefined;
 
     // Add to local state
     const novoRecurso: RecursoAlocado = {
@@ -386,6 +436,8 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
       recursoId: selectedRecurso,
       recursoNome: recurso.nome,
       funcaoOperador: selectedTipo === 'tecnico' ? (recurso as any).funcaoOperador : undefined,
+      estoqueItemId: estoqueItem?.id,
+      estoqueItemNome: estoqueItem ? `#${estoqueItem.numerador} - ${estoqueItem.nome}${estoqueItem.codigo ? ` (${estoqueItem.codigo})` : ''}` : undefined,
       alocacoes: {},
       recursosHumanos: {},
       horarios: {},
@@ -393,6 +445,7 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
 
     setRecursos([...recursos, novoRecurso]);
     setSelectedRecurso('');
+    setSelectedEstoqueItem('');
   };
 
   const handleRemoveRecurso = async (id: string) => {
@@ -897,7 +950,14 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
                 return (
                   <tr key={recurso.id} className="border-b">
                     <td className="px-1.5 py-0.5 sticky left-0 bg-card font-medium text-xs whitespace-nowrap">
-                      {recurso.recursoNome}
+                      <div className="flex flex-col">
+                        <span>{recurso.recursoNome}</span>
+                        {recurso.estoqueItemNome && (
+                          <span className="text-[10px] text-muted-foreground font-normal">
+                            {recurso.estoqueItemNome}
+                          </span>
+                        )}
+                      </div>
                     </td>
                     {diasDoMes.map((d) => {
                       const rhCount = getRHCount(recurso, d.dataKey);
@@ -1111,6 +1171,28 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
             </SelectContent>
           </Select>
         </div>
+
+        {selectedTipo === 'fisico' && selectedRecurso && estoqueItens.length > 0 && (
+          <div className="space-y-1 flex-1 min-w-48">
+            <label className="text-sm text-muted-foreground">Item de Estoque (opcional)</label>
+            <Select 
+              value={selectedEstoqueItem || '__none__'} 
+              onValueChange={(v) => setSelectedEstoqueItem(v === '__none__' ? '' : v)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione um item..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">Nenhum (qualquer item)</SelectItem>
+                {estoqueItens.map((item) => (
+                  <SelectItem key={item.id} value={item.id}>
+                    #{item.numerador} - {item.nome}{item.codigo ? ` (${item.codigo})` : ''}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
 
         <Button onClick={handleAddRecurso} disabled={!selectedRecurso} size="icon">
           <Plus className="w-4 h-4" />
