@@ -1,4 +1,4 @@
-import { useState, useEffect, forwardRef } from 'react';
+import { useState, useEffect, forwardRef, useCallback } from 'react';
 import { format, parse } from 'date-fns';
 import { ptBR, enUS, es } from 'date-fns/locale';
 import { CalendarIcon } from 'lucide-react';
@@ -40,6 +40,7 @@ import FigurinosTab from './FigurinosTab';
 import { ElencoTab } from './ElencoTab';
 import { RoteiroTab } from './RoteiroTab';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
 
 interface GravacaoFormModalProps {
   isOpen: boolean;
@@ -60,7 +61,7 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
   onSave,
   data,
 }, ref) => {
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const { t, language, formatDate } = useLanguage();
   const { isVisible } = usePermissions();
   const [codigoGerado, setCodigoGerado] = useState('');
@@ -105,27 +106,40 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
   const [statusList, setStatusList] = useState<{ id: string; nome: string }[]>([]);
   const [conteudos, setConteudos] = useState<{ id: string; descricao: string }[]>([]);
 
-  useEffect(() => {
-    const loadOptions = () => {
-      const storedUnidades = localStorage.getItem('kreato_unidades_negocio');
-      const storedCentrosLucro = localStorage.getItem('kreato_centros_lucro');
-      const storedClassificacoes = localStorage.getItem('kreato_classificacao');
-      const storedTipos = localStorage.getItem('kreato_tipos_gravacao');
-      const storedStatus = localStorage.getItem('kreato_status_gravacao');
-      const storedConteudos = localStorage.getItem('kreato_conteudos');
+  const fetchDropdownData = useCallback(async () => {
+    if (!session) return;
 
-      setUnidades(storedUnidades ? JSON.parse(storedUnidades) : []);
-      setCentrosLucro(storedCentrosLucro ? JSON.parse(storedCentrosLucro).filter((cl: { status: string }) => cl.status === 'Ativo') : []);
-      setClassificacoes(storedClassificacoes ? JSON.parse(storedClassificacoes) : []);
-      setTipos(storedTipos ? JSON.parse(storedTipos) : []);
-      setStatusList(storedStatus ? JSON.parse(storedStatus) : []);
-      setConteudos(storedConteudos ? JSON.parse(storedConteudos) : []);
-    };
+    try {
+      const [unidadesRes, centrosRes, classificacoesRes, tiposRes, statusRes, conteudosRes] = await Promise.all([
+        supabase.from('unidades_negocio').select('id, nome').order('nome'),
+        supabase.from('centros_lucro').select('id, nome, parent_id, status').eq('status', 'Ativo').order('nome'),
+        supabase.from('classificacoes').select('id, nome').order('nome'),
+        supabase.from('tipos_gravacao').select('id, nome').order('nome'),
+        supabase.from('status_gravacao').select('id, nome').order('nome'),
+        supabase.from('conteudos').select('id, descricao').order('descricao'),
+      ]);
 
-    if (isOpen) {
-      loadOptions();
+      setUnidades(unidadesRes.data || []);
+      setCentrosLucro((centrosRes.data || []).map((c: any) => ({
+        id: c.id,
+        nome: c.nome,
+        parentId: c.parent_id,
+        status: c.status,
+      })));
+      setClassificacoes(classificacoesRes.data || []);
+      setTipos(tiposRes.data || []);
+      setStatusList(statusRes.data || []);
+      setConteudos(conteudosRes.data || []);
+    } catch (err) {
+      console.error('Error fetching dropdown data:', err);
     }
-  }, [isOpen]);
+  }, [session]);
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchDropdownData();
+    }
+  }, [isOpen, fetchDropdownData]);
 
   useEffect(() => {
     if (!isOpen) return;

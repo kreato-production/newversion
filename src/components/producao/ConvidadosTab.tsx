@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Select,
@@ -21,6 +21,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Pessoa {
   id: string;
@@ -43,7 +45,6 @@ interface ConvidadoAlocado {
   classificacao?: string;
   telefone?: string;
   email?: string;
-  funcaoGravacao?: string;
   observacoes?: string;
 }
 
@@ -52,32 +53,61 @@ interface ConvidadosTabProps {
 }
 
 export const ConvidadosTab = ({ gravacaoId }: ConvidadosTabProps) => {
-  const [convidados, setConvidados] = useState<ConvidadoAlocado[]>(() => {
-    const stored = localStorage.getItem(`kreato_gravacao_convidados_${gravacaoId}`);
-    return stored ? JSON.parse(stored) : [];
-  });
-
+  const { session } = useAuth();
+  const [convidados, setConvidados] = useState<ConvidadoAlocado[]>([]);
   const [pessoas, setPessoas] = useState<Pessoa[]>([]);
   const [selectedPessoa, setSelectedPessoa] = useState('');
-  const [funcaoGravacao, setFuncaoGravacao] = useState('');
   const [observacoes, setObservacoes] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
 
-  useEffect(() => {
-    const storedPessoas = localStorage.getItem('kreato_pessoas');
-    if (storedPessoas) {
-      const parsed = JSON.parse(storedPessoas);
-      // Filtrar apenas pessoas ativas
-      setPessoas(parsed.filter((p: Pessoa) => p.status === 'Ativo'));
+  const fetchData = useCallback(async () => {
+    if (!session) return;
+
+    try {
+      // Fetch convidados from Supabase
+      const { data: convidadosData } = await supabase
+        .from('gravacao_convidados')
+        .select('*, pessoas:pessoa_id(id, nome, sobrenome, nome_trabalho, foto_url, telefone, email)')
+        .eq('gravacao_id', gravacaoId);
+
+      setConvidados((convidadosData || []).map((c: any) => ({
+        id: c.id,
+        pessoaId: c.pessoa_id,
+        nome: `${c.pessoas?.nome || ''} ${c.pessoas?.sobrenome || ''}`.trim(),
+        nomeTrabalho: c.pessoas?.nome_trabalho,
+        foto: c.pessoas?.foto_url,
+        telefone: c.pessoas?.telefone,
+        email: c.pessoas?.email,
+        observacoes: c.observacao,
+      })));
+
+      // Fetch pessoas ativas
+      const { data: pessoasData } = await supabase
+        .from('pessoas')
+        .select('id, nome, sobrenome, nome_trabalho, foto_url, telefone, email, status')
+        .eq('status', 'Ativo')
+        .order('nome');
+
+      setPessoas((pessoasData || []).map((p: any) => ({
+        id: p.id,
+        nome: p.nome,
+        sobrenome: p.sobrenome,
+        nomeTrabalho: p.nome_trabalho,
+        foto: p.foto_url,
+        telefone: p.telefone,
+        email: p.email,
+        status: p.status,
+      })));
+    } catch (err) {
+      console.error('Error fetching convidados data:', err);
     }
-  }, []);
+  }, [session, gravacaoId]);
 
-  const saveToStorage = (data: ConvidadoAlocado[]) => {
-    localStorage.setItem(`kreato_gravacao_convidados_${gravacaoId}`, JSON.stringify(data));
-    setConvidados(data);
-  };
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
-  const handleAddConvidado = () => {
+  const handleAddConvidado = async () => {
     if (!selectedPessoa) return;
 
     const pessoa = pessoas.find((p) => p.id === selectedPessoa);
@@ -87,37 +117,49 @@ export const ConvidadosTab = ({ gravacaoId }: ConvidadosTabProps) => {
     const exists = convidados.find((c) => c.pessoaId === selectedPessoa);
     if (exists) return;
 
+    const { data: insertedData, error } = await supabase
+      .from('gravacao_convidados')
+      .insert({
+        gravacao_id: gravacaoId,
+        pessoa_id: selectedPessoa,
+        observacao: observacoes || null,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error adding convidado:', error);
+      return;
+    }
+
     const novoConvidado: ConvidadoAlocado = {
-      id: crypto.randomUUID(),
+      id: insertedData.id,
       pessoaId: pessoa.id,
       nome: `${pessoa.nome} ${pessoa.sobrenome}`.trim(),
       nomeTrabalho: pessoa.nomeTrabalho,
       foto: pessoa.foto,
-      classificacao: pessoa.classificacao,
       telefone: pessoa.telefone,
       email: pessoa.email,
-      funcaoGravacao: funcaoGravacao,
       observacoes: observacoes,
     };
 
-    saveToStorage([...convidados, novoConvidado]);
+    setConvidados([...convidados, novoConvidado]);
     setSelectedPessoa('');
-    setFuncaoGravacao('');
     setObservacoes('');
   };
 
-  const handleRemoveConvidado = (id: string) => {
-    saveToStorage(convidados.filter((c) => c.id !== id));
-  };
+  const handleRemoveConvidado = async (id: string) => {
+    const { error } = await supabase
+      .from('gravacao_convidados')
+      .delete()
+      .eq('id', id);
 
-  const handleUpdateConvidado = (id: string, field: 'funcaoGravacao' | 'observacoes', value: string) => {
-    const updated = convidados.map((c) => {
-      if (c.id === id) {
-        return { ...c, [field]: value };
-      }
-      return c;
-    });
-    saveToStorage(updated);
+    if (error) {
+      console.error('Error removing convidado:', error);
+      return;
+    }
+
+    setConvidados(convidados.filter((c) => c.id !== id));
   };
 
   // Filtrar pessoas que ainda não foram adicionadas
@@ -131,8 +173,7 @@ export const ConvidadosTab = ({ gravacaoId }: ConvidadosTabProps) => {
     return (
       p.nome.toLowerCase().includes(searchLower) ||
       p.sobrenome.toLowerCase().includes(searchLower) ||
-      (p.nomeTrabalho && p.nomeTrabalho.toLowerCase().includes(searchLower)) ||
-      (p.classificacao && p.classificacao.toLowerCase().includes(searchLower))
+      (p.nomeTrabalho && p.nomeTrabalho.toLowerCase().includes(searchLower))
     );
   });
 
@@ -154,7 +195,7 @@ export const ConvidadosTab = ({ gravacaoId }: ConvidadosTabProps) => {
           Adicionar Convidado
         </h4>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <div className="space-y-2 lg:col-span-2">
             <Label>Pessoa *</Label>
             <Select value={selectedPessoa} onValueChange={setSelectedPessoa}>
@@ -187,26 +228,12 @@ export const ConvidadosTab = ({ gravacaoId }: ConvidadosTabProps) => {
                         <span>
                           {p.nomeTrabalho || `${p.nome} ${p.sobrenome}`}
                         </span>
-                        {p.classificacao && (
-                          <Badge variant="outline" className="text-[10px] ml-1">
-                            {p.classificacao}
-                          </Badge>
-                        )}
                       </div>
                     </SelectItem>
                   ))
                 )}
               </SelectContent>
             </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label>Função na Gravação</Label>
-            <Input
-              placeholder="Ex: Entrevistado, Apresentador..."
-              value={funcaoGravacao}
-              onChange={(e) => setFuncaoGravacao(e.target.value)}
-            />
           </div>
 
           <div className="flex items-end">
@@ -240,8 +267,6 @@ export const ConvidadosTab = ({ gravacaoId }: ConvidadosTabProps) => {
             <TableRow>
               <TableHead className="w-12"></TableHead>
               <TableHead>Nome</TableHead>
-              <TableHead>Classificação</TableHead>
-              <TableHead>Função na Gravação</TableHead>
               <TableHead>Contato</TableHead>
               <TableHead>Observações</TableHead>
               <TableHead className="w-12"></TableHead>
@@ -250,7 +275,7 @@ export const ConvidadosTab = ({ gravacaoId }: ConvidadosTabProps) => {
           <TableBody>
             {convidados.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
                   Nenhum convidado adicionado
                 </TableCell>
               </TableRow>
@@ -278,21 +303,6 @@ export const ConvidadosTab = ({ gravacaoId }: ConvidadosTabProps) => {
                     </div>
                   </TableCell>
                   <TableCell>
-                    {convidado.classificacao && (
-                      <Badge variant="secondary">{convidado.classificacao}</Badge>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Input
-                      value={convidado.funcaoGravacao || ''}
-                      onChange={(e) =>
-                        handleUpdateConvidado(convidado.id, 'funcaoGravacao', e.target.value)
-                      }
-                      placeholder="Função..."
-                      className="h-8 text-sm"
-                    />
-                  </TableCell>
-                  <TableCell>
                     <div className="text-sm">
                       {convidado.telefone && <div>{convidado.telefone}</div>}
                       {convidado.email && (
@@ -303,14 +313,9 @@ export const ConvidadosTab = ({ gravacaoId }: ConvidadosTabProps) => {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Input
-                      value={convidado.observacoes || ''}
-                      onChange={(e) =>
-                        handleUpdateConvidado(convidado.id, 'observacoes', e.target.value)
-                      }
-                      placeholder="Observações..."
-                      className="h-8 text-sm"
-                    />
+                    <span className="text-sm text-muted-foreground">
+                      {convidado.observacoes || '-'}
+                    </span>
                   </TableCell>
                   <TableCell>
                     <Button

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import type { RecursoTecnico } from '@/pages/recursos/RecursosTecnicos';
 
 interface Funcao {
@@ -38,7 +39,7 @@ export const RecursoTecnicoFormModal = ({
   onSave,
   data,
 }: RecursoTecnicoFormModalProps) => {
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const [funcoes, setFuncoes] = useState<Funcao[]>([]);
   const [formData, setFormData] = useState({
     codigoExterno: data?.codigoExterno || '',
@@ -46,10 +47,22 @@ export const RecursoTecnicoFormModal = ({
     funcaoOperador: data?.funcaoOperador || '',
   });
 
+  const fetchFuncoes = useCallback(async () => {
+    if (!session) return;
+
+    const { data: funcoesData } = await supabase
+      .from('funcoes')
+      .select('id, nome')
+      .order('nome');
+
+    setFuncoes(funcoesData || []);
+  }, [session]);
+
   useEffect(() => {
-    const stored = localStorage.getItem('kreato_funcoes');
-    setFuncoes(stored ? JSON.parse(stored) : []);
-  }, []);
+    if (isOpen) {
+      fetchFuncoes();
+    }
+  }, [isOpen, fetchFuncoes]);
 
   useEffect(() => {
     if (isOpen) {
