@@ -22,6 +22,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import type { Fornecedor } from '@/pages/recursos/Fornecedores';
 import { ServicosTab } from './ServicosTab';
+import { supabase } from '@/integrations/supabase/client';
 
 const PAISES = [
   'Brasil', 'Portugal', 'Espanha', 'Estados Unidos', 'Argentina', 'Chile',
@@ -56,8 +57,14 @@ export const FornecedorFormModal = ({
   });
 
   useEffect(() => {
-    const stored = localStorage.getItem('kreato_categoria_fornecedores');
-    setCategorias(stored ? JSON.parse(stored) : []);
+    const fetchCategorias = async () => {
+      const { data: cats } = await supabase
+        .from('categorias_fornecedor')
+        .select('id, nome')
+        .order('nome');
+      setCategorias(cats || []);
+    };
+    if (isOpen) fetchCategorias();
   }, [isOpen]);
 
   useEffect(() => {

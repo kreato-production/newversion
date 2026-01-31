@@ -1,42 +1,102 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
-import { Edit, Trash2, Landmark, ChevronRight, ChevronDown, FolderTree } from 'lucide-react';
+import { Edit, Trash2, Landmark, ChevronRight, ChevronDown, FolderTree, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { CentroLucroFormModal, CentroLucro } from '@/components/admin/CentroLucroFormModal';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 const CentrosLucro = () => {
   const { toast } = useToast();
+  const { session, user } = useAuth();
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<CentroLucro | null>(null);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
-  const [items, setItems] = useState<CentroLucro[]>(() => {
-    const stored = localStorage.getItem('kreato_centros_lucro');
-    return stored ? JSON.parse(stored) : [];
-  });
+  const [items, setItems] = useState<CentroLucro[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const saveToStorage = (data: CentroLucro[]) => {
-    localStorage.setItem('kreato_centros_lucro', JSON.stringify(data));
-    setItems(data);
-  };
+  const fetchData = useCallback(async () => {
+    if (!session) return;
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('centros_lucro')
+        .select('*')
+        .order('nome');
 
-  const handleSave = (data: CentroLucro) => {
-    if (editingItem) {
-      const updated = items.map((item) => (item.id === data.id ? data : item));
-      saveToStorage(updated);
-      toast({ title: 'Sucesso', description: 'Centro de Lucro atualizado!' });
-    } else {
-      saveToStorage([...items, data]);
-      toast({ title: 'Sucesso', description: 'Centro de Lucro cadastrado!' });
+      if (error) throw error;
+
+      setItems(
+        (data || []).map((item) => ({
+          id: item.id,
+          codigoExterno: item.codigo_externo || '',
+          nome: item.nome,
+          descricao: item.descricao || '',
+          status: (item.status as 'Ativo' | 'Inativo') || 'Ativo',
+          parentId: item.parent_id || null,
+          dataCadastro: item.created_at ? new Date(item.created_at).toLocaleDateString('pt-BR') : '',
+          usuarioCadastro: user?.nome || '',
+        }))
+      );
+    } catch (err) {
+      console.error('Error fetching centros lucro:', err);
+      toast({
+        title: 'Erro',
+        description: 'Erro ao carregar dados',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
     }
-    setEditingItem(null);
+  }, [session, user, toast]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  const handleSave = async (data: CentroLucro) => {
+    try {
+      const dbData = {
+        codigo_externo: data.codigoExterno || null,
+        nome: data.nome,
+        descricao: data.descricao || null,
+        status: data.status,
+        parent_id: data.parentId || null,
+        created_by: user?.id || null,
+      };
+
+      if (editingItem) {
+        const { error } = await supabase
+          .from('centros_lucro')
+          .update(dbData)
+          .eq('id', data.id);
+
+        if (error) throw error;
+        toast({ title: 'Sucesso', description: 'Centro de Lucro atualizado!' });
+      } else {
+        const { error } = await supabase.from('centros_lucro').insert(dbData);
+
+        if (error) throw error;
+        toast({ title: 'Sucesso', description: 'Centro de Lucro cadastrado!' });
+      }
+
+      await fetchData();
+      setEditingItem(null);
+    } catch (err) {
+      console.error('Error saving centro lucro:', err);
+      toast({
+        title: 'Erro',
+        description: `Erro ao salvar: ${(err as Error).message}`,
+        variant: 'destructive',
+      });
+    }
   };
 
-  const handleDelete = (id: string) => {
-    // Verificar se tem filhos
+  const handleDelete = async (id: string) => {
     const hasChildren = items.some((item) => item.parentId === id);
     if (hasChildren) {
       toast({
@@ -48,8 +108,20 @@ const CentrosLucro = () => {
     }
 
     if (confirm('Deseja realmente excluir este centro de lucro?')) {
-      saveToStorage(items.filter((item) => item.id !== id));
-      toast({ title: 'Excluído', description: 'Centro de Lucro removido!' });
+      try {
+        const { error } = await supabase.from('centros_lucro').delete().eq('id', id);
+
+        if (error) throw error;
+        await fetchData();
+        toast({ title: 'Excluído', description: 'Centro de Lucro removido!' });
+      } catch (err) {
+        console.error('Error deleting centro lucro:', err);
+        toast({
+          title: 'Erro',
+          description: `Erro ao excluir: ${(err as Error).message}`,
+          variant: 'destructive',
+        });
+      }
     }
   };
 
@@ -63,7 +135,6 @@ const CentrosLucro = () => {
     setExpandedItems(newExpanded);
   };
 
-  // Filtra itens pela busca
   const filteredItems = useMemo(() => {
     if (!search) return items;
     return items.filter(
@@ -73,7 +144,6 @@ const CentrosLucro = () => {
     );
   }, [items, search]);
 
-  // Organiza hierarquia
   const getChildren = (parentId: string | null): CentroLucro[] => {
     return filteredItems.filter((item) => item.parentId === parentId);
   };
@@ -165,6 +235,14 @@ const CentrosLucro = () => {
   };
 
   const rootItems = getChildren(null);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div>

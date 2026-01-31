@@ -20,6 +20,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/contexts/AuthContext';
 import { Pessoa } from '@/pages/recursos/Pessoas';
 import { Camera } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 interface PessoaFormModalProps {
   isOpen: boolean;
@@ -95,9 +96,15 @@ export const PessoaFormModal = ({
         setFormData({ ...emptyFormData });
       }
 
-      // Load classificações
-      const storedClassificacoes = localStorage.getItem('kreato_classificacao_pessoas');
-      setClassificacoes(storedClassificacoes ? JSON.parse(storedClassificacoes) : []);
+      // Load classificações from Supabase
+      const fetchClassificacoes = async () => {
+        const { data: cats } = await supabase
+          .from('classificacoes_pessoa')
+          .select('id, nome')
+          .order('nome');
+        setClassificacoes(cats || []);
+      };
+      fetchClassificacoes();
     }
   }, [isOpen, data]);
 
