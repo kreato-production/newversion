@@ -267,13 +267,19 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
       const resourceMap = new Map<string, RecursoAlocado>();
       
       (alocacoesData || []).forEach((aloc: any) => {
-        const isTecnico = !!aloc.recurso_tecnico_id;
+        // Determinar o tipo de recurso
+        // Se tem recurso_humano_id E recurso_tecnico_id, é uma alocação de RH em recurso técnico
+        // Se tem apenas recurso_tecnico_id, é apenas o recurso técnico
+        // Se tem apenas recurso_fisico_id (e não é alocação de RH), é recurso físico
+        const isTecnicoRH = !!aloc.recurso_tecnico_id && !!aloc.recurso_humano_id;
+        const isTecnicoSomente = !!aloc.recurso_tecnico_id && !aloc.recurso_humano_id;
         const isFisico = !!aloc.recurso_fisico_id && !aloc.recurso_tecnico_id;
         
         let resourceKey = '';
         let recurso: RecursoAlocado | undefined;
 
-        if (isTecnico && aloc.recursos_tecnicos) {
+        // Processar recursos técnicos (com ou sem RH)
+        if ((isTecnicoRH || isTecnicoSomente) && aloc.recursos_tecnicos) {
           resourceKey = `tecnico_${aloc.recurso_tecnico_id}`;
           if (!resourceMap.has(resourceKey)) {
             resourceMap.set(resourceKey, {
@@ -294,19 +300,27 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
             recurso.alocacoes[dataPrevista] = 1;
           }
 
-          // If there's a human resource allocation for technical resource
-          if (aloc.recurso_humano_id && aloc.recursos_humanos && recurso && dataPrevista) {
+          // Se é alocação de RH em recurso técnico
+          if (isTecnicoRH && aloc.recursos_humanos && recurso && dataPrevista) {
             const rhName = `${aloc.recursos_humanos.nome} ${aloc.recursos_humanos.sobrenome}`;
             if (!recurso.recursosHumanos[dataPrevista]) {
               recurso.recursosHumanos[dataPrevista] = [];
             }
-            recurso.recursosHumanos[dataPrevista].push({
-              id: aloc.id,
-              recursoHumanoId: aloc.recurso_humano_id,
-              nome: rhName,
-              horaInicio: aloc.hora_inicio || '08:00',
-              horaFim: aloc.hora_fim || '18:00',
-            });
+            
+            // Verificar se já existe para evitar duplicatas
+            const jaExiste = recurso.recursosHumanos[dataPrevista].some(
+              (rh) => rh.recursoHumanoId === aloc.recurso_humano_id
+            );
+            
+            if (!jaExiste) {
+              recurso.recursosHumanos[dataPrevista].push({
+                id: aloc.id,
+                recursoHumanoId: aloc.recurso_humano_id,
+                nome: rhName,
+                horaInicio: aloc.hora_inicio?.substring(0, 5) || '08:00',
+                horaFim: aloc.hora_fim?.substring(0, 5) || '18:00',
+              });
+            }
           }
         } else if (isFisico && aloc.recursos_fisicos) {
           resourceKey = `fisico_${aloc.recurso_fisico_id}`;
@@ -329,8 +343,8 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
             
             if (aloc.hora_inicio && aloc.hora_fim) {
               recurso.horarios[dataPrevista] = {
-                horaInicio: aloc.hora_inicio,
-                horaFim: aloc.hora_fim,
+                horaInicio: aloc.hora_inicio?.substring(0, 5) || '08:00',
+                horaFim: aloc.hora_fim?.substring(0, 5) || '18:00',
               };
             }
           }
