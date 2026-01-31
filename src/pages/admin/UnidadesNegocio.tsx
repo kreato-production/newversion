@@ -14,6 +14,7 @@ interface UnidadeNegocioDb {
   codigo_externo: string | null;
   nome: string;
   descricao: string | null;
+  imagem_url: string | null;
   created_at: string | null;
   created_by: string | null;
 }
@@ -33,6 +34,7 @@ const mapDbToUnidade = (db: UnidadeNegocioDb, userName: string): UnidadeNegocio 
   codigoExterno: db.codigo_externo || '',
   nome: db.nome,
   descricao: db.descricao || '',
+  imagem: db.imagem_url || '',
   dataCadastro: db.created_at ? new Date(db.created_at).toLocaleDateString('pt-BR') : '',
   usuarioCadastro: userName,
 });
@@ -85,6 +87,7 @@ const UnidadesNegocio = () => {
         nome: data.nome,
         descricao: data.descricao || null,
         codigo_externo: data.codigoExterno || null,
+        imagem_url: data.imagem || null,
         created_by: user?.id || null,
       };
 
@@ -97,9 +100,10 @@ const UnidadesNegocio = () => {
         if (error) throw error;
         toast({ title: t('common.success'), description: t('businessUnits.updated') });
       } else {
+        const { id, ...insertData } = { id: data.id, ...dbData };
         const { error } = await supabase
           .from('unidades_negocio')
-          .insert(dbData);
+          .insert({ id: data.id, ...insertData });
 
         if (error) throw error;
         toast({ title: t('common.success'), description: t('businessUnits.saved') });
