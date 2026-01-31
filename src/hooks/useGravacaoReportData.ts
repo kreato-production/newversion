@@ -176,6 +176,9 @@ export const useGravacaoReportData = () => {
         .from('gravacao_recursos')
         .select(`
           id, hora_inicio, hora_fim,
+          recurso_humano_id,
+          recurso_tecnico_id,
+          recurso_fisico_id,
           recursos_humanos:recurso_humano_id(id, nome, sobrenome, custo_hora, funcoes:funcao_id(nome)),
           recursos_fisicos:recurso_fisico_id(id, nome, custo_hora),
           recursos_tecnicos:recurso_tecnico_id(id, nome, funcoes:funcao_operador_id(nome))
@@ -184,9 +187,62 @@ export const useGravacaoReportData = () => {
 
       const recursos: RecursoData[] = [];
       const custos: CustoItem[] = [];
+      
+      // Track technical resources to avoid duplicates
+      const tecnicosAdicionados = new Set<string>();
+      // Track HR already processed to avoid duplicate costs
+      const rhProcessados = new Set<string>();
 
       (recursosData || []).forEach((r: any) => {
-        if (r.recursos_humanos) {
+        // Case 1: HR associated with Technical Resource (has both recurso_tecnico_id AND recurso_humano_id)
+        if (r.recurso_tecnico_id && r.recurso_humano_id && r.recursos_humanos && r.recursos_tecnicos) {
+          const rh = r.recursos_humanos;
+          const rt = r.recursos_tecnicos;
+          const horas = calcularHorasEntreTempo(r.hora_inicio, r.hora_fim);
+          
+          // Add technical resource to report (only once)
+          if (!tecnicosAdicionados.has(r.recurso_tecnico_id)) {
+            recursos.push({
+              id: r.id,
+              tipo: 'tecnico',
+              nome: rt.nome,
+              funcao: rt.funcoes?.nome,
+              horaInicio: r.hora_inicio,
+              horaFim: r.hora_fim,
+            });
+            tecnicosAdicionados.add(r.recurso_tecnico_id);
+          }
+          
+          // Add HR cost (associated with technical resource)
+          if (horas > 0 && !rhProcessados.has(r.recurso_humano_id)) {
+            custos.push({
+              categoria: 'Recursos Humanos',
+              recurso: `${rh.nome} ${rh.sobrenome || ''}`.trim(),
+              descricao: `${horas.toFixed(1)}h operando ${rt.nome}`,
+              horas,
+              custoUnitario: rh.custo_hora || 0,
+              custoTotal: horas * (rh.custo_hora || 0),
+            });
+            rhProcessados.add(r.recurso_humano_id);
+          }
+        }
+        // Case 2: Standalone Technical Resource (only recurso_tecnico_id, no recurso_humano_id)
+        else if (r.recurso_tecnico_id && !r.recurso_humano_id && r.recursos_tecnicos) {
+          const rt = r.recursos_tecnicos;
+          if (!tecnicosAdicionados.has(r.recurso_tecnico_id)) {
+            recursos.push({
+              id: r.id,
+              tipo: 'tecnico',
+              nome: rt.nome,
+              funcao: rt.funcoes?.nome,
+              horaInicio: r.hora_inicio,
+              horaFim: r.hora_fim,
+            });
+            tecnicosAdicionados.add(r.recurso_tecnico_id);
+          }
+        }
+        // Case 3: Direct HR allocation (only recurso_humano_id, no recurso_tecnico_id)
+        else if (r.recurso_humano_id && !r.recurso_tecnico_id && r.recursos_humanos) {
           const rh = r.recursos_humanos;
           const horas = calcularHorasEntreTempo(r.hora_inicio, r.hora_fim);
           recursos.push({
@@ -197,7 +253,7 @@ export const useGravacaoReportData = () => {
             horaInicio: r.hora_inicio,
             horaFim: r.hora_fim,
           });
-          if (horas > 0) {
+          if (horas > 0 && !rhProcessados.has(r.recurso_humano_id)) {
             custos.push({
               categoria: 'Recursos Humanos',
               recurso: `${rh.nome} ${rh.sobrenome || ''}`.trim(),
@@ -206,9 +262,11 @@ export const useGravacaoReportData = () => {
               custoUnitario: rh.custo_hora || 0,
               custoTotal: horas * (rh.custo_hora || 0),
             });
+            rhProcessados.add(r.recurso_humano_id);
           }
         }
-        if (r.recursos_fisicos) {
+        // Case 4: Physical Resource
+        else if (r.recurso_fisico_id && r.recursos_fisicos) {
           const rf = r.recursos_fisicos;
           const horas = calcularHorasEntreTempo(r.hora_inicio, r.hora_fim);
           recursos.push({
@@ -228,17 +286,6 @@ export const useGravacaoReportData = () => {
               custoTotal: horas * (rf.custo_hora || 0),
             });
           }
-        }
-        if (r.recursos_tecnicos) {
-          const rt = r.recursos_tecnicos;
-          recursos.push({
-            id: r.id,
-            tipo: 'tecnico',
-            nome: rt.nome,
-            funcao: rt.funcoes?.nome,
-            horaInicio: r.hora_inicio,
-            horaFim: r.hora_fim,
-          });
         }
       });
 
