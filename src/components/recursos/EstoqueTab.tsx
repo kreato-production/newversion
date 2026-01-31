@@ -11,7 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Plus, Trash2, Package, Edit } from 'lucide-react';
+import { Plus, Trash2, Package, Edit, Upload, X, Loader2, Image as ImageIcon } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -21,6 +21,7 @@ export interface EstoqueItem {
   codigo: string;
   nome: string;
   descricao: string;
+  imagemUrl?: string;
 }
 
 interface EstoqueTabProps {
@@ -33,17 +34,20 @@ interface ItemFormData {
   codigo: string;
   nome: string;
   descricao: string;
+  imagemUrl: string;
 }
 
 export const EstoqueTab = ({ recursoFisicoId, itens, onItensChange }: EstoqueTabProps) => {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<EstoqueItem | null>(null);
   const [formData, setFormData] = useState<ItemFormData>({
     codigo: '',
     nome: '',
     descricao: '',
+    imagemUrl: '',
   });
 
   useEffect(() => {
@@ -71,6 +75,7 @@ export const EstoqueTab = ({ recursoFisicoId, itens, onItensChange }: EstoqueTab
         codigo: item.codigo || '',
         nome: item.nome,
         descricao: item.descricao || '',
+        imagemUrl: item.imagem_url || '',
       }));
 
       onItensChange(mappedItens);
@@ -89,7 +94,7 @@ export const EstoqueTab = ({ recursoFisicoId, itens, onItensChange }: EstoqueTab
 
   const handleOpenAddModal = () => {
     setEditingItem(null);
-    setFormData({ codigo: '', nome: '', descricao: '' });
+    setFormData({ codigo: '', nome: '', descricao: '', imagemUrl: '' });
     setIsModalOpen(true);
   };
 
@@ -99,14 +104,73 @@ export const EstoqueTab = ({ recursoFisicoId, itens, onItensChange }: EstoqueTab
       codigo: item.codigo,
       nome: item.nome,
       descricao: item.descricao,
+      imagemUrl: item.imagemUrl || '',
     });
     setIsModalOpen(true);
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: 'Erro',
+        description: 'Por favor, selecione um arquivo de imagem.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: 'Erro',
+        description: 'A imagem deve ter no máximo 5MB.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${crypto.randomUUID()}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('estoque-itens')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: publicUrl } = supabase.storage
+        .from('estoque-itens')
+        .getPublicUrl(filePath);
+
+      setFormData({ ...formData, imagemUrl: publicUrl.publicUrl });
+      toast({ title: 'Sucesso', description: 'Imagem carregada com sucesso!' });
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      toast({
+        title: 'Erro',
+        description: 'Erro ao carregar imagem. Tente novamente.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setFormData({ ...formData, imagemUrl: '' });
   };
 
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setEditingItem(null);
-    setFormData({ codigo: '', nome: '', descricao: '' });
+    setFormData({ codigo: '', nome: '', descricao: '', imagemUrl: '' });
   };
 
   const handleSaveItem = () => {
@@ -128,6 +192,7 @@ export const EstoqueTab = ({ recursoFisicoId, itens, onItensChange }: EstoqueTab
           codigo: formData.codigo,
           nome: formData.nome,
           descricao: formData.descricao,
+          imagemUrl: formData.imagemUrl,
         };
       }));
     } else {
@@ -138,6 +203,7 @@ export const EstoqueTab = ({ recursoFisicoId, itens, onItensChange }: EstoqueTab
         codigo: formData.codigo,
         nome: formData.nome,
         descricao: formData.descricao,
+        imagemUrl: formData.imagemUrl,
       };
       onItensChange([...itens, novoItem]);
     }
@@ -195,7 +261,16 @@ export const EstoqueTab = ({ recursoFisicoId, itens, onItensChange }: EstoqueTab
                     {item.codigo || '-'}
                   </td>
                   <td className="px-3 py-2">
-                    {item.nome}
+                    <div className="flex items-center gap-2">
+                      {item.imagemUrl && (
+                        <img 
+                          src={item.imagemUrl} 
+                          alt={item.nome}
+                          className="w-8 h-8 rounded object-cover"
+                        />
+                      )}
+                      <span>{item.nome}</span>
+                    </div>
                   </td>
                   <td className="px-3 py-2 text-right">
                     <div className="flex justify-end gap-1">
@@ -269,6 +344,56 @@ export const EstoqueTab = ({ recursoFisicoId, itens, onItensChange }: EstoqueTab
                 rows={3}
                 className="resize-none"
               />
+            </div>
+            
+            <div className="space-y-2">
+              <Label>Imagem</Label>
+              {formData.imagemUrl ? (
+                <div className="relative inline-block">
+                  <img 
+                    src={formData.imagemUrl} 
+                    alt="Preview" 
+                    className="w-32 h-32 object-cover rounded-lg border"
+                  />
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="icon"
+                    className="absolute -top-2 -right-2 h-6 w-6"
+                    onClick={handleRemoveImage}
+                  >
+                    <X className="w-3 h-3" />
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <label className="cursor-pointer">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleImageUpload}
+                      disabled={isUploading}
+                    />
+                    <div className="flex items-center gap-2 px-4 py-2 border border-dashed rounded-lg hover:bg-muted/50 transition-colors">
+                      {isUploading ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span className="text-sm">Carregando...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="w-4 h-4" />
+                          <span className="text-sm">Selecionar imagem</span>
+                        </>
+                      )}
+                    </div>
+                  </label>
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Formatos aceitos: JPG, PNG, GIF. Tamanho máximo: 5MB.
+              </p>
             </div>
           </div>
           <DialogFooter>
