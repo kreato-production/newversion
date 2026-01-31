@@ -70,6 +70,8 @@ export const RecursoHumanoFormModal = ({
   const { user } = useAuth();
   const [departamentos, setDepartamentos] = useState<{ id: string; nome: string }[]>([]);
   const [funcoes, setFuncoes] = useState<{ id: string; nome: string }[]>([]);
+  const [funcoesDisponiveis, setFuncoesDisponiveis] = useState<{ id: string; nome: string }[]>([]);
+  const [isLoadingFuncoes, setIsLoadingFuncoes] = useState(false);
   const fotoInputRef = useRef<HTMLInputElement>(null);
   const anexoInputRef = useRef<HTMLInputElement>(null);
   const [activeTab, setActiveTab] = useState('dados');
@@ -84,6 +86,7 @@ export const RecursoHumanoFormModal = ({
     telefone: '',
     email: '',
     departamento: '',
+    departamentoId: '',
     funcao: '',
     custoHora: 0,
     dataContratacao: '',
@@ -110,6 +113,7 @@ export const RecursoHumanoFormModal = ({
     diasSemana: [1, 2, 3, 4, 5] as number[], // Segunda a Sexta por padrão
   });
 
+  // Load departments and all functions
   useEffect(() => {
     const fetchDropdowns = async () => {
       try {
@@ -128,8 +132,47 @@ export const RecursoHumanoFormModal = ({
     }
   }, [isOpen]);
 
+  // Load functions based on selected department
+  useEffect(() => {
+    const fetchFuncoesPorDepartamento = async () => {
+      if (!formData.departamentoId) {
+        setFuncoesDisponiveis([]);
+        return;
+      }
+
+      setIsLoadingFuncoes(true);
+      try {
+        // Get function IDs associated with the department
+        const { data: depFuncoes, error } = await supabase
+          .from('departamento_funcoes')
+          .select('funcao_id')
+          .eq('departamento_id', formData.departamentoId);
+
+        if (error) throw error;
+
+        if (depFuncoes && depFuncoes.length > 0) {
+          const funcaoIds = depFuncoes.map((df) => df.funcao_id);
+          // Filter available functions based on department association
+          const funcoesDoDepto = funcoes.filter((f) => funcaoIds.includes(f.id));
+          setFuncoesDisponiveis(funcoesDoDepto);
+        } else {
+          setFuncoesDisponiveis([]);
+        }
+      } catch (err) {
+        console.error('Error fetching functions for department:', err);
+        setFuncoesDisponiveis([]);
+      } finally {
+        setIsLoadingFuncoes(false);
+      }
+    };
+
+    fetchFuncoesPorDepartamento();
+  }, [formData.departamentoId, funcoes]);
+
   useEffect(() => {
     if (data) {
+      // Find department ID from department name
+      const deptoEncontrado = departamentos.find((d) => d.nome === data.departamento);
       setFormData({
         codigoExterno: data.codigoExterno,
         nome: data.nome,
@@ -140,6 +183,7 @@ export const RecursoHumanoFormModal = ({
         telefone: data.telefone,
         email: data.email,
         departamento: data.departamento,
+        departamentoId: deptoEncontrado?.id || data.departamentoId || '',
         funcao: data.funcao,
         custoHora: data.custoHora,
         dataContratacao: data.dataContratacao,
@@ -159,6 +203,7 @@ export const RecursoHumanoFormModal = ({
         telefone: '',
         email: '',
         departamento: '',
+        departamentoId: '',
         funcao: '',
         custoHora: 0,
         dataContratacao: '',
@@ -167,11 +212,12 @@ export const RecursoHumanoFormModal = ({
       setAnexos([]);
       setAusencias([]);
       setEscalas([]);
+      setFuncoesDisponiveis([]);
     }
     setActiveTab('dados');
     setNovaAusencia({ motivo: '', dataInicio: '', dataFim: '' });
     setNovaEscala({ dataInicio: '', horaInicio: '', dataFim: '', horaFim: '', diasSemana: [1, 2, 3, 4, 5] });
-  }, [data, isOpen]);
+  }, [data, isOpen, departamentos]);
 
   // Calcular dias automaticamente
   const diasCalculados = useMemo(() => {
@@ -567,15 +613,23 @@ export const RecursoHumanoFormModal = ({
                 <div className="space-y-2">
                   <Label>Departamento</Label>
                   <Select
-                    value={formData.departamento}
-                    onValueChange={(value) => setFormData({ ...formData, departamento: value })}
+                    value={formData.departamentoId}
+                    onValueChange={(value) => {
+                      const depSelecionado = departamentos.find((d) => d.id === value);
+                      setFormData({ 
+                        ...formData, 
+                        departamentoId: value,
+                        departamento: depSelecionado?.nome || '',
+                        funcao: '', // Reset function when department changes
+                      });
+                    }}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione..." />
                     </SelectTrigger>
                     <SelectContent>
                       {departamentos.map((d) => (
-                        <SelectItem key={d.id} value={d.nome}>{d.nome}</SelectItem>
+                        <SelectItem key={d.id} value={d.id}>{d.nome}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -585,12 +639,21 @@ export const RecursoHumanoFormModal = ({
                   <Select
                     value={formData.funcao}
                     onValueChange={(value) => setFormData({ ...formData, funcao: value })}
+                    disabled={!formData.departamentoId || isLoadingFuncoes}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Selecione..." />
+                      <SelectValue placeholder={
+                        !formData.departamentoId 
+                          ? "Selecione um departamento primeiro" 
+                          : isLoadingFuncoes 
+                            ? "Carregando..." 
+                            : funcoesDisponiveis.length === 0 
+                              ? "Nenhuma função cadastrada" 
+                              : "Selecione..."
+                      } />
                     </SelectTrigger>
                     <SelectContent>
-                      {funcoes.map((f) => (
+                      {funcoesDisponiveis.map((f) => (
                         <SelectItem key={f.id} value={f.nome}>{f.nome}</SelectItem>
                       ))}
                     </SelectContent>
