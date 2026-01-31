@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
+
 import { Plus, Trash2, Package } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -112,63 +112,58 @@ export const EstoqueTab = ({ recursoFisicoId, itens, onItensChange }: EstoqueTab
           </p>
         </div>
       ) : (
-        <div className="space-y-4">
-          {itens.map((item, index) => (
-            <div key={item.id} className="border rounded-lg p-4 bg-muted/10 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="font-medium text-sm flex items-center gap-2">
-                  <span className="bg-primary text-primary-foreground w-6 h-6 rounded-full flex items-center justify-center text-xs">
-                    {item.numerador}
-                  </span>
-                  Item #{item.numerador}
-                </span>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleRemoveItem(item.id)}
-                  className="text-destructive hover:text-destructive h-8 w-8 p-0"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label className="text-xs">Código</Label>
-                  <Input
-                    value={item.codigo}
-                    onChange={(e) => handleItemChange(item.id, 'codigo', e.target.value)}
-                    placeholder="Código do item"
-                    maxLength={50}
-                    className="h-9"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-xs">Nome *</Label>
-                  <Input
-                    value={item.nome}
-                    onChange={(e) => handleItemChange(item.id, 'nome', e.target.value)}
-                    placeholder="Nome do item"
-                    maxLength={100}
-                    required
-                    className="h-9"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-xs">Descrição</Label>
-                <Textarea
-                  value={item.descricao}
-                  onChange={(e) => handleItemChange(item.id, 'descricao', e.target.value)}
-                  placeholder="Descrição detalhada do item"
-                  rows={3}
-                  className="resize-none"
-                />
-              </div>
-            </div>
-          ))}
+        <div className="border rounded-lg overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-muted/50">
+              <tr>
+                <th className="text-left px-3 py-2 w-16">#</th>
+                <th className="text-left px-3 py-2 w-32">Código</th>
+                <th className="text-left px-3 py-2">Nome</th>
+                <th className="text-right px-3 py-2 w-16">Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              {itens.map((item) => (
+                <tr key={item.id} className="border-t hover:bg-muted/20">
+                  <td className="px-3 py-2">
+                    <span className="bg-primary text-primary-foreground w-6 h-6 rounded-full flex items-center justify-center text-xs">
+                      {item.numerador}
+                    </span>
+                  </td>
+                  <td className="px-3 py-2">
+                    <Input
+                      value={item.codigo}
+                      onChange={(e) => handleItemChange(item.id, 'codigo', e.target.value)}
+                      placeholder="Código"
+                      maxLength={50}
+                      className="h-8"
+                    />
+                  </td>
+                  <td className="px-3 py-2">
+                    <Input
+                      value={item.nome}
+                      onChange={(e) => handleItemChange(item.id, 'nome', e.target.value)}
+                      placeholder="Nome do item"
+                      maxLength={100}
+                      required
+                      className="h-8"
+                    />
+                  </td>
+                  <td className="px-3 py-2 text-right">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleRemoveItem(item.id)}
+                      className="text-destructive hover:text-destructive h-8 w-8 p-0"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
     </div>
