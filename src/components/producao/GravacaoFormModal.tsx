@@ -39,6 +39,7 @@ import { ConvidadosTab } from './ConvidadosTab';
 import FigurinosTab from './FigurinosTab';
 import { ElencoTab } from './ElencoTab';
 import { RoteiroTab } from './RoteiroTab';
+import { GravacaoReportGenerator } from './GravacaoReportGenerator';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -238,10 +239,17 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="w-[95vw] max-w-[1400px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{data ? t('recordings.edit') : t('recordings.new')}</DialogTitle>
-          <DialogDescription>
-            {data ? t('recordings.edit') : t('recordings.new')}
-          </DialogDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <DialogTitle>{data ? t('recordings.edit') : t('recordings.new')}</DialogTitle>
+              <DialogDescription>
+                {data ? t('recordings.edit') : t('recordings.new')}
+              </DialogDescription>
+            </div>
+            {data && (
+              <GravacaoReportGenerator gravacaoId={data.id} />
+            )}
+          </div>
         </DialogHeader>
 
         <Tabs defaultValue="dados" className="w-full">
