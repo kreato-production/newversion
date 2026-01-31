@@ -1,66 +1,14 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Users, MapPin, Building2, Calculator, Clock, DollarSign, Film } from 'lucide-react';
+import { Users, MapPin, Building2, Calculator, Clock, DollarSign, Film, Loader2 } from 'lucide-react';
 import { ExportDropdown } from '@/components/shared/ExportDropdown';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
-
-interface RecursoHumanoAlocado {
-  id: string;
-  recursoHumanoId: string;
-  nome: string;
-  horaInicio: string;
-  horaFim: string;
-}
-
-interface HorarioOcupacao {
-  horaInicio: string;
-  horaFim: string;
-}
-
-interface RecursoAlocado {
-  id: string;
-  tipo: 'tecnico' | 'fisico';
-  recursoId: string;
-  recursoNome: string;
-  alocacoes: Record<string, number>;
-  recursosHumanos: Record<string, RecursoHumanoAlocado[]>;
-  horarios: Record<string, HorarioOcupacao>;
-}
-
-interface RecursoHumano {
-  id: string;
-  nome: string;
-  sobrenome?: string;
-  custoHora: number;
-  cargo?: string;
-}
-
-interface RecursoFisico {
-  id: string;
-  nome: string;
-  custoHora: number;
-}
-
-interface Gravacao {
-  id: string;
-  codigo: string;
-  nome: string;
-  conteudoId?: string;
-}
-
-interface TerceiroAlocado {
-  id: string;
-  fornecedorId: string;
-  fornecedorNome: string;
-  servicoId: string;
-  servicoNome: string;
-  custo: number;
-}
 
 interface CustoItem {
   gravacaoNome: string;
@@ -96,50 +44,71 @@ const calcularHorasEntreTempo = (inicio: string, fim: string): number => {
 
 export const ConteudoCustosTab = ({ conteudoId, conteudoNome }: ConteudoCustosTabProps) => {
   const { toast } = useToast();
-  const [gravacoes, setGravacoes] = useState<Gravacao[]>([]);
-  const [recursosHumanos, setRecursosHumanos] = useState<RecursoHumano[]>([]);
-  const [recursosFisicos, setRecursosFisicos] = useState<RecursoFisico[]>([]);
-  const [allRecursos, setAllRecursos] = useState<Record<string, RecursoAlocado[]>>({});
-  const [allTerceiros, setAllTerceiros] = useState<Record<string, TerceiroAlocado[]>>({});
+  const [isLoading, setIsLoading] = useState(true);
+  const [gravacoes, setGravacoes] = useState<any[]>([]);
+  const [allRecursos, setAllRecursos] = useState<Record<string, any[]>>({});
+  const [allTerceiros, setAllTerceiros] = useState<Record<string, any[]>>({});
+
+  const fetchData = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      // Buscar gravações do conteúdo
+      const { data: gravacoesData } = await supabase
+        .from('gravacoes')
+        .select('id, codigo, nome')
+        .eq('conteudo_id', conteudoId);
+
+      const gravacoesDoConteudo = gravacoesData || [];
+      setGravacoes(gravacoesDoConteudo);
+
+      // Buscar recursos e terceiros de cada gravação
+      const recursos: Record<string, any[]> = {};
+      const terceiros: Record<string, any[]> = {};
+
+      for (const gravacao of gravacoesDoConteudo) {
+        // Buscar recursos alocados
+        const { data: recursosData } = await supabase
+          .from('gravacao_recursos')
+          .select(`
+            id,
+            hora_inicio,
+            hora_fim,
+            recurso_humano_id,
+            recurso_fisico_id,
+            recursos_humanos:recurso_humano_id(id, nome, sobrenome, custo_hora),
+            recursos_fisicos:recurso_fisico_id(id, nome, custo_hora)
+          `)
+          .eq('gravacao_id', gravacao.id);
+
+        recursos[gravacao.id] = recursosData || [];
+
+        // Buscar terceiros
+        const { data: terceirosData } = await supabase
+          .from('gravacao_terceiros')
+          .select(`
+            id,
+            valor,
+            observacao,
+            fornecedor:fornecedor_id(id, nome),
+            servico:servico_id(id, nome)
+          `)
+          .eq('gravacao_id', gravacao.id);
+
+        terceiros[gravacao.id] = terceirosData || [];
+      }
+
+      setAllRecursos(recursos);
+      setAllTerceiros(terceiros);
+    } catch (err) {
+      console.error('Erro ao carregar dados de custos:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [conteudoId]);
 
   useEffect(() => {
-    // Carregar gravações do conteúdo
-    const storedGravacoes = localStorage.getItem('kreato_gravacoes');
-    const allGravacoes: Gravacao[] = storedGravacoes ? JSON.parse(storedGravacoes) : [];
-    const gravacoesDoConteudo = allGravacoes.filter((g) => g.conteudoId === conteudoId);
-    setGravacoes(gravacoesDoConteudo);
-
-    // Carregar cadastro de recursos humanos
-    const storedRH = localStorage.getItem('kreato_recursos_humanos');
-    if (storedRH) {
-      setRecursosHumanos(JSON.parse(storedRH));
-    }
-
-    // Carregar cadastro de recursos físicos
-    const storedFisicos = localStorage.getItem('kreato_recursos_fisicos');
-    if (storedFisicos) {
-      setRecursosFisicos(JSON.parse(storedFisicos));
-    }
-
-    // Carregar recursos e terceiros de cada gravação
-    const recursos: Record<string, RecursoAlocado[]> = {};
-    const terceiros: Record<string, TerceiroAlocado[]> = {};
-
-    gravacoesDoConteudo.forEach((gravacao) => {
-      const storedRecursos = localStorage.getItem(`kreato_gravacao_recursos_${gravacao.id}`);
-      if (storedRecursos) {
-        recursos[gravacao.id] = JSON.parse(storedRecursos);
-      }
-
-      const storedTerceiros = localStorage.getItem(`kreato_gravacao_terceiros_${gravacao.id}`);
-      if (storedTerceiros) {
-        terceiros[gravacao.id] = JSON.parse(storedTerceiros);
-      }
-    });
-
-    setAllRecursos(recursos);
-    setAllTerceiros(terceiros);
-  }, [conteudoId]);
+    fetchData();
+  }, [fetchData]);
 
   const custos = useMemo(() => {
     const itens: CustoItem[] = [];
@@ -148,84 +117,66 @@ export const ConteudoCustosTab = ({ conteudoId, conteudoNome }: ConteudoCustosTa
       const recursos = allRecursos[gravacao.id] || [];
       const terceiros = allTerceiros[gravacao.id] || [];
 
+      // Processar recursos humanos
       recursos.forEach((recurso) => {
-        if (recurso.tipo === 'fisico') {
-          const recursoFisico = recursosFisicos.find((rf) => rf.id === recurso.recursoId);
-          const custoHora = recursoFisico?.custoHora || 0;
+        if (recurso.recurso_humano_id && recurso.recursos_humanos) {
+          const rh = recurso.recursos_humanos;
+          const custoHora = rh.custo_hora || 0;
+          const horas = calcularHorasEntreTempo(recurso.hora_inicio, recurso.hora_fim);
 
-          let totalHoras = 0;
-          const diasUtilizados: string[] = [];
+          if (horas > 0) {
+            itens.push({
+              gravacaoNome: gravacao.nome,
+              categoria: 'Recursos Humanos',
+              recurso: `${rh.nome} ${rh.sobrenome || ''}`.trim(),
+              descricao: `${horas.toFixed(1)}h de trabalho`,
+              horas,
+              custoUnitario: custoHora,
+              custoTotal: horas * custoHora,
+              tipo: 'humano',
+            });
+          }
+        }
 
-          Object.entries(recurso.horarios || {}).forEach(([dia, horario]) => {
-            const horas = calcularHorasEntreTempo(horario.horaInicio, horario.horaFim);
-            if (horas > 0) {
-              totalHoras += horas;
-              diasUtilizados.push(dia);
-            }
-          });
+        // Processar recursos físicos
+        if (recurso.recurso_fisico_id && recurso.recursos_fisicos) {
+          const rf = recurso.recursos_fisicos;
+          const custoHora = rf.custo_hora || 0;
+          const horas = calcularHorasEntreTempo(recurso.hora_inicio, recurso.hora_fim);
 
-          if (totalHoras > 0) {
+          if (horas > 0) {
             itens.push({
               gravacaoNome: gravacao.nome,
               categoria: 'Recursos Físicos',
-              recurso: recurso.recursoNome,
-              descricao: `${diasUtilizados.length} dia(s) de ocupação`,
-              horas: totalHoras,
+              recurso: rf.nome,
+              descricao: `${horas.toFixed(1)}h de ocupação`,
+              horas,
               custoUnitario: custoHora,
-              custoTotal: totalHoras * custoHora,
+              custoTotal: horas * custoHora,
               tipo: 'fisico',
             });
           }
-        } else if (recurso.tipo === 'tecnico') {
-          const rhPorColaborador: Record<string, { nome: string; horas: number; dias: number }> = {};
-
-          Object.entries(recurso.recursosHumanos || {}).forEach(([dia, rhList]) => {
-            rhList.forEach((rh) => {
-              const horas = calcularHorasEntreTempo(rh.horaInicio, rh.horaFim);
-              if (!rhPorColaborador[rh.recursoHumanoId]) {
-                rhPorColaborador[rh.recursoHumanoId] = { nome: rh.nome, horas: 0, dias: 0 };
-              }
-              rhPorColaborador[rh.recursoHumanoId].horas += horas;
-              rhPorColaborador[rh.recursoHumanoId].dias += 1;
-            });
-          });
-
-          Object.entries(rhPorColaborador).forEach(([rhId, dados]) => {
-            const colaborador = recursosHumanos.find((rh) => rh.id === rhId);
-            const custoHora = colaborador?.custoHora || 0;
-
-            if (dados.horas > 0) {
-              itens.push({
-                gravacaoNome: gravacao.nome,
-                categoria: 'Recursos Humanos',
-                recurso: dados.nome,
-                descricao: `${dados.dias} dia(s) em ${recurso.recursoNome}`,
-                horas: dados.horas,
-                custoUnitario: custoHora,
-                custoTotal: dados.horas * custoHora,
-                tipo: 'humano',
-              });
-            }
-          });
         }
       });
 
+      // Adicionar terceiros
       terceiros.forEach((terceiro) => {
+        const valor = terceiro.valor || 0;
         itens.push({
           gravacaoNome: gravacao.nome,
           categoria: 'Terceiros',
-          recurso: terceiro.fornecedorNome,
-          descricao: terceiro.servicoNome,
+          recurso: terceiro.fornecedor?.nome || 'Fornecedor',
+          descricao: terceiro.servico?.nome || terceiro.observacao || 'Serviço',
           horas: 0,
-          custoUnitario: terceiro.custo,
-          custoTotal: terceiro.custo,
+          custoUnitario: valor,
+          custoTotal: valor,
           tipo: 'terceiro',
         });
       });
     });
 
     return itens;
-  }, [gravacoes, allRecursos, allTerceiros, recursosHumanos, recursosFisicos]);
+  }, [gravacoes, allRecursos, allTerceiros]);
 
   const custosPorCategoria = useMemo(() => {
     const categorias: Record<string, CustoItem[]> = {};
@@ -280,17 +231,15 @@ export const ConteudoCustosTab = ({ conteudoId, conteudoNome }: ConteudoCustosTa
     const titulo = conteudoNome || 'Conteúdo';
     const dataExport = new Date().toLocaleDateString('pt-BR');
     
-    // Header com gradiente simulado
-    doc.setFillColor(26, 54, 93); // kreato-blue-dark
+    doc.setFillColor(26, 54, 93);
     doc.rect(0, 0, 210, 35, 'F');
     
-    doc.setFillColor(79, 70, 229); // kreato-purple
+    doc.setFillColor(79, 70, 229);
     doc.rect(70, 0, 70, 35, 'F');
     
-    doc.setFillColor(234, 88, 12); // kreato-orange
+    doc.setFillColor(234, 88, 12);
     doc.rect(140, 0, 70, 35, 'F');
     
-    // Título
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(18);
     doc.setFont('helvetica', 'bold');
@@ -303,7 +252,6 @@ export const ConteudoCustosTab = ({ conteudoId, conteudoNome }: ConteudoCustosTa
     
     let yPos = 45;
     
-    // Resumo Geral
     doc.setTextColor(0, 0, 0);
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
@@ -329,7 +277,6 @@ export const ConteudoCustosTab = ({ conteudoId, conteudoNome }: ConteudoCustosTa
     
     yPos = (doc as any).lastAutoTable.finalY + 12;
     
-    // Custos por Gravação
     if (Object.keys(custosPorGravacao).length > 0) {
       doc.setFontSize(12);
       doc.setFont('helvetica', 'bold');
@@ -365,7 +312,6 @@ export const ConteudoCustosTab = ({ conteudoId, conteudoNome }: ConteudoCustosTa
       yPos = (doc as any).lastAutoTable.finalY + 12;
     }
     
-    // Detalhamento por Categoria
     Object.entries(custosPorCategoria).forEach(([categoria, itens]) => {
       if (yPos > 250) {
         doc.addPage();
@@ -418,7 +364,6 @@ export const ConteudoCustosTab = ({ conteudoId, conteudoNome }: ConteudoCustosTa
     const titulo = conteudoNome || 'Conteúdo';
     const dataExport = new Date().toLocaleDateString('pt-BR');
     
-    // Planilha de Resumo
     const resumoData = [
       ['RELATÓRIO DE CUSTOS'],
       [`Conteúdo: ${titulo}`],
@@ -438,7 +383,6 @@ export const ConteudoCustosTab = ({ conteudoId, conteudoNome }: ConteudoCustosTa
       ['TOTAL GERAL', totalGeral.horas.toFixed(1), totalGeral.custo],
     ];
     
-    // Planilha de Detalhamento
     const detalheData = [
       ['DETALHAMENTO DE CUSTOS'],
       [],
@@ -464,7 +408,6 @@ export const ConteudoCustosTab = ({ conteudoId, conteudoNome }: ConteudoCustosTa
     const wsDetalhe = XLSX.utils.aoa_to_sheet(detalheData);
     XLSX.utils.book_append_sheet(wb, wsDetalhe, 'Detalhamento');
     
-    // Ajustar largura das colunas
     wsResumo['!cols'] = [{ wch: 30 }, { wch: 15 }, { wch: 15 }];
     wsDetalhe['!cols'] = [{ wch: 25 }, { wch: 18 }, { wch: 25 }, { wch: 30 }, { wch: 10 }, { wch: 12 }, { wch: 15 }];
     
@@ -475,6 +418,14 @@ export const ConteudoCustosTab = ({ conteudoId, conteudoNome }: ConteudoCustosTa
       description: 'O relatório de custos foi exportado com sucesso.',
     });
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   if (gravacoes.length === 0) {
     return (
@@ -498,7 +449,7 @@ export const ConteudoCustosTab = ({ conteudoId, conteudoNome }: ConteudoCustosTa
         </div>
         <h3 className="text-lg font-semibold text-foreground mb-1">Nenhum custo estimado</h3>
         <p className="text-sm text-muted-foreground max-w-sm">
-          Aloque recursos nas gravações associadas para visualizar os custos acumulados.
+          Aloque recursos e terceiros nas gravações para calcular os custos.
         </p>
       </div>
     );
@@ -506,31 +457,24 @@ export const ConteudoCustosTab = ({ conteudoId, conteudoNome }: ConteudoCustosTa
 
   return (
     <div className="space-y-6 py-4">
-      {/* Header com botão de exportação */}
+      {/* Header com exportação */}
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold flex items-center gap-2">
-          <Calculator className="h-5 w-5" />
-          Custos do Conteúdo
-        </h2>
-        <ExportDropdown 
-          onExportPDF={handleExportPDF} 
-          onExportExcel={handleExportExcel}
-        />
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+            <Calculator className="h-5 w-5 text-primary" />
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold">Custos Estimados</h3>
+            <p className="text-sm text-muted-foreground">
+              {gravacoes.length} gravação(ões) • {custos.length} item(s) de custo
+            </p>
+          </div>
+        </div>
+        <ExportDropdown onExportPDF={handleExportPDF} onExportExcel={handleExportExcel} />
       </div>
 
       {/* Cards de resumo */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Gravações</CardTitle>
-            <Film className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{gravacoes.length}</div>
-            <p className="text-xs text-muted-foreground">Episódios com custos</p>
-          </CardContent>
-        </Card>
-
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total de Horas</CardTitle>
@@ -538,7 +482,7 @@ export const ConteudoCustosTab = ({ conteudoId, conteudoNome }: ConteudoCustosTa
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{totalGeral.horas.toFixed(1)}h</div>
-            <p className="text-xs text-muted-foreground">Horas estimadas</p>
+            <p className="text-xs text-muted-foreground">Horas estimadas de trabalho</p>
           </CardContent>
         </Card>
 
@@ -549,23 +493,23 @@ export const ConteudoCustosTab = ({ conteudoId, conteudoNome }: ConteudoCustosTa
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-primary">{formatCurrency(totalGeral.custo)}</div>
-            <p className="text-xs text-muted-foreground">Custo acumulado</p>
+            <p className="text-xs text-muted-foreground">Custo total estimado</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Itens de Custo</CardTitle>
-            <Calculator className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Gravações</CardTitle>
+            <Film className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{custos.length}</div>
-            <p className="text-xs text-muted-foreground">Recursos alocados</p>
+            <div className="text-2xl font-bold">{gravacoes.length}</div>
+            <p className="text-xs text-muted-foreground">Gravações com custos</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Resumo por gravação */}
+      {/* Custos por Gravação */}
       {Object.keys(custosPorGravacao).length > 0 && (
         <Card>
           <CardHeader className="pb-3">
@@ -591,10 +535,10 @@ export const ConteudoCustosTab = ({ conteudoId, conteudoNome }: ConteudoCustosTa
                     <TableCell className="text-right font-medium">{formatCurrency(dados.custo)}</TableCell>
                   </TableRow>
                 ))}
-                <TableRow className="bg-muted/50">
-                  <TableCell className="font-medium">Total Geral</TableCell>
-                  <TableCell className="text-right font-medium">{totalGeral.horas.toFixed(1)}h</TableCell>
-                  <TableCell className="text-right font-bold">{formatCurrency(totalGeral.custo)}</TableCell>
+                <TableRow className="bg-muted/50 font-bold">
+                  <TableCell>TOTAL GERAL</TableCell>
+                  <TableCell className="text-right">{totalGeral.horas.toFixed(1)}h</TableCell>
+                  <TableCell className="text-right">{formatCurrency(totalGeral.custo)}</TableCell>
                 </TableRow>
               </TableBody>
             </Table>
@@ -602,7 +546,7 @@ export const ConteudoCustosTab = ({ conteudoId, conteudoNome }: ConteudoCustosTa
         </Card>
       )}
 
-      {/* Tabela de custos por categoria */}
+      {/* Tabelas por categoria */}
       {Object.entries(custosPorCategoria).map(([categoria, itens]) => (
         <Card key={categoria}>
           <CardHeader className="pb-3">
@@ -633,7 +577,7 @@ export const ConteudoCustosTab = ({ conteudoId, conteudoNome }: ConteudoCustosTa
               <TableBody>
                 {itens.map((item, idx) => (
                   <TableRow key={idx}>
-                    <TableCell className="text-muted-foreground text-sm">{item.gravacaoNome}</TableCell>
+                    <TableCell className="text-muted-foreground">{item.gravacaoNome}</TableCell>
                     <TableCell className="font-medium">{item.recurso}</TableCell>
                     <TableCell className="text-muted-foreground">{item.descricao}</TableCell>
                     {categoria !== 'Terceiros' && (
@@ -646,7 +590,7 @@ export const ConteudoCustosTab = ({ conteudoId, conteudoNome }: ConteudoCustosTa
                   </TableRow>
                 ))}
                 <TableRow className="bg-muted/50">
-                  <TableCell colSpan={3} className="font-medium">
+                  <TableCell colSpan={categoria !== 'Terceiros' ? 3 : 3} className="font-medium">
                     Subtotal - {categoria}
                   </TableCell>
                   {categoria !== 'Terceiros' && (
@@ -666,28 +610,6 @@ export const ConteudoCustosTab = ({ conteudoId, conteudoNome }: ConteudoCustosTa
           </CardContent>
         </Card>
       ))}
-
-      {/* Total Geral */}
-      <Card className="border-primary">
-        <CardContent className="pt-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                <DollarSign className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Custo Total do Conteúdo</p>
-                <p className="text-sm text-muted-foreground">
-                  {gravacoes.length} gravações • {totalGeral.horas.toFixed(1)} horas
-                </p>
-              </div>
-            </div>
-            <div className="text-right">
-              <p className="text-3xl font-bold text-primary">{formatCurrency(totalGeral.custo)}</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 };

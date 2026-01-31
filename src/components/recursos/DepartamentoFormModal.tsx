@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -23,7 +23,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useToast } from '@/hooks/use-toast';
 import { SortableTable, Column } from '@/components/shared/SortableTable';
-import { Plus, Trash2, Briefcase, Building2 } from 'lucide-react';
+import { Plus, Trash2, Briefcase, Loader2 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 interface Departamento {
   id?: string;
@@ -37,7 +38,7 @@ interface Departamento {
 interface Funcao {
   id: string;
   nome: string;
-  codigoExterno?: string;
+  codigo_externo?: string;
   descricao?: string;
 }
 
@@ -73,12 +74,48 @@ export const DepartamentoFormModal = ({
   const [isAddingFuncao, setIsAddingFuncao] = useState(false);
   const [selectedFuncaoId, setSelectedFuncaoId] = useState('');
   const [funcoesAssociadas, setFuncoesAssociadas] = useState<DepartamentoFuncao[]>([]);
+  const [funcoesCadastradas, setFuncoesCadastradas] = useState<Funcao[]>([]);
+  const [isLoadingFuncoes, setIsLoadingFuncoes] = useState(false);
 
-  // Carregar funções cadastradas no sistema
-  const funcoesCadastradas = useMemo(() => {
-    const stored = localStorage.getItem('kreato_funcoes');
-    return stored ? JSON.parse(stored) : [];
-  }, [isOpen]);
+  // Carregar funções do Supabase
+  const fetchFuncoes = useCallback(async () => {
+    setIsLoadingFuncoes(true);
+    try {
+      const { data: funcoesData, error } = await supabase
+        .from('funcoes')
+        .select('id, nome, codigo_externo, descricao')
+        .order('nome');
+
+      if (error) throw error;
+      setFuncoesCadastradas(funcoesData || []);
+    } catch (err) {
+      console.error('Erro ao carregar funções:', err);
+    } finally {
+      setIsLoadingFuncoes(false);
+    }
+  }, []);
+
+  // Carregar funções associadas ao departamento
+  const fetchFuncoesAssociadas = useCallback(async (departamentoId: string) => {
+    try {
+      const { data: associacoes, error } = await supabase
+        .from('departamento_funcoes')
+        .select('id, funcao_id, created_at')
+        .eq('departamento_id', departamentoId);
+
+      if (error) throw error;
+
+      const mapped: DepartamentoFuncao[] = (associacoes || []).map((a) => ({
+        id: a.id,
+        funcaoId: a.funcao_id,
+        dataAssociacao: a.created_at ? new Date(a.created_at).toLocaleDateString('pt-BR') : '',
+      }));
+
+      setFuncoesAssociadas(mapped);
+    } catch (err) {
+      console.error('Erro ao carregar funções associadas:', err);
+    }
+  }, []);
 
   // Reset form data when modal opens or data changes
   useEffect(() => {
@@ -87,43 +124,38 @@ export const DepartamentoFormModal = ({
       setIsAddingFuncao(false);
       setSelectedFuncaoId('');
       
-      // Carregar funções associadas se estiver editando
+      fetchFuncoes();
+      
       if (data?.id) {
-        const stored = localStorage.getItem(`kreato_departamento_funcoes_${data.id}`);
-        setFuncoesAssociadas(stored ? JSON.parse(stored) : []);
+        fetchFuncoesAssociadas(data.id);
       } else {
         setFuncoesAssociadas([]);
       }
     }
-  }, [isOpen, data]);
+  }, [isOpen, data, fetchFuncoes, fetchFuncoesAssociadas]);
 
   // Funções disponíveis para associar (excluindo as já associadas)
   const funcoesDisponiveis = useMemo(() => {
     const associadasIds = funcoesAssociadas.map((fa) => fa.funcaoId);
-    return funcoesCadastradas.filter((f: Funcao) => !associadasIds.includes(f.id));
+    return funcoesCadastradas.filter((f) => !associadasIds.includes(f.id));
   }, [funcoesCadastradas, funcoesAssociadas]);
 
   // Dados para a tabela de funções
   const dadosTabelaFuncoes = useMemo(() => {
     return funcoesAssociadas.map((fa) => {
-      const funcao = funcoesCadastradas.find((f: Funcao) => f.id === fa.funcaoId);
+      const funcao = funcoesCadastradas.find((f) => f.id === fa.funcaoId);
       return {
         id: fa.id,
         funcaoId: fa.funcaoId,
         nome: funcao?.nome || 'Função não encontrada',
-        codigoExterno: funcao?.codigoExterno || '-',
+        codigoExterno: funcao?.codigo_externo || '-',
         descricao: funcao?.descricao || '-',
         dataAssociacao: fa.dataAssociacao,
       };
     });
   }, [funcoesAssociadas, funcoesCadastradas]);
 
-  const saveFuncoesToStorage = (departamentoId: string, funcoes: DepartamentoFuncao[]) => {
-    localStorage.setItem(`kreato_departamento_funcoes_${departamentoId}`, JSON.stringify(funcoes));
-    setFuncoesAssociadas(funcoes);
-  };
-
-  const handleAssociarFuncao = () => {
+  const handleAssociarFuncao = async () => {
     if (!selectedFuncaoId) {
       toast({ title: 'Atenção', description: 'Selecione uma função para associar.', variant: 'destructive' });
       return;
@@ -134,23 +166,51 @@ export const DepartamentoFormModal = ({
       return;
     }
 
-    const novaAssociacao: DepartamentoFuncao = {
-      id: crypto.randomUUID(),
-      funcaoId: selectedFuncaoId,
-      dataAssociacao: new Date().toLocaleDateString('pt-BR'),
-    };
+    try {
+      const { data: insertedData, error } = await supabase
+        .from('departamento_funcoes')
+        .insert({
+          departamento_id: data.id,
+          funcao_id: selectedFuncaoId,
+        })
+        .select()
+        .single();
 
-    saveFuncoesToStorage(data.id, [...funcoesAssociadas, novaAssociacao]);
-    toast({ title: 'Sucesso', description: 'Função associada com sucesso!' });
-    setSelectedFuncaoId('');
-    setIsAddingFuncao(false);
+      if (error) throw error;
+
+      const novaAssociacao: DepartamentoFuncao = {
+        id: insertedData.id,
+        funcaoId: insertedData.funcao_id,
+        dataAssociacao: new Date().toLocaleDateString('pt-BR'),
+      };
+
+      setFuncoesAssociadas([...funcoesAssociadas, novaAssociacao]);
+      toast({ title: 'Sucesso', description: 'Função associada com sucesso!' });
+      setSelectedFuncaoId('');
+      setIsAddingFuncao(false);
+    } catch (err) {
+      console.error('Erro ao associar função:', err);
+      toast({ title: 'Erro', description: 'Erro ao associar função.', variant: 'destructive' });
+    }
   };
 
-  const handleRemoverFuncao = (id: string) => {
+  const handleRemoverFuncao = async (id: string) => {
     if (!data?.id) return;
-    if (confirm('Tem certeza que deseja remover esta associação?')) {
-      saveFuncoesToStorage(data.id, funcoesAssociadas.filter((fa) => fa.id !== id));
+    if (!confirm('Tem certeza que deseja remover esta associação?')) return;
+
+    try {
+      const { error } = await supabase
+        .from('departamento_funcoes')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      setFuncoesAssociadas(funcoesAssociadas.filter((fa) => fa.id !== id));
       toast({ title: 'Removido', description: 'Associação removida com sucesso!' });
+    } catch (err) {
+      console.error('Erro ao remover associação:', err);
+      toast({ title: 'Erro', description: 'Erro ao remover associação.', variant: 'destructive' });
     }
   };
 
@@ -283,7 +343,7 @@ export const DepartamentoFormModal = ({
                       type="button"
                       size="sm"
                       onClick={() => setIsAddingFuncao(true)}
-                      disabled={funcoesDisponiveis.length === 0}
+                      disabled={funcoesDisponiveis.length === 0 || isLoadingFuncoes}
                     >
                       <Plus className="h-4 w-4 mr-2" />
                       Associar Função
@@ -298,7 +358,7 @@ export const DepartamentoFormModal = ({
                           <SelectValue placeholder="Selecione uma função..." />
                         </SelectTrigger>
                         <SelectContent>
-                          {funcoesDisponiveis.map((funcao: Funcao) => (
+                          {funcoesDisponiveis.map((funcao) => (
                             <SelectItem key={funcao.id} value={funcao.id}>
                               {funcao.nome}
                             </SelectItem>
@@ -317,7 +377,11 @@ export const DepartamentoFormModal = ({
                     </div>
                   )}
 
-                  {dadosTabelaFuncoes.length === 0 ? (
+                  {isLoadingFuncoes ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : dadosTabelaFuncoes.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-8 text-center border rounded-lg bg-muted/20">
                       <Briefcase className="h-10 w-10 text-muted-foreground/50 mb-3" />
                       <p className="text-muted-foreground">Nenhuma função associada.</p>

@@ -1,46 +1,10 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Users, MapPin, Wrench, Calculator, Clock, DollarSign, Building2 } from 'lucide-react';
+import { Users, MapPin, Wrench, Calculator, Clock, DollarSign, Building2, Loader2 } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
-
-interface RecursoHumanoAlocado {
-  id: string;
-  recursoHumanoId: string;
-  nome: string;
-  horaInicio: string;
-  horaFim: string;
-}
-
-interface HorarioOcupacao {
-  horaInicio: string;
-  horaFim: string;
-}
-
-interface RecursoAlocado {
-  id: string;
-  tipo: 'tecnico' | 'fisico';
-  recursoId: string;
-  recursoNome: string;
-  alocacoes: Record<string, number>;
-  recursosHumanos: Record<string, RecursoHumanoAlocado[]>;
-  horarios: Record<string, HorarioOcupacao>;
-}
-
-interface RecursoHumano {
-  id: string;
-  nome: string;
-  sobrenome?: string;
-  custoHora: number;
-  cargo?: string;
-}
-
-interface RecursoFisico {
-  id: string;
-  nome: string;
-  custoHora: number;
-}
+import { supabase } from '@/integrations/supabase/client';
 
 interface CustoItem {
   categoria: string;
@@ -50,15 +14,6 @@ interface CustoItem {
   custoUnitario: number;
   custoTotal: number;
   tipo: 'humano' | 'fisico' | 'tecnico' | 'terceiro';
-}
-
-interface TerceiroAlocado {
-  id: string;
-  fornecedorId: string;
-  fornecedorNome: string;
-  servicoId: string;
-  servicoNome: string;
-  custo: number;
 }
 
 interface CustosTabProps {
@@ -80,117 +35,127 @@ const calcularHorasEntreTempo = (inicio: string, fim: string): number => {
 
 export const CustosTab = ({ gravacaoId }: CustosTabProps) => {
   const { t, formatCurrency } = useLanguage();
-  const [recursos, setRecursos] = useState<RecursoAlocado[]>([]);
-  const [recursosHumanos, setRecursosHumanos] = useState<RecursoHumano[]>([]);
-  const [recursosFisicos, setRecursosFisicos] = useState<RecursoFisico[]>([]);
-  const [terceiros, setTerceiros] = useState<TerceiroAlocado[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [recursos, setRecursos] = useState<any[]>([]);
+  const [recursosHumanos, setRecursosHumanos] = useState<any[]>([]);
+  const [recursosFisicos, setRecursosFisicos] = useState<any[]>([]);
+  const [terceiros, setTerceiros] = useState<any[]>([]);
 
-  useEffect(() => {
-    // Carregar recursos alocados na gravação
-    const storedRecursos = localStorage.getItem(`kreato_gravacao_recursos_${gravacaoId}`);
-    if (storedRecursos) {
-      setRecursos(JSON.parse(storedRecursos));
-    }
+  const fetchData = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      // Buscar recursos alocados na gravação
+      const { data: recursosData } = await supabase
+        .from('gravacao_recursos')
+        .select(`
+          id,
+          hora_inicio,
+          hora_fim,
+          recurso_humano_id,
+          recurso_fisico_id,
+          recurso_tecnico_id,
+          recursos_humanos:recurso_humano_id(id, nome, sobrenome, custo_hora),
+          recursos_fisicos:recurso_fisico_id(id, nome, custo_hora),
+          recursos_tecnicos:recurso_tecnico_id(id, nome)
+        `)
+        .eq('gravacao_id', gravacaoId);
 
-    // Carregar cadastro de recursos humanos (com custo/hora)
-    const storedRH = localStorage.getItem('kreato_recursos_humanos');
-    if (storedRH) {
-      setRecursosHumanos(JSON.parse(storedRH));
-    }
+      setRecursos(recursosData || []);
 
-    // Carregar cadastro de recursos físicos (com custo/hora)
-    const storedFisicos = localStorage.getItem('kreato_recursos_fisicos');
-    if (storedFisicos) {
-      setRecursosFisicos(JSON.parse(storedFisicos));
-    }
+      // Buscar cadastro de recursos humanos
+      const { data: rhData } = await supabase
+        .from('recursos_humanos')
+        .select('id, nome, sobrenome, custo_hora');
+      setRecursosHumanos(rhData || []);
 
-    // Carregar terceiros alocados
-    const storedTerceiros = localStorage.getItem(`kreato_gravacao_terceiros_${gravacaoId}`);
-    if (storedTerceiros) {
-      setTerceiros(JSON.parse(storedTerceiros));
+      // Buscar cadastro de recursos físicos
+      const { data: rfData } = await supabase
+        .from('recursos_fisicos')
+        .select('id, nome, custo_hora');
+      setRecursosFisicos(rfData || []);
+
+      // Buscar terceiros alocados
+      const { data: terceirosData } = await supabase
+        .from('gravacao_terceiros')
+        .select(`
+          id,
+          valor,
+          observacao,
+          fornecedor:fornecedor_id(id, nome),
+          servico:servico_id(id, nome)
+        `)
+        .eq('gravacao_id', gravacaoId);
+      setTerceiros(terceirosData || []);
+    } catch (err) {
+      console.error('Erro ao carregar dados de custos:', err);
+    } finally {
+      setIsLoading(false);
     }
   }, [gravacaoId]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const custos = useMemo(() => {
     const itens: CustoItem[] = [];
 
+    // Processar recursos humanos alocados diretamente
     recursos.forEach((recurso) => {
-      if (recurso.tipo === 'fisico') {
-        // Custo de recursos físicos - baseado no horário de ocupação
-        const recursoFisico = recursosFisicos.find((rf) => rf.id === recurso.recursoId);
-        const custoHora = recursoFisico?.custoHora || 0;
+      if (recurso.recurso_humano_id && recurso.recursos_humanos) {
+        const rh = recurso.recursos_humanos;
+        const custoHora = rh.custo_hora || 0;
+        const horas = calcularHorasEntreTempo(recurso.hora_inicio, recurso.hora_fim);
 
-        let totalHoras = 0;
-        const diasUtilizados: string[] = [];
+        if (horas > 0) {
+          itens.push({
+            categoria: t('costsTab.humanResources'),
+            recurso: `${rh.nome} ${rh.sobrenome || ''}`.trim(),
+            descricao: `${horas.toFixed(1)}h de trabalho`,
+            horas,
+            custoUnitario: custoHora,
+            custoTotal: horas * custoHora,
+            tipo: 'humano',
+          });
+        }
+      }
 
-        Object.entries(recurso.horarios || {}).forEach(([dia, horario]) => {
-          const horas = calcularHorasEntreTempo(horario.horaInicio, horario.horaFim);
-          if (horas > 0) {
-            totalHoras += horas;
-            diasUtilizados.push(dia);
-          }
-        });
+      // Processar recursos físicos
+      if (recurso.recurso_fisico_id && recurso.recursos_fisicos) {
+        const rf = recurso.recursos_fisicos;
+        const custoHora = rf.custo_hora || 0;
+        const horas = calcularHorasEntreTempo(recurso.hora_inicio, recurso.hora_fim);
 
-        if (totalHoras > 0) {
+        if (horas > 0) {
           itens.push({
             categoria: t('costsTab.physicalResources'),
-            recurso: recurso.recursoNome,
-            descricao: `${diasUtilizados.length} ${t('costsTab.daysOccupation')}`,
-            horas: totalHoras,
+            recurso: rf.nome,
+            descricao: `${horas.toFixed(1)}h de ocupação`,
+            horas,
             custoUnitario: custoHora,
-            custoTotal: totalHoras * custoHora,
+            custoTotal: horas * custoHora,
             tipo: 'fisico',
           });
         }
-      } else if (recurso.tipo === 'tecnico') {
-        // Custo de recursos humanos alocados em recursos técnicos
-        const rhPorColaborador: Record<string, { nome: string; horas: number; dias: number }> = {};
-
-        Object.entries(recurso.recursosHumanos || {}).forEach(([dia, rhList]) => {
-          rhList.forEach((rh) => {
-            const horas = calcularHorasEntreTempo(rh.horaInicio, rh.horaFim);
-            if (!rhPorColaborador[rh.recursoHumanoId]) {
-              rhPorColaborador[rh.recursoHumanoId] = { nome: rh.nome, horas: 0, dias: 0 };
-            }
-            rhPorColaborador[rh.recursoHumanoId].horas += horas;
-            rhPorColaborador[rh.recursoHumanoId].dias += 1;
-          });
-        });
-
-        Object.entries(rhPorColaborador).forEach(([rhId, dados]) => {
-          const colaborador = recursosHumanos.find((rh) => rh.id === rhId);
-          const custoHora = colaborador?.custoHora || 0;
-
-          if (dados.horas > 0) {
-            itens.push({
-              categoria: t('costsTab.humanResources'),
-              recurso: dados.nome,
-              descricao: `${dados.dias} ${t('costsTab.daysIn')} ${recurso.recursoNome}`,
-              horas: dados.horas,
-              custoUnitario: custoHora,
-              custoTotal: dados.horas * custoHora,
-              tipo: 'humano',
-            });
-          }
-        });
       }
     });
 
     // Adicionar custos de terceiros
     terceiros.forEach((terceiro) => {
+      const valor = terceiro.valor || 0;
       itens.push({
         categoria: t('thirdParties.title'),
-        recurso: terceiro.fornecedorNome,
-        descricao: terceiro.servicoNome,
+        recurso: terceiro.fornecedor?.nome || 'Fornecedor',
+        descricao: terceiro.servico?.nome || terceiro.observacao || 'Serviço',
         horas: 0,
-        custoUnitario: terceiro.custo,
-        custoTotal: terceiro.custo,
+        custoUnitario: valor,
+        custoTotal: valor,
         tipo: 'terceiro',
       });
     });
 
     return itens;
-  }, [recursos, recursosHumanos, recursosFisicos, terceiros, t]);
+  }, [recursos, terceiros, t]);
 
   const custosPorCategoria = useMemo(() => {
     const categorias: Record<string, CustoItem[]> = {};
@@ -227,6 +192,14 @@ export const CustosTab = ({ gravacaoId }: CustosTabProps) => {
     if (categoria === t('thirdParties.title')) return <Building2 className="h-4 w-4" />;
     return <Wrench className="h-4 w-4" />;
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   if (custos.length === 0) {
     return (
