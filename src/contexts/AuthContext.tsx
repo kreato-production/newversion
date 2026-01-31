@@ -18,12 +18,16 @@ interface AuthContextType {
   session: Session | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  signup: (email: string, password: string, nome: string, usuario: string) => Promise<{ success: boolean; error?: string }>;
+  login: (usuario: string, password: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+// Convert username to internal email format
+const usernameToEmail = (username: string): string => {
+  return `${username.toLowerCase()}@kreato.app`;
+};
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -106,14 +110,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => subscription.unsubscribe();
   }, []);
 
-  const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+  const login = async (usuario: string, password: string): Promise<{ success: boolean; error?: string }> => {
     try {
+      // Convert username to internal email format
+      const email = usernameToEmail(usuario);
+
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (error) {
+        // Translate common errors to Portuguese
+        if (error.message.includes('Invalid login credentials')) {
+          return { success: false, error: 'Usuário ou senha inválidos' };
+        }
         return { success: false, error: error.message };
       }
 
@@ -125,54 +136,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       return { success: true };
     } catch (error) {
       console.error('Login error:', error);
-      return { success: false, error: 'An unexpected error occurred' };
-    }
-  };
-
-  const signup = async (
-    email: string, 
-    password: string, 
-    nome: string, 
-    usuario: string
-  ): Promise<{ success: boolean; error?: string }> => {
-    try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: window.location.origin,
-          data: {
-            nome,
-            usuario,
-          },
-        },
-      });
-
-      if (error) {
-        return { success: false, error: error.message };
-      }
-
-      if (data.user) {
-        // Create profile for the new user
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .insert({
-            id: data.user.id,
-            nome,
-            usuario,
-            email,
-          });
-
-        if (profileError) {
-          console.error('Error creating profile:', profileError);
-          return { success: false, error: 'Error creating user profile' };
-        }
-      }
-
-      return { success: true };
-    } catch (error) {
-      console.error('Signup error:', error);
-      return { success: false, error: 'An unexpected error occurred' };
+      return { success: false, error: 'Ocorreu um erro inesperado' };
     }
   };
 
@@ -199,7 +163,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       isAuthenticated: !!session && !!user, 
       isLoading,
       login, 
-      signup,
       logout 
     }}>
       {children}
