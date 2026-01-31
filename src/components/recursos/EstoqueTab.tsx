@@ -263,11 +263,20 @@ export const EstoqueTab = ({ recursoFisicoId, itens, onItensChange }: EstoqueTab
                   <td className="px-3 py-2">
                     <div className="flex items-center gap-2">
                       {item.imagemUrl && (
-                        <img 
-                          src={item.imagemUrl} 
-                          alt={item.nome}
-                          className="w-8 h-8 rounded object-cover"
-                        />
+                        <div className="relative group">
+                          <img 
+                            src={item.imagemUrl} 
+                            alt={item.nome}
+                            className="w-8 h-8 rounded object-cover cursor-pointer"
+                          />
+                          <div className="absolute left-0 bottom-full mb-2 z-50 hidden group-hover:block animate-scale-in">
+                            <img 
+                              src={item.imagemUrl} 
+                              alt={item.nome}
+                              className="w-48 h-48 rounded-lg object-cover shadow-lg border bg-background"
+                            />
+                          </div>
+                        </div>
                       )}
                       <span>{item.nome}</span>
                     </div>
