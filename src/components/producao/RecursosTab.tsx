@@ -140,12 +140,17 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
         }))
       );
 
-      // Fetch recursos físicos
+      // Fetch recursos físicos que têm pelo menos 1 item em estoque
       const { data: fisicosData } = await supabase
         .from('recursos_fisicos')
-        .select('id, nome')
+        .select('id, nome, rf_estoque_itens(id)')
         .order('nome');
-      setRecursosFisicos(fisicosData || []);
+      
+      // Filtrar apenas recursos que possuem itens em estoque
+      const fisicosComEstoque = (fisicosData || [])
+        .filter((r: any) => r.rf_estoque_itens && r.rf_estoque_itens.length > 0)
+        .map((r: any) => ({ id: r.id, nome: r.nome }));
+      setRecursosFisicos(fisicosComEstoque);
 
       // Fetch recursos humanos with function and absences
       const { data: humanosData } = await supabase
