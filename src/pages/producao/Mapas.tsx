@@ -280,15 +280,24 @@ const Mapas = () => {
         
         if (recursosData && recursosData.length > 0) {
           // Transform to legacy format for compatibility
-          const transformed: RecursoAlocado[] = recursosData.map((r: any) => ({
-            id: r.id,
-            tipo: (r.recurso_fisico_id ? 'fisico' : 'tecnico') as 'fisico' | 'tecnico',
-            recursoId: r.recurso_fisico_id || r.recurso_tecnico_id,
-            recursoNome: '',
-            alocacoes: {},
-            recursosHumanos: {},
-            horarios: r.hora_inicio && r.hora_fim ? { [g.dataPrevista || '']: { horaInicio: r.hora_inicio, horaFim: r.hora_fim } } : {},
-          }));
+          const transformed: RecursoAlocado[] = recursosData.map((r: any) => {
+            const dataAlocacao = g.dataPrevista || '';
+            // Build alocacoes object with date as key and value 1 to indicate allocation
+            const alocacoesObj: Record<string, number> = {};
+            if (dataAlocacao) {
+              alocacoesObj[dataAlocacao] = 1;
+            }
+            
+            return {
+              id: r.id,
+              tipo: (r.recurso_fisico_id ? 'fisico' : 'tecnico') as 'fisico' | 'tecnico',
+              recursoId: r.recurso_fisico_id || r.recurso_tecnico_id,
+              recursoNome: '',
+              alocacoes: alocacoesObj,
+              recursosHumanos: {},
+              horarios: r.hora_inicio && r.hora_fim ? { [dataAlocacao]: { horaInicio: r.hora_inicio, horaFim: r.hora_fim } } : {},
+            };
+          });
           alocacoes[g.id] = transformed;
           recursosMap[g.id] = transformed;
         }
@@ -636,11 +645,33 @@ const Mapas = () => {
     return items;
   };
 
-  const filteredRecursosFisicos = recursosFisicos.filter((r) => {
-    const matchTipo = filtroTipoFisico === 'Todos' || r.tipo === filtroTipoFisico;
-    const matchNome = r.nome.toLowerCase().includes(filtroNomeFisico.toLowerCase());
-    return matchTipo && matchNome;
-  });
+  // Filter physical resources: only show those with allocations in the selected period
+  const filteredRecursosFisicos = useMemo(() => {
+    // Get date strings for the current display period
+    const periodoDatas = displayDays.map((d) => format(d, 'yyyy-MM-dd'));
+    
+    // Get resource IDs that have allocations in this period
+    const recursosComAlocacao = new Set<string>();
+    Object.keys(ocupacoesFisicas).forEach((recursoId) => {
+      const ocupacoesPorDia = ocupacoesFisicas[recursoId];
+      // Check if any day in the period has allocations
+      const temAlocacaoNoPeriodo = periodoDatas.some((data) => 
+        ocupacoesPorDia[data] && ocupacoesPorDia[data].length > 0
+      );
+      if (temAlocacaoNoPeriodo) {
+        recursosComAlocacao.add(recursoId);
+      }
+    });
+    
+    return recursosFisicos.filter((r) => {
+      // Must have allocation in the period
+      if (!recursosComAlocacao.has(r.id)) return false;
+      
+      const matchTipo = filtroTipoFisico === 'Todos' || r.tipo === filtroTipoFisico;
+      const matchNome = r.nome.toLowerCase().includes(filtroNomeFisico.toLowerCase());
+      return matchTipo && matchNome;
+    });
+  }, [recursosFisicos, ocupacoesFisicas, displayDays, filtroTipoFisico, filtroNomeFisico]);
 
   const filteredRecursosHumanos = recursosHumanos.filter((r) => {
     const matchFuncao =
