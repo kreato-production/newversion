@@ -46,9 +46,9 @@ export const useWeatherForecast = (days: number = 16) => {
         setLoading(true);
         
         // Using Open-Meteo API (free, no API key required)
-        // Default location: São Paulo, Brazil
-        const lat = -23.5505;
-        const lon = -46.6333;
+        // Location: Lisbon, Portugal
+        const lat = 38.7223;
+        const lon = -9.1393;
         
         const response = await fetch(
           `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=temperature_2m_max,weather_code&timezone=America/Sao_Paulo&forecast_days=${days}`
