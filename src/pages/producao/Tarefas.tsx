@@ -53,6 +53,8 @@ interface Tarefa {
   prioridade: 'baixa' | 'media' | 'alta';
   dataInicio: string;
   dataFim: string;
+  horaInicio?: string;
+  horaFim?: string;
   dataCriacao: string;
   dataAtualizacao: string;
   observacoes?: string;
@@ -121,6 +123,8 @@ const Tarefas = () => {
         .from('tarefas')
         .select(`
           *,
+          hora_inicio,
+          hora_fim,
           gravacoes:gravacao_id(nome),
           recursos_humanos:recurso_humano_id(nome, sobrenome),
           recursos_tecnicos:recurso_tecnico_id(nome),
@@ -146,6 +150,8 @@ const Tarefas = () => {
         prioridade: t.prioridade || 'media',
         dataInicio: t.data_inicio || '',
         dataFim: t.data_fim || '',
+        horaInicio: (t as any).hora_inicio?.substring(0, 5) || undefined,
+        horaFim: (t as any).hora_fim?.substring(0, 5) || undefined,
         dataCriacao: t.created_at || '',
         dataAtualizacao: t.updated_at || '',
         observacoes: t.observacoes || undefined,
@@ -165,7 +171,7 @@ const Tarefas = () => {
 
   const handleSave = async (tarefa: Tarefa) => {
     try {
-      const dbData: TablesInsert<'tarefas'> = {
+      const dbData: any = {
         id: tarefa.id || undefined,
         titulo: tarefa.titulo,
         descricao: tarefa.descricao || null,
@@ -176,6 +182,8 @@ const Tarefas = () => {
         prioridade: tarefa.prioridade,
         data_inicio: tarefa.dataInicio || null,
         data_fim: tarefa.dataFim || null,
+        hora_inicio: tarefa.horaInicio || null,
+        hora_fim: tarefa.horaFim || null,
         observacoes: tarefa.observacoes || null,
       };
 

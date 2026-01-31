@@ -53,6 +53,8 @@ interface Tarefa {
   prioridade: 'baixa' | 'media' | 'alta';
   dataInicio: string;
   dataFim: string;
+  horaInicio?: string;
+  horaFim?: string;
   dataCriacao: string;
   dataAtualizacao: string;
   observacoes?: string;
@@ -115,6 +117,8 @@ export const TarefaFormModal = ({
   const isPrioridadeReadOnly = globalReadOnly || isReadOnly('Produção', 'Tarefas', '-', 'Prioridade');
   const isDataInicioReadOnly = globalReadOnly || isReadOnly('Produção', 'Tarefas', '-', 'Data Início');
   const isDataLimiteReadOnly = globalReadOnly || isReadOnly('Produção', 'Tarefas', '-', 'Data Limite');
+  const isHoraInicioReadOnly = globalReadOnly || isReadOnly('Produção', 'Tarefas', '-', 'Hora Início');
+  const isHoraFimReadOnly = globalReadOnly || isReadOnly('Produção', 'Tarefas', '-', 'Hora Fim');
   const isObservacoesReadOnly = globalReadOnly || isReadOnly('Produção', 'Tarefas', '-', 'Observações');
 
   // Verificar visibilidade dos campos
@@ -126,6 +130,8 @@ export const TarefaFormModal = ({
   const showPrioridade = isVisible('Produção', 'Tarefas', '-', 'Prioridade');
   const showDataInicio = isVisible('Produção', 'Tarefas', '-', 'Data Início');
   const showDataLimite = isVisible('Produção', 'Tarefas', '-', 'Data Limite');
+  const showHoraInicio = isVisible('Produção', 'Tarefas', '-', 'Hora Início');
+  const showHoraFim = isVisible('Produção', 'Tarefas', '-', 'Hora Fim');
   const showObservacoes = isVisible('Produção', 'Tarefas', '-', 'Observações');
 
   useEffect(() => {
@@ -447,8 +453,37 @@ export const TarefaFormModal = ({
                         locale={localeMap[language]}
                       />
                     </PopoverContent>
-                  </Popover>
+                </Popover>
                 )}
+              </div>
+            )}
+
+            {/* Time fields */}
+            {showHoraInicio && (
+              <div className="space-y-2">
+                <Label htmlFor="horaInicio">{t('common.startTime') || 'Hora Início'}</Label>
+                <Input
+                  id="horaInicio"
+                  type="time"
+                  value={formData.horaInicio || ''}
+                  onChange={(e) => updateField('horaInicio', e.target.value)}
+                  disabled={isHoraInicioReadOnly}
+                  className={isHoraInicioReadOnly ? 'bg-muted' : ''}
+                />
+              </div>
+            )}
+
+            {showHoraFim && (
+              <div className="space-y-2">
+                <Label htmlFor="horaFim">{t('common.endTime') || 'Hora Fim'}</Label>
+                <Input
+                  id="horaFim"
+                  type="time"
+                  value={formData.horaFim || ''}
+                  onChange={(e) => updateField('horaFim', e.target.value)}
+                  disabled={isHoraFimReadOnly}
+                  className={isHoraFimReadOnly ? 'bg-muted' : ''}
+                />
               </div>
             )}
           </div>

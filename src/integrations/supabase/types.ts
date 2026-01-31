@@ -1758,6 +1758,8 @@ export type Database = {
           data_inicio: string | null
           descricao: string | null
           gravacao_id: string | null
+          hora_fim: string | null
+          hora_inicio: string | null
           id: string
           observacoes: string | null
           prioridade: Database["public"]["Enums"]["prioridade_tipo"] | null
@@ -1774,6 +1776,8 @@ export type Database = {
           data_inicio?: string | null
           descricao?: string | null
           gravacao_id?: string | null
+          hora_fim?: string | null
+          hora_inicio?: string | null
           id?: string
           observacoes?: string | null
           prioridade?: Database["public"]["Enums"]["prioridade_tipo"] | null
@@ -1790,6 +1794,8 @@ export type Database = {
           data_inicio?: string | null
           descricao?: string | null
           gravacao_id?: string | null
+          hora_fim?: string | null
+          hora_inicio?: string | null
           id?: string
           observacoes?: string | null
           prioridade?: Database["public"]["Enums"]["prioridade_tipo"] | null
