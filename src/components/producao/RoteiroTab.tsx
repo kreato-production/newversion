@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Plus, Trash2, GripVertical, ChevronDown, ChevronUp, Check, X, FileDown } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Plus, Trash2, GripVertical, ChevronDown, ChevronUp, FileDown } from 'lucide-react';
 import jsPDF from 'jspdf';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -40,6 +40,8 @@ import {
 import { toast } from 'sonner';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
+import { Check, X } from 'lucide-react';
 
 interface Cena {
   id: string;
@@ -85,6 +87,7 @@ export const RoteiroTab = ({ gravacaoId }: RoteiroTabProps) => {
   const [figurantes, setFigurantes] = useState<Pessoa[]>([]);
   const [expandedCenas, setExpandedCenas] = useState<Set<string>>(new Set());
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
 
   // Translated options based on language
   const PERIODOS = [
@@ -106,37 +109,124 @@ export const RoteiroTab = ({ gravacaoId }: RoteiroTabProps) => {
     { value: 'Interno', label: t('script.internal') },
   ];
 
-  useEffect(() => {
-    // Carregar cenas do localStorage
-    const storedCenas = localStorage.getItem(`kreato_roteiro_${gravacaoId}`);
-    if (storedCenas) {
-      setCenas(JSON.parse(storedCenas));
-    }
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    try {
+      // Carregar cenas do Supabase
+      const { data: cenasData } = await supabase
+        .from('gravacao_cenas')
+        .select('*')
+        .eq('gravacao_id', gravacaoId)
+        .order('ordem', { ascending: true });
 
-    // Carregar elenco da gravação para seleção de personagens
-    const storedElenco = localStorage.getItem(`kreato_gravacao_elenco_${gravacaoId}`);
-    if (storedElenco) {
-      setElenco(JSON.parse(storedElenco));
-    }
+      if (cenasData) {
+        setCenas(cenasData.map(c => ({
+          id: c.id,
+          ordem: c.ordem,
+          capitulo: c.capitulo || '',
+          numeroCena: c.numero_cena || '',
+          ambiente: c.ambiente || '',
+          tipoAmbiente: (c.tipo_ambiente as 'Externo' | 'Interno' | '') || '',
+          periodo: c.periodo || '',
+          localGravacao: c.local_gravacao || '',
+          personagens: c.personagens || [],
+          figurantes: c.figurantes || [],
+          tempoAproximado: c.tempo_aproximado || '',
+          ritmo: c.ritmo || '',
+          descricao: c.descricao || '',
+        })));
+      }
 
-    // Carregar pessoas classificadas como "Figurante" ou "Figurantes"
-    const storedPessoas = localStorage.getItem('kreato_pessoas');
-    if (storedPessoas) {
-      const allPessoas: Pessoa[] = JSON.parse(storedPessoas);
-      const figurantesOnly = allPessoas.filter(p => 
-        p.status === 'Ativo' && 
-        p.classificacao?.toLowerCase().includes('figurante')
-      );
-      setFigurantes(figurantesOnly);
+      // Carregar elenco da gravação
+      const { data: elencoData } = await supabase
+        .from('gravacao_elenco')
+        .select(`
+          id,
+          personagem,
+          pessoa_id,
+          pessoas:pessoa_id(id, nome, sobrenome, nome_trabalho)
+        `)
+        .eq('gravacao_id', gravacaoId);
+
+      if (elencoData) {
+        setElenco(elencoData.map(e => {
+          const pessoa = e.pessoas as any;
+          return {
+            id: e.id,
+            pessoaId: e.pessoa_id,
+            nome: pessoa?.nome || '',
+            nomeTrabalho: pessoa?.nome_trabalho || undefined,
+            personagem: e.personagem || '',
+          };
+        }));
+      }
+
+      // Carregar figurantes (pessoas com classificação figurante)
+      const { data: classificacoesData } = await supabase
+        .from('classificacoes_pessoa')
+        .select('id, nome')
+        .ilike('nome', '%figurante%');
+
+      const figuranteClassIds = classificacoesData?.map(c => c.id) || [];
+
+      if (figuranteClassIds.length > 0) {
+        const { data: pessoasData } = await supabase
+          .from('pessoas')
+          .select('id, nome, sobrenome, nome_trabalho, status')
+          .in('classificacao_id', figuranteClassIds)
+          .eq('status', 'Ativo');
+
+        if (pessoasData) {
+          setFigurantes(pessoasData.map(p => ({
+            id: p.id,
+            nome: p.nome,
+            sobrenome: p.sobrenome,
+            nomeTrabalho: p.nome_trabalho || undefined,
+            status: p.status || undefined,
+          })));
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao carregar dados do roteiro:', error);
+    } finally {
+      setLoading(false);
     }
   }, [gravacaoId]);
 
-  const saveCenas = (newCenas: Cena[]) => {
-    localStorage.setItem(`kreato_roteiro_${gravacaoId}`, JSON.stringify(newCenas));
-    setCenas(newCenas);
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  const saveCena = async (cena: Cena, isNew: boolean = false) => {
+    try {
+      const dbCena = {
+        gravacao_id: gravacaoId,
+        ordem: cena.ordem,
+        capitulo: cena.capitulo || null,
+        numero_cena: cena.numeroCena || null,
+        ambiente: cena.ambiente || null,
+        tipo_ambiente: cena.tipoAmbiente || null,
+        periodo: cena.periodo || null,
+        local_gravacao: cena.localGravacao || null,
+        personagens: cena.personagens,
+        figurantes: cena.figurantes,
+        tempo_aproximado: cena.tempoAproximado || null,
+        ritmo: cena.ritmo || null,
+        descricao: cena.descricao || null,
+      };
+
+      if (isNew) {
+        await supabase.from('gravacao_cenas').insert({ ...dbCena, id: cena.id });
+      } else {
+        await supabase.from('gravacao_cenas').update(dbCena).eq('id', cena.id);
+      }
+    } catch (error) {
+      console.error('Erro ao salvar cena:', error);
+      toast.error('Erro ao salvar cena');
+    }
   };
 
-  const handleAddCena = () => {
+  const handleAddCena = async () => {
     const novaCena: Cena = {
       id: crypto.randomUUID(),
       ordem: cenas.length + 1,
@@ -152,25 +242,45 @@ export const RoteiroTab = ({ gravacaoId }: RoteiroTabProps) => {
       ritmo: '',
       descricao: '',
     };
-    const newCenas = [...cenas, novaCena];
-    saveCenas(newCenas);
+    
+    setCenas([...cenas, novaCena]);
     setExpandedCenas(new Set([...expandedCenas, novaCena.id]));
+    await saveCena(novaCena, true);
     toast.success(t('script.sceneAdded'));
   };
 
-  const handleRemoveCena = (id: string) => {
-    const newCenas = cenas
-      .filter(c => c.id !== id)
-      .map((c, index) => ({ ...c, ordem: index + 1 }));
-    saveCenas(newCenas);
-    toast.success(t('script.sceneRemoved'));
+  const handleRemoveCena = async (id: string) => {
+    try {
+      await supabase.from('gravacao_cenas').delete().eq('id', id);
+      
+      const newCenas = cenas
+        .filter(c => c.id !== id)
+        .map((c, index) => ({ ...c, ordem: index + 1 }));
+      
+      setCenas(newCenas);
+      
+      // Update order in database
+      for (const cena of newCenas) {
+        await supabase.from('gravacao_cenas').update({ ordem: cena.ordem }).eq('id', cena.id);
+      }
+      
+      toast.success(t('script.sceneRemoved'));
+    } catch (error) {
+      console.error('Erro ao remover cena:', error);
+      toast.error('Erro ao remover cena');
+    }
   };
 
-  const handleUpdateCena = (id: string, field: keyof Cena, value: any) => {
+  const handleUpdateCena = async (id: string, field: keyof Cena, value: any) => {
     const newCenas = cenas.map(c => 
       c.id === id ? { ...c, [field]: value } : c
     );
-    saveCenas(newCenas);
+    setCenas(newCenas);
+    
+    const updatedCena = newCenas.find(c => c.id === id);
+    if (updatedCena) {
+      await saveCena(updatedCena);
+    }
   };
 
   const toggleExpanded = (id: string) => {
@@ -187,7 +297,7 @@ export const RoteiroTab = ({ gravacaoId }: RoteiroTabProps) => {
     setDraggedIndex(index);
   };
 
-  const handleDragOver = (e: React.DragEvent, index: number) => {
+  const handleDragOver = async (e: React.DragEvent, index: number) => {
     e.preventDefault();
     if (draggedIndex === null || draggedIndex === index) return;
     
@@ -198,8 +308,13 @@ export const RoteiroTab = ({ gravacaoId }: RoteiroTabProps) => {
     
     // Atualizar ordem
     const reorderedCenas = newCenas.map((c, i) => ({ ...c, ordem: i + 1 }));
-    saveCenas(reorderedCenas);
+    setCenas(reorderedCenas);
     setDraggedIndex(index);
+    
+    // Save order to database
+    for (const cena of reorderedCenas) {
+      await supabase.from('gravacao_cenas').update({ ordem: cena.ordem }).eq('id', cena.id);
+    }
   };
 
   const handleDragEnd = () => {
@@ -386,6 +501,14 @@ export const RoteiroTab = ({ gravacaoId }: RoteiroTabProps) => {
     toast.success(t('script.exportSuccess'));
   };
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4 py-4">
       <div className="flex justify-between items-center">
@@ -500,7 +623,7 @@ export const RoteiroTab = ({ gravacaoId }: RoteiroTabProps) => {
                         <Input
                           value={cena.ambiente}
                           onChange={(e) => handleUpdateCena(cena.id, 'ambiente', e.target.value)}
-                          placeholder="Ex: Sala de estar"
+                          placeholder={t('script.environmentPlaceholder')}
                         />
                       </div>
                     </div>
@@ -517,8 +640,10 @@ export const RoteiroTab = ({ gravacaoId }: RoteiroTabProps) => {
                             <SelectValue placeholder={t('common.select')} />
                           </SelectTrigger>
                           <SelectContent>
-                            {TIPOS_AMBIENTE.map((tipo) => (
-                              <SelectItem key={tipo.value} value={tipo.value}>{tipo.label}</SelectItem>
+                            {TIPOS_AMBIENTE.map(tipo => (
+                              <SelectItem key={tipo.value} value={tipo.value}>
+                                {tipo.label}
+                              </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
@@ -533,8 +658,10 @@ export const RoteiroTab = ({ gravacaoId }: RoteiroTabProps) => {
                             <SelectValue placeholder={t('common.select')} />
                           </SelectTrigger>
                           <SelectContent>
-                            {PERIODOS.map((periodo) => (
-                              <SelectItem key={periodo.value} value={periodo.value}>{periodo.label}</SelectItem>
+                            {PERIODOS.map(periodo => (
+                              <SelectItem key={periodo.value} value={periodo.value}>
+                                {periodo.label}
+                              </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
@@ -549,22 +676,24 @@ export const RoteiroTab = ({ gravacaoId }: RoteiroTabProps) => {
                             <SelectValue placeholder={t('common.select')} />
                           </SelectTrigger>
                           <SelectContent>
-                            {RITMOS.map((ritmo) => (
-                              <SelectItem key={ritmo.value} value={ritmo.value}>{ritmo.label}</SelectItem>
+                            {RITMOS.map(ritmo => (
+                              <SelectItem key={ritmo.value} value={ritmo.value}>
+                                {ritmo.label}
+                              </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
                       </div>
                     </div>
 
-                    {/* Linha 3: Local, Tempo */}
+                    {/* Linha 3: Local de Gravação, Tempo Aproximado */}
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label>{t('script.recordingLocation')}</Label>
                         <Input
                           value={cena.localGravacao}
                           onChange={(e) => handleUpdateCena(cena.id, 'localGravacao', e.target.value)}
-                          placeholder="Ex: Estúdio A, Locação externa..."
+                          placeholder={t('script.locationPlaceholder')}
                         />
                       </div>
                       <div className="space-y-2">
@@ -572,131 +701,137 @@ export const RoteiroTab = ({ gravacaoId }: RoteiroTabProps) => {
                         <Input
                           value={cena.tempoAproximado}
                           onChange={(e) => handleUpdateCena(cena.id, 'tempoAproximado', e.target.value)}
-                          placeholder="Ex: 5 minutos"
+                          placeholder="Ex: 5min"
                         />
                       </div>
                     </div>
 
-                    {/* Personagens em Cena */}
+                    {/* Personagens na Cena */}
                     <div className="space-y-2">
-                      <Label>{t('script.charactersInScene')}</Label>
-                      {elenco.length === 0 ? (
-                        <p className="text-sm text-muted-foreground p-3 border rounded-md bg-muted/30">
-                          {t('script.noCast')}
-                        </p>
-                      ) : (
-                        <div className="space-y-2">
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <Button variant="outline" className="w-full justify-start">
-                                <Plus className="h-4 w-4 mr-2" />
-                                {t('script.selectCharacters')}
-                              </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-80 p-0 bg-popover" align="start">
-                              <Command>
-                                <CommandInput placeholder={t('script.searchCharacter')} />
-                                <CommandList>
-                                  <CommandEmpty>{t('common.noResults')}</CommandEmpty>
-                                  <CommandGroup>
-                                    {elenco
-                                      .filter(m => !cena.personagens.includes(m.id))
-                                      .map((membro) => (
-                                        <CommandItem
-                                          key={membro.id}
-                                          value={getElencoDisplayName(membro)}
-                                          onSelect={() => handlePersonagemToggle(cena.id, membro.id)}
-                                        >
-                                          <Check className={cn("mr-2 h-4 w-4", "opacity-0")} />
-                                          {getElencoDisplayName(membro)}
-                                        </CommandItem>
-                                      ))}
-                                  </CommandGroup>
-                                </CommandList>
-                              </Command>
-                            </PopoverContent>
-                          </Popover>
-                          {cena.personagens.length > 0 && (
-                            <div className="flex flex-wrap gap-2">
-                              {cena.personagens.map((pId) => {
-                                const membro = elenco.find(e => e.id === pId);
-                                if (!membro) return null;
-                                return (
-                                  <Badge key={pId} variant="secondary" className="flex items-center gap-1">
-                                    {getElencoDisplayName(membro)}
-                                    <button
-                                      onClick={() => handlePersonagemToggle(cena.id, pId)}
-                                      className="ml-1 hover:text-destructive"
+                      <Label>{t('script.charactersInScene')} ({cena.personagens.length})</Label>
+                      {elenco.length > 0 ? (
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button variant="outline" className="w-full justify-start">
+                              {cena.personagens.length > 0
+                                ? `${cena.personagens.length} ${t('script.selectedCharacters')}`
+                                : t('script.selectCharacters')}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-[400px] p-0" align="start">
+                            <Command>
+                              <CommandInput placeholder={t('script.searchCharacter')} />
+                              <CommandList>
+                                <CommandEmpty>{t('script.noCharactersFound')}</CommandEmpty>
+                                <CommandGroup>
+                                  {elenco.map((membro) => (
+                                    <CommandItem
+                                      key={membro.id}
+                                      onSelect={() => handlePersonagemToggle(cena.id, membro.id)}
                                     >
-                                      <X className="h-3 w-3" />
-                                    </button>
-                                  </Badge>
-                                );
-                              })}
-                            </div>
-                          )}
+                                      <div className={cn(
+                                        "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
+                                        cena.personagens.includes(membro.id)
+                                          ? "bg-primary text-primary-foreground"
+                                          : "opacity-50"
+                                      )}>
+                                        {cena.personagens.includes(membro.id) && (
+                                          <Check className="h-3 w-3" />
+                                        )}
+                                      </div>
+                                      {getElencoDisplayName(membro)}
+                                    </CommandItem>
+                                  ))}
+                                </CommandGroup>
+                              </CommandList>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">
+                          {t('script.noCharactersAvailable')}
+                        </p>
+                      )}
+                      {cena.personagens.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {cena.personagens.map(pId => {
+                            const membro = elenco.find(e => e.id === pId);
+                            if (!membro) return null;
+                            return (
+                              <Badge key={pId} variant="secondary" className="flex items-center gap-1">
+                                {membro.personagem}
+                                <X
+                                  className="h-3 w-3 cursor-pointer"
+                                  onClick={() => handlePersonagemToggle(cena.id, pId)}
+                                />
+                              </Badge>
+                            );
+                          })}
                         </div>
                       )}
                     </div>
 
-                    {/* Figurantes */}
+                    {/* Figurantes na Cena */}
                     <div className="space-y-2">
-                      <Label>{t('script.extras')}</Label>
-                      {figurantes.length === 0 ? (
-                        <p className="text-sm text-muted-foreground p-3 border rounded-md bg-muted/30">
-                          {t('script.noExtras')}
-                        </p>
-                      ) : (
-                        <div className="space-y-2">
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <Button variant="outline" className="w-full justify-start">
-                                <Plus className="h-4 w-4 mr-2" />
-                                {t('script.selectExtras')}
-                              </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-80 p-0 bg-popover" align="start">
-                              <Command>
-                                <CommandInput placeholder={t('script.searchExtra')} />
-                                <CommandList>
-                                  <CommandEmpty>{t('common.noResults')}</CommandEmpty>
-                                  <CommandGroup>
-                                    {figurantes
-                                      .filter(f => !cena.figurantes.includes(f.id))
-                                      .map((pessoa) => (
-                                        <CommandItem
-                                          key={pessoa.id}
-                                          value={getFiguranteDisplayName(pessoa)}
-                                          onSelect={() => handleFiguranteToggle(cena.id, pessoa.id)}
-                                        >
-                                          <Check className={cn("mr-2 h-4 w-4", "opacity-0")} />
-                                          {getFiguranteDisplayName(pessoa)}
-                                        </CommandItem>
-                                      ))}
-                                  </CommandGroup>
-                                </CommandList>
-                              </Command>
-                            </PopoverContent>
-                          </Popover>
-                          {cena.figurantes.length > 0 && (
-                            <div className="flex flex-wrap gap-2">
-                              {cena.figurantes.map((fId) => {
-                                const pessoa = figurantes.find(f => f.id === fId);
-                                if (!pessoa) return null;
-                                return (
-                                  <Badge key={fId} variant="secondary" className="flex items-center gap-1">
-                                    {getFiguranteDisplayName(pessoa)}
-                                    <button
-                                      onClick={() => handleFiguranteToggle(cena.id, fId)}
-                                      className="ml-1 hover:text-destructive"
+                      <Label>{t('script.extras')} ({cena.figurantes.length})</Label>
+                      {figurantes.length > 0 ? (
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button variant="outline" className="w-full justify-start">
+                              {cena.figurantes.length > 0
+                                ? `${cena.figurantes.length} ${t('script.selectedExtras')}`
+                                : t('script.selectExtras')}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-[400px] p-0" align="start">
+                            <Command>
+                              <CommandInput placeholder={t('script.searchExtra')} />
+                              <CommandList>
+                                <CommandEmpty>{t('script.noExtrasFound')}</CommandEmpty>
+                                <CommandGroup>
+                                  {figurantes.map((pessoa) => (
+                                    <CommandItem
+                                      key={pessoa.id}
+                                      onSelect={() => handleFiguranteToggle(cena.id, pessoa.id)}
                                     >
-                                      <X className="h-3 w-3" />
-                                    </button>
-                                  </Badge>
-                                );
-                              })}
-                            </div>
-                          )}
+                                      <div className={cn(
+                                        "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
+                                        cena.figurantes.includes(pessoa.id)
+                                          ? "bg-primary text-primary-foreground"
+                                          : "opacity-50"
+                                      )}>
+                                        {cena.figurantes.includes(pessoa.id) && (
+                                          <Check className="h-3 w-3" />
+                                        )}
+                                      </div>
+                                      {getFiguranteDisplayName(pessoa)}
+                                    </CommandItem>
+                                  ))}
+                                </CommandGroup>
+                              </CommandList>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">
+                          {t('script.noExtrasAvailable')}
+                        </p>
+                      )}
+                      {cena.figurantes.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {cena.figurantes.map(fId => {
+                            const pessoa = figurantes.find(f => f.id === fId);
+                            if (!pessoa) return null;
+                            return (
+                              <Badge key={fId} variant="secondary" className="flex items-center gap-1">
+                                {getFiguranteDisplayName(pessoa)}
+                                <X
+                                  className="h-3 w-3 cursor-pointer"
+                                  onClick={() => handleFiguranteToggle(cena.id, fId)}
+                                />
+                              </Badge>
+                            );
+                          })}
                         </div>
                       )}
                     </div>
@@ -707,7 +842,7 @@ export const RoteiroTab = ({ gravacaoId }: RoteiroTabProps) => {
                       <RichTextEditor
                         value={cena.descricao}
                         onChange={(value) => handleUpdateCena(cena.id, 'descricao', value)}
-                        placeholder={t('script.sceneDescription') + '...'}
+                        placeholder={t('script.descriptionPlaceholder')}
                       />
                     </div>
                   </CardContent>
