@@ -641,7 +641,15 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
   }, [selectedRH, rhModalDia]);
 
   // Create automatic task for RH
-  const createTaskForRH = async (rhId: string, rhNome: string, recursoTecnicoId: string, recursoTecnicoNome: string, dia: string) => {
+  const createTaskForRH = async (
+    rhId: string, 
+    rhNome: string, 
+    recursoTecnicoId: string, 
+    recursoTecnicoNome: string, 
+    dia: string,
+    horaInicio: string,
+    horaFim: string
+  ) => {
     // Get default status
     const { data: statusData } = await supabase
       .from('status_tarefa')
@@ -661,7 +669,7 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
 
     if (existingTask) return;
 
-    // Create task
+    // Create task with hora_inicio and hora_fim
     await supabase.from('tarefas').insert({
       gravacao_id: gravacaoId,
       recurso_humano_id: rhId,
@@ -672,6 +680,8 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
       prioridade: 'media',
       data_inicio: dia,
       data_fim: dia,
+      hora_inicio: horaInicio,
+      hora_fim: horaFim,
     });
   };
 
@@ -725,13 +735,15 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
       hora_fim: horaFim,
     });
 
-    // Create automatic task
+    // Create automatic task with hora_inicio and hora_fim
     await createTaskForRH(
       selectedRH,
       rh.nome,
       rhModalRecurso.recursoId,
       rhModalRecurso.recursoNome,
-      rhModalDia
+      rhModalDia,
+      horaInicio,
+      horaFim
     );
 
     toast({
