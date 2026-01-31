@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Upload, X, ImageIcon } from 'lucide-react';
+import { Upload, X, ImageIcon, Loader2 } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -14,11 +14,12 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/contexts/AuthContext';
 import { UnidadeNegocio } from '@/pages/admin/UnidadesNegocio';
+import { supabase } from '@/integrations/supabase/client';
 
 interface UnidadeNegocioFormModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (data: UnidadeNegocio) => void;
+  onSave: (data: UnidadeNegocio) => Promise<void>;
   data?: UnidadeNegocio | null;
 }
 
@@ -38,6 +39,9 @@ export const UnidadeNegocioFormModal = ({
   const { user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState(emptyFormData);
+  const [isUploading, setIsUploading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -47,6 +51,7 @@ export const UnidadeNegocioFormModal = ({
         descricao: data.descricao || '',
         imagem: data.imagem || '',
       } : { ...emptyFormData });
+      setSelectedFile(null);
     }
   }, [isOpen, data]);
 
@@ -66,6 +71,10 @@ export const UnidadeNegocioFormModal = ({
       return;
     }
 
+    // Store file for later upload
+    setSelectedFile(file);
+    
+    // Create local preview
     const reader = new FileReader();
     reader.onloadend = () => {
       setFormData({ ...formData, imagem: reader.result as string });
@@ -75,23 +84,71 @@ export const UnidadeNegocioFormModal = ({
 
   const handleRemoveImage = () => {
     setFormData({ ...formData, imagem: '' });
+    setSelectedFile(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const uploadImage = async (file: File, unidadeId: string): Promise<string | null> => {
+    const fileExt = file.name.split('.').pop();
+    const filePath = `${unidadeId}.${fileExt}`;
+
+    // Delete existing file if any (ignore errors)
+    await supabase.storage.from('unidades-negocio').remove([filePath]);
+
+    const { error } = await supabase.storage
+      .from('unidades-negocio')
+      .upload(filePath, file, { upsert: true });
+
+    if (error) {
+      console.error('Error uploading image:', error);
+      return null;
+    }
+
+    const { data: urlData } = supabase.storage
+      .from('unidades-negocio')
+      .getPublicUrl(filePath);
+
+    return urlData.publicUrl;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onSave({
-      id: data?.id || crypto.randomUUID(),
-      codigoExterno: formData.codigoExterno,
-      nome: formData.nome,
-      descricao: formData.descricao,
-      imagem: formData.imagem,
-      dataCadastro: data?.dataCadastro || new Date().toLocaleDateString('pt-BR'),
-      usuarioCadastro: data?.usuarioCadastro || user?.nome || 'Admin',
-    });
-    onClose();
+    setIsSaving(true);
+
+    try {
+      const unidadeId = data?.id || crypto.randomUUID();
+      let imagemUrl = formData.imagem;
+
+      // If there's a new file to upload
+      if (selectedFile) {
+        setIsUploading(true);
+        const uploadedUrl = await uploadImage(selectedFile, unidadeId);
+        if (uploadedUrl) {
+          imagemUrl = uploadedUrl;
+        }
+        setIsUploading(false);
+      } else if (!formData.imagem) {
+        // Image was removed
+        imagemUrl = '';
+      }
+
+      await onSave({
+        id: unidadeId,
+        codigoExterno: formData.codigoExterno,
+        nome: formData.nome,
+        descricao: formData.descricao,
+        imagem: imagemUrl,
+        dataCadastro: data?.dataCadastro || new Date().toLocaleDateString('pt-BR'),
+        usuarioCadastro: data?.usuarioCadastro || user?.nome || 'Admin',
+      });
+      onClose();
+    } catch (error) {
+      console.error('Error saving:', error);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -194,11 +251,18 @@ export const UnidadeNegocioFormModal = ({
             />
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>
+            <Button type="button" variant="outline" onClick={onClose} disabled={isSaving}>
               Cancelar
             </Button>
-            <Button type="submit" className="gradient-primary hover:opacity-90">
-              Salvar
+            <Button type="submit" className="gradient-primary hover:opacity-90" disabled={isSaving}>
+              {isSaving ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  {isUploading ? 'Enviando imagem...' : 'Salvando...'}
+                </>
+              ) : (
+                'Salvar'
+              )}
             </Button>
           </DialogFooter>
         </form>

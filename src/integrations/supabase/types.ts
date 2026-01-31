@@ -1820,6 +1820,7 @@ export type Database = {
           created_by: string | null
           descricao: string | null
           id: string
+          imagem_url: string | null
           nome: string
           updated_at: string | null
         }
@@ -1829,6 +1830,7 @@ export type Database = {
           created_by?: string | null
           descricao?: string | null
           id?: string
+          imagem_url?: string | null
           nome: string
           updated_at?: string | null
         }
@@ -1838,6 +1840,7 @@ export type Database = {
           created_by?: string | null
           descricao?: string | null
           id?: string
+          imagem_url?: string | null
           nome?: string
           updated_at?: string | null
         }
