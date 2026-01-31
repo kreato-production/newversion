@@ -175,11 +175,25 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
         status: data.status || '',
         conteudoId: data.conteudoId || '',
       });
-      // Converter string de data para Date
+      // Converter string de data para Date (suporta ISO yyyy-MM-dd e BR dd/MM/yyyy)
       if (data.dataPrevista) {
         try {
-          const parsedDate = parse(data.dataPrevista, 'dd/MM/yyyy', new Date());
-          setDataPrevista(parsedDate);
+          let parsedDate: Date | undefined;
+          
+          // Check if it's ISO format (yyyy-MM-dd)
+          if (/^\d{4}-\d{2}-\d{2}/.test(data.dataPrevista)) {
+            parsedDate = new Date(data.dataPrevista);
+          } else if (/^\d{2}\/\d{2}\/\d{4}/.test(data.dataPrevista)) {
+            // Brazilian format dd/MM/yyyy
+            parsedDate = parse(data.dataPrevista, 'dd/MM/yyyy', new Date());
+          }
+          
+          // Validate the parsed date
+          if (parsedDate && !isNaN(parsedDate.getTime())) {
+            setDataPrevista(parsedDate);
+          } else {
+            setDataPrevista(undefined);
+          }
         } catch {
           setDataPrevista(undefined);
         }
