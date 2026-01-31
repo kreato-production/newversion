@@ -1416,6 +1416,47 @@ export type Database = {
           },
         ]
       }
+      rf_estoque_itens: {
+        Row: {
+          codigo: string | null
+          created_at: string | null
+          created_by: string | null
+          descricao: string | null
+          id: string
+          nome: string
+          numerador: number
+          recurso_fisico_id: string
+        }
+        Insert: {
+          codigo?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          descricao?: string | null
+          id?: string
+          nome: string
+          numerador: number
+          recurso_fisico_id: string
+        }
+        Update: {
+          codigo?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          descricao?: string | null
+          id?: string
+          nome?: string
+          numerador?: number
+          recurso_fisico_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rf_estoque_itens_recurso_fisico_id_fkey"
+            columns: ["recurso_fisico_id"]
+            isOneToOne: false
+            referencedRelation: "recursos_fisicos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       rf_faixas_disponibilidade: {
         Row: {
           created_at: string | null
