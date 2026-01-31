@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
-import { Settings, Edit, Trash2 } from 'lucide-react';
+import { Settings, Edit, Trash2, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -34,47 +34,69 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface StatusTarefaItem {
   id: string;
   codigo: string;
   nome: string;
-  cor?: string;
-  descricao?: string;
-  dataCadastro: string;
-  usuarioCadastro: string;
+  cor: string | null;
+  descricao: string | null;
+  created_at: string | null;
+  created_by: string | null;
 }
 
 const StatusTarefa = () => {
   const { t } = useLanguage();
+  const { user } = useAuth();
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [items, setItems] = useState<StatusTarefaItem[]>([]);
   const [editingItem, setEditingItem] = useState<StatusTarefaItem | null>(null);
   const [formData, setFormData] = useState<Partial<StatusTarefaItem>>({});
+  const [isLoading, setIsLoading] = useState(true);
 
-  const storageKey = 'kreato_status_tarefa';
+  const fetchData = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('status_tarefa')
+        .select('*')
+        .order('nome', { ascending: true });
+
+      if (error) throw error;
+
+      // If no data exists, seed with default values
+      if (!data || data.length === 0) {
+        const defaultData = [
+          { codigo: 'PEND', nome: 'Pendente', cor: '#f59e0b', descricao: 'Tarefa aguardando início', created_by: user?.id },
+          { codigo: 'PROG', nome: 'Em Progresso', cor: '#3b82f6', descricao: 'Tarefa em andamento', created_by: user?.id },
+          { codigo: 'CONC', nome: 'Concluída', cor: '#22c55e', descricao: 'Tarefa finalizada', created_by: user?.id },
+          { codigo: 'CANC', nome: 'Cancelada', cor: '#ef4444', descricao: 'Tarefa cancelada', created_by: user?.id },
+        ];
+
+        const { data: insertedData, error: insertError } = await supabase
+          .from('status_tarefa')
+          .insert(defaultData)
+          .select();
+
+        if (insertError) throw insertError;
+        setItems(insertedData || []);
+      } else {
+        setItems(data);
+      }
+    } catch (err) {
+      console.error('Error fetching status_tarefa:', err);
+      toast.error('Erro ao carregar dados');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user?.id]);
 
   useEffect(() => {
-    const stored = localStorage.getItem(storageKey);
-    if (stored) {
-      setItems(JSON.parse(stored));
-    } else {
-      const defaultData: StatusTarefaItem[] = [
-        { id: '1', codigo: 'PEND', nome: 'Pendente', cor: '#f59e0b', descricao: 'Tarefa aguardando início', dataCadastro: new Date().toISOString(), usuarioCadastro: 'Admin' },
-        { id: '2', codigo: 'PROG', nome: 'Em Progresso', cor: '#3b82f6', descricao: 'Tarefa em andamento', dataCadastro: new Date().toISOString(), usuarioCadastro: 'Admin' },
-        { id: '3', codigo: 'CONC', nome: 'Concluída', cor: '#22c55e', descricao: 'Tarefa finalizada', dataCadastro: new Date().toISOString(), usuarioCadastro: 'Admin' },
-        { id: '4', codigo: 'CANC', nome: 'Cancelada', cor: '#ef4444', descricao: 'Tarefa cancelada', dataCadastro: new Date().toISOString(), usuarioCadastro: 'Admin' },
-      ];
-      localStorage.setItem(storageKey, JSON.stringify(defaultData));
-      setItems(defaultData);
-    }
-  }, []);
-
-  const saveItems = (newItems: StatusTarefaItem[]) => {
-    localStorage.setItem(storageKey, JSON.stringify(newItems));
-    setItems(newItems);
-  };
+    fetchData();
+  }, [fetchData]);
 
   const handleOpenModal = (item?: StatusTarefaItem) => {
     if (item) {
@@ -87,42 +109,80 @@ const StatusTarefa = () => {
     setIsModalOpen(true);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!formData.codigo || !formData.nome) {
       toast.error(t('common.requiredFields'));
       return;
     }
 
-    if (editingItem) {
-      const updated = items.map(item => 
-        item.id === editingItem.id ? { ...item, ...formData } : item
-      );
-      saveItems(updated);
-      toast.success(t('common.savedSuccessfully'));
-    } else {
-      const newItem: StatusTarefaItem = {
-        ...formData as StatusTarefaItem,
-        id: crypto.randomUUID(),
-        dataCadastro: new Date().toISOString(),
-        usuarioCadastro: 'Admin',
-      };
-      saveItems([...items, newItem]);
-      toast.success(t('common.savedSuccessfully'));
+    try {
+      if (editingItem) {
+        const { error } = await supabase
+          .from('status_tarefa')
+          .update({
+            codigo: formData.codigo,
+            nome: formData.nome,
+            cor: formData.cor || '#888888',
+            descricao: formData.descricao || null,
+          })
+          .eq('id', editingItem.id);
+
+        if (error) throw error;
+        toast.success(t('common.savedSuccessfully'));
+      } else {
+        const { error } = await supabase
+          .from('status_tarefa')
+          .insert({
+            codigo: formData.codigo,
+            nome: formData.nome,
+            cor: formData.cor || '#888888',
+            descricao: formData.descricao || null,
+            created_by: user?.id,
+          });
+
+        if (error) throw error;
+        toast.success(t('common.savedSuccessfully'));
+      }
+
+      await fetchData();
+      setIsModalOpen(false);
+      setEditingItem(null);
+      setFormData({});
+    } catch (err) {
+      console.error('Error saving status_tarefa:', err);
+      toast.error('Erro ao salvar');
     }
-    setIsModalOpen(false);
-    setEditingItem(null);
-    setFormData({});
   };
 
-  const handleDelete = (id: string) => {
-    saveItems(items.filter(item => item.id !== id));
-    toast.success(t('common.deleted'));
+  const handleDelete = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('status_tarefa')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      toast.success(t('common.deleted'));
+      await fetchData();
+    } catch (err) {
+      console.error('Error deleting status_tarefa:', err);
+      toast.error('Erro ao excluir');
+    }
   };
 
   const filteredItems = items.filter(item =>
     item.nome.toLowerCase().includes(search.toLowerCase()) ||
     item.codigo.toLowerCase().includes(search.toLowerCase())
   );
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <>
