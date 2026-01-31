@@ -141,12 +141,58 @@ const GravacaoList = () => {
   });
 
   const handleSave = async (data: Gravacao) => {
-    // The modal still uses localStorage, so we just refresh from DB
-    // This provides gradual migration - modal will be updated separately
     try {
+      // Buscar IDs das referências pelo nome
+      const [unidadeRes, centroRes, classificacaoRes, tipoRes, statusRes] = await Promise.all([
+        data.unidadeNegocio ? supabase.from('unidades_negocio').select('id').eq('nome', data.unidadeNegocio).single() : Promise.resolve({ data: null }),
+        data.centroLucro ? supabase.from('centros_lucro').select('id').eq('nome', data.centroLucro).single() : Promise.resolve({ data: null }),
+        data.classificacao ? supabase.from('classificacoes').select('id').eq('nome', data.classificacao).single() : Promise.resolve({ data: null }),
+        data.tipoConteudo ? supabase.from('tipos_gravacao').select('id').eq('nome', data.tipoConteudo).single() : Promise.resolve({ data: null }),
+        data.status ? supabase.from('status_gravacao').select('id').eq('nome', data.status).single() : Promise.resolve({ data: null }),
+      ]);
+
+      // Converter data de dd/MM/yyyy para yyyy-MM-dd
+      let dataPrevistaFormatted: string | null = null;
+      if (data.dataPrevista) {
+        const parts = data.dataPrevista.split('/');
+        if (parts.length === 3) {
+          dataPrevistaFormatted = `${parts[2]}-${parts[1]}-${parts[0]}`;
+        }
+      }
+
+      const recordData = {
+        nome: data.nome,
+        codigo_externo: data.codigoExterno || null,
+        descricao: data.descricao || null,
+        unidade_negocio_id: unidadeRes.data?.id || null,
+        centro_lucro_id: centroRes.data?.id || null,
+        classificacao_id: classificacaoRes.data?.id || null,
+        tipo_conteudo_id: tipoRes.data?.id || null,
+        status_id: statusRes.data?.id || null,
+        data_prevista: dataPrevistaFormatted,
+        conteudo_id: data.conteudoId || null,
+        created_by: user?.id || null,
+      };
+
       if (editingItem) {
+        // Update existing record
+        const { error } = await supabase
+          .from('gravacoes')
+          .update(recordData)
+          .eq('id', data.id);
+
+        if (error) throw error;
         toast({ title: t('common.success'), description: t('recordings.edit') + '!' });
       } else {
+        // Insert new record - código será gerado pelo trigger no DB
+        const { error } = await supabase
+          .from('gravacoes')
+          .insert({
+            ...recordData,
+            codigo: data.codigo, // Código temporário, será substituído pelo trigger se existir
+          });
+
+        if (error) throw error;
         toast({ title: t('common.success'), description: t('recordings.new') + '!' });
       }
       
