@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Loader2, Wand2 } from 'lucide-react';
 import {
   Dialog,
@@ -23,7 +23,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { type Conteudo, generateCodigoConteudo } from '@/pages/producao/Conteudo';
-import { type Gravacao, generateCodigoGravacao } from '@/pages/producao/GravacaoList';
+import { type Gravacao } from '@/pages/producao/GravacaoList';
 import { Badge } from '@/components/ui/badge';
 import {
   Table,
@@ -35,6 +35,7 @@ import {
 } from '@/components/ui/table';
 import { ConteudoCustosTab } from './ConteudoCustosTab';
 import { ElencoTab } from './ElencoTab';
+import { supabase } from '@/integrations/supabase/client';
 
 interface ConteudoFormModalProps {
   isOpen: boolean;
@@ -92,25 +93,31 @@ export const ConteudoFormModal = ({
 
   const centrosLucroHierarquicos = buildHierarchy(centrosLucro);
 
-  useEffect(() => {
-    const loadOptions = () => {
-      const storedCentrosLucro = localStorage.getItem('kreato_centros_lucro');
-      const storedStatus = localStorage.getItem('kreato_status_gravacao');
-      const storedUnidades = localStorage.getItem('kreato_unidades_negocio');
-      const storedTipos = localStorage.getItem('kreato_tipos_gravacao');
-      const storedClassificacoes = localStorage.getItem('kreato_classificacao');
-      
-      setCentrosLucro(storedCentrosLucro ? JSON.parse(storedCentrosLucro).filter((cl: { status: string }) => cl.status === 'Ativo') : []);
-      setStatusList(storedStatus ? JSON.parse(storedStatus) : []);
-      setUnidades(storedUnidades ? JSON.parse(storedUnidades) : []);
-      setTipos(storedTipos ? JSON.parse(storedTipos) : []);
-      setClassificacoes(storedClassificacoes ? JSON.parse(storedClassificacoes) : []);
-    };
+  const loadOptions = useCallback(async () => {
+    try {
+      const [centrosRes, statusRes, unidadesRes, tiposRes, classificacoesRes] = await Promise.all([
+        supabase.from('centros_lucro').select('id, nome, parent_id, status').eq('status', 'Ativo').order('nome'),
+        supabase.from('status_gravacao').select('id, nome, cor').order('nome'),
+        supabase.from('unidades_negocio').select('id, nome').order('nome'),
+        supabase.from('tipos_gravacao').select('id, nome').order('nome'),
+        supabase.from('classificacoes').select('id, nome').order('nome'),
+      ]);
 
+      setCentrosLucro((centrosRes.data || []).map(c => ({ id: c.id, nome: c.nome, parentId: c.parent_id, status: c.status || 'Ativo' })));
+      setStatusList((statusRes.data || []).map(s => ({ id: s.id, nome: s.nome, cor: s.cor || '#888888' })));
+      setUnidades(unidadesRes.data || []);
+      setTipos(tiposRes.data || []);
+      setClassificacoes(classificacoesRes.data || []);
+    } catch (err) {
+      console.error('Error loading options:', err);
+    }
+  }, []);
+
+  useEffect(() => {
     if (isOpen) {
       loadOptions();
     }
-  }, [isOpen]);
+  }, [isOpen, loadOptions]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -145,11 +152,35 @@ export const ConteudoFormModal = ({
     }
   }, [data, isOpen]);
 
-  const loadGravacoes = (conteudoId: string) => {
-    const stored = localStorage.getItem('kreato_gravacoes');
-    const allGravacoes: Gravacao[] = stored ? JSON.parse(stored) : [];
-    const filtered = allGravacoes.filter((g: any) => g.conteudoId === conteudoId);
-    setGravacoes(filtered);
+  const loadGravacoes = async (conteudoId: string) => {
+    try {
+      const { data: gData, error } = await supabase
+        .from('gravacoes')
+        .select('*, status_gravacao:status_id(id, nome, cor)')
+        .eq('conteudo_id', conteudoId)
+        .order('codigo');
+
+      if (error) throw error;
+
+      const mapped: Gravacao[] = (gData || []).map((g: any) => ({
+        id: g.id,
+        codigo: g.codigo,
+        codigoExterno: g.codigo_externo || '',
+        nome: g.nome,
+        unidadeNegocio: g.unidade_negocio_id || '',
+        centroLucro: g.centro_lucro_id || '',
+        classificacao: g.classificacao_id || '',
+        tipoConteudo: g.tipo_conteudo_id || '',
+        descricao: g.descricao || '',
+        status: g.status_gravacao?.nome || '',
+        dataPrevista: g.data_prevista || '',
+        dataCadastro: g.created_at ? new Date(g.created_at).toLocaleDateString('pt-BR') : '',
+        usuarioCadastro: '',
+      }));
+      setGravacoes(mapped);
+    } catch (err) {
+      console.error('Error loading gravacoes:', err);
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -179,7 +210,7 @@ export const ConteudoFormModal = ({
     onClose();
   };
 
-  const handleGenerateGravacoes = () => {
+  const handleGenerateGravacoes = async () => {
     if (!data?.id) {
       toast({
         title: 'Atenção',
@@ -210,48 +241,63 @@ export const ConteudoFormModal = ({
 
     setIsGenerating(true);
 
-    setTimeout(() => {
-      const stored = localStorage.getItem('kreato_gravacoes');
-      const allGravacoes: Gravacao[] = stored ? JSON.parse(stored) : [];
-      
-      const novasGravacoes: Gravacao[] = [];
+    try {
+      const novasGravacoes = [];
       const startEpisode = gravacoes.length + 1;
 
       for (let i = startEpisode; i <= quantidade; i++) {
-        const novoCodigo = generateCodigoGravacao();
-        // Update localStorage after each code generation to avoid duplicates
-        const tempStored = localStorage.getItem('kreato_gravacoes');
-        const tempGravacoes = tempStored ? JSON.parse(tempStored) : [];
-        
-        const novaGravacao: Gravacao = {
-          id: crypto.randomUUID(),
-          codigo: novoCodigo,
-          codigoExterno: '',
+        const insertData = {
           nome: `${formData.descricao} - Episódio ${i}`,
-          unidadeNegocio: formData.unidadeNegocio,
-          centroLucro: formData.centroLucro,
-          classificacao: formData.classificacao,
-          tipoConteudo: formData.tipoConteudo,
-          descricao: '',
-          status: '',
-          dataPrevista: '',
-          dataCadastro: new Date().toLocaleDateString('pt-BR'),
-          usuarioCadastro: user?.nome || 'Admin',
-          conteudoId: data.id,
-        } as Gravacao & { conteudoId: string };
+          unidade_negocio_id: formData.unidadeNegocio || null,
+          centro_lucro_id: formData.centroLucro || null,
+          classificacao_id: formData.classificacao || null,
+          tipo_conteudo_id: formData.tipoConteudo || null,
+          conteudo_id: data.id,
+          created_by: user?.id || null,
+        };
 
-        novasGravacoes.push(novaGravacao);
-        localStorage.setItem('kreato_gravacoes', JSON.stringify([...tempGravacoes, novaGravacao]));
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: inserted, error } = await (supabase as any)
+          .from('gravacoes')
+          .insert(insertData)
+          .select()
+          .single();
+
+        if (error) throw error;
+        if (inserted) {
+          novasGravacoes.push({
+            id: inserted.id,
+            codigo: inserted.codigo,
+            codigoExterno: inserted.codigo_externo || '',
+            nome: inserted.nome,
+            unidadeNegocio: inserted.unidade_negocio_id || '',
+            centroLucro: inserted.centro_lucro_id || '',
+            classificacao: inserted.classificacao_id || '',
+            tipoConteudo: inserted.tipo_conteudo_id || '',
+            descricao: inserted.descricao || '',
+            status: '',
+            dataPrevista: inserted.data_prevista || '',
+            dataCadastro: inserted.created_at ? new Date(inserted.created_at).toLocaleDateString('pt-BR') : '',
+            usuarioCadastro: user?.nome || '',
+          } as Gravacao);
+        }
       }
 
       setGravacoes([...gravacoes, ...novasGravacoes]);
-      setIsGenerating(false);
-      
       toast({
         title: 'Sucesso',
         description: `${novasGravacoes.length} gravações geradas com sucesso!`,
       });
-    }, 500);
+    } catch (err) {
+      console.error('Error generating gravacoes:', err);
+      toast({
+        title: 'Erro',
+        description: 'Erro ao gerar gravações.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const getStatusColor = (statusNome: string): string | undefined => {
