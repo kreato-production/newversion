@@ -11,9 +11,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Trash2, Calendar, Clock, AlertCircle } from 'lucide-react';
+import { Plus, Trash2, Calendar, Clock, AlertCircle, Package, Settings } from 'lucide-react';
+import { EstoqueTab, EstoqueItem } from './EstoqueTab';
 import type { RecursoFisico, FaixaDisponibilidade } from '@/pages/recursos/RecursosFisicos';
 
 interface RecursoFisicoFormModalProps {
@@ -47,6 +49,8 @@ export const RecursoFisicoFormModal = ({
     custoHora: 0,
   });
   const [faixas, setFaixas] = useState<FaixaDisponibilidade[]>([]);
+  const [estoqueItens, setEstoqueItens] = useState<EstoqueItem[]>([]);
+  const [activeTab, setActiveTab] = useState('geral');
 
   useEffect(() => {
     if (data) {
@@ -56,10 +60,13 @@ export const RecursoFisicoFormModal = ({
         custoHora: data.custoHora,
       });
       setFaixas(data.faixasDisponibilidade || []);
+      setEstoqueItens(data.estoqueItens || []);
     } else {
       setFormData({ codigoExterno: '', nome: '', custoHora: 0 });
       setFaixas([]);
+      setEstoqueItens([]);
     }
+    setActiveTab('geral');
   }, [data, isOpen]);
 
   const verificarSobreposicao = (novaFaixa: FaixaDisponibilidade, faixasExistentes: FaixaDisponibilidade[]): boolean => {
@@ -186,10 +193,28 @@ export const RecursoFisicoFormModal = ({
     return true;
   };
 
+  const validarEstoque = (): boolean => {
+    for (const item of estoqueItens) {
+      if (!item.nome.trim()) {
+        toast({
+          title: 'Erro de Validação',
+          description: 'Todos os itens de estoque devem ter um nome.',
+          variant: 'destructive',
+        });
+        return false;
+      }
+    }
+    return true;
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
     if (faixas.length > 0 && !validarFaixas()) {
+      return;
+    }
+
+    if (estoqueItens.length > 0 && !validarEstoque()) {
       return;
     }
 
@@ -199,8 +224,10 @@ export const RecursoFisicoFormModal = ({
       nome: formData.nome,
       custoHora: formData.custoHora,
       faixasDisponibilidade: faixas,
+      estoqueItens: estoqueItens,
       dataCadastro: data?.dataCadastro || new Date().toLocaleDateString('pt-BR'),
       usuarioCadastro: data?.usuarioCadastro || user?.nome || 'Admin',
+      usuarioCadastroId: data?.usuarioCadastroId,
     });
     onClose();
   };
@@ -215,169 +242,203 @@ export const RecursoFisicoFormModal = ({
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Dados básicos */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="codigoExterno">Código Externo</Label>
-              <Input
-                id="codigoExterno"
-                value={formData.codigoExterno}
-                onChange={(e) => setFormData({ ...formData, codigoExterno: e.target.value })}
-                maxLength={10}
-                placeholder="Máx. 10 caracteres"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="custoHora">Custo/Hora (R$)</Label>
-              <Input
-                id="custoHora"
-                type="number"
-                step="0.01"
-                min="0"
-                value={formData.custoHora}
-                onChange={(e) => setFormData({ ...formData, custoHora: parseFloat(e.target.value) || 0 })}
-              />
-            </div>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="nome">Nome *</Label>
-            <Input
-              id="nome"
-              value={formData.nome}
-              onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
-              maxLength={100}
-              required
-            />
-          </div>
-
-          {/* Faixas de Disponibilidade */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <Label className="text-base font-semibold flex items-center gap-2">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="geral" className="flex items-center gap-2">
+                <Settings className="w-4 h-4" />
+                Geral
+              </TabsTrigger>
+              <TabsTrigger value="disponibilidade" className="flex items-center gap-2">
                 <Calendar className="w-4 h-4" />
-                Faixas de Disponibilidade
-              </Label>
-              <Button type="button" variant="outline" size="sm" onClick={handleAddFaixa}>
-                <Plus className="w-4 h-4 mr-1" />
-                Adicionar Faixa
-              </Button>
-            </div>
+                Disponibilidade
+              </TabsTrigger>
+              <TabsTrigger value="estoque" className="flex items-center gap-2">
+                <Package className="w-4 h-4" />
+                Estoque
+                {estoqueItens.length > 0 && (
+                  <span className="ml-1 bg-primary text-primary-foreground text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                    {estoqueItens.length}
+                  </span>
+                )}
+              </TabsTrigger>
+            </TabsList>
 
-            {faixas.length === 0 ? (
-              <div className="text-center py-6 border rounded-lg border-dashed bg-muted/20">
-                <Calendar className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
-                <p className="text-sm text-muted-foreground">
-                  Nenhuma faixa de disponibilidade cadastrada.
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Clique em "Adicionar Faixa" para definir períodos de disponibilidade.
-                </p>
+            <TabsContent value="geral" className="space-y-4 mt-4">
+              {/* Dados básicos */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="codigoExterno">Código Externo</Label>
+                  <Input
+                    id="codigoExterno"
+                    value={formData.codigoExterno}
+                    onChange={(e) => setFormData({ ...formData, codigoExterno: e.target.value })}
+                    maxLength={10}
+                    placeholder="Máx. 10 caracteres"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="custoHora">Custo/Hora (R$)</Label>
+                  <Input
+                    id="custoHora"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={formData.custoHora}
+                    onChange={(e) => setFormData({ ...formData, custoHora: parseFloat(e.target.value) || 0 })}
+                  />
+                </div>
               </div>
-            ) : (
+              <div className="space-y-2">
+                <Label htmlFor="nome">Nome *</Label>
+                <Input
+                  id="nome"
+                  value={formData.nome}
+                  onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
+                  maxLength={100}
+                  required
+                />
+              </div>
+            </TabsContent>
+
+            <TabsContent value="disponibilidade" className="space-y-4 mt-4">
+              {/* Faixas de Disponibilidade */}
               <div className="space-y-4">
-                {faixas.map((faixa, index) => (
-                  <div key={faixa.id} className="border rounded-lg p-4 bg-muted/10 space-y-4">
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium text-sm">Faixa {index + 1}</span>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleRemoveFaixa(faixa.id)}
-                        className="text-destructive hover:text-destructive h-8 w-8 p-0"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
+                <div className="flex items-center justify-between">
+                  <Label className="text-base font-semibold flex items-center gap-2">
+                    <Calendar className="w-4 h-4" />
+                    Faixas de Disponibilidade
+                  </Label>
+                  <Button type="button" variant="outline" size="sm" onClick={handleAddFaixa}>
+                    <Plus className="w-4 h-4 mr-1" />
+                    Adicionar Faixa
+                  </Button>
+                </div>
 
-                    {/* Datas */}
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label className="text-xs">Data Início *</Label>
-                        <Input
-                          type="date"
-                          value={faixa.dataInicio}
-                          onChange={(e) => handleFaixaChange(faixa.id, 'dataInicio', e.target.value)}
-                          className="h-9"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label className="text-xs">Data Fim *</Label>
-                        <Input
-                          type="date"
-                          value={faixa.dataFim}
-                          onChange={(e) => handleFaixaChange(faixa.id, 'dataFim', e.target.value)}
-                          className="h-9"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Horários */}
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label className="text-xs flex items-center gap-1">
-                          <Clock className="w-3 h-3" />
-                          Hora Início *
-                        </Label>
-                        <Input
-                          type="time"
-                          value={faixa.horaInicio}
-                          onChange={(e) => handleFaixaChange(faixa.id, 'horaInicio', e.target.value)}
-                          className="h-9"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label className="text-xs flex items-center gap-1">
-                          <Clock className="w-3 h-3" />
-                          Hora Fim *
-                        </Label>
-                        <Input
-                          type="time"
-                          value={faixa.horaFim}
-                          onChange={(e) => handleFaixaChange(faixa.id, 'horaFim', e.target.value)}
-                          className="h-9"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Dias da semana */}
-                    <div className="space-y-2">
-                      <Label className="text-xs">Dias da Semana *</Label>
-                      <div className="flex flex-wrap gap-2">
-                        {DIAS_SEMANA.map((dia) => (
-                          <label
-                            key={dia.value}
-                            className={`
-                              flex items-center gap-1.5 px-3 py-1.5 rounded-md border cursor-pointer
-                              transition-colors text-sm
-                              ${faixa.diasSemana.includes(dia.value) 
-                                ? 'bg-primary text-primary-foreground border-primary' 
-                                : 'bg-background hover:bg-muted'}
-                            `}
-                          >
-                            <Checkbox
-                              checked={faixa.diasSemana.includes(dia.value)}
-                              onCheckedChange={() => handleDiaToggle(faixa.id, dia.value)}
-                              className="sr-only"
-                            />
-                            {dia.label}
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Aviso de sobreposição */}
-                    {verificarSobreposicao(faixa, faixas) && (
-                      <div className="flex items-center gap-2 text-destructive text-sm bg-destructive/10 p-2 rounded">
-                        <AlertCircle className="w-4 h-4" />
-                        <span>Esta faixa se sobrepõe a outra faixa existente.</span>
-                      </div>
-                    )}
+                {faixas.length === 0 ? (
+                  <div className="text-center py-6 border rounded-lg border-dashed bg-muted/20">
+                    <Calendar className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
+                    <p className="text-sm text-muted-foreground">
+                      Nenhuma faixa de disponibilidade cadastrada.
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Clique em "Adicionar Faixa" para definir períodos de disponibilidade.
+                    </p>
                   </div>
-                ))}
+                ) : (
+                  <div className="space-y-4">
+                    {faixas.map((faixa, index) => (
+                      <div key={faixa.id} className="border rounded-lg p-4 bg-muted/10 space-y-4">
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium text-sm">Faixa {index + 1}</span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleRemoveFaixa(faixa.id)}
+                            className="text-destructive hover:text-destructive h-8 w-8 p-0"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+
+                        {/* Datas */}
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label className="text-xs">Data Início *</Label>
+                            <Input
+                              type="date"
+                              value={faixa.dataInicio}
+                              onChange={(e) => handleFaixaChange(faixa.id, 'dataInicio', e.target.value)}
+                              className="h-9"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-xs">Data Fim *</Label>
+                            <Input
+                              type="date"
+                              value={faixa.dataFim}
+                              onChange={(e) => handleFaixaChange(faixa.id, 'dataFim', e.target.value)}
+                              className="h-9"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Horários */}
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label className="text-xs flex items-center gap-1">
+                              <Clock className="w-3 h-3" />
+                              Hora Início *
+                            </Label>
+                            <Input
+                              type="time"
+                              value={faixa.horaInicio}
+                              onChange={(e) => handleFaixaChange(faixa.id, 'horaInicio', e.target.value)}
+                              className="h-9"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-xs flex items-center gap-1">
+                              <Clock className="w-3 h-3" />
+                              Hora Fim *
+                            </Label>
+                            <Input
+                              type="time"
+                              value={faixa.horaFim}
+                              onChange={(e) => handleFaixaChange(faixa.id, 'horaFim', e.target.value)}
+                              className="h-9"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Dias da semana */}
+                        <div className="space-y-2">
+                          <Label className="text-xs">Dias da Semana *</Label>
+                          <div className="flex flex-wrap gap-2">
+                            {DIAS_SEMANA.map((dia) => (
+                              <label
+                                key={dia.value}
+                                className={`
+                                  flex items-center gap-1.5 px-3 py-1.5 rounded-md border cursor-pointer
+                                  transition-colors text-sm
+                                  ${faixa.diasSemana.includes(dia.value) 
+                                    ? 'bg-primary text-primary-foreground border-primary' 
+                                    : 'bg-background hover:bg-muted'}
+                                `}
+                              >
+                                <Checkbox
+                                  checked={faixa.diasSemana.includes(dia.value)}
+                                  onCheckedChange={() => handleDiaToggle(faixa.id, dia.value)}
+                                  className="sr-only"
+                                />
+                                {dia.label}
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Aviso de sobreposição */}
+                        {verificarSobreposicao(faixa, faixas) && (
+                          <div className="flex items-center gap-2 text-destructive text-sm bg-destructive/10 p-2 rounded">
+                            <AlertCircle className="w-4 h-4" />
+                            <span>Esta faixa se sobrepõe a outra faixa existente.</span>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-            )}
-          </div>
+            </TabsContent>
+
+            <TabsContent value="estoque" className="mt-4">
+              <EstoqueTab
+                recursoFisicoId={data?.id}
+                itens={estoqueItens}
+                onItensChange={setEstoqueItens}
+              />
+            </TabsContent>
+          </Tabs>
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>

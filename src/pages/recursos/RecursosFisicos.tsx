@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
-import { Edit, Trash2, MapPin, Calendar, Loader2 } from 'lucide-react';
+import { Edit, Trash2, MapPin, Calendar, Loader2, Package } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { RecursoFisicoFormModal } from '@/components/recursos/RecursoFisicoFormModal';
 import { MapaRecursosFisicosModal } from '@/components/recursos/MapaRecursosFisicosModal';
 import { SortableTable, Column } from '@/components/shared/SortableTable';
 import { supabase } from '@/integrations/supabase/client';
 import type { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
+import type { EstoqueItem } from '@/components/recursos/EstoqueTab';
 
 type RecursoFisicoDB = Tables<'recursos_fisicos'>;
 
@@ -26,21 +27,29 @@ export interface RecursoFisico {
   nome: string;
   custoHora: number;
   faixasDisponibilidade: FaixaDisponibilidade[];
+  estoqueItens?: EstoqueItem[];
+  estoqueCount?: number;
   dataCadastro: string;
   usuarioCadastro: string;
+  usuarioCadastroId?: string;
 }
 
 const mapDbToRecursoFisico = (
   db: RecursoFisicoDB,
-  faixas: FaixaDisponibilidade[] = []
+  faixas: FaixaDisponibilidade[] = [],
+  estoqueItens: EstoqueItem[] = [],
+  usuarioNome: string = ''
 ): RecursoFisico => ({
   id: db.id,
   codigoExterno: db.codigo_externo || '',
   nome: db.nome,
   custoHora: db.custo_hora || 0,
   faixasDisponibilidade: faixas,
+  estoqueItens: estoqueItens,
+  estoqueCount: estoqueItens.length,
   dataCadastro: db.created_at ? new Date(db.created_at).toLocaleDateString('pt-BR') : '',
-  usuarioCadastro: '',
+  usuarioCadastro: usuarioNome,
+  usuarioCadastroId: db.created_by || undefined,
 });
 
 const RecursosFisicos = () => {
@@ -62,8 +71,17 @@ const RecursosFisicos = () => {
 
       if (recursosError) throw recursosError;
 
+      // Fetch profiles to get user names
+      const { data: profilesData } = await supabase
+        .from('profiles')
+        .select('id, nome');
+      
+      const profilesMap = new Map<string, string>();
+      (profilesData || []).forEach(p => profilesMap.set(p.id, p.nome));
+
       const recursosWithFaixas = await Promise.all(
         (recursosData || []).map(async (rf) => {
+          // Fetch faixas
           const { data: faixasData } = await supabase
             .from('rf_faixas_disponibilidade')
             .select('*')
@@ -78,7 +96,24 @@ const RecursosFisicos = () => {
             diasSemana: f.dias_semana || [1, 2, 3, 4, 5],
           }));
 
-          return mapDbToRecursoFisico(rf, faixas);
+          // Fetch estoque items
+          const { data: estoqueData } = await supabase
+            .from('rf_estoque_itens')
+            .select('*')
+            .eq('recurso_fisico_id', rf.id)
+            .order('numerador');
+
+          const estoqueItens: EstoqueItem[] = (estoqueData || []).map(item => ({
+            id: item.id,
+            numerador: item.numerador,
+            codigo: item.codigo || '',
+            nome: item.nome,
+            descricao: item.descricao || '',
+          }));
+
+          const usuarioNome = rf.created_by ? profilesMap.get(rf.created_by) || '' : '';
+
+          return mapDbToRecursoFisico(rf, faixas, estoqueItens, usuarioNome);
         })
       );
 
@@ -97,11 +132,15 @@ const RecursosFisicos = () => {
 
   const handleSave = async (data: RecursoFisico) => {
     try {
+      // Get current user ID
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      
       const dbData: TablesInsert<'recursos_fisicos'> = {
         id: data.id || undefined,
         codigo_externo: data.codigoExterno || null,
         nome: data.nome,
         custo_hora: data.custoHora || 0,
+        created_by: editingItem ? editingItem.usuarioCadastroId : currentUser?.id,
       };
 
       let recursoId = data.id;
@@ -135,6 +174,22 @@ const RecursosFisicos = () => {
             dias_semana: f.diasSemana,
           }));
           await supabase.from('rf_faixas_disponibilidade').insert(faixasData);
+        }
+      }
+
+      // Handle estoque items
+      if (data.estoqueItens) {
+        await supabase.from('rf_estoque_itens').delete().eq('recurso_fisico_id', recursoId);
+        if (data.estoqueItens.length > 0) {
+          const estoqueData = data.estoqueItens.map((item) => ({
+            recurso_fisico_id: recursoId,
+            numerador: item.numerador,
+            codigo: item.codigo || null,
+            nome: item.nome,
+            descricao: item.descricao || null,
+            created_by: currentUser?.id,
+          }));
+          await supabase.from('rf_estoque_itens').insert(estoqueData);
         }
       }
 
@@ -191,6 +246,17 @@ const RecursosFisicos = () => {
       render: (item) => formatCurrency(item.custoHora),
     },
     {
+      key: 'estoqueCount',
+      label: 'Estoque',
+      className: 'w-24',
+      render: (item) => (
+        <div className="flex items-center gap-1">
+          <Package className="w-4 h-4 text-muted-foreground" />
+          <span>{item.estoqueCount || 0}</span>
+        </div>
+      ),
+    },
+    {
       key: 'dataCadastro',
       label: 'Data Cadastro',
       className: 'w-32',
@@ -198,7 +264,10 @@ const RecursosFisicos = () => {
     {
       key: 'usuarioCadastro',
       label: 'Usuário',
-      className: 'w-32',
+      className: 'w-40',
+      render: (item) => (
+        <span className="text-muted-foreground">{item.usuarioCadastro || '-'}</span>
+      ),
     },
     {
       key: 'acoes',
