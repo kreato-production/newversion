@@ -251,12 +251,16 @@ const RecursosFisicos = () => {
       key: 'estoqueCount',
       label: 'Estoque',
       className: 'w-24',
-      render: (item) => (
-        <div className="flex items-center gap-1">
-          <Package className="w-4 h-4 text-muted-foreground" />
-          <span>{item.estoqueCount || 0}</span>
-        </div>
-      ),
+      render: (item) => {
+        const count = item.estoqueCount || 0;
+        const iconColor = count > 0 ? 'text-green-500' : 'text-red-500';
+        return (
+          <div className="flex items-center gap-1">
+            <Package className={`w-4 h-4 ${iconColor}`} />
+            <span>{count}</span>
+          </div>
+        );
+      },
     },
     {
       key: 'dataCadastro',
