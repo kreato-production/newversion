@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -38,6 +38,23 @@ import { ptBR } from 'date-fns/locale';
 import type { RecursoFisico, FaixaDisponibilidade } from '@/pages/recursos/RecursosFisicos';
 import { useWeatherForecast } from '@/hooks/useWeatherForecast';
 import { useRecursoFisicoDisponibilidade } from '@/hooks/useRecursoFisicoDisponibilidade';
+import { supabase } from '@/integrations/supabase/client';
+
+interface OcupacaoData {
+  recursoId: string;
+  data: string;
+  ocupacoes: {
+    gravacaoId: string;
+    gravacaoNome: string;
+    horaInicio: string;
+    horaFim: string;
+    duracaoMinutos: number;
+  }[];
+  totalOcupado: number;
+  totalDisponivel: number;
+  tempoLivre: number;
+  percentualOcupacao: number;
+}
 
 interface MapaRecursosFisicosModalProps {
   isOpen: boolean;
@@ -61,8 +78,16 @@ export const MapaRecursosFisicosModal = ({
   const [periodoFim, setPeriodoFim] = useState('');
   
   const { weather, loading: weatherLoading, getWeatherForDate } = useWeatherForecast(16);
-  const { getOcupacaoDetalhada, formatarMinutos } = useRecursoFisicoDisponibilidade();
+  const { getFaixasDisponiveis, formatarMinutos } = useRecursoFisicoDisponibilidade();
+  
+  const [ocupacoesMap, setOcupacoesMap] = useState<Record<string, OcupacaoData>>({});
+  const [loadingOcupacoes, setLoadingOcupacoes] = useState(false);
 
+  // Converter hora HH:mm para minutos
+  const horaParaMinutos = (hora: string): number => {
+    const [h, m] = hora.split(':').map(Number);
+    return h * 60 + m;
+  };
   // Calcular dias a exibir baseado no modo de visualização
   const diasExibidos = useMemo(() => {
     if (viewMode === 'semana') {
@@ -86,6 +111,93 @@ export const MapaRecursosFisicosModal = ({
     }
     return [];
   }, [viewMode, currentDate, periodoInicio, periodoFim]);
+
+  // Fetch ocupações do banco de dados quando o modal abre ou o período muda
+  useEffect(() => {
+    const fetchOcupacoes = async () => {
+      if (!isOpen || recursos.length === 0 || diasExibidos.length === 0) return;
+      
+      setLoadingOcupacoes(true);
+      try {
+        const dataInicio = format(diasExibidos[0], 'yyyy-MM-dd');
+        const dataFim = format(diasExibidos[diasExibidos.length - 1], 'yyyy-MM-dd');
+        
+        // Buscar todas as alocações de recursos físicos no período
+        const { data: alocacoes } = await supabase
+          .from('gravacao_recursos')
+          .select(`
+            recurso_fisico_id,
+            hora_inicio,
+            hora_fim,
+            gravacoes:gravacao_id(id, nome, codigo, data_prevista)
+          `)
+          .not('recurso_fisico_id', 'is', null)
+          .not('hora_inicio', 'is', null)
+          .not('hora_fim', 'is', null);
+        
+        const newOcupacoesMap: Record<string, OcupacaoData> = {};
+        
+        // Processar alocações por recurso e data
+        for (const alocacao of alocacoes || []) {
+          const gravacao = alocacao.gravacoes as any;
+          if (!gravacao?.data_prevista || !alocacao.recurso_fisico_id) continue;
+          
+          const dataGravacao = gravacao.data_prevista;
+          // Verificar se a data está no período exibido
+          if (dataGravacao < dataInicio || dataGravacao > dataFim) continue;
+          
+          const key = `${alocacao.recurso_fisico_id}_${dataGravacao}`;
+          
+          if (!newOcupacoesMap[key]) {
+            // Obter faixas de disponibilidade para este recurso/data
+            const faixas = getFaixasDisponiveis(alocacao.recurso_fisico_id, dataGravacao);
+            const totalDisponivel = faixas.reduce((sum, f) => {
+              return sum + (horaParaMinutos(f.horaFim) - horaParaMinutos(f.horaInicio));
+            }, 0);
+            
+            newOcupacoesMap[key] = {
+              recursoId: alocacao.recurso_fisico_id,
+              data: dataGravacao,
+              ocupacoes: [],
+              totalOcupado: 0,
+              totalDisponivel,
+              tempoLivre: totalDisponivel,
+              percentualOcupacao: 0,
+            };
+          }
+          
+          const duracaoMinutos = horaParaMinutos(alocacao.hora_fim) - horaParaMinutos(alocacao.hora_inicio);
+          
+          newOcupacoesMap[key].ocupacoes.push({
+            gravacaoId: gravacao.id,
+            gravacaoNome: gravacao.nome || gravacao.codigo,
+            horaInicio: alocacao.hora_inicio,
+            horaFim: alocacao.hora_fim,
+            duracaoMinutos,
+          });
+          
+          newOcupacoesMap[key].totalOcupado += duracaoMinutos;
+        }
+        
+        // Calcular tempoLivre e percentualOcupacao
+        for (const key of Object.keys(newOcupacoesMap)) {
+          const data = newOcupacoesMap[key];
+          data.tempoLivre = Math.max(0, data.totalDisponivel - data.totalOcupado);
+          data.percentualOcupacao = data.totalDisponivel > 0 
+            ? Math.round((data.totalOcupado / data.totalDisponivel) * 100) 
+            : 0;
+        }
+        
+        setOcupacoesMap(newOcupacoesMap);
+      } catch (error) {
+        console.error('Erro ao buscar ocupações:', error);
+      } finally {
+        setLoadingOcupacoes(false);
+      }
+    };
+    
+    fetchOcupacoes();
+  }, [isOpen, recursos, diasExibidos, getFaixasDisponiveis]);
 
   // Verificar se um dia está dentro dos próximos 15 dias (para mostrar previsão)
   const isWithinForecastRange = (dia: Date): boolean => {
@@ -385,8 +497,24 @@ export const MapaRecursosFisicosModal = ({
                     const horario = status === 'DI' ? getHorarioDisponivel(recurso, dia) : null;
                     const dataStr = format(dia, 'yyyy-MM-dd');
                     
-                    // Obter ocupação detalhada
-                    const ocupacaoDetalhada = getOcupacaoDetalhada(recurso.id, dataStr);
+                    // Obter ocupação detalhada do mapa carregado
+                    const ocupacaoKey = `${recurso.id}_${dataStr}`;
+                    const ocupacaoData = ocupacoesMap[ocupacaoKey];
+                    
+                    // Obter faixas de disponibilidade para calcular total disponível
+                    const faixas = getFaixasDisponiveis(recurso.id, dataStr);
+                    const totalDisponivelCalc = faixas.reduce((sum, f) => {
+                      return sum + (horaParaMinutos(f.horaFim) - horaParaMinutos(f.horaInicio));
+                    }, 0);
+                    
+                    const ocupacaoDetalhada = ocupacaoData || {
+                      ocupacoes: [],
+                      totalOcupado: 0,
+                      totalDisponivel: totalDisponivelCalc,
+                      tempoLivre: totalDisponivelCalc,
+                      percentualOcupacao: 0,
+                    };
+                    
                     const temOcupacoes = ocupacaoDetalhada.ocupacoes.length > 0;
                     const temDisponibilidade = ocupacaoDetalhada.totalDisponivel > 0;
                     
