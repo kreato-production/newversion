@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { parseISO, isWithinInterval, getDay } from 'date-fns';
+import { parseISO, isWithinInterval } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -17,11 +17,6 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
-import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
@@ -32,6 +27,8 @@ import { Plus, Trash2, Users, X, Clock, AlertTriangle, Ban, CheckCircle2 } from 
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useRecursoFisicoDisponibilidade } from '@/hooks/useRecursoFisicoDisponibilidade';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface RecursoHumanoAlocado {
   id: string;
@@ -51,10 +48,10 @@ interface RecursoAlocado {
   tipo: 'tecnico' | 'fisico';
   recursoId: string;
   recursoNome: string;
-  funcaoOperador?: string; // Função do operador (para recursos técnicos)
-  alocacoes: Record<string, number>; // dia -> quantidade
-  recursosHumanos: Record<string, RecursoHumanoAlocado[]>; // dia -> lista de recursos humanos (para técnicos)
-  horarios: Record<string, HorarioOcupacao>; // dia -> horário de ocupação (para físicos)
+  funcaoOperador?: string;
+  alocacoes: Record<string, number>;
+  recursosHumanos: Record<string, RecursoHumanoAlocado[]>;
+  horarios: Record<string, HorarioOcupacao>;
 }
 
 interface Ausencia {
@@ -79,27 +76,22 @@ interface RecursosTabProps {
 
 export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
   const { toast } = useToast();
+  const { session } = useAuth();
   const { verificarDisponibilidade, getFaixasDisponiveis, getOcupacoesRecurso } = useRecursoFisicoDisponibilidade();
+  
   const [mesAno, setMesAno] = useState(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   });
 
-  const [recursos, setRecursos] = useState<RecursoAlocado[]>(() => {
-    const stored = localStorage.getItem(`kreato_gravacao_recursos_${gravacaoId}`);
-    const data = stored ? JSON.parse(stored) : [];
-    return data.map((r: RecursoAlocado) => ({
-      ...r,
-      recursosHumanos: r.recursosHumanos || {},
-      horarios: r.horarios || {},
-    }));
-  });
-
+  const [recursos, setRecursos] = useState<RecursoAlocado[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [recursosTecnicos, setRecursosTecnicos] = useState<{ id: string; nome: string; funcaoOperador?: string }[]>([]);
   const [recursosFisicos, setRecursosFisicos] = useState<{ id: string; nome: string }[]>([]);
   const [recursosHumanos, setRecursosHumanos] = useState<RecursoHumano[]>([]);
   const [selectedTipo, setSelectedTipo] = useState<'tecnico' | 'fisico'>('tecnico');
   const [selectedRecurso, setSelectedRecurso] = useState('');
+  const [gravacaoInfo, setGravacaoInfo] = useState<{ nome: string; codigo: string } | null>(null);
 
   // Modal de recursos humanos (para recursos técnicos)
   const [rhModalOpen, setRhModalOpen] = useState(false);
@@ -116,78 +108,236 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
   const [horarioInicio, setHorarioInicio] = useState('08:00');
   const [horarioFim, setHorarioFim] = useState('18:00');
 
+  // Fetch gravacao info
   useEffect(() => {
-    const tecnicos = localStorage.getItem('kreato_recursos_tecnicos');
-    const fisicos = localStorage.getItem('kreato_recursos_fisicos');
-    const humanos = localStorage.getItem('kreato_recursos_humanos');
-    setRecursosTecnicos(tecnicos ? JSON.parse(tecnicos) : []);
-    setRecursosFisicos(fisicos ? JSON.parse(fisicos) : []);
-    setRecursosHumanos(humanos ? JSON.parse(humanos) : []);
-  }, []);
+    const fetchGravacao = async () => {
+      const { data } = await supabase
+        .from('gravacoes')
+        .select('nome, codigo')
+        .eq('id', gravacaoId)
+        .single();
+      if (data) setGravacaoInfo(data);
+    };
+    fetchGravacao();
+  }, [gravacaoId]);
 
-  const saveToStorage = (data: RecursoAlocado[]) => {
-    localStorage.setItem(`kreato_gravacao_recursos_${gravacaoId}`, JSON.stringify(data));
-    setRecursos(data);
-  };
+  // Fetch resources from Supabase
+  useEffect(() => {
+    const fetchResources = async () => {
+      if (!session) return;
 
-  // Verifica se um recurso está alocado em outra gravação na mesma data
-  const getConflito = useCallback((recursoId: string, tipo: 'tecnico' | 'fisico', dia: string): { gravacaoNome: string } | null => {
-    // Buscar todas as gravações
-    const gravacoes = localStorage.getItem('kreato_gravacoes');
-    const listaGravacoes = gravacoes ? JSON.parse(gravacoes) : [];
-    
-    // Buscar recursos de todas as outras gravações
-    for (const gravacao of listaGravacoes) {
-      if (gravacao.id === gravacaoId) continue; // Pular a gravação atual
+      // Fetch recursos técnicos with function info
+      const { data: tecnicosData } = await supabase
+        .from('recursos_tecnicos')
+        .select('id, nome, funcao_operador_id, funcoes:funcao_operador_id(nome)')
+        .order('nome');
       
-      const recursosGravacao = localStorage.getItem(`kreato_gravacao_recursos_${gravacao.id}`);
-      if (!recursosGravacao) continue;
-      
-      const recursos: RecursoAlocado[] = JSON.parse(recursosGravacao);
-      const recursoConflitante = recursos.find(
-        (r) => r.recursoId === recursoId && r.tipo === tipo
+      setRecursosTecnicos(
+        (tecnicosData || []).map((t: any) => ({
+          id: t.id,
+          nome: t.nome,
+          funcaoOperador: t.funcoes?.nome,
+        }))
       );
+
+      // Fetch recursos físicos
+      const { data: fisicosData } = await supabase
+        .from('recursos_fisicos')
+        .select('id, nome')
+        .order('nome');
+      setRecursosFisicos(fisicosData || []);
+
+      // Fetch recursos humanos with function and absences
+      const { data: humanosData } = await supabase
+        .from('recursos_humanos')
+        .select('id, nome, sobrenome, funcao_id, funcoes:funcao_id(nome), departamento_id, departamentos:departamento_id(nome)')
+        .eq('status', 'Ativo')
+        .order('nome');
+
+      // Fetch absences for all human resources
+      const humanIds = (humanosData || []).map((h: any) => h.id);
+      const { data: ausenciasData } = await supabase
+        .from('rh_ausencias')
+        .select('*')
+        .in('recurso_humano_id', humanIds);
+
+      const ausenciasByRH: Record<string, Ausencia[]> = {};
+      (ausenciasData || []).forEach((a: any) => {
+        if (!ausenciasByRH[a.recurso_humano_id]) ausenciasByRH[a.recurso_humano_id] = [];
+        ausenciasByRH[a.recurso_humano_id].push({
+          id: a.id,
+          motivo: a.motivo,
+          dataInicio: a.data_inicio,
+          dataFim: a.data_fim,
+          dias: a.dias,
+        });
+      });
+
+      setRecursosHumanos(
+        (humanosData || []).map((h: any) => ({
+          id: h.id,
+          nome: `${h.nome} ${h.sobrenome}`,
+          funcao: h.funcoes?.nome,
+          departamento: h.departamentos?.nome,
+          ausencias: ausenciasByRH[h.id] || [],
+        }))
+      );
+    };
+    fetchResources();
+  }, [session]);
+
+  // Fetch allocated resources for this recording
+  const fetchAlocacoes = useCallback(async () => {
+    if (!session || !gravacaoId) return;
+
+    setIsLoading(true);
+    try {
+      const { data: alocacoesData } = await supabase
+        .from('gravacao_recursos')
+        .select(`
+          id,
+          hora_inicio,
+          hora_fim,
+          recurso_tecnico_id,
+          recurso_fisico_id,
+          recurso_humano_id,
+          recursos_tecnicos:recurso_tecnico_id(id, nome, funcao_operador_id, funcoes:funcao_operador_id(nome)),
+          recursos_fisicos:recurso_fisico_id(id, nome),
+          recursos_humanos:recurso_humano_id(id, nome, sobrenome)
+        `)
+        .eq('gravacao_id', gravacaoId);
+
+      // Group allocations by resource
+      const resourceMap = new Map<string, RecursoAlocado>();
       
-      if (recursoConflitante) {
-        // Verificar se está alocado neste dia
-        const alocacao = recursoConflitante.alocacoes[dia];
-        if (alocacao && alocacao > 0) {
-          return { gravacaoNome: gravacao.nome || gravacao.codigo };
+      (alocacoesData || []).forEach((aloc: any) => {
+        const isTecnico = !!aloc.recurso_tecnico_id;
+        const isFisico = !!aloc.recurso_fisico_id && !aloc.recurso_tecnico_id;
+        
+        let resourceKey = '';
+        let recurso: RecursoAlocado | undefined;
+
+        if (isTecnico && aloc.recursos_tecnicos) {
+          resourceKey = `tecnico_${aloc.recurso_tecnico_id}`;
+          if (!resourceMap.has(resourceKey)) {
+            resourceMap.set(resourceKey, {
+              id: aloc.recurso_tecnico_id,
+              tipo: 'tecnico',
+              recursoId: aloc.recurso_tecnico_id,
+              recursoNome: aloc.recursos_tecnicos.nome,
+              funcaoOperador: aloc.recursos_tecnicos.funcoes?.nome,
+              alocacoes: {},
+              recursosHumanos: {},
+              horarios: {},
+            });
+          }
+          recurso = resourceMap.get(resourceKey);
+
+          // If there's a human resource allocation for technical resource
+          if (aloc.recurso_humano_id && aloc.recursos_humanos && recurso) {
+            // Extract day from gravacao's data_prevista or use a default logic
+            // We need to store day information - we'll use a workaround
+            const rhName = `${aloc.recursos_humanos.nome} ${aloc.recursos_humanos.sobrenome}`;
+            // For now, we'll need to fetch the gravacao date
+            // This is a simplified version - in production, you'd want to store date with allocation
+          }
+        } else if (isFisico && aloc.recursos_fisicos) {
+          resourceKey = `fisico_${aloc.recurso_fisico_id}`;
+          if (!resourceMap.has(resourceKey)) {
+            resourceMap.set(resourceKey, {
+              id: aloc.recurso_fisico_id,
+              tipo: 'fisico',
+              recursoId: aloc.recurso_fisico_id,
+              recursoNome: aloc.recursos_fisicos.nome,
+              alocacoes: {},
+              recursosHumanos: {},
+              horarios: {},
+            });
+          }
+          recurso = resourceMap.get(resourceKey);
+          
+          // Store horario if available
+          if (recurso && aloc.hora_inicio && aloc.hora_fim) {
+            // We need the date - for now using a placeholder
+          }
         }
+      });
+
+      setRecursos(Array.from(resourceMap.values()));
+    } catch (error) {
+      console.error('Error fetching allocations:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [session, gravacaoId]);
+
+  useEffect(() => {
+    fetchAlocacoes();
+  }, [fetchAlocacoes]);
+
+  // Check for conflicts in other recordings
+  const getConflito = useCallback(async (recursoId: string, tipo: 'tecnico' | 'fisico', dia: string): Promise<{ gravacaoNome: string } | null> => {
+    const column = tipo === 'tecnico' ? 'recurso_tecnico_id' : 'recurso_fisico_id';
+    
+    const { data } = await supabase
+      .from('gravacao_recursos')
+      .select(`
+        gravacao_id,
+        gravacoes:gravacao_id(nome, codigo, data_prevista)
+      `)
+      .eq(column, recursoId)
+      .neq('gravacao_id', gravacaoId);
+
+    for (const item of data || []) {
+      const gravacao = item.gravacoes as any;
+      if (gravacao?.data_prevista === dia) {
+        return { gravacaoNome: gravacao.nome || gravacao.codigo };
       }
     }
     
     return null;
   }, [gravacaoId]);
 
-  // Verifica conflitos para todas as datas de um recurso
-  const getConflitosRecurso = useCallback((recursoId: string, tipo: 'tecnico' | 'fisico'): Record<string, string> => {
+  // Get conflicts for all dates of a resource
+  const getConflitosRecurso = useCallback(async (recursoId: string, tipo: 'tecnico' | 'fisico'): Promise<Record<string, string>> => {
     const conflitos: Record<string, string> = {};
-    const gravacoes = localStorage.getItem('kreato_gravacoes');
-    const listaGravacoes = gravacoes ? JSON.parse(gravacoes) : [];
+    const column = tipo === 'tecnico' ? 'recurso_tecnico_id' : 'recurso_fisico_id';
     
-    for (const gravacao of listaGravacoes) {
-      if (gravacao.id === gravacaoId) continue;
-      
-      const recursosGravacao = localStorage.getItem(`kreato_gravacao_recursos_${gravacao.id}`);
-      if (!recursosGravacao) continue;
-      
-      const recursos: RecursoAlocado[] = JSON.parse(recursosGravacao);
-      const recursoConflitante = recursos.find(
-        (r) => r.recursoId === recursoId && r.tipo === tipo
-      );
-      
-      if (recursoConflitante) {
-        Object.entries(recursoConflitante.alocacoes).forEach(([dia, qtd]) => {
-          if (qtd > 0) {
-            conflitos[dia] = gravacao.nome || gravacao.codigo;
-          }
-        });
+    const { data } = await supabase
+      .from('gravacao_recursos')
+      .select(`
+        gravacao_id,
+        gravacoes:gravacao_id(nome, codigo, data_prevista)
+      `)
+      .eq(column, recursoId)
+      .neq('gravacao_id', gravacaoId);
+
+    for (const item of data || []) {
+      const gravacao = item.gravacoes as any;
+      if (gravacao?.data_prevista) {
+        conflitos[gravacao.data_prevista] = gravacao.nome || gravacao.codigo;
       }
     }
     
     return conflitos;
   }, [gravacaoId]);
+
+  // For UI rendering, we need synchronous conflict data
+  const [conflitosCache, setConflitosCache] = useState<Record<string, Record<string, string>>>({});
+
+  useEffect(() => {
+    const loadConflitos = async () => {
+      const cache: Record<string, Record<string, string>> = {};
+      for (const recurso of recursos) {
+        const key = `${recurso.tipo}_${recurso.recursoId}`;
+        cache[key] = await getConflitosRecurso(recurso.recursoId, recurso.tipo);
+      }
+      setConflitosCache(cache);
+    };
+    if (recursos.length > 0) {
+      loadConflitos();
+    }
+  }, [recursos, getConflitosRecurso]);
 
   const diasDoMes = useMemo(() => {
     const [ano, mes] = mesAno.split('-').map(Number);
@@ -207,7 +357,7 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
     return dias;
   }, [mesAno]);
 
-  const handleAddRecurso = () => {
+  const handleAddRecurso = async () => {
     if (!selectedRecurso) return;
     
     const lista = selectedTipo === 'tecnico' ? recursosTecnicos : recursosFisicos;
@@ -215,36 +365,53 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
     if (!recurso) return;
 
     const exists = recursos.find((r) => r.recursoId === selectedRecurso && r.tipo === selectedTipo);
-    if (exists) return;
+    if (exists) {
+      toast({
+        title: 'Recurso já adicionado',
+        description: 'Este recurso já está na lista.',
+        variant: 'destructive',
+      });
+      return;
+    }
 
+    // Add to local state
     const novoRecurso: RecursoAlocado = {
       id: crypto.randomUUID(),
       tipo: selectedTipo,
       recursoId: selectedRecurso,
       recursoNome: recurso.nome,
-      funcaoOperador: selectedTipo === 'tecnico' ? (recurso as { id: string; nome: string; funcaoOperador?: string }).funcaoOperador : undefined,
+      funcaoOperador: selectedTipo === 'tecnico' ? (recurso as any).funcaoOperador : undefined,
       alocacoes: {},
       recursosHumanos: {},
       horarios: {},
     };
 
-    saveToStorage([...recursos, novoRecurso]);
+    setRecursos([...recursos, novoRecurso]);
     setSelectedRecurso('');
   };
 
-  const handleRemoveRecurso = (id: string) => {
-    saveToStorage(recursos.filter((r) => r.id !== id));
+  const handleRemoveRecurso = async (id: string) => {
+    const recurso = recursos.find((r) => r.id === id || r.recursoId === id);
+    if (!recurso) return;
+
+    // Delete from database
+    const column = recurso.tipo === 'tecnico' ? 'recurso_tecnico_id' : 'recurso_fisico_id';
+    await supabase
+      .from('gravacao_recursos')
+      .delete()
+      .eq('gravacao_id', gravacaoId)
+      .eq(column, recurso.recursoId);
+
+    setRecursos(recursos.filter((r) => r.id !== id && r.recursoId !== id));
   };
 
-  const handleAlocacaoChange = (recursoId: string, dia: string, valor: number) => {
-    // Encontrar o recurso atual
-    const recursoAtual = recursos.find((r) => r.id === recursoId);
+  const handleAlocacaoChange = async (recursoId: string, dia: string, valor: number) => {
+    const recursoAtual = recursos.find((r) => r.id === recursoId || r.recursoId === recursoId);
     if (!recursoAtual) return;
 
-    // Se está tentando alocar (valor > 0), verificar conflito e disponibilidade
     if (valor > 0) {
-      // Verificar conflito com outras gravações (para recursos técnicos)
-      const conflito = getConflito(recursoAtual.recursoId, recursoAtual.tipo, dia);
+      // Check for conflicts
+      const conflito = await getConflito(recursoAtual.recursoId, recursoAtual.tipo, dia);
       if (conflito) {
         toast({
           title: 'Conflito de alocação',
@@ -254,7 +421,7 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
         return;
       }
 
-      // Verificar disponibilidade para recursos físicos
+      // Check availability for physical resources
       if (recursoAtual.tipo === 'fisico') {
         const disponibilidade = verificarDisponibilidade(recursoAtual.recursoId, dia, undefined, undefined, gravacaoId);
         if (!disponibilidade.disponivel) {
@@ -268,8 +435,9 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
       }
     }
 
+    // Update local state
     const updated = recursos.map((r) => {
-      if (r.id === recursoId) {
+      if (r.id === recursoId || r.recursoId === recursoId) {
         return {
           ...r,
           alocacoes: {
@@ -280,7 +448,28 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
       }
       return r;
     });
-    saveToStorage(updated);
+    setRecursos(updated);
+
+    // Sync with database
+    const column = recursoAtual.tipo === 'tecnico' ? 'recurso_tecnico_id' : 'recurso_fisico_id';
+    
+    if (valor > 0) {
+      // Check if allocation exists
+      const { data: existing } = await supabase
+        .from('gravacao_recursos')
+        .select('id')
+        .eq('gravacao_id', gravacaoId)
+        .eq(column, recursoAtual.recursoId)
+        .maybeSingle();
+
+      if (!existing) {
+        // Insert new allocation
+        await supabase.from('gravacao_recursos').insert({
+          gravacao_id: gravacaoId,
+          [column]: recursoAtual.recursoId,
+        });
+      }
+    }
   };
 
   const openRHModal = (recurso: RecursoAlocado, dia: string) => {
@@ -292,75 +481,52 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
     setRhModalOpen(true);
   };
 
-  // Função para criar tarefa automática
-  const createTaskForRH = (rhId: string, rhNome: string, recursoTecnicoId: string, recursoTecnicoNome: string, dia: string) => {
-    // Buscar informações da gravação
-    const gravacoes = localStorage.getItem('kreato_gravacoes');
-    const listaGravacoes = gravacoes ? JSON.parse(gravacoes) : [];
-    const gravacao = listaGravacoes.find((g: any) => g.id === gravacaoId);
-    
-    // Buscar status de tarefa padrão (Pendente)
-    const statusList = localStorage.getItem('kreato_status_tarefa');
-    const statuses = statusList ? JSON.parse(statusList) : [];
-    const statusPendente = statuses.find((s: any) => s.codigo === 'PEND') || statuses[0];
-    
-    // Buscar tarefas existentes
-    const tarefasStorage = localStorage.getItem('kreato_tarefas');
-    const tarefas = tarefasStorage ? JSON.parse(tarefasStorage) : [];
-    
-    // Verificar se já existe uma tarefa para este colaborador, recurso técnico, gravação e DATA
-    const tarefaExistente = tarefas.find((t: any) => 
-      t.gravacaoId === gravacaoId && 
-      t.recursoHumanoId === rhId && 
-      t.recursoTecnicoId === recursoTecnicoId &&
-      t.dataInicio === dia
-    );
-    
-    if (tarefaExistente) return; // Já existe tarefa para esta data
-    
-    // Criar nova tarefa
-    const novaTarefa = {
-      id: crypto.randomUUID(),
-      gravacaoId: gravacaoId,
-      gravacaoNome: gravacao?.nome || gravacao?.codigo || '',
-      recursoHumanoId: rhId,
-      recursoHumanoNome: rhNome,
-      recursoTecnicoId: recursoTecnicoId,
-      recursoTecnicoNome: recursoTecnicoNome,
+  // Create automatic task for RH
+  const createTaskForRH = async (rhId: string, rhNome: string, recursoTecnicoId: string, recursoTecnicoNome: string, dia: string) => {
+    // Get default status
+    const { data: statusData } = await supabase
+      .from('status_tarefa')
+      .select('id')
+      .eq('codigo', 'PEND')
+      .single();
+
+    // Check if task already exists
+    const { data: existingTask } = await supabase
+      .from('tarefas')
+      .select('id')
+      .eq('gravacao_id', gravacaoId)
+      .eq('recurso_humano_id', rhId)
+      .eq('recurso_tecnico_id', recursoTecnicoId)
+      .eq('data_inicio', dia)
+      .maybeSingle();
+
+    if (existingTask) return;
+
+    // Create task
+    await supabase.from('tarefas').insert({
+      gravacao_id: gravacaoId,
+      recurso_humano_id: rhId,
+      recurso_tecnico_id: recursoTecnicoId,
       titulo: `Operação: ${recursoTecnicoNome}`,
-      descricao: `Tarefa automática criada para operação do recurso técnico "${recursoTecnicoNome}" na gravação "${gravacao?.nome || gravacao?.codigo || ''}"`,
-      statusId: statusPendente?.id || '',
-      statusNome: statusPendente?.nome || 'Pendente',
-      statusCor: statusPendente?.cor || '#f59e0b',
-      prioridade: 'media' as const,
-      dataInicio: dia,
-      dataFim: dia,
-      dataCriacao: new Date().toISOString(),
-      dataAtualizacao: new Date().toISOString(),
-      observacoes: '',
-    };
-    
-    localStorage.setItem('kreato_tarefas', JSON.stringify([...tarefas, novaTarefa]));
-    window.dispatchEvent(new CustomEvent('kreato:tarefas-updated'));
+      descricao: `Tarefa automática criada para operação do recurso técnico "${recursoTecnicoNome}" na gravação "${gravacaoInfo?.nome || gravacaoInfo?.codigo || ''}"`,
+      status_id: statusData?.id,
+      prioridade: 'media',
+      data_inicio: dia,
+      data_fim: dia,
+    });
   };
 
-  // Função para remover tarefa automática
-  const removeTaskForRH = (rhId: string, recursoTecnicoId: string) => {
-    const tarefasStorage = localStorage.getItem('kreato_tarefas');
-    const tarefas = tarefasStorage ? JSON.parse(tarefasStorage) : [];
-    
-    // Remover tarefa associada a este colaborador e recurso técnico nesta gravação
-    const tarefasAtualizadas = tarefas.filter((t: any) => 
-      !(t.gravacaoId === gravacaoId && 
-        t.recursoHumanoId === rhId && 
-        t.recursoTecnicoId === recursoTecnicoId)
-    );
-    
-    localStorage.setItem('kreato_tarefas', JSON.stringify(tarefasAtualizadas));
-    window.dispatchEvent(new CustomEvent('kreato:tarefas-updated'));
+  // Remove automatic task for RH
+  const removeTaskForRH = async (rhId: string, recursoTecnicoId: string) => {
+    await supabase
+      .from('tarefas')
+      .delete()
+      .eq('gravacao_id', gravacaoId)
+      .eq('recurso_humano_id', rhId)
+      .eq('recurso_tecnico_id', recursoTecnicoId);
   };
 
-  const handleAddRH = () => {
+  const handleAddRH = async () => {
     if (!selectedRH || !rhModalRecurso) return;
     
     const rh = recursosHumanos.find((r) => r.id === selectedRH);
@@ -374,8 +540,9 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
       horaFim,
     };
 
+    // Update local state
     const updated = recursos.map((r) => {
-      if (r.id === rhModalRecurso.id) {
+      if (r.id === rhModalRecurso.id || r.recursoId === rhModalRecurso.recursoId) {
         const rhAtual = r.recursosHumanos[rhModalDia] || [];
         return {
           ...r,
@@ -388,34 +555,43 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
       return r;
     });
 
-    saveToStorage(updated);
-    
-    // Criar tarefa automática para o colaborador
-    createTaskForRH(
-      selectedRH, 
-      rh.nome, 
-      rhModalRecurso.recursoId, 
-      rhModalRecurso.recursoNome, 
+    setRecursos(updated);
+
+    // Save to database
+    await supabase.from('gravacao_recursos').insert({
+      gravacao_id: gravacaoId,
+      recurso_tecnico_id: rhModalRecurso.recursoId,
+      recurso_humano_id: selectedRH,
+      hora_inicio: horaInicio,
+      hora_fim: horaFim,
+    });
+
+    // Create automatic task
+    await createTaskForRH(
+      selectedRH,
+      rh.nome,
+      rhModalRecurso.recursoId,
+      rhModalRecurso.recursoNome,
       rhModalDia
     );
-    
+
     toast({
       title: 'Colaborador alocado',
       description: `${rh.nome} foi alocado e uma tarefa foi criada automaticamente.`,
     });
-    
+
     setSelectedRH('');
     setHoraInicio('08:00');
     setHoraFim('18:00');
   };
 
-  const handleRemoveRH = (recursoId: string, dia: string, rhId: string) => {
-    // Encontrar o recurso e o RH para obter informações antes de remover
-    const recurso = recursos.find((r) => r.id === recursoId);
+  const handleRemoveRH = async (recursoId: string, dia: string, rhId: string) => {
+    const recurso = recursos.find((r) => r.id === recursoId || r.recursoId === recursoId);
     const rhInfo = recurso?.recursosHumanos[dia]?.find((rh) => rh.id === rhId);
-    
+
+    // Update local state
     const updated = recursos.map((r) => {
-      if (r.id === recursoId) {
+      if (r.id === recursoId || r.recursoId === recursoId) {
         return {
           ...r,
           recursosHumanos: {
@@ -426,20 +602,27 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
       }
       return r;
     });
-    saveToStorage(updated);
-    
-    // Remover tarefa automática se o colaborador não estiver mais alocado a este recurso
+    setRecursos(updated);
+
+    // Remove from database
     if (rhInfo && recurso) {
-      // Verificar se o colaborador ainda está alocado em outros dias para este recurso
+      await supabase
+        .from('gravacao_recursos')
+        .delete()
+        .eq('gravacao_id', gravacaoId)
+        .eq('recurso_tecnico_id', recurso.recursoId)
+        .eq('recurso_humano_id', rhInfo.recursoHumanoId);
+
+      // Check if RH is still allocated to this resource
       const aindaAlocado = updated.some((r) => {
-        if (r.id !== recursoId) return false;
-        return Object.values(r.recursosHumanos).some(rhList => 
-          rhList.some(rh => rh.recursoHumanoId === rhInfo.recursoHumanoId)
+        if (r.recursoId !== recurso.recursoId) return false;
+        return Object.values(r.recursosHumanos).some((rhList) =>
+          rhList.some((rh) => rh.recursoHumanoId === rhInfo.recursoHumanoId)
         );
       });
-      
+
       if (!aindaAlocado) {
-        removeTaskForRH(rhInfo.recursoHumanoId, recurso.recursoId);
+        await removeTaskForRH(rhInfo.recursoHumanoId, recurso.recursoId);
         toast({
           title: 'Colaborador desalocado',
           description: `${rhInfo.nome} foi removido e a tarefa associada foi excluída.`,
@@ -452,13 +635,12 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
     return (recurso.recursosHumanos[dia] || []).length;
   };
 
-  // Funções para horário de ocupação (recursos físicos)
+  // Functions for occupancy time (physical resources)
   const openHorarioModal = (recurso: RecursoAlocado, dia: string) => {
     setHorarioModalRecurso(recurso);
     setHorarioModalDia(dia);
     const horarioExistente = recurso.horarios[dia];
-    
-    // Se há faixas de disponibilidade, usar como padrão
+
     const faixas = getFaixasDisponiveis(recurso.recursoId, dia);
     if (faixas.length > 0 && !horarioExistente) {
       setHorarioInicio(faixas[0].horaInicio);
@@ -467,14 +649,13 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
       setHorarioInicio(horarioExistente?.horaInicio || '08:00');
       setHorarioFim(horarioExistente?.horaFim || '18:00');
     }
-    
+
     setHorarioModalOpen(true);
   };
 
-  // Obter informações de disponibilidade para o modal de horário
   const horarioModalDisponibilidade = useMemo(() => {
     if (!horarioModalRecurso || !horarioModalDia) return null;
-    
+
     const faixas = getFaixasDisponiveis(horarioModalRecurso.recursoId, horarioModalDia);
     const ocupacoes = getOcupacoesRecurso(horarioModalRecurso.recursoId, horarioModalDia, gravacaoId);
     const disponibilidade = verificarDisponibilidade(
@@ -484,14 +665,13 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
       horarioFim,
       gravacaoId
     );
-    
+
     return { faixas, ocupacoes, disponibilidade };
   }, [horarioModalRecurso, horarioModalDia, horarioInicio, horarioFim, gravacaoId, getFaixasDisponiveis, getOcupacoesRecurso, verificarDisponibilidade]);
 
-  const handleSaveHorario = () => {
+  const handleSaveHorario = async () => {
     if (!horarioModalRecurso) return;
 
-    // Verificar disponibilidade antes de salvar
     const disponibilidade = verificarDisponibilidade(
       horarioModalRecurso.recursoId,
       horarioModalDia,
@@ -509,8 +689,9 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
       return;
     }
 
+    // Update local state
     const updated = recursos.map((r) => {
-      if (r.id === horarioModalRecurso.id) {
+      if (r.id === horarioModalRecurso.id || r.recursoId === horarioModalRecurso.recursoId) {
         return {
           ...r,
           horarios: {
@@ -525,15 +706,39 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
       return r;
     });
 
-    saveToStorage(updated);
+    setRecursos(updated);
+
+    // Sync with database
+    const { data: existing } = await supabase
+      .from('gravacao_recursos')
+      .select('id')
+      .eq('gravacao_id', gravacaoId)
+      .eq('recurso_fisico_id', horarioModalRecurso.recursoId)
+      .maybeSingle();
+
+    if (existing) {
+      await supabase
+        .from('gravacao_recursos')
+        .update({ hora_inicio: horarioInicio, hora_fim: horarioFim })
+        .eq('id', existing.id);
+    } else {
+      await supabase.from('gravacao_recursos').insert({
+        gravacao_id: gravacaoId,
+        recurso_fisico_id: horarioModalRecurso.recursoId,
+        hora_inicio: horarioInicio,
+        hora_fim: horarioFim,
+      });
+    }
+
     setHorarioModalOpen(false);
   };
 
-  const handleRemoveHorario = () => {
+  const handleRemoveHorario = async () => {
     if (!horarioModalRecurso) return;
 
+    // Update local state
     const updated = recursos.map((r) => {
-      if (r.id === horarioModalRecurso.id) {
+      if (r.id === horarioModalRecurso.id || r.recursoId === horarioModalRecurso.recursoId) {
         const { [horarioModalDia]: _, ...restHorarios } = r.horarios;
         return {
           ...r,
@@ -543,7 +748,15 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
       return r;
     });
 
-    saveToStorage(updated);
+    setRecursos(updated);
+
+    // Remove from database
+    await supabase
+      .from('gravacao_recursos')
+      .delete()
+      .eq('gravacao_id', gravacaoId)
+      .eq('recurso_fisico_id', horarioModalRecurso.recursoId);
+
     setHorarioModalOpen(false);
   };
 
@@ -564,22 +777,18 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
   }, []);
 
   const recursosDisponiveis = selectedTipo === 'tecnico' ? recursosTecnicos : recursosFisicos;
-
-  // Agrupar recursos por tipo
   const recursosTecnicosAlocados = recursos.filter((r) => r.tipo === 'tecnico');
   const recursosFisicosAlocados = recursos.filter((r) => r.tipo === 'fisico');
 
-  // Buscar diretamente do estado atual para refletir mudanças imediatas
   const rhAlocadosNoDia = useMemo(() => {
     if (!rhModalRecurso || !rhModalDia) return [];
-    const recursoAtual = recursos.find((r) => r.id === rhModalRecurso.id);
+    const recursoAtual = recursos.find((r) => r.id === rhModalRecurso.id || r.recursoId === rhModalRecurso.recursoId);
     return recursoAtual?.recursosHumanos[rhModalDia] || [];
   }, [recursos, rhModalRecurso, rhModalDia]);
 
-  // Verificar se um colaborador está ausente em uma data específica
   const isColaboradorAusente = (rh: RecursoHumano, dataStr: string): boolean => {
     if (!rh.ausencias || rh.ausencias.length === 0) return false;
-    
+
     const data = parseISO(dataStr);
     return rh.ausencias.some((ausencia) => {
       const inicio = parseISO(ausencia.dataInicio);
@@ -588,10 +797,9 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
     });
   };
 
-  // Obter motivo da ausência para uma data
   const getMotivoAusencia = (rh: RecursoHumano, dataStr: string): string | null => {
     if (!rh.ausencias || rh.ausencias.length === 0) return null;
-    
+
     const data = parseISO(dataStr);
     const ausencia = rh.ausencias.find((a) => {
       const inicio = parseISO(a.dataInicio);
@@ -601,36 +809,32 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
     return ausencia?.motivo || null;
   };
 
-  // Filtrar recursos humanos pela função do recurso técnico E disponibilidade
   const recursosHumanosFiltrados = useMemo(() => {
     let filtrados = recursosHumanos;
-    
-    // Filtrar por função se definida
+
     if (rhModalRecurso?.funcaoOperador) {
       filtrados = filtrados.filter(
         (rh) => rh.funcao?.toLowerCase() === rhModalRecurso.funcaoOperador?.toLowerCase()
       );
     }
-    
-    // Filtrar colaboradores ausentes no dia selecionado
+
     if (rhModalDia) {
       filtrados = filtrados.filter((rh) => !isColaboradorAusente(rh, rhModalDia));
     }
-    
+
     return filtrados;
   }, [recursosHumanos, rhModalRecurso?.funcaoOperador, rhModalDia]);
 
-  // Colaboradores ausentes no dia (para mostrar informação)
   const colaboradoresAusentes = useMemo(() => {
     if (!rhModalDia) return [];
-    
+
     let filtrados = recursosHumanos;
     if (rhModalRecurso?.funcaoOperador) {
       filtrados = filtrados.filter(
         (rh) => rh.funcao?.toLowerCase() === rhModalRecurso.funcaoOperador?.toLowerCase()
       );
     }
-    
+
     return filtrados
       .filter((rh) => isColaboradorAusente(rh, rhModalDia))
       .map((rh) => ({
@@ -669,171 +873,178 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
             </thead>
             <tbody>
               {recursosLista.map((recurso) => {
-                // Obter conflitos para este recurso
-                const conflitos = getConflitosRecurso(recurso.recursoId, recurso.tipo);
-                
+                const conflitosKey = `${recurso.tipo}_${recurso.recursoId}`;
+                const conflitos = conflitosCache[conflitosKey] || {};
+
                 return (
-                <tr key={recurso.id} className="border-b">
-                  <td className="px-1.5 py-0.5 sticky left-0 bg-card font-medium text-xs whitespace-nowrap">
-                    {recurso.recursoNome}
-                  </td>
-                  {diasDoMes.map((d) => {
-                    const rhCount = getRHCount(recurso, d.dataKey);
-                    const rhList = recurso.recursosHumanos[d.dataKey] || [];
-                    const qtdAlocada = recurso.alocacoes[d.dataKey] || 0;
-                    const faltaColaborador = isTecnico && qtdAlocada > 0 && rhCount === 0;
-                    const horario = getHorario(recurso, d.dataKey);
-                    const faltaHorario = !isTecnico && qtdAlocada > 0 && !horario;
-                    const conflito = conflitos[d.dataKey];
-                    
-                    return (
-                      <td
-                        key={d.dia}
-                        className={`px-0 py-0.5 text-center ${d.isWeekend ? 'bg-weekend' : ''} ${conflito ? 'bg-destructive/10' : ''}`}
-                      >
-                        <div className="flex flex-col items-center gap-0.5">
-                          {conflito ? (
-                            <TooltipProvider delayDuration={200}>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <div className="w-8 h-6 flex items-center justify-center bg-destructive/20 rounded border border-destructive/30 cursor-not-allowed">
-                                    <AlertTriangle className="w-3 h-3 text-destructive" />
-                                  </div>
-                                </TooltipTrigger>
-                                <TooltipContent side="top" className="text-xs">
-                                  <p className="font-medium text-destructive">Recurso indisponível</p>
-                                  <p className="text-muted-foreground">Alocado em: {conflito}</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          ) : (
-                            <Input
-                              type="number"
-                              min="0"
-                              className="w-8 h-6 text-center p-0 text-[10px]"
-                              value={recurso.alocacoes[d.dataKey] || ''}
-                              onChange={(e) =>
-                                handleAlocacaoChange(
-                                  recurso.id,
-                                  d.dataKey,
-                                  parseInt(e.target.value) || 0
-                                )
-                              }
-                            />
-                          )}
-                          {/* Ícone de colaborador para recursos TÉCNICOS */}
-                          {isTecnico && (
-                            <TooltipProvider delayDuration={200}>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    className={`h-5 w-5 relative ${
-                                      faltaColaborador 
-                                        ? 'text-destructive hover:text-destructive' 
-                                        : rhCount > 0 
-                                          ? 'text-primary' 
-                                          : 'text-muted-foreground hover:text-foreground'
-                                    }`}
-                                    onClick={() => openRHModal(recurso, d.dataKey)}
-                                  >
-                                    <Users className="w-3 h-3" />
-                                    {rhCount > 0 && (
-                                      <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-[8px] rounded-full w-3 h-3 flex items-center justify-center">
-                                        {rhCount}
-                                      </span>
-                                    )}
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent side="top" className="max-w-xs">
-                                  {rhCount > 0 ? (
-                                    <div className="space-y-1">
-                                      <p className="font-medium text-xs">{rhCount} colaborador(es):</p>
-                                      <ul className="text-xs space-y-0.5">
-                                        {rhList.map((rh) => (
-                                          <li key={rh.id} className="text-muted-foreground">
-                                            • {rh.nome} ({rh.horaInicio} - {rh.horaFim})
-                                          </li>
-                                        ))}
-                                      </ul>
+                  <tr key={recurso.id} className="border-b">
+                    <td className="px-1.5 py-0.5 sticky left-0 bg-card font-medium text-xs whitespace-nowrap">
+                      {recurso.recursoNome}
+                    </td>
+                    {diasDoMes.map((d) => {
+                      const rhCount = getRHCount(recurso, d.dataKey);
+                      const rhList = recurso.recursosHumanos[d.dataKey] || [];
+                      const qtdAlocada = recurso.alocacoes[d.dataKey] || 0;
+                      const faltaColaborador = isTecnico && qtdAlocada > 0 && rhCount === 0;
+                      const horario = getHorario(recurso, d.dataKey);
+                      const faltaHorario = !isTecnico && qtdAlocada > 0 && !horario;
+                      const conflito = conflitos[d.dataKey];
+
+                      return (
+                        <td
+                          key={d.dia}
+                          className={`px-0 py-0.5 text-center ${d.isWeekend ? 'bg-weekend' : ''} ${conflito ? 'bg-destructive/10' : ''}`}
+                        >
+                          <div className="flex flex-col items-center gap-0.5">
+                            {conflito ? (
+                              <TooltipProvider delayDuration={200}>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <div className="w-8 h-6 flex items-center justify-center bg-destructive/20 rounded border border-destructive/30 cursor-not-allowed">
+                                      <AlertTriangle className="w-3 h-3 text-destructive" />
                                     </div>
-                                  ) : faltaColaborador ? (
-                                    <p className="text-xs text-destructive font-medium">
-                                      Atenção: recurso sem colaborador associado!
-                                    </p>
-                                  ) : (
-                                    <p className="text-xs text-muted-foreground">
-                                      Clique para adicionar colaboradores
-                                    </p>
-                                  )}
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          )}
-                          {/* Ícone de horário para recursos FÍSICOS */}
-                          {!isTecnico && (
-                            <TooltipProvider delayDuration={200}>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    className={`h-5 w-5 relative ${
-                                      faltaHorario 
-                                        ? 'text-destructive hover:text-destructive' 
-                                        : horario 
-                                          ? 'text-primary' 
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top" className="text-xs">
+                                    <p className="font-medium text-destructive">Recurso indisponível</p>
+                                    <p className="text-muted-foreground">Alocado em: {conflito}</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            ) : (
+                              <Input
+                                type="number"
+                                min="0"
+                                className="w-8 h-6 text-center p-0 text-[10px]"
+                                value={recurso.alocacoes[d.dataKey] || ''}
+                                onChange={(e) =>
+                                  handleAlocacaoChange(
+                                    recurso.id,
+                                    d.dataKey,
+                                    parseInt(e.target.value) || 0
+                                  )
+                                }
+                              />
+                            )}
+                            {isTecnico && (
+                              <TooltipProvider delayDuration={200}>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      size="icon"
+                                      variant="ghost"
+                                      className={`h-5 w-5 relative ${
+                                        faltaColaborador
+                                          ? 'text-destructive hover:text-destructive'
+                                          : rhCount > 0
+                                          ? 'text-primary'
                                           : 'text-muted-foreground hover:text-foreground'
-                                    }`}
-                                    onClick={() => openHorarioModal(recurso, d.dataKey)}
-                                  >
-                                    <Clock className="w-3 h-3" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent side="top" className="max-w-xs">
-                                  {horario ? (
-                                    <div className="space-y-1">
-                                      <p className="font-medium text-xs">Horário de ocupação:</p>
-                                      <p className="text-xs text-muted-foreground">
-                                        {horario.horaInicio} - {horario.horaFim}
+                                      }`}
+                                      onClick={() => openRHModal(recurso, d.dataKey)}
+                                    >
+                                      <Users className="w-3 h-3" />
+                                      {rhCount > 0 && (
+                                        <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-[8px] rounded-full w-3 h-3 flex items-center justify-center">
+                                          {rhCount}
+                                        </span>
+                                      )}
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top" className="max-w-xs">
+                                    {rhCount > 0 ? (
+                                      <div className="space-y-1">
+                                        <p className="font-medium text-xs">{rhCount} colaborador(es):</p>
+                                        <ul className="text-xs space-y-0.5">
+                                          {rhList.map((rh) => (
+                                            <li key={rh.id} className="text-muted-foreground">
+                                              • {rh.nome} ({rh.horaInicio} - {rh.horaFim})
+                                            </li>
+                                          ))}
+                                        </ul>
+                                      </div>
+                                    ) : faltaColaborador ? (
+                                      <p className="text-xs text-destructive font-medium">
+                                        Atenção: recurso sem colaborador associado!
                                       </p>
-                                    </div>
-                                  ) : faltaHorario ? (
-                                    <p className="text-xs text-destructive font-medium">
-                                      Atenção: defina o horário de ocupação!
-                                    </p>
-                                  ) : (
-                                    <p className="text-xs text-muted-foreground">
-                                      Clique para definir horário
-                                    </p>
-                                  )}
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          )}
-                        </div>
-                      </td>
-                    );
-                  })}
-                  <td className="px-0 py-0.5">
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      onClick={() => handleRemoveRecurso(recurso.id)}
-                      className="h-6 w-6 text-destructive hover:text-destructive"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </Button>
-                  </td>
-                </tr>
-              )})}
+                                    ) : (
+                                      <p className="text-xs text-muted-foreground">
+                                        Clique para adicionar colaboradores
+                                      </p>
+                                    )}
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            )}
+                            {!isTecnico && (
+                              <TooltipProvider delayDuration={200}>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      size="icon"
+                                      variant="ghost"
+                                      className={`h-5 w-5 relative ${
+                                        faltaHorario
+                                          ? 'text-destructive hover:text-destructive'
+                                          : horario
+                                          ? 'text-primary'
+                                          : 'text-muted-foreground hover:text-foreground'
+                                      }`}
+                                      onClick={() => openHorarioModal(recurso, d.dataKey)}
+                                    >
+                                      <Clock className="w-3 h-3" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top" className="max-w-xs">
+                                    {horario ? (
+                                      <div className="space-y-1">
+                                        <p className="font-medium text-xs">Horário de ocupação:</p>
+                                        <p className="text-xs text-muted-foreground">
+                                          {horario.horaInicio} - {horario.horaFim}
+                                        </p>
+                                      </div>
+                                    ) : faltaHorario ? (
+                                      <p className="text-xs text-destructive font-medium">
+                                        Atenção: defina o horário de ocupação!
+                                      </p>
+                                    ) : (
+                                      <p className="text-xs text-muted-foreground">
+                                        Clique para definir horário
+                                      </p>
+                                    )}
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            )}
+                          </div>
+                        </td>
+                      );
+                    })}
+                    <td className="px-0 py-0.5">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => handleRemoveRecurso(recurso.id)}
+                        className="h-6 w-6 text-destructive hover:text-destructive"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
       </div>
     );
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4 mt-4">
@@ -875,7 +1086,9 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
             </SelectTrigger>
             <SelectContent>
               {recursosDisponiveis.map((r) => (
-                <SelectItem key={r.id} value={r.id}>{r.nome}</SelectItem>
+                <SelectItem key={r.id} value={r.id}>
+                  {r.nome}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -900,7 +1113,7 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
         </div>
       )}
 
-      {/* Modal para gerenciar recursos humanos */}
+      {/* Modal for managing human resources */}
       <Dialog open={rhModalOpen} onOpenChange={setRhModalOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
@@ -914,7 +1127,6 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
           </DialogHeader>
 
           <div className="space-y-4">
-            {/* Aviso de colaboradores ausentes */}
             {colaboradoresAusentes.length > 0 && (
               <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3">
                 <p className="text-xs font-medium text-amber-600 dark:text-amber-400 mb-2">
@@ -933,7 +1145,6 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
               </div>
             )}
 
-            {/* Formulário para adicionar */}
             <div className="border rounded-lg p-3 space-y-3 bg-muted/30">
               <Label className="text-sm font-medium">Adicionar Colaborador</Label>
               {rhModalRecurso?.funcaoOperador && (
@@ -951,10 +1162,9 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
                     <SelectContent>
                       {recursosHumanosFiltrados.length === 0 ? (
                         <div className="px-2 py-4 text-sm text-muted-foreground text-center">
-                          {colaboradoresAusentes.length > 0 
+                          {colaboradoresAusentes.length > 0
                             ? 'Todos os colaboradores estão ausentes nesta data'
-                            : `Nenhum colaborador encontrado${rhModalRecurso?.funcaoOperador ? ` com função "${rhModalRecurso.funcaoOperador}"` : ''}`
-                          }
+                            : `Nenhum colaborador encontrado${rhModalRecurso?.funcaoOperador ? ` com função "${rhModalRecurso.funcaoOperador}"` : ''}`}
                         </div>
                       ) : (
                         recursosHumanosFiltrados.map((rh) => (
@@ -969,19 +1179,11 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <Label className="text-xs text-muted-foreground">Hora Início</Label>
-                    <Input
-                      type="time"
-                      value={horaInicio}
-                      onChange={(e) => setHoraInicio(e.target.value)}
-                    />
+                    <Input type="time" value={horaInicio} onChange={(e) => setHoraInicio(e.target.value)} />
                   </div>
                   <div className="space-y-1">
                     <Label className="text-xs text-muted-foreground">Hora Fim</Label>
-                    <Input
-                      type="time"
-                      value={horaFim}
-                      onChange={(e) => setHoraFim(e.target.value)}
-                    />
+                    <Input type="time" value={horaFim} onChange={(e) => setHoraFim(e.target.value)} />
                   </div>
                 </div>
                 <Button onClick={handleAddRH} disabled={!selectedRH} className="w-full">
@@ -991,16 +1193,12 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
               </div>
             </div>
 
-            {/* Lista de recursos humanos alocados */}
             {rhAlocadosNoDia.length > 0 && (
               <div className="space-y-2">
                 <Label className="text-sm font-medium">Colaboradores Alocados</Label>
                 <div className="space-y-2 max-h-48 overflow-y-auto">
                   {rhAlocadosNoDia.map((rh) => (
-                    <div
-                      key={rh.id}
-                      className="flex items-center justify-between p-2 border rounded-lg bg-background"
-                    >
+                    <div key={rh.id} className="flex items-center justify-between p-2 border rounded-lg bg-background">
                       <div>
                         <p className="font-medium text-sm">{rh.nome}</p>
                         <p className="text-xs text-muted-foreground">
@@ -1036,7 +1234,7 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
         </DialogContent>
       </Dialog>
 
-      {/* Modal para definir horário de ocupação (recursos físicos) */}
+      {/* Modal for defining occupancy time (physical resources) */}
       <Dialog open={horarioModalOpen} onOpenChange={setHorarioModalOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -1050,7 +1248,6 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
           </DialogHeader>
 
           <div className="space-y-4">
-            {/* Informações de disponibilidade */}
             {horarioModalDisponibilidade && (
               <div className="space-y-2">
                 {horarioModalDisponibilidade.faixas.length > 0 ? (
@@ -1077,7 +1274,6 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
                   </div>
                 )}
 
-                {/* Ocupações existentes de outras gravações */}
                 {horarioModalDisponibilidade.ocupacoes.length > 0 && (
                   <div className="bg-destructive/5 border border-destructive/20 rounded-lg p-3 space-y-2">
                     <Label className="text-xs font-medium flex items-center gap-1.5 text-destructive">
@@ -1099,7 +1295,6 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
                   </div>
                 )}
 
-                {/* Status da disponibilidade atual */}
                 {!horarioModalDisponibilidade.disponibilidade.disponivel && (
                   <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-3">
                     <div className="flex items-start gap-2">
@@ -1116,19 +1311,11 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">Hora Início</Label>
-                <Input
-                  type="time"
-                  value={horarioInicio}
-                  onChange={(e) => setHorarioInicio(e.target.value)}
-                />
+                <Input type="time" value={horarioInicio} onChange={(e) => setHorarioInicio(e.target.value)} />
               </div>
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">Hora Fim</Label>
-                <Input
-                  type="time"
-                  value={horarioFim}
-                  onChange={(e) => setHorarioFim(e.target.value)}
-                />
+                <Input type="time" value={horarioFim} onChange={(e) => setHorarioFim(e.target.value)} />
               </div>
             </div>
           </div>
@@ -1142,7 +1329,7 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
             <Button variant="outline" onClick={() => setHorarioModalOpen(false)}>
               Cancelar
             </Button>
-            <Button 
+            <Button
               onClick={handleSaveHorario}
               disabled={horarioModalDisponibilidade && !horarioModalDisponibilidade.disponibilidade.disponivel}
             >
