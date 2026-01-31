@@ -480,6 +480,27 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
     // Obter informações do item de estoque selecionado
     const estoqueItem = selectedEstoqueItem ? estoqueItens.find((e) => e.id === selectedEstoqueItem) : undefined;
 
+    // Para recursos técnicos, criar registro base no banco (sem recurso_humano_id)
+    // Isso garante que o recurso técnico persista mesmo sem colaboradores associados
+    if (selectedTipo === 'tecnico') {
+      // Verificar se já existe registro base
+      const { data: existingBase } = await supabase
+        .from('gravacao_recursos')
+        .select('id')
+        .eq('gravacao_id', gravacaoId)
+        .eq('recurso_tecnico_id', selectedRecurso)
+        .is('recurso_humano_id', null)
+        .maybeSingle();
+
+      if (!existingBase) {
+        await supabase.from('gravacao_recursos').insert({
+          gravacao_id: gravacaoId,
+          recurso_tecnico_id: selectedRecurso,
+          recurso_humano_id: null,
+        });
+      }
+    }
+
     // Add to local state
     const novoRecurso: RecursoAlocado = {
       id: crypto.randomUUID(),
@@ -503,8 +524,27 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
     const recurso = recursos.find((r) => r.id === id || r.recursoId === id);
     if (!recurso) return;
 
-    // Delete from database
+    // Delete from database - inclui registro base e todas as alocações de RH
     const column = recurso.tipo === 'tecnico' ? 'recurso_tecnico_id' : 'recurso_fisico_id';
+    
+    // Para recursos técnicos, também excluir tarefas associadas
+    if (recurso.tipo === 'tecnico') {
+      // Buscar todos os RHs alocados para este recurso técnico
+      const { data: alocacoes } = await supabase
+        .from('gravacao_recursos')
+        .select('recurso_humano_id')
+        .eq('gravacao_id', gravacaoId)
+        .eq('recurso_tecnico_id', recurso.recursoId)
+        .not('recurso_humano_id', 'is', null);
+
+      // Excluir tarefas de cada colaborador
+      for (const aloc of alocacoes || []) {
+        if (aloc.recurso_humano_id) {
+          await removeTaskForRH(aloc.recurso_humano_id, recurso.recursoId);
+        }
+      }
+    }
+
     await supabase
       .from('gravacao_recursos')
       .delete()
