@@ -2,6 +2,8 @@
 // Estrutura: Módulo > Sub-módulo 1 > Sub-módulo 2 > Campo
 // Cada item tem: ação (visible/invisible), somenteLeitura, incluir, alterar, excluir
 
+import { supabase } from '@/integrations/supabase/client';
+
 export interface PermissionItem {
   id: string;
   modulo: string;
@@ -143,118 +145,108 @@ export const basePermissionsMatrix: Omit<PermissionItem, 'id'>[] = [
   { modulo: 'Recursos', subModulo1: 'Recursos Físicos', subModulo2: '-', campo: 'Código Externo', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
   { modulo: 'Recursos', subModulo1: 'Recursos Físicos', subModulo2: '-', campo: 'Custo/Hora', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
   { modulo: 'Recursos', subModulo1: 'Recursos Físicos', subModulo2: '-', campo: 'Nome', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Recursos', subModulo1: 'Recursos Físicos', subModulo2: '-', campo: 'Tabulador "Disponibilidade"', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  
+  // Recursos > Pessoas
+  { modulo: 'Recursos', subModulo1: 'Pessoas', subModulo2: '-', campo: '-', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'submodulo1' },
+  { modulo: 'Recursos', subModulo1: 'Pessoas', subModulo2: '-', campo: 'Foto', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Recursos', subModulo1: 'Pessoas', subModulo2: '-', campo: 'Código Externo', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Recursos', subModulo1: 'Pessoas', subModulo2: '-', campo: 'Nome', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Recursos', subModulo1: 'Pessoas', subModulo2: '-', campo: 'Sobrenome', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Recursos', subModulo1: 'Pessoas', subModulo2: '-', campo: 'Nome Trabalho', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Recursos', subModulo1: 'Pessoas', subModulo2: '-', campo: 'Documento', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Recursos', subModulo1: 'Pessoas', subModulo2: '-', campo: 'Data de Nascimento', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Recursos', subModulo1: 'Pessoas', subModulo2: '-', campo: 'Sexo', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Recursos', subModulo1: 'Pessoas', subModulo2: '-', campo: 'E-mail', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Recursos', subModulo1: 'Pessoas', subModulo2: '-', campo: 'Telefone', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Recursos', subModulo1: 'Pessoas', subModulo2: '-', campo: 'Endereço', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Recursos', subModulo1: 'Pessoas', subModulo2: '-', campo: 'CEP', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Recursos', subModulo1: 'Pessoas', subModulo2: '-', campo: 'Cidade', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Recursos', subModulo1: 'Pessoas', subModulo2: '-', campo: 'Estado', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Recursos', subModulo1: 'Pessoas', subModulo2: '-', campo: 'Classificação', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Recursos', subModulo1: 'Pessoas', subModulo2: '-', campo: 'Observações', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Recursos', subModulo1: 'Pessoas', subModulo2: '-', campo: 'Status', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  
+  // Recursos > Figurinos
+  { modulo: 'Recursos', subModulo1: 'Figurinos', subModulo2: '-', campo: '-', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'submodulo1' },
+  { modulo: 'Recursos', subModulo1: 'Figurinos', subModulo2: '-', campo: 'Código', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Recursos', subModulo1: 'Figurinos', subModulo2: '-', campo: 'Código Externo', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Recursos', subModulo1: 'Figurinos', subModulo2: '-', campo: 'Descrição', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Recursos', subModulo1: 'Figurinos', subModulo2: '-', campo: 'Tipo de Figurino', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Recursos', subModulo1: 'Figurinos', subModulo2: '-', campo: 'Material', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Recursos', subModulo1: 'Figurinos', subModulo2: '-', campo: 'Tamanho', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Recursos', subModulo1: 'Figurinos', subModulo2: '-', campo: 'Cor Predominante', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Recursos', subModulo1: 'Figurinos', subModulo2: '-', campo: 'Cor Secundária', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Recursos', subModulo1: 'Figurinos', subModulo2: '-', campo: 'Botão "Adicionar Imagem"', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
   
   // Recursos > Fornecedores
   { modulo: 'Recursos', subModulo1: 'Fornecedores', subModulo2: '-', campo: '-', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'submodulo1' },
   { modulo: 'Recursos', subModulo1: 'Fornecedores', subModulo2: '-', campo: 'Código Externo', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
   { modulo: 'Recursos', subModulo1: 'Fornecedores', subModulo2: '-', campo: 'Nome', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Recursos', subModulo1: 'Fornecedores', subModulo2: '-', campo: 'Identificação Fiscal', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
   { modulo: 'Recursos', subModulo1: 'Fornecedores', subModulo2: '-', campo: 'Categoria', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
   { modulo: 'Recursos', subModulo1: 'Fornecedores', subModulo2: '-', campo: 'E-mail', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
   { modulo: 'Recursos', subModulo1: 'Fornecedores', subModulo2: '-', campo: 'País', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
-  { modulo: 'Recursos', subModulo1: 'Fornecedores', subModulo2: '-', campo: 'Identificação Fiscal', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
   { modulo: 'Recursos', subModulo1: 'Fornecedores', subModulo2: '-', campo: 'Descrição', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
-  { modulo: 'Recursos', subModulo1: 'Fornecedores', subModulo2: '-', campo: 'Tabulador "Dados Gerais"', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
   { modulo: 'Recursos', subModulo1: 'Fornecedores', subModulo2: '-', campo: 'Tabulador "Serviços"', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
   
-  // Recursos > Pessoas
-  { modulo: 'Recursos', subModulo1: 'Pessoas', subModulo2: '-', campo: '-', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'submodulo1' },
-  { modulo: 'Recursos', subModulo1: 'Pessoas', subModulo2: '-', campo: 'Código Externo', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
-  { modulo: 'Recursos', subModulo1: 'Pessoas', subModulo2: '-', campo: 'Classificação', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
-  { modulo: 'Recursos', subModulo1: 'Pessoas', subModulo2: '-', campo: 'Nome', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
-  { modulo: 'Recursos', subModulo1: 'Pessoas', subModulo2: '-', campo: 'Sobrenome', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
-  { modulo: 'Recursos', subModulo1: 'Pessoas', subModulo2: '-', campo: 'Nome de Trabalho', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
-  { modulo: 'Recursos', subModulo1: 'Pessoas', subModulo2: '-', campo: 'Data de Nascimento', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
-  { modulo: 'Recursos', subModulo1: 'Pessoas', subModulo2: '-', campo: 'Sexo', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
-  { modulo: 'Recursos', subModulo1: 'Pessoas', subModulo2: '-', campo: 'CPF/Documento', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
-  { modulo: 'Recursos', subModulo1: 'Pessoas', subModulo2: '-', campo: 'E-mail', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
-  { modulo: 'Recursos', subModulo1: 'Pessoas', subModulo2: '-', campo: 'Telefone', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
-  { modulo: 'Recursos', subModulo1: 'Pessoas', subModulo2: '-', campo: 'Endereço', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
-  { modulo: 'Recursos', subModulo1: 'Pessoas', subModulo2: '-', campo: 'Cidade', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
-  { modulo: 'Recursos', subModulo1: 'Pessoas', subModulo2: '-', campo: 'Estado', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
-  { modulo: 'Recursos', subModulo1: 'Pessoas', subModulo2: '-', campo: 'CEP', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
-  { modulo: 'Recursos', subModulo1: 'Pessoas', subModulo2: '-', campo: 'Status', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
-  { modulo: 'Recursos', subModulo1: 'Pessoas', subModulo2: '-', campo: 'Observações', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
-  
-  // Recursos > Figurinos
-  { modulo: 'Recursos', subModulo1: 'Figurinos', subModulo2: '-', campo: '-', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'submodulo1' },
-  { modulo: 'Recursos', subModulo1: 'Figurinos', subModulo2: '-', campo: 'Código Externo', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
-  { modulo: 'Recursos', subModulo1: 'Figurinos', subModulo2: '-', campo: 'Código do figurino', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
-  { modulo: 'Recursos', subModulo1: 'Figurinos', subModulo2: '-', campo: 'Descrição', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
-  { modulo: 'Recursos', subModulo1: 'Figurinos', subModulo2: '-', campo: 'Tipo de Figurino', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
-  { modulo: 'Recursos', subModulo1: 'Figurinos', subModulo2: '-', campo: 'Material', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
-  { modulo: 'Recursos', subModulo1: 'Figurinos', subModulo2: '-', campo: 'Tamanho da Peça', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
-  { modulo: 'Recursos', subModulo1: 'Figurinos', subModulo2: '-', campo: 'Cor Predominante', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
-  { modulo: 'Recursos', subModulo1: 'Figurinos', subModulo2: '-', campo: 'Cor Secundária', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
-  { modulo: 'Recursos', subModulo1: 'Figurinos', subModulo2: '-', campo: 'Imagens', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
-  
   // Recursos > Parametrizações
-  { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Cargos', campo: '-', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'submodulo2' },
-  { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Cargos', campo: 'Código Externo', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
-  { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Cargos', campo: 'Nome', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
-  { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Cargos', campo: 'Descrição', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
-  
   { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Departamentos', campo: '-', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'submodulo2' },
   { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Departamentos', campo: 'Código Externo', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
   { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Departamentos', campo: 'Nome', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
   { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Departamentos', campo: 'Descrição', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Departamentos', campo: 'Funções', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
   
   { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Funções', campo: '-', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'submodulo2' },
   { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Funções', campo: 'Código Externo', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
   { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Funções', campo: 'Nome', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
   { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Funções', campo: 'Descrição', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
   
-  { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Serviços', campo: '-', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'submodulo2' },
-  { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Serviços', campo: 'Código Externo', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
-  { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Serviços', campo: 'Nome', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
-  { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Serviços', campo: 'Descrição', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Cargos', campo: '-', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'submodulo2' },
+  { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Cargos', campo: 'Código Externo', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Cargos', campo: 'Nome', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Cargos', campo: 'Descrição', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  
+  { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Classificação de Pessoas', campo: '-', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'submodulo2' },
+  { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Classificação de Pessoas', campo: 'Código Externo', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Classificação de Pessoas', campo: 'Nome', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Classificação de Pessoas', campo: 'Descrição', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  
+  { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Tipo de Figurino', campo: '-', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'submodulo2' },
+  { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Tipo de Figurino', campo: 'Código Externo', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Tipo de Figurino', campo: 'Nome', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Tipo de Figurino', campo: 'Descrição', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Tipo de Figurino', campo: 'Status', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  
+  { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Material', campo: '-', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'submodulo2' },
+  { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Material', campo: 'Código Externo', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Material', campo: 'Nome', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Material', campo: 'Descrição', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Material', campo: 'Status', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
   
   { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Categoria de Fornecedores', campo: '-', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'submodulo2' },
   { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Categoria de Fornecedores', campo: 'Código Externo', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
   { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Categoria de Fornecedores', campo: 'Nome', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
   { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Categoria de Fornecedores', campo: 'Descrição', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
   
-  { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Classificação Pessoas', campo: '-', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'submodulo2' },
-  { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Classificação Pessoas', campo: 'Código Externo', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
-  { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Classificação Pessoas', campo: 'Nome', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
-  { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Classificação Pessoas', campo: 'Descrição', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
-  
-  { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Tipo Figurino', campo: '-', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'submodulo2' },
-  { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Tipo Figurino', campo: 'Código Externo', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
-  { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Tipo Figurino', campo: 'Nome', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
-  { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Tipo Figurino', campo: 'Descrição', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
-  
-  { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Material', campo: '-', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'submodulo2' },
-  { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Material', campo: 'Código Externo', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
-  { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Material', campo: 'Nome', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
-  { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Material', campo: 'Descrição', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Serviços', campo: '-', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'submodulo2' },
+  { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Serviços', campo: 'Código Externo', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Serviços', campo: 'Nome', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Serviços', campo: 'Descrição', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
   
   // Administração
   { modulo: 'Administração', subModulo1: '-', subModulo2: '-', campo: '-', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'modulo' },
   
-  // Administração > Unidade de Negócio
-  { modulo: 'Administração', subModulo1: 'Unidade de Negócio', subModulo2: '-', campo: '-', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'submodulo1' },
-  { modulo: 'Administração', subModulo1: 'Unidade de Negócio', subModulo2: '-', campo: 'Logotipo', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
-  { modulo: 'Administração', subModulo1: 'Unidade de Negócio', subModulo2: '-', campo: 'Código Externo', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
-  { modulo: 'Administração', subModulo1: 'Unidade de Negócio', subModulo2: '-', campo: 'Nome', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
-  { modulo: 'Administração', subModulo1: 'Unidade de Negócio', subModulo2: '-', campo: 'Descrição', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
-  
-  // Administração > Centro de Lucro
-  { modulo: 'Administração', subModulo1: 'Centro de Lucro', subModulo2: '-', campo: '-', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'submodulo1' },
-  { modulo: 'Administração', subModulo1: 'Centro de Lucro', subModulo2: '-', campo: 'Código Externo', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
-  { modulo: 'Administração', subModulo1: 'Centro de Lucro', subModulo2: '-', campo: 'Status', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
-  { modulo: 'Administração', subModulo1: 'Centro de Lucro', subModulo2: '-', campo: 'Nome', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
-  { modulo: 'Administração', subModulo1: 'Centro de Lucro', subModulo2: '-', campo: 'Centro de Lucro Pai', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
-  { modulo: 'Administração', subModulo1: 'Centro de Lucro', subModulo2: '-', campo: 'Descrição', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
-  
   // Administração > Usuários
   { modulo: 'Administração', subModulo1: 'Usuários', subModulo2: '-', campo: '-', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'submodulo1' },
+  { modulo: 'Administração', subModulo1: 'Usuários', subModulo2: '-', campo: 'Foto', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
   { modulo: 'Administração', subModulo1: 'Usuários', subModulo2: '-', campo: 'Código Externo', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
   { modulo: 'Administração', subModulo1: 'Usuários', subModulo2: '-', campo: 'Nome', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
-  { modulo: 'Administração', subModulo1: 'Usuários', subModulo2: '-', campo: 'E-mail', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
   { modulo: 'Administração', subModulo1: 'Usuários', subModulo2: '-', campo: 'Usuário', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Administração', subModulo1: 'Usuários', subModulo2: '-', campo: 'E-mail', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
   { modulo: 'Administração', subModulo1: 'Usuários', subModulo2: '-', campo: 'Perfil de Acesso', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
-  { modulo: 'Administração', subModulo1: 'Usuários', subModulo2: '-', campo: 'Tabulador "Dados Gerais"', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
-  { modulo: 'Administração', subModulo1: 'Usuários', subModulo2: '-', campo: 'Tabulador "Unidade de Negócio"', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Administração', subModulo1: 'Usuários', subModulo2: '-', campo: 'Unidades de Negócio', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Administração', subModulo1: 'Usuários', subModulo2: '-', campo: 'Descrição', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
   
   // Administração > Perfis de Acesso
   { modulo: 'Administração', subModulo1: 'Perfis de Acesso', subModulo2: '-', campo: '-', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'submodulo1' },
@@ -263,22 +255,30 @@ export const basePermissionsMatrix: Omit<PermissionItem, 'id'>[] = [
   { modulo: 'Administração', subModulo1: 'Perfis de Acesso', subModulo2: '-', campo: 'Descrição', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
   { modulo: 'Administração', subModulo1: 'Perfis de Acesso', subModulo2: '-', campo: 'Tabulador "Permissões"', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
   
-  // Produção > Parametrizações (item pai)
-  { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: '-', campo: '-', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'submodulo1' },
+  // Administração > Unidades de Negócio
+  { modulo: 'Administração', subModulo1: 'Unidades de Negócio', subModulo2: '-', campo: '-', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'submodulo1' },
+  { modulo: 'Administração', subModulo1: 'Unidades de Negócio', subModulo2: '-', campo: 'Código Externo', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Administração', subModulo1: 'Unidades de Negócio', subModulo2: '-', campo: 'Nome', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Administração', subModulo1: 'Unidades de Negócio', subModulo2: '-', campo: 'Descrição', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
   
-  // Recursos > Parametrizações (item pai)
-  { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: '-', campo: '-', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'submodulo1' },
+  // Administração > Centros de Lucro
+  { modulo: 'Administração', subModulo1: 'Centros de Lucro', subModulo2: '-', campo: '-', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'submodulo1' },
+  { modulo: 'Administração', subModulo1: 'Centros de Lucro', subModulo2: '-', campo: 'Código Externo', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Administração', subModulo1: 'Centros de Lucro', subModulo2: '-', campo: 'Nome', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Administração', subModulo1: 'Centros de Lucro', subModulo2: '-', campo: 'Descrição', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Administração', subModulo1: 'Centros de Lucro', subModulo2: '-', campo: 'Status', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Administração', subModulo1: 'Centros de Lucro', subModulo2: '-', campo: 'Centro de Lucro Superior', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
 ];
 
 // Gera a matriz com IDs
 export const getPermissionsMatrixWithIds = (): PermissionItem[] => {
-  return basePermissionsMatrix.map((item) => ({
+  return basePermissionsMatrix.map(item => ({
     ...item,
     id: generatePermissionId(item.modulo, item.subModulo1, item.subModulo2, item.campo),
   }));
 };
 
-// Cria permissões padrão para um novo perfil (REGRA 1)
+// Cria permissões padrão para um novo perfil
 export const createDefaultPermissions = (perfilId: string): PerfilPermissoes => {
   return {
     perfilId,
@@ -286,77 +286,145 @@ export const createDefaultPermissions = (perfilId: string): PerfilPermissoes => 
   };
 };
 
-// Clona permissões de um perfil existente
-export const clonePermissions = (sourcePerfilId: string, targetPerfilId: string): PerfilPermissoes | null => {
-  const stored = localStorage.getItem('kreato_perfil_permissoes');
-  if (!stored) return null;
-  
-  const allPermissions: PerfilPermissoes[] = JSON.parse(stored);
-  const sourcePermissions = allPermissions.find(p => p.perfilId === sourcePerfilId);
-  
-  if (!sourcePermissions) return null;
-  
+// Clona permissões de um perfil para outro (async version using Supabase)
+export const clonePermissionsAsync = async (sourcePerfilId: string, targetPerfilId: string): Promise<PerfilPermissoes | null> => {
+  const { data: sourceData } = await supabase
+    .from('perfil_permissoes')
+    .select('*')
+    .eq('perfil_id', sourcePerfilId);
+
+  if (!sourceData || sourceData.length === 0) return null;
+
+  const clonedPermissions: PermissionItem[] = sourceData.map(p => ({
+    id: generatePermissionId(p.modulo, p.sub_modulo1 || '-', p.sub_modulo2 || '-', p.campo || '-'),
+    modulo: p.modulo,
+    subModulo1: p.sub_modulo1 || '-',
+    subModulo2: p.sub_modulo2 || '-',
+    campo: p.campo || '-',
+    acao: p.acao as 'visible' | 'invisible',
+    somenteLeitura: p.somente_leitura || false,
+    incluir: p.incluir !== false,
+    alterar: p.alterar !== false,
+    excluir: p.excluir !== false,
+    tipo: p.tipo as 'modulo' | 'submodulo1' | 'submodulo2' | 'campo',
+  }));
+
   return {
     perfilId: targetPerfilId,
-    permissoes: sourcePermissions.permissoes.map(p => ({ ...p })),
+    permissoes: clonedPermissions,
   };
 };
 
-// Salva permissões de um perfil
-export const savePerfilPermissions = (perfilPermissoes: PerfilPermissoes): void => {
-  const stored = localStorage.getItem('kreato_perfil_permissoes');
-  const allPermissions: PerfilPermissoes[] = stored ? JSON.parse(stored) : [];
-  
-  const existingIndex = allPermissions.findIndex(p => p.perfilId === perfilPermissoes.perfilId);
-  
-  if (existingIndex >= 0) {
-    allPermissions[existingIndex] = perfilPermissoes;
-  } else {
-    allPermissions.push(perfilPermissoes);
-  }
-  
-  localStorage.setItem('kreato_perfil_permissoes', JSON.stringify(allPermissions));
+// Legacy sync version for backward compatibility
+export const clonePermissions = (sourcePerfilId: string, targetPerfilId: string): PerfilPermissoes | null => {
+  // This is a fallback - prefer clonePermissionsAsync
+  console.warn('clonePermissions is deprecated, use clonePermissionsAsync instead');
+  return null;
 };
 
-// Obtém permissões de um perfil
+// Salva permissões de um perfil no Supabase
+export const savePerfilPermissionsAsync = async (perfilPermissoes: PerfilPermissoes): Promise<void> => {
+  const { perfilId, permissoes } = perfilPermissoes;
+
+  // Delete existing permissions for this profile
+  await supabase.from('perfil_permissoes').delete().eq('perfil_id', perfilId);
+
+  // Insert new permissions
+  const dbPermissions = permissoes.map(p => ({
+    perfil_id: perfilId,
+    modulo: p.modulo,
+    sub_modulo1: p.subModulo1,
+    sub_modulo2: p.subModulo2,
+    campo: p.campo,
+    acao: p.acao,
+    somente_leitura: p.somenteLeitura,
+    incluir: p.incluir,
+    alterar: p.alterar,
+    excluir: p.excluir,
+    tipo: p.tipo,
+  }));
+
+  if (dbPermissions.length > 0) {
+    await supabase.from('perfil_permissoes').insert(dbPermissions);
+  }
+};
+
+// Legacy sync version - deprecated
+export const savePerfilPermissions = (perfilPermissoes: PerfilPermissoes): void => {
+  // Fire and forget async version for backward compatibility
+  savePerfilPermissionsAsync(perfilPermissoes).catch(console.error);
+};
+
+// Obtém permissões de um perfil do Supabase
+export const getPerfilPermissionsAsync = async (perfilId: string): Promise<PerfilPermissoes | null> => {
+  const { data } = await supabase
+    .from('perfil_permissoes')
+    .select('*')
+    .eq('perfil_id', perfilId);
+
+  if (!data || data.length === 0) return null;
+
+  const permissoes: PermissionItem[] = data.map(p => ({
+    id: generatePermissionId(p.modulo, p.sub_modulo1 || '-', p.sub_modulo2 || '-', p.campo || '-'),
+    modulo: p.modulo,
+    subModulo1: p.sub_modulo1 || '-',
+    subModulo2: p.sub_modulo2 || '-',
+    campo: p.campo || '-',
+    acao: p.acao as 'visible' | 'invisible',
+    somenteLeitura: p.somente_leitura || false,
+    incluir: p.incluir !== false,
+    alterar: p.alterar !== false,
+    excluir: p.excluir !== false,
+    tipo: p.tipo as 'modulo' | 'submodulo1' | 'submodulo2' | 'campo',
+  }));
+
+  return { perfilId, permissoes };
+};
+
+// Legacy sync version - deprecated
 export const getPerfilPermissions = (perfilId: string): PerfilPermissoes | null => {
-  const stored = localStorage.getItem('kreato_perfil_permissoes');
-  if (!stored) return null;
-  
-  const allPermissions: PerfilPermissoes[] = JSON.parse(stored);
-  return allPermissions.find(p => p.perfilId === perfilId) || null;
+  console.warn('getPerfilPermissions is deprecated, use getPerfilPermissionsAsync instead');
+  return null;
 };
 
 // Sincroniza a matriz de permissões (REGRA 4) - adiciona novos campos que possam ter sido criados
-export const syncPermissionsMatrix = (perfilId: string): PerfilPermissoes => {
+export const syncPermissionsMatrixAsync = async (perfilId: string): Promise<PerfilPermissoes> => {
   const currentMatrix = getPermissionsMatrixWithIds();
-  const existingPermissions = getPerfilPermissions(perfilId);
-  
+  const existingPermissions = await getPerfilPermissionsAsync(perfilId);
+
   if (!existingPermissions) {
-    return createDefaultPermissions(perfilId);
+    const defaultPerms = createDefaultPermissions(perfilId);
+    await savePerfilPermissionsAsync(defaultPerms);
+    return defaultPerms;
   }
-  
+
   const existingIds = new Set(existingPermissions.permissoes.map(p => p.id));
   const updatedPermissions = [...existingPermissions.permissoes];
-  
+
   // Adiciona novos itens que não existem
   currentMatrix.forEach(item => {
     if (!existingIds.has(item.id)) {
       updatedPermissions.push(item);
     }
   });
-  
+
   // Remove itens que não existem mais na matriz base
   const currentIds = new Set(currentMatrix.map(p => p.id));
   const filteredPermissions = updatedPermissions.filter(p => currentIds.has(p.id));
-  
+
   const syncedPermissions: PerfilPermissoes = {
     perfilId,
     permissoes: filteredPermissions,
   };
-  
-  savePerfilPermissions(syncedPermissions);
+
+  await savePerfilPermissionsAsync(syncedPermissions);
   return syncedPermissions;
+};
+
+// Legacy sync version
+export const syncPermissionsMatrix = (perfilId: string): PerfilPermissoes => {
+  console.warn('syncPermissionsMatrix is deprecated, use syncPermissionsMatrixAsync instead');
+  return createDefaultPermissions(perfilId);
 };
 
 // Obtém módulos únicos

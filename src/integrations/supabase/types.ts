@@ -585,6 +585,68 @@ export type Database = {
         }
         Relationships: []
       }
+      gravacao_cenas: {
+        Row: {
+          ambiente: string | null
+          capitulo: string | null
+          created_at: string | null
+          descricao: string | null
+          figurantes: string[] | null
+          gravacao_id: string
+          id: string
+          local_gravacao: string | null
+          numero_cena: string | null
+          ordem: number
+          periodo: string | null
+          personagens: string[] | null
+          ritmo: string | null
+          tempo_aproximado: string | null
+          tipo_ambiente: string | null
+        }
+        Insert: {
+          ambiente?: string | null
+          capitulo?: string | null
+          created_at?: string | null
+          descricao?: string | null
+          figurantes?: string[] | null
+          gravacao_id: string
+          id?: string
+          local_gravacao?: string | null
+          numero_cena?: string | null
+          ordem?: number
+          periodo?: string | null
+          personagens?: string[] | null
+          ritmo?: string | null
+          tempo_aproximado?: string | null
+          tipo_ambiente?: string | null
+        }
+        Update: {
+          ambiente?: string | null
+          capitulo?: string | null
+          created_at?: string | null
+          descricao?: string | null
+          figurantes?: string[] | null
+          gravacao_id?: string
+          id?: string
+          local_gravacao?: string | null
+          numero_cena?: string | null
+          ordem?: number
+          periodo?: string | null
+          personagens?: string[] | null
+          ritmo?: string | null
+          tempo_aproximado?: string | null
+          tipo_ambiente?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gravacao_cenas_gravacao_id_fkey"
+            columns: ["gravacao_id"]
+            isOneToOne: false
+            referencedRelation: "gravacoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       gravacao_convidados: {
         Row: {
           created_at: string | null
