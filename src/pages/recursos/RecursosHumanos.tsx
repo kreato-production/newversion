@@ -167,6 +167,12 @@ const RecursosHumanos = () => {
 
   const handleSave = async (data: RecursoHumano) => {
     try {
+      // Validate and map sexo value - send null if empty or invalid
+      const validSexoValues = ['Masculino', 'Feminino', 'Outro'];
+      const sexoValue = data.sexo && validSexoValues.includes(data.sexo) 
+        ? (data.sexo as 'Masculino' | 'Feminino' | 'Outro') 
+        : null;
+
       const dbData: TablesInsert<'recursos_humanos'> = {
         id: data.id || undefined,
         codigo_externo: data.codigoExterno || null,
@@ -174,7 +180,7 @@ const RecursosHumanos = () => {
         sobrenome: data.sobrenome,
         foto_url: data.foto || null,
         data_nascimento: data.dataNascimento || null,
-        sexo: data.sexo as 'Masculino' | 'Feminino' | 'Outro' | null,
+        sexo: sexoValue,
         telefone: data.telefone || null,
         email: data.email || null,
         departamento_id: data.departamentoId || null,
