@@ -415,50 +415,45 @@ const Mapas = () => {
     return ocupacoes;
   }, [alocacoesPorGravacao, gravacoes]);
 
-  // Calcular ocupações de recursos humanos baseado nas alocações
+  // Calcular ocupações de recursos humanos baseado nas tarefas
   const ocupacoesHumanas = useMemo(() => {
     const ocupacoes: Record<string, Record<string, OcupacaoItem[]>> = {};
 
-    Object.entries(alocacoesPorGravacao).forEach(([gravacaoId, recursos]) => {
-      const gravacao = gravacoes.find((g) => g.id === gravacaoId);
+    // As ocupações de RH vêm das tarefas que têm recurso_humano_id
+    tarefas.forEach((tarefa) => {
+      if (!tarefa.recursoHumanoId || !tarefa.dataInicio) return;
+
+      const gravacao = gravacoes.find((g) => g.id === tarefa.gravacaoId);
       if (!gravacao) return;
 
-      recursos
-        .filter((r) => r.tipo === 'tecnico')
-        .forEach((recurso) => {
-          Object.entries(recurso.recursosHumanos || {}).forEach(([dia, rhList]) => {
-            rhList.forEach((rh) => {
-              if (!ocupacoes[rh.recursoHumanoId]) {
-                ocupacoes[rh.recursoHumanoId] = {};
-              }
+      const dia = tarefa.dataInicio;
 
-              if (!ocupacoes[rh.recursoHumanoId][dia]) {
-                ocupacoes[rh.recursoHumanoId][dia] = [];
-              }
+      if (!ocupacoes[tarefa.recursoHumanoId]) {
+        ocupacoes[tarefa.recursoHumanoId] = {};
+      }
 
-              // Buscar a tarefa correspondente para obter a cor do status (considerando a data)
-              const tarefaCorrespondente = tarefas.find(
-                (t) =>
-                  t.gravacaoId === gravacaoId &&
-                  t.recursoHumanoId === rh.recursoHumanoId &&
-                  t.recursoTecnicoId === recurso.recursoId &&
-                  t.dataInicio === dia
-              );
+      if (!ocupacoes[tarefa.recursoHumanoId][dia]) {
+        ocupacoes[tarefa.recursoHumanoId][dia] = [];
+      }
 
-              ocupacoes[rh.recursoHumanoId][dia].push({
-                gravacao: gravacao.nome,
-                gravacaoId: gravacao.id,
-                horario: `${rh.horaInicio} - ${rh.horaFim}`,
-                recursoHumanoId: rh.recursoHumanoId,
-                statusCor: tarefaCorrespondente?.statusCor,
-              });
-            });
-          });
+      // Evitar duplicatas
+      const jaExiste = ocupacoes[tarefa.recursoHumanoId][dia].some(
+        (oc) => oc.gravacaoId === gravacao.id && oc.recursoHumanoId === tarefa.recursoHumanoId
+      );
+
+      if (!jaExiste) {
+        ocupacoes[tarefa.recursoHumanoId][dia].push({
+          gravacao: gravacao.nome,
+          gravacaoId: gravacao.id,
+          horario: 'Conforme escala',
+          recursoHumanoId: tarefa.recursoHumanoId,
+          statusCor: tarefa.statusCor,
         });
+      }
     });
 
     return ocupacoes;
-  }, [alocacoesPorGravacao, gravacoes, tarefas]);
+  }, [gravacoes, tarefas]);
 
   // Obter tipos únicos de recursos físicos
   const tiposRecursoFisico = useMemo(() => {
