@@ -273,7 +273,7 @@ export const EstoqueTab = ({ recursoFisicoId, itens, onItensChange }: EstoqueTab
                             <img 
                               src={item.imagemUrl} 
                               alt={item.nome}
-                              className="w-48 h-48 rounded-lg object-cover shadow-lg border bg-background"
+                              className="w-80 h-80 rounded-lg object-cover shadow-xl border-2 bg-background"
                             />
                           </div>
                         </div>
