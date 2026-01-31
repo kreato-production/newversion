@@ -112,7 +112,7 @@ const Mapas = () => {
   const { getWeatherForDate, loading: weatherLoading } = useWeatherForecast(16);
   
   // Hook de disponibilidade de recursos físicos
-  const { getOcupacaoDetalhada, getFaixasDisponiveis } = useRecursoFisicoDisponibilidade();
+  const { getFaixasDisponiveis } = useRecursoFisicoDisponibilidade();
   
   // Helper para verificar se dia está dentro do range de previsão (próximos 15 dias)
   const isWithinForecastRange = (dia: Date): boolean => {
@@ -1065,12 +1065,30 @@ const Mapas = () => {
                   const isWeekend = getDay(day) === 0 || getDay(day) === 6;
                   const dataStr = format(day, 'yyyy-MM-dd');
                   
-                  // Obter informações de disponibilidade e ocupação para recursos físicos
-                  const ocupacaoDetalhada = showWeather ? getOcupacaoDetalhada(recurso.id, dataStr) : null;
-                  const temFaixas = ocupacaoDetalhada && ocupacaoDetalhada.totalDisponivel > 0;
+                  // Obter informações de disponibilidade para recursos físicos
+                  const faixasDisponiveis = showWeather ? getFaixasDisponiveis(recurso.id, dataStr) : [];
+                  const totalDisponivelMinutos = faixasDisponiveis.reduce((sum, f) => {
+                    const [horaIni, minIni] = f.horaInicio.split(':').map(Number);
+                    const [horaFim, minFim] = f.horaFim.split(':').map(Number);
+                    return sum + ((horaFim * 60 + minFim) - (horaIni * 60 + minIni));
+                  }, 0);
+                  const temFaixas = totalDisponivelMinutos > 0;
                   
-                  // Calcular duração total ocupada neste dia
+                  // Calcular duração total ocupada neste dia baseado nas ocupações reais
                   const duracaoTotalMinutos = ocupacoesDia.reduce((sum, oc) => sum + (oc.duracaoMinutos || 0), 0);
+                  const tempoLivreMinutos = Math.max(0, totalDisponivelMinutos - duracaoTotalMinutos);
+                  const percentualOcupacao = totalDisponivelMinutos > 0 
+                    ? Math.round((duracaoTotalMinutos / totalDisponivelMinutos) * 100)
+                    : 0;
+                  
+                  // Criar objeto de ocupação detalhada com dados reais
+                  const ocupacaoDetalhada = temFaixas ? {
+                    totalDisponivel: totalDisponivelMinutos,
+                    totalOcupado: duracaoTotalMinutos,
+                    tempoLivre: tempoLivreMinutos,
+                    percentualOcupacao,
+                  } : null;
+                  
                   const duracaoHoras = Math.floor(duracaoTotalMinutos / 60);
                   const duracaoMinutos = duracaoTotalMinutos % 60;
                   const duracaoStr = duracaoTotalMinutos > 0 
