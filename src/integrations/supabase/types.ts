@@ -1423,6 +1423,7 @@ export type Database = {
           created_by: string | null
           descricao: string | null
           id: string
+          imagem_url: string | null
           nome: string
           numerador: number
           recurso_fisico_id: string
@@ -1433,6 +1434,7 @@ export type Database = {
           created_by?: string | null
           descricao?: string | null
           id?: string
+          imagem_url?: string | null
           nome: string
           numerador: number
           recurso_fisico_id: string
@@ -1443,6 +1445,7 @@ export type Database = {
           created_by?: string | null
           descricao?: string | null
           id?: string
+          imagem_url?: string | null
           nome?: string
           numerador?: number
           recurso_fisico_id?: string

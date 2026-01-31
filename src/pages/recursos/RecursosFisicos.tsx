@@ -109,6 +109,7 @@ const RecursosFisicos = () => {
             codigo: item.codigo || '',
             nome: item.nome,
             descricao: item.descricao || '',
+            imagemUrl: item.imagem_url || '',
           }));
 
           const usuarioNome = rf.created_by ? profilesMap.get(rf.created_by) || '' : '';
@@ -187,6 +188,7 @@ const RecursosFisicos = () => {
             codigo: item.codigo || null,
             nome: item.nome,
             descricao: item.descricao || null,
+            imagem_url: item.imagemUrl || null,
             created_by: currentUser?.id,
           }));
           await supabase.from('rf_estoque_itens').insert(estoqueData);
