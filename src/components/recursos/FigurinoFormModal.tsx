@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Trash2, Star, Upload } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Figurino, FigurinoImagem } from '@/pages/recursos/Figurinos';
+import { supabase } from '@/integrations/supabase/client';
 
 interface TipoFigurino {
   id: string;
@@ -26,7 +27,7 @@ interface FigurinoFormModalProps {
 }
 
 const FigurinoFormModal = ({ isOpen, onClose, onSave, data }: FigurinoFormModalProps) => {
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const [tiposFigurino, setTiposFigurino] = useState<TipoFigurino[]>([]);
   const [materiais, setMateriais] = useState<MaterialItem[]>([]);
   
@@ -44,19 +45,43 @@ const FigurinoFormModal = ({ isOpen, onClose, onSave, data }: FigurinoFormModalP
   const [formData, setFormData] = useState(emptyFormData);
   const [imagens, setImagens] = useState<FigurinoImagem[]>([]);
 
+  const fetchDropdownData = useCallback(async () => {
+    if (!session) return;
+
+    try {
+      // Fetch tipos de figurino from Supabase
+      const { data: tiposData } = await supabase
+        .from('tipos_figurino')
+        .select('id, nome, status')
+        .eq('status', 'Ativo')
+        .order('nome');
+
+      setTiposFigurino((tiposData || []).map((t: any) => ({
+        id: t.id,
+        nome: t.nome,
+      })));
+
+      // Fetch materiais from Supabase
+      const { data: materiaisData } = await supabase
+        .from('materiais')
+        .select('id, nome, status')
+        .eq('status', 'Ativo')
+        .order('nome');
+
+      setMateriais((materiaisData || []).map((m: any) => ({
+        id: m.id,
+        nome: m.nome,
+      })));
+    } catch (err) {
+      console.error('Error fetching dropdown data:', err);
+    }
+  }, [session]);
+
   useEffect(() => {
-    const storedTipos = localStorage.getItem('kreato_tipo_figurino');
-    if (storedTipos) {
-      const parsed = JSON.parse(storedTipos);
-      setTiposFigurino(parsed.filter((t: TipoFigurino & { status?: string }) => t.status !== 'Inativo'));
+    if (isOpen) {
+      fetchDropdownData();
     }
-    
-    const storedMateriais = localStorage.getItem('kreato_material');
-    if (storedMateriais) {
-      const parsed = JSON.parse(storedMateriais);
-      setMateriais(parsed.filter((m: MaterialItem & { status?: string }) => m.status !== 'Inativo'));
-    }
-  }, [isOpen]);
+  }, [isOpen, fetchDropdownData]);
 
   useEffect(() => {
     if (data) {

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -21,12 +21,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Trash2, Building2, DollarSign } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Fornecedor {
   id: string;
   nome: string;
   categoria?: string;
-  servicos?: string[];
 }
 
 interface Servico {
@@ -52,64 +53,80 @@ const formatCurrency = (value: number) =>
 
 export const TerceirosTab = ({ gravacaoId }: TerceirosTabProps) => {
   const { toast } = useToast();
+  const { session } = useAuth();
   const [terceiros, setTerceiros] = useState<TerceiroAlocado[]>([]);
   const [fornecedores, setFornecedores] = useState<Fornecedor[]>([]);
   const [servicos, setServicos] = useState<Servico[]>([]);
+  const [servicosFornecedor, setServicosFornecedor] = useState<Servico[]>([]);
   
   const [selectedFornecedor, setSelectedFornecedor] = useState('');
   const [selectedServico, setSelectedServico] = useState('');
   const [custo, setCusto] = useState('');
 
-  const storageKey = `kreato_gravacao_terceiros_${gravacaoId}`;
+  const fetchData = useCallback(async () => {
+    if (!session) return;
+
+    try {
+      // Fetch terceiros alocados from Supabase
+      const { data: terceirosData } = await supabase
+        .from('gravacao_terceiros')
+        .select('*, fornecedores:fornecedor_id(id, nome), fornecedor_servicos:servico_id(id, nome)')
+        .eq('gravacao_id', gravacaoId);
+
+      setTerceiros((terceirosData || []).map((t: any) => ({
+        id: t.id,
+        fornecedorId: t.fornecedor_id,
+        fornecedorNome: t.fornecedores?.nome || '',
+        servicoId: t.servico_id || '',
+        servicoNome: t.fornecedor_servicos?.nome || '',
+        custo: t.valor || 0,
+      })));
+
+      // Fetch fornecedores
+      const { data: fornecedoresData } = await supabase
+        .from('fornecedores')
+        .select('id, nome')
+        .order('nome');
+
+      setFornecedores(fornecedoresData || []);
+
+      // Fetch serviços gerais
+      const { data: servicosData } = await supabase
+        .from('servicos')
+        .select('id, nome')
+        .order('nome');
+
+      setServicos(servicosData || []);
+    } catch (err) {
+      console.error('Error fetching terceiros data:', err);
+    }
+  }, [session, gravacaoId]);
 
   useEffect(() => {
-    // Carregar terceiros alocados
-    const storedTerceiros = localStorage.getItem(storageKey);
-    if (storedTerceiros) {
-      setTerceiros(JSON.parse(storedTerceiros));
-    }
+    fetchData();
+  }, [fetchData]);
 
-    // Carregar fornecedores
-    const storedFornecedores = localStorage.getItem('kreato_fornecedores');
-    if (storedFornecedores) {
-      setFornecedores(JSON.parse(storedFornecedores));
-    }
-
-    // Carregar serviços
-    const storedServicos = localStorage.getItem('kreato_servicos');
-    if (storedServicos) {
-      setServicos(JSON.parse(storedServicos));
-    }
-  }, [gravacaoId, storageKey]);
-
-  const servicosFornecedor = useMemo(() => {
-    if (!selectedFornecedor) return [];
-    
-    // Buscar serviços vinculados ao fornecedor (salvos em ServicosTab)
-    const storedFornecedorServicos = localStorage.getItem(`kreato_fornecedor_servicos_${selectedFornecedor}`);
-    if (storedFornecedorServicos) {
-      const servicosVinculados: Servico[] = JSON.parse(storedFornecedorServicos);
-      if (servicosVinculados.length > 0) {
-        return servicosVinculados;
+  // Fetch serviços do fornecedor selecionado
+  useEffect(() => {
+    const fetchServicosFornecedor = async () => {
+      if (!selectedFornecedor || !session) {
+        setServicosFornecedor([]);
+        return;
       }
-    }
-    
-    // Fallback: verificar se o fornecedor tem array de IDs de serviços
-    const fornecedor = fornecedores.find(f => f.id === selectedFornecedor);
-    if (fornecedor?.servicos && fornecedor.servicos.length > 0) {
-      return servicos.filter(s => fornecedor.servicos?.includes(s.id));
-    }
-    
-    // Se não houver serviços vinculados, retorna lista vazia
-    return [];
-  }, [selectedFornecedor, fornecedores, servicos]);
 
-  const saveToStorage = (data: TerceiroAlocado[]) => {
-    localStorage.setItem(storageKey, JSON.stringify(data));
-    setTerceiros(data);
-  };
+      const { data } = await supabase
+        .from('fornecedor_servicos')
+        .select('id, nome')
+        .eq('fornecedor_id', selectedFornecedor)
+        .order('nome');
 
-  const handleAdd = () => {
+      setServicosFornecedor(data || []);
+    };
+
+    fetchServicosFornecedor();
+  }, [selectedFornecedor, session]);
+
+  const handleAdd = async () => {
     if (!selectedFornecedor || !selectedServico) {
       toast({
         title: 'Campos obrigatórios',
@@ -122,7 +139,7 @@ export const TerceirosTab = ({ gravacaoId }: TerceirosTabProps) => {
     const custoNum = parseFloat(custo.replace(',', '.')) || 0;
 
     const fornecedor = fornecedores.find(f => f.id === selectedFornecedor);
-    const servico = servicos.find(s => s.id === selectedServico);
+    const servico = servicosFornecedor.find(s => s.id === selectedServico);
 
     if (!fornecedor || !servico) return;
 
@@ -140,8 +157,28 @@ export const TerceirosTab = ({ gravacaoId }: TerceirosTabProps) => {
       return;
     }
 
+    const { data: insertedData, error } = await supabase
+      .from('gravacao_terceiros')
+      .insert({
+        gravacao_id: gravacaoId,
+        fornecedor_id: selectedFornecedor,
+        servico_id: selectedServico,
+        valor: custoNum,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      toast({
+        title: 'Erro',
+        description: 'Erro ao adicionar terceiro.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     const novo: TerceiroAlocado = {
-      id: crypto.randomUUID(),
+      id: insertedData.id,
       fornecedorId: selectedFornecedor,
       fornecedorNome: fornecedor.nome,
       servicoId: selectedServico,
@@ -149,7 +186,7 @@ export const TerceirosTab = ({ gravacaoId }: TerceirosTabProps) => {
       custo: custoNum,
     };
 
-    saveToStorage([...terceiros, novo]);
+    setTerceiros([...terceiros, novo]);
 
     // Limpar campos
     setSelectedFornecedor('');
@@ -162,9 +199,22 @@ export const TerceirosTab = ({ gravacaoId }: TerceirosTabProps) => {
     });
   };
 
-  const handleRemove = (id: string) => {
-    const updated = terceiros.filter(t => t.id !== id);
-    saveToStorage(updated);
+  const handleRemove = async (id: string) => {
+    const { error } = await supabase
+      .from('gravacao_terceiros')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      toast({
+        title: 'Erro',
+        description: 'Erro ao remover terceiro.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setTerceiros(terceiros.filter(t => t.id !== id));
     toast({
       title: 'Terceiro removido',
       description: 'O serviço terceirizado foi removido.',

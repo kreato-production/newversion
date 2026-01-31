@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -36,6 +36,8 @@ import { format } from 'date-fns';
 import { ptBR, enUS, es } from 'date-fns/locale';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { usePermissions } from '@/hooks/usePermissions';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 
 interface Tarefa {
@@ -97,6 +99,7 @@ export const TarefaFormModal = ({
   readOnly: globalReadOnly = false,
 }: TarefaFormModalProps) => {
   const { t, language } = useLanguage();
+  const { session } = useAuth();
   const { isReadOnly, isVisible } = usePermissions();
   const [formData, setFormData] = useState<Partial<Tarefa>>({});
   const [recursosHumanos, setRecursosHumanos] = useState<RecursoHumano[]>([]);
@@ -139,14 +142,30 @@ export const TarefaFormModal = ({
     }
   }, [data, statusList]);
 
-  useEffect(() => {
-    // Load recursos humanos
-    const storedRH = localStorage.getItem('kreato_recursos_humanos');
-    if (storedRH) {
-      setRecursosHumanos(JSON.parse(storedRH));
-    }
-  }, []);
+  const fetchRecursosHumanos = useCallback(async () => {
+    if (!session) return;
 
+    try {
+      const { data: rhData } = await supabase
+        .from('recursos_humanos')
+        .select('id, nome, sobrenome')
+        .eq('status', 'Ativo')
+        .order('nome');
+
+      setRecursosHumanos((rhData || []).map((r: any) => ({
+        id: r.id,
+        nome: `${r.nome} ${r.sobrenome}`.trim(),
+      })));
+    } catch (err) {
+      console.error('Error fetching recursos humanos:', err);
+    }
+  }, [session]);
+
+  useEffect(() => {
+    if (open) {
+      fetchRecursosHumanos();
+    }
+  }, [open, fetchRecursosHumanos]);
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     

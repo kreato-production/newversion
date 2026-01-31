@@ -1,11 +1,13 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
-import { Edit, Trash2, UserCog } from 'lucide-react';
+import { Edit, Trash2, UserCog, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { UsuarioFormModal } from '@/components/admin/UsuarioFormModal';
 import { SortableTable, Column } from '@/components/shared/SortableTable';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 export interface Usuario {
   id: string;
@@ -16,6 +18,7 @@ export interface Usuario {
   senha: string;
   foto?: string;
   perfil: string;
+  perfilId?: string;
   descricao: string;
   dataCadastro: string;
   usuarioCadastro: string;
@@ -23,35 +26,110 @@ export interface Usuario {
 
 const Usuarios = () => {
   const { toast } = useToast();
+  const { session } = useAuth();
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Usuario | null>(null);
-  const [items, setItems] = useState<Usuario[]>(() => {
-    const stored = localStorage.getItem('kreato_usuarios');
-    return stored ? JSON.parse(stored) : [];
-  });
+  const [items, setItems] = useState<Usuario[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const saveToStorage = (data: Usuario[]) => {
-    localStorage.setItem('kreato_usuarios', JSON.stringify(data));
-    setItems(data);
-  };
+  const fetchData = useCallback(async () => {
+    if (!session) return;
+    
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*, perfis_acesso:perfil_id(id, nome)')
+        .order('nome');
 
-  const handleSave = (data: Usuario) => {
-    if (editingItem) {
-      const updated = items.map((item) => (item.id === data.id ? data : item));
-      saveToStorage(updated);
-      toast({ title: 'Sucesso', description: 'Usuário atualizado!' });
-    } else {
-      saveToStorage([...items, data]);
-      toast({ title: 'Sucesso', description: 'Usuário cadastrado!' });
+      if (error) throw error;
+
+      setItems((data || []).map((item: any) => ({
+        id: item.id,
+        codigoExterno: item.codigo_externo || '',
+        nome: item.nome,
+        email: item.email,
+        usuario: item.usuario,
+        senha: '', // Never store/display passwords
+        foto: item.foto_url,
+        perfil: item.perfis_acesso?.nome || '',
+        perfilId: item.perfil_id,
+        descricao: item.descricao || '',
+        dataCadastro: item.created_at,
+        usuarioCadastro: '',
+      })));
+    } catch (err) {
+      console.error('Error fetching users:', err);
+      toast({
+        title: 'Erro',
+        description: 'Erro ao carregar usuários',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
     }
-    setEditingItem(null);
+  }, [session, toast]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  const handleSave = async (data: Usuario) => {
+    try {
+      const updateData = {
+        codigo_externo: data.codigoExterno || null,
+        nome: data.nome,
+        descricao: data.descricao || null,
+        foto_url: data.foto || null,
+        perfil_id: data.perfilId || null,
+      };
+
+      if (editingItem) {
+        const { error } = await supabase
+          .from('profiles')
+          .update(updateData)
+          .eq('id', data.id);
+
+        if (error) throw error;
+        toast({ title: 'Sucesso', description: 'Usuário atualizado!' });
+      } else {
+        // Note: Creating new users requires auth.signUp, not direct insert
+        toast({ 
+          title: 'Informação', 
+          description: 'Novos usuários são criados via registro no sistema.' 
+        });
+      }
+      
+      await fetchData();
+      setEditingItem(null);
+    } catch (err) {
+      console.error('Error saving user:', err);
+      toast({
+        title: 'Erro',
+        description: 'Erro ao salvar usuário',
+        variant: 'destructive',
+      });
+    }
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (confirm('Deseja realmente excluir este usuário?')) {
-      saveToStorage(items.filter((item) => item.id !== id));
-      toast({ title: 'Excluído', description: 'Usuário removido!' });
+      try {
+        // Note: Deleting users from profiles may have cascade effects
+        // Usually users are deactivated, not deleted
+        toast({ 
+          title: 'Informação', 
+          description: 'Usuários não podem ser excluídos diretamente. Considere desativá-los.' 
+        });
+      } catch (err) {
+        console.error('Error deleting user:', err);
+        toast({
+          title: 'Erro',
+          description: 'Erro ao excluir usuário',
+          variant: 'destructive',
+        });
+      }
     }
   };
 
@@ -145,6 +223,14 @@ const Usuarios = () => {
       ),
     },
   ];
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div>
