@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
+import { ListActionBar } from '@/components/shared/ListActionBar';
 import { SortableTable, Column } from '@/components/shared/SortableTable';
 import { Edit, Trash2, Building2, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -230,9 +231,11 @@ const UnidadesNegocio = () => {
           setIsModalOpen(true);
         }}
         addLabel={t('businessUnits.new')}
-      >
+      />
+
+      <ListActionBar>
         <SearchBar value={search} onChange={setSearch} placeholder={t('common.search')} />
-      </PageHeader>
+      </ListActionBar>
 
       <DataCard>
         {filteredItems.length === 0 ? (

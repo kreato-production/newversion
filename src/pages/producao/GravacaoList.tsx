@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
+import { ListActionBar } from '@/components/shared/ListActionBar';
 import { Edit, Trash2, Video, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { GravacaoFormModal } from '@/components/producao/GravacaoFormModal';
@@ -336,9 +337,11 @@ const GravacaoList = () => {
           setIsModalOpen(true);
         } : undefined}
         addLabel={t('recordings.new')}
-      >
+      />
+
+      <ListActionBar>
         <SearchBar value={search} onChange={setSearch} placeholder={t('common.search')} />
-      </PageHeader>
+      </ListActionBar>
 
       <DataCard>
         {filteredItems.length === 0 ? (

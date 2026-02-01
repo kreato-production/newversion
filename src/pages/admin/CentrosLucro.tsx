@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
+import { ListActionBar } from '@/components/shared/ListActionBar';
 import { Edit, Trash2, Landmark, ChevronRight, ChevronDown, FolderTree, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
@@ -254,9 +255,11 @@ const CentrosLucro = () => {
           setIsModalOpen(true);
         }}
         addLabel="Novo Centro de Lucro"
-      >
+      />
+
+      <ListActionBar>
         <SearchBar value={search} onChange={setSearch} />
-      </PageHeader>
+      </ListActionBar>
 
       <DataCard>
         {items.length === 0 ? (

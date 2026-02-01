@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
+import { ListActionBar } from '@/components/shared/ListActionBar';
 import { ParametroFormModal } from '@/components/shared/ParametroFormModal';
 import { SortableTable, Column } from '@/components/shared/SortableTable';
 import { Edit, Trash2, Settings, Loader2 } from 'lucide-react';
@@ -264,9 +265,11 @@ const ParametroListPage = ({ title, description, entityName, storageKey }: Param
           setIsModalOpen(true);
         }}
         addLabel={`${t('common.new')} ${entityName}`}
-      >
+      />
+
+      <ListActionBar>
         <SearchBar value={search} onChange={setSearch} placeholder={t('common.search')} />
-      </PageHeader>
+      </ListActionBar>
 
       <DataCard>
         {filteredItems.length === 0 ? (

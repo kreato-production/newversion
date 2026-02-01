@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
+import { ListActionBar } from '@/components/shared/ListActionBar';
 import { Edit, Trash2, Users, UserX, Calendar, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
@@ -407,17 +408,20 @@ const RecursosHumanos = () => {
           setIsModalOpen(true);
         }}
         addLabel="Novo Colaborador"
-      >
+      />
+
+      <ListActionBar>
+        <SearchBar value={search} onChange={setSearch} />
         <Button
           variant="outline"
+          size="sm"
           onClick={() => setIsMapaOpen(true)}
           className="flex items-center gap-2"
         >
           <Calendar className="w-4 h-4" />
           Mapa de Escalas
         </Button>
-        <SearchBar value={search} onChange={setSearch} />
-      </PageHeader>
+      </ListActionBar>
 
       <DataCard>
         {isLoading ? (

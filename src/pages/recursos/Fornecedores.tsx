@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
+import { ListActionBar } from '@/components/shared/ListActionBar';
 import { Edit, Trash2, Truck, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { FornecedorFormModal } from '@/components/recursos/FornecedorFormModal';
@@ -196,9 +197,11 @@ const Fornecedores = () => {
           setIsModalOpen(true);
         }}
         addLabel="Novo Fornecedor"
-      >
+      />
+
+      <ListActionBar>
         <SearchBar value={search} onChange={setSearch} />
-      </PageHeader>
+      </ListActionBar>
 
       <DataCard>
         {isLoading ? (

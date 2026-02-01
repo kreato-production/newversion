@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
+import { ListActionBar } from '@/components/shared/ListActionBar';
 import { Edit, Trash2, UserCog, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { UsuarioFormModal } from '@/components/admin/UsuarioFormModal';
@@ -271,9 +272,11 @@ const Usuarios = () => {
           setIsModalOpen(true);
         }}
         addLabel="Novo Usuário"
-      >
+      />
+
+      <ListActionBar>
         <SearchBar value={search} onChange={setSearch} />
-      </PageHeader>
+      </ListActionBar>
 
       <DataCard>
         {filteredItems.length === 0 ? (

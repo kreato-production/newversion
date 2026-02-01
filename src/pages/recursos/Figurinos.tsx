@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { PageHeader, EmptyState } from '@/components/shared/PageComponents';
+import { ListActionBar } from '@/components/shared/ListActionBar';
 import { SortableTable, Column } from '@/components/shared/SortableTable';
 import FigurinoFormModal from '@/components/recursos/FigurinoFormModal';
 import { useToast } from '@/hooks/use-toast';
@@ -264,13 +265,15 @@ const Figurinos = () => {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <PageHeader
         title="Figurinos"
         description="Gerencie os figurinos disponíveis para as produções"
         onAdd={() => setIsModalOpen(true)}
         addLabel="Novo Figurino"
-      >
+      />
+
+      <ListActionBar>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -280,7 +283,7 @@ const Figurinos = () => {
             className="pl-9 w-64"
           />
         </div>
-      </PageHeader>
+      </ListActionBar>
 
       {isLoading ? (
         <div className="flex items-center justify-center py-8">

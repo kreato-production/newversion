@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
+import { ListActionBar } from '@/components/shared/ListActionBar';
 import { Edit, Trash2, Wrench, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { RecursoTecnicoFormModal } from '@/components/recursos/RecursoTecnicoFormModal';
@@ -185,9 +186,11 @@ const RecursosTecnicos = () => {
           setIsModalOpen(true);
         }}
         addLabel="Novo Recurso"
-      >
+      />
+
+      <ListActionBar>
         <SearchBar value={search} onChange={setSearch} />
-      </PageHeader>
+      </ListActionBar>
 
       <DataCard>
         {isLoading ? (
