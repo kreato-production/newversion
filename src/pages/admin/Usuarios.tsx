@@ -94,20 +94,49 @@ const Usuarios = () => {
         if (error) throw error;
         toast({ title: 'Sucesso', description: 'Usuário atualizado!' });
       } else {
-        // Note: Creating new users requires auth.signUp, not direct insert
+        // Create new user via auth.signUp
+        const { data: authData, error: signUpError } = await supabase.auth.signUp({
+          email: data.email,
+          password: data.senha,
+          options: {
+            data: {
+              nome: data.nome,
+              usuario: data.usuario,
+            }
+          }
+        });
+
+        if (signUpError) throw signUpError;
+
+        if (authData.user) {
+          // Update the profile with additional data
+          const { error: profileError } = await supabase
+            .from('profiles')
+            .update({
+              ...updateData,
+              usuario: data.usuario,
+            })
+            .eq('id', authData.user.id);
+
+          if (profileError) {
+            console.error('Error updating profile:', profileError);
+          }
+        }
+
         toast({ 
-          title: 'Informação', 
-          description: 'Novos usuários são criados via registro no sistema.' 
+          title: 'Sucesso', 
+          description: 'Usuário criado! Um e-mail de confirmação foi enviado.' 
         });
       }
       
       await fetchData();
       setEditingItem(null);
-    } catch (err) {
+      setIsModalOpen(false);
+    } catch (err: any) {
       console.error('Error saving user:', err);
       toast({
         title: 'Erro',
-        description: 'Erro ao salvar usuário',
+        description: err.message || 'Erro ao salvar usuário',
         variant: 'destructive',
       });
     }

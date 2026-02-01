@@ -136,7 +136,10 @@ export const TarefaFormModal = ({
 
   useEffect(() => {
     if (data) {
-      setFormData(data);
+      setFormData({
+        ...data,
+        recursoHumanoId: data.recursoHumanoId || '',
+      });
     } else {
       setFormData({
         id: crypto.randomUUID(),
@@ -144,6 +147,7 @@ export const TarefaFormModal = ({
         statusId: statusList.find(s => s.codigo === 'PEND')?.id || statusList[0]?.id,
         dataCriacao: new Date().toISOString(),
         dataAtualizacao: new Date().toISOString(),
+        recursoHumanoId: '',
       });
     }
   }, [data, statusList]);
