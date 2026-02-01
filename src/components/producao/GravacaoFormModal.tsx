@@ -160,6 +160,9 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
     }
   }, [isOpen, fetchDropdownData]);
 
+  // Guarda o status inicial do data para garantir persistência
+  const incomingStatus = data?.status || '';
+
   useEffect(() => {
     if (!isOpen) return;
     
@@ -219,6 +222,17 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
       setDataPrevista(undefined);
     }
   }, [data, isOpen]);
+
+  // Garante que o status atual esteja na lista para o Select renderizar corretamente
+  useEffect(() => {
+    if (!isOpen || !incomingStatus) return;
+    
+    setStatusList((prev) => {
+      if (prev.some((s) => s.nome === incomingStatus)) return prev;
+      // Adiciona temporariamente o status para o Select conseguir exibir
+      return [{ id: '__temp__', nome: incomingStatus }, ...prev];
+    });
+  }, [isOpen, incomingStatus]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
