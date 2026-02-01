@@ -13,6 +13,7 @@ import {
 import { FileText, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useGravacaoReportData, type GravacaoReportData } from '@/hooks/useGravacaoReportData';
+import { formatCurrency } from '@/lib/currencies';
 
 interface GravacaoReportGeneratorProps {
   gravacaoId: string;
@@ -23,9 +24,6 @@ export const GravacaoReportGenerator = ({ gravacaoId, disabled }: GravacaoReport
   const [isGenerating, setIsGenerating] = useState(false);
   const { toast } = useToast();
   const { fetchReportData } = useGravacaoReportData();
-
-  const formatCurrency = (value: number) =>
-    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 
   const formatDate = (dateStr: string | null) => {
     if (!dateStr) return '-';
@@ -50,6 +48,22 @@ export const GravacaoReportGenerator = ({ gravacaoId, disabled }: GravacaoReport
     return tmp.textContent || tmp.innerText || '';
   };
 
+  // Load image and convert to base64 for PDF
+  const loadImageAsBase64 = async (url: string): Promise<string | null> => {
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = () => resolve(null);
+        reader.readAsDataURL(blob);
+      });
+    } catch {
+      return null;
+    }
+  };
+
   const generatePDF = async () => {
     setIsGenerating(true);
     try {
@@ -63,6 +77,10 @@ export const GravacaoReportGenerator = ({ gravacaoId, disabled }: GravacaoReport
         return;
       }
 
+      // Get currency from business unit
+      const currency = data.basicInfo.unidadeNegocioMoeda || 'BRL';
+      const formatValue = (value: number) => formatCurrency(value, currency);
+
       const pdf = new jsPDF('p', 'mm', 'a4');
       const pageWidth = pdf.internal.pageSize.getWidth();
       const margin = 15;
@@ -73,7 +91,23 @@ export const GravacaoReportGenerator = ({ gravacaoId, disabled }: GravacaoReport
       pdf.setFillColor(124, 58, 237); // Primary purple
       pdf.rect(0, 0, pageWidth, 40, 'F');
 
-      // Title
+      // Load and add logo if available
+      let logoWidth = 0;
+      if (data.basicInfo.unidadeNegocioLogo) {
+        try {
+          const logoBase64 = await loadImageAsBase64(data.basicInfo.unidadeNegocioLogo);
+          if (logoBase64) {
+            const logoHeight = 25;
+            logoWidth = 30; // Will be adjusted based on aspect ratio
+            pdf.addImage(logoBase64, 'PNG', pageWidth - margin - logoWidth, 7, logoWidth, logoHeight);
+          }
+        } catch (e) {
+          console.log('Could not load logo:', e);
+        }
+      }
+
+      // Title (adjusted for logo)
+      const titleMaxWidth = pageWidth - margin * 2 - (logoWidth ? logoWidth + 10 : 0);
       pdf.setTextColor(255, 255, 255);
       pdf.setFontSize(20);
       pdf.setFont('helvetica', 'bold');
@@ -328,7 +362,7 @@ export const GravacaoReportGenerator = ({ gravacaoId, disabled }: GravacaoReport
         const terceirosTable = data.terceiros.map(t => [
           t.fornecedorNome,
           t.servicoNome,
-          formatCurrency(t.custo),
+          formatValue(t.custo),
         ]);
 
         autoTable(pdf, {
@@ -379,12 +413,12 @@ export const GravacaoReportGenerator = ({ gravacaoId, disabled }: GravacaoReport
             c.recurso,
             c.descricao,
             c.horas > 0 ? `${c.horas.toFixed(1)}h` : '-',
-            c.horas > 0 ? formatCurrency(c.custoUnitario) : '-',
-            formatCurrency(c.custoTotal),
+            c.horas > 0 ? formatValue(c.custoUnitario) : '-',
+            formatValue(c.custoTotal),
           ]);
 
           // Add subtotal row
-          custosTable.push(['', '', '', 'Subtotal:', formatCurrency(total)]);
+          custosTable.push(['', '', '', 'Subtotal:', formatValue(total)]);
 
           autoTable(pdf, {
             startY: y,
@@ -422,7 +456,7 @@ export const GravacaoReportGenerator = ({ gravacaoId, disabled }: GravacaoReport
       pdf.setFontSize(12);
       pdf.setFont('helvetica', 'bold');
       pdf.text('CUSTO TOTAL ESTIMADO', margin + 5, y + 6);
-      pdf.text(formatCurrency(data.totais.custoTotal), pageWidth - margin - 5, y + 6, { align: 'right' });
+      pdf.text(formatValue(data.totais.custoTotal), pageWidth - margin - 5, y + 6, { align: 'right' });
 
       pdf.setFontSize(9);
       pdf.setFont('helvetica', 'normal');

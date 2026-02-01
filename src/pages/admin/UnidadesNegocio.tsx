@@ -15,6 +15,7 @@ interface UnidadeNegocioDb {
   nome: string;
   descricao: string | null;
   imagem_url: string | null;
+  moeda: string | null;
   created_at: string | null;
   created_by: string | null;
 }
@@ -25,6 +26,7 @@ export interface UnidadeNegocio {
   nome: string;
   descricao: string;
   imagem?: string;
+  moeda?: string;
   dataCadastro: string;
   usuarioCadastro: string;
 }
@@ -35,6 +37,7 @@ const mapDbToUnidade = (db: UnidadeNegocioDb, userName: string): UnidadeNegocio 
   nome: db.nome,
   descricao: db.descricao || '',
   imagem: db.imagem_url || '',
+  moeda: db.moeda || 'BRL',
   dataCadastro: db.created_at ? new Date(db.created_at).toLocaleDateString('pt-BR') : '',
   usuarioCadastro: userName,
 });
@@ -88,6 +91,7 @@ const UnidadesNegocio = () => {
         descricao: data.descricao || null,
         codigo_externo: data.codigoExterno || null,
         imagem_url: data.imagem || null,
+        moeda: data.moeda || 'BRL',
         created_by: user?.id || null,
       };
 
