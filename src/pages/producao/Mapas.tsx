@@ -614,9 +614,13 @@ const Mapas = () => {
         const mesIndex = getMonth(data);
         const custo = calcularCustoGravacao(gravacao.id);
         
+        // Buscar o nome do centro de lucro pelo ID
+        const centroLucroObj = centrosLucro.find(c => c.id === gravacao.centroLucro);
+        const centroLucroNome = centroLucroObj?.nome || gravacao.centroLucro;
+        
         if (!resultado[gravacao.centroLucro]) {
           resultado[gravacao.centroLucro] = {
-            nome: gravacao.centroLucro,
+            nome: centroLucroNome,
             custosMensais: Array(12).fill(0),
             total: 0,
           };
@@ -639,7 +643,7 @@ const Mapas = () => {
     }
     
     return resultado;
-  }, [gravacoes, filtroAno, filtroCentroLucro, filtroUnidadeNegocio]);
+  }, [gravacoes, filtroAno, filtroCentroLucro, filtroUnidadeNegocio, centrosLucro]);
 
   // Dados de apropriação de custos por Unidade de Negócio
   const apropriacaoPorUnidadeNegocio = useMemo(() => {
@@ -659,9 +663,13 @@ const Mapas = () => {
         const mesIndex = getMonth(data);
         const custo = calcularCustoGravacao(gravacao.id);
         
+        // Buscar o nome da unidade de negócio pelo ID
+        const unidadeObj = unidadesNegocio.find(u => u.id === gravacao.unidadeNegocio);
+        const unidadeNome = unidadeObj?.nome || gravacao.unidadeNegocio;
+        
         if (!resultado[gravacao.unidadeNegocio]) {
           resultado[gravacao.unidadeNegocio] = {
-            nome: gravacao.unidadeNegocio,
+            nome: unidadeNome,
             custosMensais: Array(12).fill(0),
             total: 0,
           };
@@ -684,7 +692,7 @@ const Mapas = () => {
     }
     
     return resultado;
-  }, [gravacoes, filtroAno, filtroCentroLucro, filtroUnidadeNegocio]);
+  }, [gravacoes, filtroAno, filtroCentroLucro, filtroUnidadeNegocio, unidadesNegocio]);
 
   // Totais gerais de apropriação
   const totaisApropriacao = useMemo(() => {
@@ -701,22 +709,32 @@ const Mapas = () => {
     return { custosMensais, total };
   }, [apropriacaoPorCentroLucro]);
 
-  // Lista única de centros de lucro e unidades para filtros
+  // Lista única de centros de lucro e unidades para filtros (agora usando objetos com id e nome)
   const centrosLucroUnicos = useMemo(() => {
-    const centros = new Set<string>();
+    const centrosIds = new Set<string>();
+    const centrosResult: { id: string; nome: string }[] = [];
     gravacoes.forEach((g) => {
-      if (g.centroLucro) centros.add(g.centroLucro);
+      if (g.centroLucro && !centrosIds.has(g.centroLucro)) {
+        centrosIds.add(g.centroLucro);
+        const centroObj = centrosLucro.find(c => c.id === g.centroLucro);
+        centrosResult.push({ id: g.centroLucro, nome: centroObj?.nome || g.centroLucro });
+      }
     });
-    return Array.from(centros).sort();
-  }, [gravacoes]);
+    return centrosResult.sort((a, b) => a.nome.localeCompare(b.nome));
+  }, [gravacoes, centrosLucro]);
 
   const unidadesNegocioUnicas = useMemo(() => {
-    const unidades = new Set<string>();
+    const unidadesIds = new Set<string>();
+    const unidadesResult: { id: string; nome: string }[] = [];
     gravacoes.forEach((g) => {
-      if (g.unidadeNegocio) unidades.add(g.unidadeNegocio);
+      if (g.unidadeNegocio && !unidadesIds.has(g.unidadeNegocio)) {
+        unidadesIds.add(g.unidadeNegocio);
+        const unidadeObj = unidadesNegocio.find(u => u.id === g.unidadeNegocio);
+        unidadesResult.push({ id: g.unidadeNegocio, nome: unidadeObj?.nome || g.unidadeNegocio });
+      }
     });
-    return Array.from(unidades).sort();
-  }, [gravacoes]);
+    return unidadesResult.sort((a, b) => a.nome.localeCompare(b.nome));
+  }, [gravacoes, unidadesNegocio]);
 
   const mesesAbrev = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
@@ -1748,8 +1766,8 @@ const Mapas = () => {
                     <SelectContent>
                       <SelectItem value="Todos">Todos</SelectItem>
                       {centrosLucroUnicos.map((centro) => (
-                        <SelectItem key={centro} value={centro}>
-                          {centro}
+                        <SelectItem key={centro.id} value={centro.id}>
+                          {centro.nome}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -1764,8 +1782,8 @@ const Mapas = () => {
                     <SelectContent>
                       <SelectItem value="Todas">Todas</SelectItem>
                       {unidadesNegocioUnicas.map((unidade) => (
-                        <SelectItem key={unidade} value={unidade}>
-                          {unidade}
+                        <SelectItem key={unidade.id} value={unidade.id}>
+                          {unidade.nome}
                         </SelectItem>
                       ))}
                     </SelectContent>
