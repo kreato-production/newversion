@@ -12,11 +12,10 @@ import type { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase
 type ConteudoDB = Tables<'conteudos'>;
 
 // Helper function to generate content code (for backwards compatibility)
+// Max 10 characters to fit in codigo_externo column
 export const generateCodigoConteudo = (): string => {
-  const currentYear = new Date().getFullYear();
-  const yearSuffix = String(currentYear).slice(-2);
-  const timestamp = Date.now().toString().slice(-5);
-  return `CNT-${timestamp}-${yearSuffix}`;
+  const timestamp = Date.now().toString().slice(-6);
+  return `C${timestamp}`;
 };
 
 export interface Conteudo {
