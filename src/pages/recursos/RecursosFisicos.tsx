@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
+import { ListActionBar } from '@/components/shared/ListActionBar';
 import { Edit, Trash2, MapPin, Calendar, Loader2, Package } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { RecursoFisicoFormModal } from '@/components/recursos/RecursoFisicoFormModal';
@@ -319,17 +320,20 @@ const RecursosFisicos = () => {
           setIsModalOpen(true);
         }}
         addLabel="Novo Recurso"
-      >
+      />
+
+      <ListActionBar>
+        <SearchBar value={search} onChange={setSearch} />
         <Button
           variant="outline"
+          size="sm"
           onClick={() => setIsMapaOpen(true)}
           className="flex items-center gap-2"
         >
           <Calendar className="w-4 h-4" />
           Mapa de Disponibilidade
         </Button>
-        <SearchBar value={search} onChange={setSearch} />
-      </PageHeader>
+      </ListActionBar>
 
       <DataCard>
         {isLoading ? (

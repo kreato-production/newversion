@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
+import { ListActionBar } from '@/components/shared/ListActionBar';
 import { DepartamentoFormModal } from '@/components/recursos/DepartamentoFormModal';
 import { SortableTable, Column } from '@/components/shared/SortableTable';
 import { Edit, Trash2, Building2, Loader2 } from 'lucide-react';
@@ -186,9 +187,11 @@ const Departamentos = () => {
           setIsModalOpen(true);
         }}
         addLabel={`${t('common.new')} Departamento`}
-      >
+      />
+
+      <ListActionBar>
         <SearchBar value={search} onChange={setSearch} placeholder={t('common.search')} />
-      </PageHeader>
+      </ListActionBar>
 
       <DataCard>
         {isLoading ? (

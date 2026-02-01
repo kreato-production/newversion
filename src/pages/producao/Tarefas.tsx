@@ -25,6 +25,7 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { PageHeader, DataCard } from '@/components/shared/PageComponents';
+import { ListActionBar } from '@/components/shared/ListActionBar';
 import { TarefaFormModal } from '@/components/producao/TarefaFormModal';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -375,8 +376,8 @@ const Tarefas = () => {
           </Card>
         </div>
 
-        {/* Filters */}
-        <div className="flex flex-wrap gap-4 mb-6">
+        {/* Filters in ListActionBar */}
+        <ListActionBar>
           <div className="relative flex-1 min-w-[200px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -408,7 +409,7 @@ const Tarefas = () => {
               ))}
             </SelectContent>
           </Select>
-        </div>
+        </ListActionBar>
 
         {/* Tasks Table */}
         {isLoading ? (
