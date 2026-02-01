@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Upload, FileIcon, Trash2, Download, Loader2, File } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Upload, FileIcon, Trash2, Download, Loader2, File, Eye, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -38,12 +38,18 @@ const getFileIcon = (tipo: string | null) => {
   return <File className="w-4 h-4" />;
 };
 
+const canPreview = (tipo: string | null): boolean => {
+  if (!tipo) return false;
+  return tipo.startsWith('image/') || tipo === 'application/pdf';
+};
+
 export const FornecedorArquivosTab = ({ fornecedorId }: FornecedorArquivosTabProps) => {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [arquivos, setArquivos] = useState<FornecedorArquivo[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
+  const [previewFile, setPreviewFile] = useState<FornecedorArquivo | null>(null);
 
   const fetchArquivos = async () => {
     setIsLoading(true);
@@ -150,6 +156,19 @@ export const FornecedorArquivosTab = ({ fornecedorId }: FornecedorArquivosTabPro
     window.open(arquivo.url, '_blank');
   };
 
+  const handlePreview = (arquivo: FornecedorArquivo) => {
+    if (canPreview(arquivo.tipo)) {
+      setPreviewFile(arquivo);
+    } else {
+      // For non-previewable files, just download
+      handleDownload(arquivo);
+    }
+  };
+
+  const handleRowDoubleClick = (arquivo: FornecedorArquivo) => {
+    handlePreview(arquivo);
+  };
+
   return (
     <div className="space-y-4 mt-4">
       <div className="flex items-center justify-between">
@@ -204,11 +223,22 @@ export const FornecedorArquivosTab = ({ fornecedorId }: FornecedorArquivosTabPro
           </TableHeader>
           <TableBody>
             {arquivos.map((arquivo) => (
-              <TableRow key={arquivo.id}>
+              <TableRow 
+                key={arquivo.id}
+                onDoubleClick={() => handleRowDoubleClick(arquivo)}
+                className="cursor-pointer hover:bg-muted/50"
+              >
                 <TableCell>
                   <span className="text-lg">{getFileIcon(arquivo.tipo)}</span>
                 </TableCell>
-                <TableCell className="font-medium">{arquivo.nome}</TableCell>
+                <TableCell className="font-medium">
+                  <div className="flex items-center gap-2">
+                    {arquivo.nome}
+                    {canPreview(arquivo.tipo) && (
+                      <Eye className="w-3 h-3 text-muted-foreground" />
+                    )}
+                  </div>
+                </TableCell>
                 <TableCell className="text-muted-foreground">
                   {formatFileSize(arquivo.tamanho)}
                 </TableCell>
@@ -217,6 +247,16 @@ export const FornecedorArquivosTab = ({ fornecedorId }: FornecedorArquivosTabPro
                 </TableCell>
                 <TableCell>
                   <div className="flex justify-end gap-1">
+                    {canPreview(arquivo.tipo) && (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => handlePreview(arquivo)}
+                        title="Visualizar"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </Button>
+                    )}
                     <Button
                       size="icon"
                       variant="ghost"
@@ -241,6 +281,32 @@ export const FornecedorArquivosTab = ({ fornecedorId }: FornecedorArquivosTabPro
           </TableBody>
         </Table>
       )}
+
+      {/* Preview Modal */}
+      <Dialog open={!!previewFile} onOpenChange={() => setPreviewFile(null)}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
+          <DialogHeader>
+            <DialogTitle className="flex items-center justify-between">
+              <span>{previewFile?.nome}</span>
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-auto max-h-[calc(90vh-100px)]">
+            {previewFile?.tipo?.startsWith('image/') ? (
+              <img 
+                src={previewFile.url} 
+                alt={previewFile.nome}
+                className="max-w-full h-auto mx-auto"
+              />
+            ) : previewFile?.tipo === 'application/pdf' ? (
+              <iframe
+                src={previewFile.url}
+                className="w-full h-[70vh]"
+                title={previewFile.nome}
+              />
+            ) : null}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
