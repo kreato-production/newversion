@@ -9,6 +9,8 @@ export interface GravacaoBasicInfo {
   descricao: string | null;
   status: string | null;
   unidadeNegocio: string | null;
+  unidadeNegocioLogo: string | null;
+  unidadeNegocioMoeda: string;
   centroLucro: string | null;
   classificacao: string | null;
   tipoConteudo: string | null;
@@ -123,7 +125,7 @@ export const useGravacaoReportData = () => {
         .select(`
           id, codigo, nome, descricao, data_prevista,
           status_gravacao:status_id(nome),
-          unidades_negocio:unidade_negocio_id(nome),
+          unidades_negocio:unidade_negocio_id(nome, imagem_url, moeda),
           centros_lucro:centro_lucro_id(nome),
           classificacoes:classificacao_id(nome),
           tipos_gravacao:tipo_conteudo_id(nome),
@@ -142,6 +144,8 @@ export const useGravacaoReportData = () => {
         descricao: gravacaoData.descricao,
         status: (gravacaoData.status_gravacao as any)?.nome || null,
         unidadeNegocio: (gravacaoData.unidades_negocio as any)?.nome || null,
+        unidadeNegocioLogo: (gravacaoData.unidades_negocio as any)?.imagem_url || null,
+        unidadeNegocioMoeda: (gravacaoData.unidades_negocio as any)?.moeda || 'BRL',
         centroLucro: (gravacaoData.centros_lucro as any)?.nome || null,
         classificacao: (gravacaoData.classificacoes as any)?.nome || null,
         tipoConteudo: (gravacaoData.tipos_gravacao as any)?.nome || null,

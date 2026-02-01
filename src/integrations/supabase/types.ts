@@ -506,6 +506,47 @@ export type Database = {
           },
         ]
       }
+      fornecedor_arquivos: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          fornecedor_id: string
+          id: string
+          nome: string
+          tamanho: number | null
+          tipo: string | null
+          url: string
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          fornecedor_id: string
+          id?: string
+          nome: string
+          tamanho?: number | null
+          tipo?: string | null
+          url: string
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          fornecedor_id?: string
+          id?: string
+          nome?: string
+          tamanho?: number | null
+          tipo?: string | null
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fornecedor_arquivos_fornecedor_id_fkey"
+            columns: ["fornecedor_id"]
+            isOneToOne: false
+            referencedRelation: "fornecedores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fornecedor_servicos: {
         Row: {
           created_at: string | null
@@ -1907,6 +1948,7 @@ export type Database = {
           descricao: string | null
           id: string
           imagem_url: string | null
+          moeda: string | null
           nome: string
           updated_at: string | null
         }
@@ -1917,6 +1959,7 @@ export type Database = {
           descricao?: string | null
           id?: string
           imagem_url?: string | null
+          moeda?: string | null
           nome: string
           updated_at?: string | null
         }
@@ -1927,6 +1970,7 @@ export type Database = {
           descricao?: string | null
           id?: string
           imagem_url?: string | null
+          moeda?: string | null
           nome?: string
           updated_at?: string | null
         }

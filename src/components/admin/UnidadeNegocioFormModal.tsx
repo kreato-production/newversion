@@ -12,9 +12,18 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useAuth } from '@/contexts/AuthContext';
 import { UnidadeNegocio } from '@/pages/admin/UnidadesNegocio';
 import { supabase } from '@/integrations/supabase/client';
+import { CURRENCIES } from '@/lib/currencies';
 
 interface UnidadeNegocioFormModalProps {
   isOpen: boolean;
@@ -28,6 +37,7 @@ const emptyFormData = {
   nome: '',
   descricao: '',
   imagem: '',
+  moeda: 'BRL',
 };
 
 export const UnidadeNegocioFormModal = ({
@@ -50,6 +60,7 @@ export const UnidadeNegocioFormModal = ({
         nome: data.nome || '',
         descricao: data.descricao || '',
         imagem: data.imagem || '',
+        moeda: data.moeda || 'BRL',
       } : { ...emptyFormData });
       setSelectedFile(null);
     }
@@ -140,6 +151,7 @@ export const UnidadeNegocioFormModal = ({
         nome: formData.nome,
         descricao: formData.descricao,
         imagem: imagemUrl,
+        moeda: formData.moeda,
         dataCadastro: data?.dataCadastro || new Date().toLocaleDateString('pt-BR'),
         usuarioCadastro: data?.usuarioCadastro || user?.nome || 'Admin',
       });
@@ -160,112 +172,162 @@ export const UnidadeNegocioFormModal = ({
             Preencha os campos abaixo para {data ? 'editar' : 'cadastrar'} a unidade de negócio.
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Upload de Imagem */}
-          <div className="space-y-2">
-            <Label>Logotipo</Label>
-            <div className="flex items-start gap-4">
-              <div className="relative">
-                {formData.imagem ? (
-                  <div className="relative w-24 h-24 rounded-lg overflow-hidden border bg-muted">
-                    <img
-                      src={formData.imagem}
-                      alt="Logo"
-                      className="w-full h-full object-contain"
+        <Tabs defaultValue="dados" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="dados">Dados Gerais</TabsTrigger>
+            <TabsTrigger value="preferencias">Preferências</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="dados">
+            <form onSubmit={handleSubmit} className="space-y-4 mt-4">
+              {/* Upload de Imagem */}
+              <div className="space-y-2">
+                <Label>Logotipo</Label>
+                <div className="flex items-start gap-4">
+                  <div className="relative">
+                    {formData.imagem ? (
+                      <div className="relative w-24 h-24 rounded-lg overflow-hidden border bg-muted">
+                        <img
+                          src={formData.imagem}
+                          alt="Logo"
+                          className="w-full h-full object-contain"
+                        />
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="icon"
+                          className="absolute -top-2 -right-2 h-6 w-6 rounded-full"
+                          onClick={handleRemoveImage}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <div
+                        className="w-24 h-24 rounded-lg border-2 border-dashed border-muted-foreground/30 flex flex-col items-center justify-center gap-1 cursor-pointer hover:border-primary/50 hover:bg-muted/50 transition-colors"
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        <ImageIcon className="w-8 h-8 text-muted-foreground" />
+                        <span className="text-xs text-muted-foreground">Clique para</span>
+                        <span className="text-xs text-muted-foreground">adicionar</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1 space-y-2">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      className="hidden"
                     />
                     <Button
                       type="button"
-                      variant="destructive"
-                      size="icon"
-                      className="absolute -top-2 -right-2 h-6 w-6 rounded-full"
-                      onClick={handleRemoveImage}
+                      variant="outline"
+                      size="sm"
+                      onClick={() => fileInputRef.current?.click()}
                     >
-                      <X className="h-3 w-3" />
+                      <Upload className="w-4 h-4 mr-2" />
+                      {formData.imagem ? 'Alterar' : 'Upload'}
                     </Button>
+                    <p className="text-xs text-muted-foreground">
+                      Formatos: JPG, PNG, GIF. Máx: 2MB
+                    </p>
                   </div>
-                ) : (
-                  <div
-                    className="w-24 h-24 rounded-lg border-2 border-dashed border-muted-foreground/30 flex flex-col items-center justify-center gap-1 cursor-pointer hover:border-primary/50 hover:bg-muted/50 transition-colors"
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    <ImageIcon className="w-8 h-8 text-muted-foreground" />
-                    <span className="text-xs text-muted-foreground">Clique para</span>
-                    <span className="text-xs text-muted-foreground">adicionar</span>
-                  </div>
-                )}
+                </div>
               </div>
-              <div className="flex-1 space-y-2">
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageUpload}
-                  className="hidden"
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="codigoExterno">Código Externo</Label>
+                  <Input
+                    id="codigoExterno"
+                    value={formData.codigoExterno}
+                    onChange={(e) => setFormData({ ...formData, codigoExterno: e.target.value })}
+                    maxLength={10}
+                    placeholder="Máx. 10 caracteres"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="nome">Nome <span className="text-destructive">*</span></Label>
+                  <Input
+                    id="nome"
+                    value={formData.nome}
+                    onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
+                    maxLength={100}
+                    required
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="descricao">Descrição</Label>
+                <Textarea
+                  id="descricao"
+                  value={formData.descricao}
+                  onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
+                  rows={3}
+                  placeholder="Descrição da unidade de negócio..."
                 />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  <Upload className="w-4 h-4 mr-2" />
-                  {formData.imagem ? 'Alterar' : 'Upload'}
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={onClose} disabled={isSaving}>
+                  Cancelar
                 </Button>
+                <Button type="submit" className="gradient-primary hover:opacity-90" disabled={isSaving}>
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      {isUploading ? 'Enviando imagem...' : 'Salvando...'}
+                    </>
+                  ) : (
+                    'Salvar'
+                  )}
+                </Button>
+              </DialogFooter>
+            </form>
+          </TabsContent>
+
+          <TabsContent value="preferencias">
+            <form onSubmit={handleSubmit} className="space-y-4 mt-4">
+              <div className="space-y-2">
+                <Label htmlFor="moeda">Moeda Padrão</Label>
+                <Select
+                  value={formData.moeda}
+                  onValueChange={(value) => setFormData({ ...formData, moeda: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione a moeda..." />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-[300px]">
+                    {CURRENCIES.map((currency) => (
+                      <SelectItem key={currency.code} value={currency.code}>
+                        {currency.code} - {currency.name} ({currency.symbol})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <p className="text-xs text-muted-foreground">
-                  Formatos: JPG, PNG, GIF. Máx: 2MB
+                  Esta moeda será usada para exibir todos os valores de custos relacionados a esta unidade de negócio.
                 </p>
               </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="codigoExterno">Código Externo</Label>
-              <Input
-                id="codigoExterno"
-                value={formData.codigoExterno}
-                onChange={(e) => setFormData({ ...formData, codigoExterno: e.target.value })}
-                maxLength={10}
-                placeholder="Máx. 10 caracteres"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="nome">Nome <span className="text-destructive">*</span></Label>
-              <Input
-                id="nome"
-                value={formData.nome}
-                onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
-                maxLength={100}
-                required
-              />
-            </div>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="descricao">Descrição</Label>
-            <Textarea
-              id="descricao"
-              value={formData.descricao}
-              onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
-              rows={3}
-              placeholder="Descrição da unidade de negócio..."
-            />
-          </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose} disabled={isSaving}>
-              Cancelar
-            </Button>
-            <Button type="submit" className="gradient-primary hover:opacity-90" disabled={isSaving}>
-              {isSaving ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  {isUploading ? 'Enviando imagem...' : 'Salvando...'}
-                </>
-              ) : (
-                'Salvar'
-              )}
-            </Button>
-          </DialogFooter>
-        </form>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={onClose} disabled={isSaving}>
+                  Cancelar
+                </Button>
+                <Button type="submit" className="gradient-primary hover:opacity-90" disabled={isSaving}>
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Salvando...
+                    </>
+                  ) : (
+                    'Salvar'
+                  )}
+                </Button>
+              </DialogFooter>
+            </form>
+          </TabsContent>
+        </Tabs>
       </DialogContent>
     </Dialog>
   );

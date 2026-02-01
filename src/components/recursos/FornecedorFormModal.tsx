@@ -22,6 +22,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import type { Fornecedor } from '@/pages/recursos/Fornecedores';
 import { ServicosTab } from './ServicosTab';
+import { FornecedorArquivosTab } from './FornecedorArquivosTab';
 import { supabase } from '@/integrations/supabase/client';
 
 const PAISES = [
@@ -113,9 +114,10 @@ export const FornecedorFormModal = ({
         </DialogHeader>
 
         <Tabs defaultValue="dados" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="dados">Dados Gerais</TabsTrigger>
             <TabsTrigger value="servicos" disabled={!data}>Serviços</TabsTrigger>
+            <TabsTrigger value="arquivos" disabled={!data}>Arquivos</TabsTrigger>
           </TabsList>
 
           <TabsContent value="dados">
@@ -222,6 +224,10 @@ export const FornecedorFormModal = ({
 
           <TabsContent value="servicos">
             {data && <ServicosTab fornecedorId={data.id} />}
+          </TabsContent>
+
+          <TabsContent value="arquivos">
+            {data && <FornecedorArquivosTab fornecedorId={data.id} />}
           </TabsContent>
         </Tabs>
       </DialogContent>
