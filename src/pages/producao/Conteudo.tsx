@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
+import { ListActionBar } from '@/components/shared/ListActionBar';
 import { Edit, Trash2, Film, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ConteudoFormModal } from '@/components/producao/ConteudoFormModal';
@@ -107,17 +108,29 @@ const Conteudo = () => {
 
   const handleSave = async (data: Conteudo) => {
     try {
-      const dbData: TablesInsert<'conteudos'> = {
+      // Find IDs from names
+      const { data: unidadesData } = await supabase.from('unidades_negocio').select('id, nome');
+      const { data: centrosData } = await supabase.from('centros_lucro').select('id, nome');
+      const { data: tiposData } = await supabase.from('tipos_gravacao').select('id, nome');
+      const { data: classificacoesData } = await supabase.from('classificacoes').select('id, nome');
+
+      const unidadeId = unidadesData?.find(u => u.nome === data.unidadeNegocio)?.id || data.unidadeNegocioId || null;
+      const centroId = centrosData?.find(c => c.nome === data.centroLucro)?.id || data.centroLucroId || null;
+      const tipoId = tiposData?.find(t => t.nome === data.tipoConteudo)?.id || data.tipoConteudoId || null;
+      const classificacaoId = classificacoesData?.find(c => c.nome === data.classificacao)?.id || data.classificacaoId || null;
+
+      const dbData: any = {
         id: data.id || undefined,
         codigo_externo: data.codigoExterno || null,
         descricao: data.descricao,
         quantidade_episodios: data.quantidadeEpisodios || 0,
-        centro_lucro_id: data.centroLucroId || null,
-        unidade_negocio_id: data.unidadeNegocioId || null,
-        tipo_conteudo_id: data.tipoConteudoId || null,
-        classificacao_id: data.classificacaoId || null,
+        centro_lucro_id: centroId,
+        unidade_negocio_id: unidadeId,
+        tipo_conteudo_id: tipoId,
+        classificacao_id: classificacaoId,
         ano_producao: data.anoProducao || null,
         sinopse: data.sinopse || null,
+        orcamento: (data as any).orcamento || 0,
       };
 
       if (editingItem) {
@@ -273,9 +286,11 @@ const Conteudo = () => {
           setIsModalOpen(true);
         } : undefined}
         addLabel="Novo Conteúdo"
-      >
+      />
+      
+      <ListActionBar>
         <SearchBar value={search} onChange={setSearch} />
-      </PageHeader>
+      </ListActionBar>
 
       <DataCard>
         {isLoading ? (

@@ -224,6 +224,7 @@ export type Database = {
           created_by: string | null
           descricao: string
           id: string
+          orcamento: number | null
           quantidade_episodios: number | null
           sinopse: string | null
           tipo_conteudo_id: string | null
@@ -239,6 +240,7 @@ export type Database = {
           created_by?: string | null
           descricao: string
           id?: string
+          orcamento?: number | null
           quantidade_episodios?: number | null
           sinopse?: string | null
           tipo_conteudo_id?: string | null
@@ -254,6 +256,7 @@ export type Database = {
           created_by?: string | null
           descricao?: string
           id?: string
+          orcamento?: number | null
           quantidade_episodios?: number | null
           sinopse?: string | null
           tipo_conteudo_id?: string | null
@@ -1020,6 +1023,7 @@ export type Database = {
           descricao: string | null
           id: string
           nome: string
+          orcamento: number | null
           status_id: string | null
           tipo_conteudo_id: string | null
           unidade_negocio_id: string | null
@@ -1037,6 +1041,7 @@ export type Database = {
           descricao?: string | null
           id?: string
           nome: string
+          orcamento?: number | null
           status_id?: string | null
           tipo_conteudo_id?: string | null
           unidade_negocio_id?: string | null
@@ -1054,6 +1059,7 @@ export type Database = {
           descricao?: string | null
           id?: string
           nome?: string
+          orcamento?: number | null
           status_id?: string | null
           tipo_conteudo_id?: string | null
           unidade_negocio_id?: string | null
