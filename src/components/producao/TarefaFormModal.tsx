@@ -75,7 +75,7 @@ interface Gravacao {
 interface RecursoHumano {
   id: string;
   nome: string;
-  nomeTrabalho?: string;
+  status?: string | null;
 }
 
 interface TarefaFormModalProps {
@@ -136,9 +136,13 @@ export const TarefaFormModal = ({
 
   useEffect(() => {
     if (data) {
+      const incomingRecursoHumanoId =
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (data as any).recursoHumanoId ?? (data as any).recurso_humano_id ?? '';
+
       setFormData({
         ...data,
-        recursoHumanoId: data.recursoHumanoId || '',
+        recursoHumanoId: incomingRecursoHumanoId || '',
       });
     } else {
       setFormData({
@@ -158,13 +162,13 @@ export const TarefaFormModal = ({
     try {
       const { data: rhData } = await supabase
         .from('recursos_humanos')
-        .select('id, nome, sobrenome')
-        .eq('status', 'Ativo')
+        .select('id, nome, sobrenome, status')
         .order('nome');
 
       setRecursosHumanos((rhData || []).map((r: any) => ({
         id: r.id,
         nome: `${r.nome} ${r.sobrenome}`.trim(),
+        status: r.status,
       })));
     } catch (err) {
       console.error('Error fetching recursos humanos:', err);
@@ -176,6 +180,17 @@ export const TarefaFormModal = ({
       fetchRecursosHumanos();
     }
   }, [open, fetchRecursosHumanos]);
+
+  // Garante que o responsável atual exista na lista (para o Select conseguir renderizar o valor)
+  useEffect(() => {
+    if (!open || !data?.recursoHumanoId) return;
+    if (!data.recursoHumanoNome) return;
+
+    setRecursosHumanos((prev) => {
+      if (prev.some((p) => p.id === data.recursoHumanoId)) return prev;
+      return [{ id: data.recursoHumanoId, nome: data.recursoHumanoNome }, ...prev];
+    });
+  }, [open, data?.recursoHumanoId, data?.recursoHumanoNome]);
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -183,7 +198,7 @@ export const TarefaFormModal = ({
     
     onSave({
       ...formData,
-      recursoHumanoNome: recurso?.nomeTrabalho || recurso?.nome,
+      recursoHumanoNome: recurso?.nome,
     } as Tarefa);
   };
 
@@ -308,7 +323,11 @@ export const TarefaFormModal = ({
                 <Label>{t('tasks.assignee')} *</Label>
                 {isResponsavelReadOnly ? (
                   <Input
-                    value={recursosHumanos.find(r => r.id === formData.recursoHumanoId)?.nome || '-'}
+                    value={
+                      recursosHumanos.find(r => r.id === formData.recursoHumanoId)?.nome ||
+                      (formData.recursoHumanoNome as string) ||
+                      '-'
+                    }
                     disabled
                     className="bg-muted"
                   />
@@ -324,7 +343,7 @@ export const TarefaFormModal = ({
                     <SelectContent>
                       {recursosHumanos.map(rh => (
                         <SelectItem key={rh.id} value={rh.id}>
-                          {rh.nomeTrabalho || rh.nome}
+                          {rh.nome}{rh.status === 'Inativo' ? ' (Inativo)' : ''}
                         </SelectItem>
                       ))}
                     </SelectContent>
