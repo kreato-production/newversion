@@ -461,7 +461,7 @@ export const TarefaFormModal = ({
             {/* Time fields */}
             {showHoraInicio && (
               <div className="space-y-2">
-                <Label htmlFor="horaInicio">{t('common.startTime') || 'Hora Início'}</Label>
+                <Label htmlFor="horaInicio">{t('common.startTime')}</Label>
                 <Input
                   id="horaInicio"
                   type="time"
@@ -475,7 +475,7 @@ export const TarefaFormModal = ({
 
             {showHoraFim && (
               <div className="space-y-2">
-                <Label htmlFor="horaFim">{t('common.endTime') || 'Hora Fim'}</Label>
+                <Label htmlFor="horaFim">{t('common.endTime')}</Label>
                 <Input
                   id="horaFim"
                   type="time"

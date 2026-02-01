@@ -104,13 +104,16 @@ export const CustosTab = ({ gravacaoId }: CustosTabProps) => {
     // Processar recursos alocados
     recursos.forEach((recurso) => {
       // Processar recursos humanos alocados (seja diretamente ou via recurso técnico)
+      // Este caso trata:
+      //   - RH alocado diretamente (recurso_humano_id + sem recurso_tecnico_id)
+      //   - RH associado a recurso técnico (recurso_humano_id + recurso_tecnico_id)
       if (recurso.recurso_humano_id && recurso.recursos_humanos) {
         const rh = recurso.recursos_humanos;
         const custoHora = rh.custo_hora || 0;
         const horas = calcularHorasEntreTempo(recurso.hora_inicio, recurso.hora_fim);
         
-        // Criar chave única para evitar duplicatas
-        const rhKey = `${recurso.recurso_humano_id}_${recurso.hora_inicio}_${recurso.hora_fim}`;
+        // Criar chave única incluindo recurso técnico para evitar conflito mas manter cada alocação
+        const rhKey = `${recurso.recurso_humano_id}_${recurso.recurso_tecnico_id || 'direct'}_${recurso.hora_inicio}_${recurso.hora_fim}`;
         
         if (horas > 0 && !rhProcessados.has(rhKey)) {
           rhProcessados.add(rhKey);
@@ -133,8 +136,8 @@ export const CustosTab = ({ gravacaoId }: CustosTabProps) => {
         }
       }
 
-      // Processar recursos físicos (apenas se não tiver recurso humano associado, evitando mistura)
-      if (recurso.recurso_fisico_id && recurso.recursos_fisicos && !recurso.recurso_humano_id) {
+      // Processar recursos físicos (apenas se não tiver recurso técnico ou humano associado)
+      if (recurso.recurso_fisico_id && recurso.recursos_fisicos && !recurso.recurso_humano_id && !recurso.recurso_tecnico_id) {
         const rf = recurso.recursos_fisicos;
         const custoHora = rf.custo_hora || 0;
         const horas = calcularHorasEntreTempo(recurso.hora_inicio, recurso.hora_fim);

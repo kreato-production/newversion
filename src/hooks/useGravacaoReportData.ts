@@ -338,7 +338,14 @@ export const useGravacaoReportData = () => {
         .select('id, valor, fornecedores:fornecedor_id(nome), fornecedor_servicos:servico_id(nome)')
         .eq('gravacao_id', gravacaoId);
 
-      const terceiros: TerceiroData[] = (terceirosData || []).map((t: any) => {
+      // Usar Set para evitar duplicatas de terceiros no relatório (baseado no ID)
+      const terceirosProcessados = new Set<string>();
+      const terceiros: TerceiroData[] = [];
+      
+      (terceirosData || []).forEach((t: any) => {
+        if (terceirosProcessados.has(t.id)) return;
+        terceirosProcessados.add(t.id);
+        
         const custo = t.valor || 0;
         // Add to costs
         custos.push({
@@ -349,12 +356,12 @@ export const useGravacaoReportData = () => {
           custoUnitario: custo,
           custoTotal: custo,
         });
-        return {
+        terceiros.push({
           id: t.id,
           fornecedorNome: t.fornecedores?.nome || '',
           servicoNome: t.fornecedor_servicos?.nome || '',
           custo,
-        };
+        });
       });
 
       // Calculate totals
