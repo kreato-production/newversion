@@ -41,6 +41,7 @@ import { ElencoTab } from './ElencoTab';
 import { RoteiroTab } from './RoteiroTab';
 import { GravacaoReportGenerator } from './GravacaoReportGenerator';
 import { cn } from '@/lib/utils';
+import { DialogActionBar } from '@/components/shared/DialogActionBar';
 import { supabase } from '@/integrations/supabase/client';
 
 interface GravacaoFormModalProps {
@@ -253,18 +254,17 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="w-[95vw] max-w-[1400px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <DialogTitle>{data ? t('recordings.edit') : t('recordings.new')}</DialogTitle>
-              <DialogDescription>
-                {data ? t('recordings.edit') : t('recordings.new')}
-              </DialogDescription>
-            </div>
-            {data && (
-              <GravacaoReportGenerator gravacaoId={data.id} />
-            )}
-          </div>
+          <DialogTitle>{data ? t('recordings.edit') : t('recordings.new')}</DialogTitle>
+          <DialogDescription>
+            {data ? t('recordings.edit') : t('recordings.new')}
+          </DialogDescription>
         </DialogHeader>
+
+        {data && (
+          <DialogActionBar>
+            <GravacaoReportGenerator gravacaoId={data.id} />
+          </DialogActionBar>
+        )}
 
         <Tabs defaultValue="dados" className="w-full">
           <TabsList className="flex w-full">
