@@ -260,6 +260,7 @@ const Mapas = () => {
         id: rh.id, 
         nome: `${rh.nome} ${rh.sobrenome}`, 
         custoHora: rh.custo_hora,
+        funcao: rh.funcoes?.nome || 'Sem função',
       })));
 
       // Carregar tarefas
@@ -760,15 +761,15 @@ const Mapas = () => {
                     const colaborador = recursosHumanosCadastro.find((r: any) => r.id === rh.recursoHumanoId);
                     const custoHora = parseFloat(colaborador?.custoHora || 0);
                     const custoRecurso = horas * custoHora;
-                    const nomeColaborador = colaborador?.nome || 'Colaborador';
+                    const nomeFuncao = colaborador?.funcao || 'Sem função';
                     
                     if (custoRecurso > 0) {
                       let detalheExistente = resultado[gravacao.centroLucro].detalhes.find(
-                        d => d.nome === nomeColaborador && d.tipo === 'humano'
+                        d => d.nome === nomeFuncao && d.tipo === 'humano'
                       );
                       if (!detalheExistente) {
                         detalheExistente = {
-                          nome: nomeColaborador,
+                          nome: nomeFuncao,
                           tipo: 'humano',
                           custosMensais: Array(12).fill(0),
                           total: 0,
@@ -791,15 +792,15 @@ const Mapas = () => {
               const colaborador = recursosHumanosCadastro.find((r: any) => r.id === recurso.recursoHumanoId);
               const custoHora = parseFloat(colaborador?.custoHora || 0);
               const custoRecurso = horas * custoHora;
-              const nomeColaborador = colaborador?.nome || 'Colaborador';
+              const nomeFuncao = colaborador?.funcao || 'Sem função';
               
               if (custoRecurso > 0) {
                 let detalheExistente = resultado[gravacao.centroLucro].detalhes.find(
-                  d => d.nome === nomeColaborador && d.tipo === 'humano'
+                  d => d.nome === nomeFuncao && d.tipo === 'humano'
                 );
                 if (!detalheExistente) {
                   detalheExistente = {
-                    nome: nomeColaborador,
+                    nome: nomeFuncao,
                     tipo: 'humano',
                     custosMensais: Array(12).fill(0),
                     total: 0,
