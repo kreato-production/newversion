@@ -52,6 +52,7 @@ export const UsuarioFormModal = ({
     senha: '',
     foto: '',
     perfil: '',
+    perfilId: '',
     descricao: '',
   });
 
@@ -88,6 +89,7 @@ export const UsuarioFormModal = ({
         senha: data.senha || '',
         foto: data.foto || '',
         perfil: data.perfil,
+        perfilId: data.perfilId || '',
         descricao: data.descricao,
       });
       setFotoPreview(data.foto || null);
@@ -100,6 +102,7 @@ export const UsuarioFormModal = ({
         senha: '',
         foto: '',
         perfil: '',
+        perfilId: '',
         descricao: '',
       });
       setFotoPreview(null);
@@ -136,6 +139,7 @@ export const UsuarioFormModal = ({
     const saveData = {
       id: data?.id || crypto.randomUUID(),
       ...formData,
+      perfilId: formData.perfilId || undefined,
       // Manter senha atual se estiver editando e não preencheu nova senha
       senha: formData.senha || data?.senha || '',
       foto: formData.foto || data?.foto || '',
@@ -284,15 +288,22 @@ export const UsuarioFormModal = ({
               <div className="space-y-2">
                 <Label>Perfil de Acesso</Label>
                 <Select
-                  value={formData.perfil}
-                  onValueChange={(value) => setFormData({ ...formData, perfil: value })}
+                  value={formData.perfilId}
+                  onValueChange={(value) => {
+                    const perfilSelecionado = perfis.find(p => p.id === value);
+                    setFormData({ 
+                      ...formData, 
+                      perfilId: value,
+                      perfil: perfilSelecionado?.nome || ''
+                    });
+                  }}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione..." />
                   </SelectTrigger>
                   <SelectContent>
                     {perfis.map((p) => (
-                      <SelectItem key={p.id} value={p.nome}>{p.nome}</SelectItem>
+                      <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>

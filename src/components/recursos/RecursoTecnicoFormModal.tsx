@@ -45,6 +45,7 @@ export const RecursoTecnicoFormModal = ({
     codigoExterno: data?.codigoExterno || '',
     nome: data?.nome || '',
     funcaoOperador: data?.funcaoOperador || '',
+    funcaoOperadorId: data?.funcaoOperadorId || '',
   });
 
   const fetchFuncoes = useCallback(async () => {
@@ -70,6 +71,7 @@ export const RecursoTecnicoFormModal = ({
         codigoExterno: data?.codigoExterno || '',
         nome: data?.nome || '',
         funcaoOperador: data?.funcaoOperador || '',
+        funcaoOperadorId: data?.funcaoOperadorId || '',
       });
     }
   }, [isOpen, data]);
@@ -81,10 +83,11 @@ export const RecursoTecnicoFormModal = ({
       codigoExterno: formData.codigoExterno,
       nome: formData.nome,
       funcaoOperador: formData.funcaoOperador,
+      funcaoOperadorId: formData.funcaoOperadorId || undefined,
       dataCadastro: data?.dataCadastro || new Date().toLocaleDateString('pt-BR'),
       usuarioCadastro: data?.usuarioCadastro || user?.nome || 'Admin',
     });
-    setFormData({ codigoExterno: '', nome: '', funcaoOperador: '' });
+    setFormData({ codigoExterno: '', nome: '', funcaoOperador: '', funcaoOperadorId: '' });
     onClose();
   };
 
@@ -121,15 +124,22 @@ export const RecursoTecnicoFormModal = ({
           <div className="space-y-2">
             <Label htmlFor="funcaoOperador">Função do Operador</Label>
             <Select
-              value={formData.funcaoOperador}
-              onValueChange={(value) => setFormData({ ...formData, funcaoOperador: value })}
+              value={formData.funcaoOperadorId}
+              onValueChange={(value) => {
+                const funcaoSelecionada = funcoes.find(f => f.id === value);
+                setFormData({ 
+                  ...formData, 
+                  funcaoOperadorId: value,
+                  funcaoOperador: funcaoSelecionada?.nome || ''
+                });
+              }}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Selecione a função..." />
               </SelectTrigger>
               <SelectContent>
                 {funcoes.map((funcao) => (
-                  <SelectItem key={funcao.id} value={funcao.nome}>
+                  <SelectItem key={funcao.id} value={funcao.id}>
                     {funcao.nome}
                   </SelectItem>
                 ))}
