@@ -50,7 +50,7 @@ export const FornecedorFormModal = ({
   const [formData, setFormData] = useState({
     codigoExterno: '',
     nome: '',
-    categoria: '',
+    categoriaId: '',
     email: '',
     pais: '',
     identificacaoFiscal: '',
@@ -73,7 +73,7 @@ export const FornecedorFormModal = ({
       setFormData({
         codigoExterno: data.codigoExterno,
         nome: data.nome,
-        categoria: data.categoria,
+        categoriaId: data.categoriaId || '',
         email: data.email,
         pais: data.pais,
         identificacaoFiscal: data.identificacaoFiscal,
@@ -83,7 +83,7 @@ export const FornecedorFormModal = ({
       setFormData({
         codigoExterno: '',
         nome: '',
-        categoria: '',
+        categoriaId: '',
         email: '',
         pais: '',
         identificacaoFiscal: '',
@@ -94,9 +94,18 @@ export const FornecedorFormModal = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    // Find the category name for the interface
+    const categoriaObj = categorias.find(c => c.id === formData.categoriaId);
     onSave({
       id: data?.id || crypto.randomUUID(),
-      ...formData,
+      codigoExterno: formData.codigoExterno,
+      nome: formData.nome,
+      categoria: categoriaObj?.nome || '',
+      categoriaId: formData.categoriaId || undefined,
+      email: formData.email,
+      pais: formData.pais,
+      identificacaoFiscal: formData.identificacaoFiscal,
+      descricao: formData.descricao,
       dataCadastro: data?.dataCadastro || new Date().toLocaleDateString('pt-BR'),
       usuarioCadastro: data?.usuarioCadastro || user?.nome || 'Admin',
     });
@@ -148,15 +157,15 @@ export const FornecedorFormModal = ({
                 <div className="space-y-2">
                   <Label>Categoria</Label>
                   <Select
-                    value={formData.categoria}
-                    onValueChange={(value) => setFormData({ ...formData, categoria: value })}
+                    value={formData.categoriaId}
+                    onValueChange={(value) => setFormData({ ...formData, categoriaId: value })}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione..." />
                     </SelectTrigger>
                     <SelectContent>
                       {categorias.map((c) => (
-                        <SelectItem key={c.id} value={c.nome}>{c.nome}</SelectItem>
+                        <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
