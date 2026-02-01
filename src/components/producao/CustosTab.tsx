@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Users, MapPin, Wrench, Calculator, Clock, DollarSign, Building2, Loader2 } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { supabase } from '@/integrations/supabase/client';
+import { formatCurrency as formatCurrencyUtil } from '@/lib/currencies';
 
 interface CustoItem {
   categoria: string;
@@ -34,16 +35,42 @@ const calcularHorasEntreTempo = (inicio: string, fim: string): number => {
 };
 
 export const CustosTab = ({ gravacaoId }: CustosTabProps) => {
-  const { t, formatCurrency } = useLanguage();
+  const { t } = useLanguage();
   const [isLoading, setIsLoading] = useState(true);
   const [recursos, setRecursos] = useState<any[]>([]);
   const [recursosHumanos, setRecursosHumanos] = useState<any[]>([]);
   const [recursosFisicos, setRecursosFisicos] = useState<any[]>([]);
   const [terceiros, setTerceiros] = useState<any[]>([]);
+  const [moeda, setMoeda] = useState<string>('BRL');
+
+  // Custom currency formatter based on business unit
+  const formatCurrency = useCallback((value: number) => {
+    return formatCurrencyUtil(value, moeda);
+  }, [moeda]);
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
+      // First, fetch the gravação to get the unidade_negocio_id
+      const { data: gravacaoData } = await supabase
+        .from('gravacoes')
+        .select('unidade_negocio_id')
+        .eq('id', gravacaoId)
+        .single();
+
+      // If there's a business unit, fetch its currency preference
+      if (gravacaoData?.unidade_negocio_id) {
+        const { data: unidadeData } = await supabase
+          .from('unidades_negocio')
+          .select('moeda')
+          .eq('id', gravacaoData.unidade_negocio_id)
+          .single();
+        
+        if (unidadeData?.moeda) {
+          setMoeda(unidadeData.moeda);
+        }
+      }
+
       // Buscar recursos alocados na gravação (incluindo alocações de RH em recursos técnicos)
       const { data: recursosData } = await supabase
         .from('gravacao_recursos')
