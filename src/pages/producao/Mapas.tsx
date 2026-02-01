@@ -10,7 +10,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Progress } from '@/components/ui/progress';
-import { Calendar, ChevronLeft, ChevronRight, Filter, MapPin, Users, CalendarDays, CalendarRange, FileDown, Loader2, Clock, Film, User, DollarSign, Building2, Briefcase } from 'lucide-react';
+import { Calendar, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Filter, MapPin, Users, CalendarDays, CalendarRange, FileDown, Loader2, Clock, Film, User, DollarSign, Building2, Briefcase, Wrench, MapPinIcon } from 'lucide-react';
 import { format, addDays, startOfWeek, addWeeks, subWeeks, startOfMonth, endOfMonth, addMonths, subMonths, eachDayOfInterval, getDay, parseISO, getMonth, getYear, isSameDay, isWithinInterval } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import jsPDF from 'jspdf';
@@ -128,6 +128,9 @@ const Mapas = () => {
   // Filtros para apropriação de custos
   const [filtroCentroLucro, setFiltroCentroLucro] = useState('Todos');
   const [filtroUnidadeNegocio, setFiltroUnidadeNegocio] = useState('Todas');
+  
+  // Estado para controlar expansão das linhas de Centro de Lucro
+  const [expandedCentrosLucro, setExpandedCentrosLucro] = useState<Set<string>>(new Set());
   const [filtroAno, setFiltroAno] = useState(new Date().getFullYear().toString());
 
   // Refs para exportação PDF
@@ -668,10 +671,23 @@ const Mapas = () => {
     return Array.from(anos).sort((a, b) => b - a);
   }, [gravacoes]);
 
-  // Dados de apropriação de custos por Centro de Lucro
+  // Interface para detalhes de recurso no breakdown
+  interface RecursoDetalhe {
+    nome: string;
+    tipo: 'humano' | 'fisico' | 'terceiro';
+    custosMensais: number[];
+    total: number;
+  }
+
+  // Dados de apropriação de custos por Centro de Lucro com breakdown de recursos
   const apropriacaoPorCentroLucro = useMemo(() => {
     const anoSelecionado = parseInt(filtroAno);
-    const resultado: Record<string, { nome: string; custosMensais: number[]; total: number }> = {};
+    const resultado: Record<string, { 
+      nome: string; 
+      custosMensais: number[]; 
+      total: number;
+      detalhes: RecursoDetalhe[];
+    }> = {};
     
     gravacoes.forEach((gravacao) => {
       if (!gravacao.dataPrevista || !gravacao.centroLucro) return;
@@ -684,7 +700,6 @@ const Mapas = () => {
         if (isNaN(data.getTime()) || getYear(data) !== anoSelecionado) return;
         
         const mesIndex = getMonth(data);
-        const custo = calcularCustoGravacao(gravacao.id);
         
         // Buscar o nome do centro de lucro pelo ID
         const centroLucroObj = centrosLucro.find(c => c.id === gravacao.centroLucro);
@@ -695,11 +710,136 @@ const Mapas = () => {
             nome: centroLucroNome,
             custosMensais: Array(12).fill(0),
             total: 0,
+            detalhes: [],
           };
         }
         
-        resultado[gravacao.centroLucro].custosMensais[mesIndex] += custo;
-        resultado[gravacao.centroLucro].total += custo;
+        // Calcular custos detalhados por recurso
+        const recursos = gravacaoRecursos[gravacao.id] || [];
+        const rhProcessados = new Set<string>();
+        
+        recursos.forEach((recurso: any) => {
+          if (recurso.tipo === 'fisico') {
+            const recursoFisico = recursosFisicosCadastro.find((rf: any) => rf.id === recurso.recursoId);
+            const custoHora = parseFloat(recursoFisico?.custoHora || 0);
+            const nomeRecurso = recursoFisico?.nome || 'Recurso Físico';
+            
+            let totalHoras = 0;
+            Object.entries(recurso.horarios || {}).forEach(([, horario]: [string, any]) => {
+              const horas = calcularHorasEntreTempo(horario.horaInicio, horario.horaFim);
+              if (horas > 0) totalHoras += horas;
+            });
+            
+            const custoRecurso = totalHoras * custoHora;
+            if (custoRecurso > 0) {
+              // Verificar se já existe esse recurso nos detalhes
+              let detalheExistente = resultado[gravacao.centroLucro].detalhes.find(
+                d => d.nome === nomeRecurso && d.tipo === 'fisico'
+              );
+              if (!detalheExistente) {
+                detalheExistente = {
+                  nome: nomeRecurso,
+                  tipo: 'fisico',
+                  custosMensais: Array(12).fill(0),
+                  total: 0,
+                };
+                resultado[gravacao.centroLucro].detalhes.push(detalheExistente);
+              }
+              detalheExistente.custosMensais[mesIndex] += custoRecurso;
+              detalheExistente.total += custoRecurso;
+            }
+          } else if (recurso.tipo === 'tecnico') {
+            // Recursos humanos vinculados a recursos técnicos
+            Object.entries(recurso.recursosHumanos || {}).forEach(([, rhList]: [string, any]) => {
+              if (Array.isArray(rhList)) {
+                rhList.forEach((rh: any) => {
+                  const rhKey = `${rh.recursoHumanoId}_${recurso.recursoId}_${rh.horaInicio}_${rh.horaFim}`;
+                  if (!rhProcessados.has(rhKey)) {
+                    rhProcessados.add(rhKey);
+                    const horas = calcularHorasEntreTempo(rh.horaInicio, rh.horaFim);
+                    const colaborador = recursosHumanosCadastro.find((r: any) => r.id === rh.recursoHumanoId);
+                    const custoHora = parseFloat(colaborador?.custoHora || 0);
+                    const custoRecurso = horas * custoHora;
+                    const nomeColaborador = colaborador?.nome || 'Colaborador';
+                    
+                    if (custoRecurso > 0) {
+                      let detalheExistente = resultado[gravacao.centroLucro].detalhes.find(
+                        d => d.nome === nomeColaborador && d.tipo === 'humano'
+                      );
+                      if (!detalheExistente) {
+                        detalheExistente = {
+                          nome: nomeColaborador,
+                          tipo: 'humano',
+                          custosMensais: Array(12).fill(0),
+                          total: 0,
+                        };
+                        resultado[gravacao.centroLucro].detalhes.push(detalheExistente);
+                      }
+                      detalheExistente.custosMensais[mesIndex] += custoRecurso;
+                      detalheExistente.total += custoRecurso;
+                    }
+                  }
+                });
+              }
+            });
+          } else if (recurso.tipo === 'humano' && recurso.recursoHumanoId) {
+            // Recursos humanos diretos
+            const rhKey = `${recurso.recursoHumanoId}_direct_${recurso.horaInicio}_${recurso.horaFim}`;
+            if (!rhProcessados.has(rhKey)) {
+              rhProcessados.add(rhKey);
+              const horas = calcularHorasEntreTempo(recurso.horaInicio, recurso.horaFim);
+              const colaborador = recursosHumanosCadastro.find((r: any) => r.id === recurso.recursoHumanoId);
+              const custoHora = parseFloat(colaborador?.custoHora || 0);
+              const custoRecurso = horas * custoHora;
+              const nomeColaborador = colaborador?.nome || 'Colaborador';
+              
+              if (custoRecurso > 0) {
+                let detalheExistente = resultado[gravacao.centroLucro].detalhes.find(
+                  d => d.nome === nomeColaborador && d.tipo === 'humano'
+                );
+                if (!detalheExistente) {
+                  detalheExistente = {
+                    nome: nomeColaborador,
+                    tipo: 'humano',
+                    custosMensais: Array(12).fill(0),
+                    total: 0,
+                  };
+                  resultado[gravacao.centroLucro].detalhes.push(detalheExistente);
+                }
+                detalheExistente.custosMensais[mesIndex] += custoRecurso;
+                detalheExistente.total += custoRecurso;
+              }
+            }
+          }
+        });
+        
+        // Terceiros
+        const terceiros = gravacaoTerceiros[gravacao.id] || [];
+        terceiros.forEach((terceiro: any) => {
+          const valorTerceiro = parseFloat(terceiro.valor || 0);
+          if (valorTerceiro > 0) {
+            const nomeTerceiro = 'Serviços de Terceiros';
+            let detalheExistente = resultado[gravacao.centroLucro].detalhes.find(
+              d => d.nome === nomeTerceiro && d.tipo === 'terceiro'
+            );
+            if (!detalheExistente) {
+              detalheExistente = {
+                nome: nomeTerceiro,
+                tipo: 'terceiro',
+                custosMensais: Array(12).fill(0),
+                total: 0,
+              };
+              resultado[gravacao.centroLucro].detalhes.push(detalheExistente);
+            }
+            detalheExistente.custosMensais[mesIndex] += valorTerceiro;
+            detalheExistente.total += valorTerceiro;
+          }
+        });
+        
+        // Calcular custo total da gravação para o centro de lucro
+        const custoTotal = calcularCustoGravacao(gravacao.id);
+        resultado[gravacao.centroLucro].custosMensais[mesIndex] += custoTotal;
+        resultado[gravacao.centroLucro].total += custoTotal;
       } catch {
         // Ignora gravações com datas inválidas
       }
@@ -715,7 +855,20 @@ const Mapas = () => {
     }
     
     return resultado;
-  }, [gravacoes, filtroAno, filtroCentroLucro, filtroUnidadeNegocio, centrosLucro]);
+  }, [gravacoes, filtroAno, filtroCentroLucro, filtroUnidadeNegocio, centrosLucro, gravacaoRecursos, gravacaoTerceiros, recursosFisicosCadastro, recursosHumanosCadastro]);
+
+  // Função para alternar expansão de centro de lucro
+  const toggleCentroLucroExpansion = (centroLucroId: string) => {
+    setExpandedCentrosLucro(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(centroLucroId)) {
+        newSet.delete(centroLucroId);
+      } else {
+        newSet.add(centroLucroId);
+      }
+      return newSet;
+    });
+  };
 
   // Dados de apropriação de custos por Unidade de Negócio
   const apropriacaoPorUnidadeNegocio = useMemo(() => {
@@ -1881,72 +2034,7 @@ const Mapas = () => {
             </CardContent>
           </Card>
 
-          {/* Tabela por Centro de Lucro */}
-          <Card>
-            <CardHeader className="py-3">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <Building2 className="h-4 w-4" />
-                Custos por Centro de Lucro - {filtroAno}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-4">
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="sticky left-0 bg-background z-10 min-w-[200px]">Centro de Lucro</TableHead>
-                      {mesesAbrev.map((mes) => (
-                        <TableHead key={mes} className="text-right min-w-[100px]">{mes}</TableHead>
-                      ))}
-                      <TableHead className="text-right min-w-[120px] bg-muted/50 font-bold">Total</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {Object.keys(apropriacaoPorCentroLucro).length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={14} className="text-center text-muted-foreground py-8">
-                          Nenhum custo encontrado para o período selecionado.
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      <>
-                        {Object.values(apropriacaoPorCentroLucro)
-                          .sort((a, b) => a.nome.localeCompare(b.nome))
-                          .map((item) => (
-                            <TableRow key={item.nome}>
-                              <TableCell className="sticky left-0 bg-background z-10 font-medium">
-                                {item.nome}
-                              </TableCell>
-                              {item.custosMensais.map((custo, i) => (
-                                <TableCell key={i} className="text-right tabular-nums">
-                                  {custo > 0 ? formatarMoeda(custo) : <span className="text-muted-foreground">-</span>}
-                                </TableCell>
-                              ))}
-                              <TableCell className="text-right font-bold bg-muted/50 tabular-nums">
-                                {formatarMoeda(item.total)}
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        <TableRow className="bg-primary/5 font-bold">
-                          <TableCell className="sticky left-0 bg-primary/5 z-10">Total Geral</TableCell>
-                          {totaisApropriacao.custosMensais.map((custo, i) => (
-                            <TableCell key={i} className="text-right tabular-nums">
-                              {custo > 0 ? formatarMoeda(custo) : <span className="text-muted-foreground">-</span>}
-                            </TableCell>
-                          ))}
-                          <TableCell className="text-right tabular-nums bg-primary/10">
-                            {formatarMoeda(totaisApropriacao.total)}
-                          </TableCell>
-                        </TableRow>
-                      </>
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Tabela por Unidade de Negócio */}
+          {/* Tabela por Unidade de Negócio - MOVIDA PARA CIMA */}
           <Card>
             <CardHeader className="py-3">
               <CardTitle className="text-sm flex items-center gap-2">
@@ -1992,6 +2080,132 @@ const Mapas = () => {
                               </TableCell>
                             </TableRow>
                           ))}
+                      </>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Tabela por Centro de Lucro - COM COLLAPSE */}
+          <Card>
+            <CardHeader className="py-3">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Building2 className="h-4 w-4" />
+                Custos por Centro de Lucro - {filtroAno}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-4">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="sticky left-0 bg-background z-10 min-w-[250px]">Centro de Lucro</TableHead>
+                      {mesesAbrev.map((mes) => (
+                        <TableHead key={mes} className="text-right min-w-[100px]">{mes}</TableHead>
+                      ))}
+                      <TableHead className="text-right min-w-[120px] bg-muted/50 font-bold">Total</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {Object.keys(apropriacaoPorCentroLucro).length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={14} className="text-center text-muted-foreground py-8">
+                          Nenhum custo encontrado para o período selecionado.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      <>
+                        {Object.entries(apropriacaoPorCentroLucro)
+                          .sort(([, a], [, b]) => a.nome.localeCompare(b.nome))
+                          .map(([centroId, item]) => {
+                            const isExpanded = expandedCentrosLucro.has(centroId);
+                            const hasDetails = item.detalhes && item.detalhes.length > 0;
+                            
+                            return (
+                              <>
+                                <TableRow 
+                                  key={centroId}
+                                  className={hasDetails ? 'cursor-pointer hover:bg-muted/50' : ''}
+                                  onClick={() => hasDetails && toggleCentroLucroExpansion(centroId)}
+                                >
+                                  <TableCell className="sticky left-0 bg-background z-10 font-medium">
+                                    <div className="flex items-center gap-2">
+                                      {hasDetails && (
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="h-6 w-6 p-0"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            toggleCentroLucroExpansion(centroId);
+                                          }}
+                                        >
+                                          {isExpanded ? (
+                                            <ChevronUp className="h-4 w-4" />
+                                          ) : (
+                                            <ChevronDown className="h-4 w-4" />
+                                          )}
+                                        </Button>
+                                      )}
+                                      {!hasDetails && <span className="w-6" />}
+                                      {item.nome}
+                                    </div>
+                                  </TableCell>
+                                  {item.custosMensais.map((custo, i) => (
+                                    <TableCell key={i} className="text-right tabular-nums">
+                                      {custo > 0 ? formatarMoeda(custo) : <span className="text-muted-foreground">-</span>}
+                                    </TableCell>
+                                  ))}
+                                  <TableCell className="text-right font-bold bg-muted/50 tabular-nums">
+                                    {formatarMoeda(item.total)}
+                                  </TableCell>
+                                </TableRow>
+                                
+                                {/* Linhas de detalhes (recursos) - exibidas quando expandido */}
+                                {isExpanded && item.detalhes && item.detalhes.map((detalhe, detalheIndex) => (
+                                  <TableRow 
+                                    key={`${centroId}-detalhe-${detalheIndex}`}
+                                    className="bg-muted/30"
+                                  >
+                                    <TableCell className="sticky left-0 bg-muted/30 z-10 pl-10">
+                                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                        {detalhe.tipo === 'humano' && <Users className="h-3 w-3" />}
+                                        {detalhe.tipo === 'fisico' && <MapPinIcon className="h-3 w-3" />}
+                                        {detalhe.tipo === 'terceiro' && <Briefcase className="h-3 w-3" />}
+                                        {detalhe.nome}
+                                      </div>
+                                    </TableCell>
+                                    {detalhe.custosMensais.map((custo, i) => (
+                                      <TableCell key={i} className="text-right tabular-nums text-sm text-muted-foreground">
+                                        {custo > 0 ? formatarMoeda(custo) : <span className="text-muted-foreground/50">-</span>}
+                                      </TableCell>
+                                    ))}
+                                    <TableCell className="text-right tabular-nums text-sm text-muted-foreground bg-muted/40">
+                                      {formatarMoeda(detalhe.total)}
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
+                              </>
+                            );
+                          })}
+                        <TableRow className="bg-primary/5 font-bold">
+                          <TableCell className="sticky left-0 bg-primary/5 z-10">
+                            <div className="flex items-center gap-2">
+                              <span className="w-6" />
+                              Total Geral
+                            </div>
+                          </TableCell>
+                          {totaisApropriacao.custosMensais.map((custo, i) => (
+                            <TableCell key={i} className="text-right tabular-nums">
+                              {custo > 0 ? formatarMoeda(custo) : <span className="text-muted-foreground">-</span>}
+                            </TableCell>
+                          ))}
+                          <TableCell className="text-right tabular-nums bg-primary/10">
+                            {formatarMoeda(totaisApropriacao.total)}
+                          </TableCell>
+                        </TableRow>
                       </>
                     )}
                   </TableBody>
