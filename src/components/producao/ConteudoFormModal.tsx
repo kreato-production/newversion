@@ -66,11 +66,13 @@ export const ConteudoFormModal = ({
   });
 
   const [centrosLucro, setCentrosLucro] = useState<{ id: string; nome: string; parentId: string | null; status: string }[]>([]);
+  const [filteredCentrosLucro, setFilteredCentrosLucro] = useState<{ id: string; nome: string; parentId: string | null; status: string }[]>([]);
   const [unidades, setUnidades] = useState<{ id: string; nome: string }[]>([]);
   const [tipos, setTipos] = useState<{ id: string; nome: string }[]>([]);
   const [classificacoes, setClassificacoes] = useState<{ id: string; nome: string }[]>([]);
   const [gravacoes, setGravacoes] = useState<Gravacao[]>([]);
   const [statusList, setStatusList] = useState<{ id: string; nome: string; cor: string }[]>([]);
+  const [centroLucroUnidades, setCentroLucroUnidades] = useState<{ centro_lucro_id: string; unidade_negocio_id: string }[]>([]);
 
   // Função para construir a hierarquia de centros de lucro
   const buildHierarchy = (items: typeof centrosLucro, parentId: string | null = null, level: number = 0): { id: string; nome: string; displayName: string; level: number }[] => {
@@ -91,16 +93,40 @@ export const ConteudoFormModal = ({
     return result;
   };
 
-  const centrosLucroHierarquicos = buildHierarchy(centrosLucro);
+  const centrosLucroHierarquicos = buildHierarchy(filteredCentrosLucro);
+
+  // Efeito para filtrar centros de lucro quando a unidade de negócio muda
+  useEffect(() => {
+    if (!formData.unidadeNegocio) {
+      setFilteredCentrosLucro([]);
+      return;
+    }
+
+    // Encontrar o ID da unidade selecionada
+    const unidadeSelecionada = unidades.find(u => u.nome === formData.unidadeNegocio);
+    if (!unidadeSelecionada) {
+      setFilteredCentrosLucro([]);
+      return;
+    }
+
+    // Filtrar centros de lucro associados à unidade selecionada
+    const centrosAssociados = centroLucroUnidades
+      .filter(clu => clu.unidade_negocio_id === unidadeSelecionada.id)
+      .map(clu => clu.centro_lucro_id);
+
+    const centrosFiltrados = centrosLucro.filter(cl => centrosAssociados.includes(cl.id));
+    setFilteredCentrosLucro(centrosFiltrados);
+  }, [formData.unidadeNegocio, unidades, centroLucroUnidades, centrosLucro]);
 
   const loadOptions = useCallback(async () => {
     try {
-      const [centrosRes, statusRes, unidadesRes, tiposRes, classificacoesRes] = await Promise.all([
+      const [centrosRes, statusRes, unidadesRes, tiposRes, classificacoesRes, centroLucroUnidadesRes] = await Promise.all([
         supabase.from('centros_lucro').select('id, nome, parent_id, status').eq('status', 'Ativo').order('nome'),
         supabase.from('status_gravacao').select('id, nome, cor').order('nome'),
         supabase.from('unidades_negocio').select('id, nome').order('nome'),
         supabase.from('tipos_gravacao').select('id, nome').order('nome'),
         supabase.from('classificacoes').select('id, nome').order('nome'),
+        supabase.from('centro_lucro_unidades').select('centro_lucro_id, unidade_negocio_id'),
       ]);
 
       setCentrosLucro((centrosRes.data || []).map(c => ({ id: c.id, nome: c.nome, parentId: c.parent_id, status: c.status || 'Ativo' })));
@@ -108,6 +134,7 @@ export const ConteudoFormModal = ({
       setUnidades(unidadesRes.data || []);
       setTipos(tiposRes.data || []);
       setClassificacoes(classificacoesRes.data || []);
+      setCentroLucroUnidades(centroLucroUnidadesRes.data || []);
     } catch (err) {
       console.error('Error loading options:', err);
     }
@@ -360,7 +387,10 @@ export const ConteudoFormModal = ({
               <Label>Unidade de Negócio</Label>
               <Select
                 value={formData.unidadeNegocio}
-                onValueChange={(value) => setFormData({ ...formData, unidadeNegocio: value })}
+                onValueChange={(value) => {
+                  // Limpar centro de lucro ao mudar unidade de negócio
+                  setFormData({ ...formData, unidadeNegocio: value, centroLucro: '' });
+                }}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione..." />
@@ -377,9 +407,10 @@ export const ConteudoFormModal = ({
               <Select
                 value={formData.centroLucro}
                 onValueChange={(value) => setFormData({ ...formData, centroLucro: value })}
+                disabled={!formData.unidadeNegocio}
               >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione..." />
+                <SelectTrigger className={!formData.unidadeNegocio ? 'opacity-50 cursor-not-allowed' : ''}>
+                  <SelectValue placeholder={!formData.unidadeNegocio ? "Selecione uma Unidade primeiro" : "Selecione..."} />
                 </SelectTrigger>
                 <SelectContent>
                   {centrosLucroHierarquicos.map((cl) => (
