@@ -17,6 +17,7 @@ import jsPDF from 'jspdf';
 import { useWeatherForecast } from '@/hooks/useWeatherForecast';
 import { useRecursoFisicoDisponibilidade } from '@/hooks/useRecursoFisicoDisponibilidade';
 import { supabase } from '@/integrations/supabase/client';
+import { formatCurrency as formatCurrencyUtil } from '@/lib/currencies';
 
 interface RecursoHumanoAlocado {
   id: string;
@@ -96,6 +97,7 @@ interface CentroLucro {
 interface UnidadeNegocio {
   id: string;
   nome: string;
+  moeda?: string;
 }
 
 const Mapas = () => {
@@ -279,12 +281,12 @@ const Mapas = () => {
         .order('nome');
       setCentrosLucro(centrosData || []);
       
-      // Carregar unidades de negócio
+      // Carregar unidades de negócio com moeda
       const { data: unidadesData } = await supabase
         .from('unidades_negocio')
-        .select('id, nome')
+        .select('id, nome, moeda')
         .order('nome');
-      setUnidadesNegocio(unidadesData || []);
+      setUnidadesNegocio((unidadesData || []).map((u: any) => ({ id: u.id, nome: u.nome, moeda: u.moeda || 'BRL' })));
 
       // Carregar alocações de cada gravação
       const alocacoes: Record<string, RecursoAlocado[]> = {};
@@ -808,9 +810,25 @@ const Mapas = () => {
 
   const mesesAbrev = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
-  const formatarMoeda = (valor: number): string => {
-    return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-  };
+  // Determinar a moeda para formatação com base no filtro de Unidade de Negócio
+  const moedaSelecionada = useMemo(() => {
+    if (filtroUnidadeNegocio !== 'Todas') {
+      const unidade = unidadesNegocio.find(u => u.id === filtroUnidadeNegocio);
+      return unidade?.moeda || 'BRL';
+    }
+    // Se "Todas", verificar se há apenas uma unidade na listagem
+    const unidadesEmUso = Object.keys(apropriacaoPorUnidadeNegocio);
+    if (unidadesEmUso.length === 1) {
+      const unidade = unidadesNegocio.find(u => u.id === unidadesEmUso[0]);
+      return unidade?.moeda || 'BRL';
+    }
+    // Múltiplas unidades ou nenhuma - usar BRL como padrão
+    return 'BRL';
+  }, [filtroUnidadeNegocio, unidadesNegocio, apropriacaoPorUnidadeNegocio]);
+
+  const formatarMoeda = useCallback((valor: number): string => {
+    return formatCurrencyUtil(valor, moedaSelecionada);
+  }, [moedaSelecionada]);
 
   const getOcupacaoCelula = (
     ocupacoes: Record<string, Record<string, OcupacaoItem[]>>,
