@@ -88,6 +88,7 @@ export const RecursoHumanoFormModal = ({
     departamento: '',
     departamentoId: '',
     funcao: '',
+    funcaoId: '',
     custoHora: 0,
     dataContratacao: '',
     status: 'Ativo' as 'Ativo' | 'Inativo',
@@ -185,6 +186,7 @@ export const RecursoHumanoFormModal = ({
         departamento: data.departamento,
         departamentoId: deptoEncontrado?.id || data.departamentoId || '',
         funcao: data.funcao,
+        funcaoId: data.funcaoId || '',
         custoHora: data.custoHora,
         dataContratacao: data.dataContratacao,
         status: data.status,
@@ -205,6 +207,7 @@ export const RecursoHumanoFormModal = ({
         departamento: '',
         departamentoId: '',
         funcao: '',
+        funcaoId: '',
         custoHora: 0,
         dataContratacao: '',
         status: 'Ativo',
@@ -409,6 +412,7 @@ export const RecursoHumanoFormModal = ({
     onSave({
       id: data?.id || crypto.randomUUID(),
       ...formData,
+      funcaoId: formData.funcaoId || undefined,
       anexos,
       ausencias,
       escalas,
@@ -621,6 +625,7 @@ export const RecursoHumanoFormModal = ({
                         departamentoId: value,
                         departamento: depSelecionado?.nome || '',
                         funcao: '', // Reset function when department changes
+                        funcaoId: '', // Reset function ID when department changes
                       });
                     }}
                   >
@@ -637,8 +642,15 @@ export const RecursoHumanoFormModal = ({
                 <div className="space-y-2">
                   <Label>Função</Label>
                   <Select
-                    value={formData.funcao}
-                    onValueChange={(value) => setFormData({ ...formData, funcao: value })}
+                    value={formData.funcaoId}
+                    onValueChange={(value) => {
+                      const funcaoSelecionada = funcoesDisponiveis.find(f => f.id === value);
+                      setFormData({ 
+                        ...formData, 
+                        funcaoId: value,
+                        funcao: funcaoSelecionada?.nome || ''
+                      });
+                    }}
                     disabled={!formData.departamentoId || isLoadingFuncoes}
                   >
                     <SelectTrigger>
@@ -654,7 +666,7 @@ export const RecursoHumanoFormModal = ({
                     </SelectTrigger>
                     <SelectContent>
                       {funcoesDisponiveis.map((f) => (
-                        <SelectItem key={f.id} value={f.nome}>{f.nome}</SelectItem>
+                        <SelectItem key={f.id} value={f.id}>{f.nome}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>

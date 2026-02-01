@@ -33,12 +33,15 @@ interface HorarioOcupacao {
 
 interface RecursoAlocado {
   id: string;
-  tipo: 'tecnico' | 'fisico';
-  recursoId: string;
-  recursoNome: string;
+  tipo: 'tecnico' | 'fisico' | 'humano';
+  recursoId?: string;
+  recursoHumanoId?: string;
+  horaInicio?: string;
+  horaFim?: string;
+  recursoNome?: string;
   alocacoes: Record<string, number>;
-  recursosHumanos: Record<string, RecursoHumanoAlocado[]>;
-  horarios: Record<string, HorarioOcupacao>;
+  recursosHumanos?: Record<string, RecursoHumanoAlocado[]>;
+  horarios?: Record<string, HorarioOcupacao>;
 }
 
 interface Gravacao {
@@ -160,6 +163,7 @@ const Mapas = () => {
     let custoTotal = 0;
     
     const recursos = gravacaoRecursos[gravacaoId] || [];
+    const rhProcessados = new Set<string>();
     
     recursos.forEach((recurso: any) => {
       if (recurso.tipo === 'fisico') {
@@ -174,16 +178,31 @@ const Mapas = () => {
         
         custoTotal += totalHoras * custoHora;
       } else if (recurso.tipo === 'tecnico') {
+        // Recursos humanos vinculados a recursos técnicos
         Object.entries(recurso.recursosHumanos || {}).forEach(([, rhList]: [string, any]) => {
           if (Array.isArray(rhList)) {
             rhList.forEach((rh: any) => {
-              const horas = calcularHorasEntreTempo(rh.horaInicio, rh.horaFim);
-              const colaborador = recursosHumanosCadastro.find((r: any) => r.id === rh.recursoHumanoId);
-              const custoHora = parseFloat(colaborador?.custoHora || 0);
-              custoTotal += horas * custoHora;
+              const rhKey = `${rh.recursoHumanoId}_${recurso.recursoId}_${rh.horaInicio}_${rh.horaFim}`;
+              if (!rhProcessados.has(rhKey)) {
+                rhProcessados.add(rhKey);
+                const horas = calcularHorasEntreTempo(rh.horaInicio, rh.horaFim);
+                const colaborador = recursosHumanosCadastro.find((r: any) => r.id === rh.recursoHumanoId);
+                const custoHora = parseFloat(colaborador?.custoHora || 0);
+                custoTotal += horas * custoHora;
+              }
             });
           }
         });
+      } else if (recurso.tipo === 'humano' && recurso.recursoHumanoId) {
+        // Recursos humanos diretos
+        const rhKey = `${recurso.recursoHumanoId}_direct_${recurso.horaInicio}_${recurso.horaFim}`;
+        if (!rhProcessados.has(rhKey)) {
+          rhProcessados.add(rhKey);
+          const horas = calcularHorasEntreTempo(recurso.horaInicio, recurso.horaFim);
+          const colaborador = recursosHumanosCadastro.find((r: any) => r.id === recurso.recursoHumanoId);
+          const custoHora = parseFloat(colaborador?.custoHora || 0);
+          custoTotal += horas * custoHora;
+        }
       }
     });
     
@@ -279,25 +298,76 @@ const Mapas = () => {
           .eq('gravacao_id', g.id);
         
         if (recursosData && recursosData.length > 0) {
-          // Transform to legacy format for compatibility
-          const transformed: RecursoAlocado[] = recursosData.map((r: any) => {
+          // Group resources by type
+          const fisicosSet = new Map<string, any>();
+          const tecnicosSet = new Map<string, any>();
+          const humanosDirectos: any[] = [];
+          
+          recursosData.forEach((r: any) => {
             const dataAlocacao = g.dataPrevista || '';
-            // Build alocacoes object with date as key and value 1 to indicate allocation
-            const alocacoesObj: Record<string, number> = {};
-            if (dataAlocacao) {
-              alocacoesObj[dataAlocacao] = 1;
-            }
             
-            return {
-              id: r.id,
-              tipo: (r.recurso_fisico_id ? 'fisico' : 'tecnico') as 'fisico' | 'tecnico',
-              recursoId: r.recurso_fisico_id || r.recurso_tecnico_id,
-              recursoNome: '',
-              alocacoes: alocacoesObj,
-              recursosHumanos: {},
-              horarios: r.hora_inicio && r.hora_fim ? { [dataAlocacao]: { horaInicio: r.hora_inicio, horaFim: r.hora_fim } } : {},
-            };
+            if (r.recurso_fisico_id) {
+              // Recurso físico
+              const existing = fisicosSet.get(r.recurso_fisico_id);
+              if (!existing) {
+                fisicosSet.set(r.recurso_fisico_id, {
+                  id: r.id,
+                  tipo: 'fisico',
+                  recursoId: r.recurso_fisico_id,
+                  recursoNome: '',
+                  alocacoes: { [dataAlocacao]: 1 },
+                  recursosHumanos: {},
+                  horarios: r.hora_inicio && r.hora_fim ? { [dataAlocacao]: { horaInicio: r.hora_inicio, horaFim: r.hora_fim } } : {},
+                });
+              }
+            } else if (r.recurso_tecnico_id) {
+              // Recurso técnico - pode ter ou não recurso humano associado
+              const existingTec = tecnicosSet.get(r.recurso_tecnico_id);
+              if (!existingTec) {
+                tecnicosSet.set(r.recurso_tecnico_id, {
+                  id: r.id,
+                  tipo: 'tecnico',
+                  recursoId: r.recurso_tecnico_id,
+                  recursoNome: '',
+                  alocacoes: { [dataAlocacao]: 1 },
+                  recursosHumanos: { [dataAlocacao]: [] },
+                  horarios: r.hora_inicio && r.hora_fim ? { [dataAlocacao]: { horaInicio: r.hora_inicio, horaFim: r.hora_fim } } : {},
+                });
+              }
+              
+              // Se tem recurso humano, adicionar à lista de RH desse recurso técnico
+              if (r.recurso_humano_id) {
+                const tec = tecnicosSet.get(r.recurso_tecnico_id);
+                if (tec) {
+                  if (!tec.recursosHumanos[dataAlocacao]) {
+                    tec.recursosHumanos[dataAlocacao] = [];
+                  }
+                  tec.recursosHumanos[dataAlocacao].push({
+                    recursoHumanoId: r.recurso_humano_id,
+                    horaInicio: r.hora_inicio,
+                    horaFim: r.hora_fim,
+                  });
+                }
+              }
+            } else if (r.recurso_humano_id) {
+              // Recurso humano direto (sem recurso técnico)
+              humanosDirectos.push({
+                id: r.id,
+                tipo: 'humano',
+                recursoHumanoId: r.recurso_humano_id,
+                horaInicio: r.hora_inicio,
+                horaFim: r.hora_fim,
+                alocacoes: { [dataAlocacao]: 1 },
+              });
+            }
           });
+          
+          const transformed: RecursoAlocado[] = [
+            ...Array.from(fisicosSet.values()),
+            ...Array.from(tecnicosSet.values()),
+            ...humanosDirectos,
+          ];
+          
           alocacoes[g.id] = transformed;
           recursosMap[g.id] = transformed;
         }
