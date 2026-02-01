@@ -94,7 +94,20 @@ const Usuarios = () => {
 
         if (error) throw error;
         toast({ title: 'Sucesso', description: 'Usuário atualizado!' });
+        await fetchData();
+        setEditingItem(null);
+        setIsModalOpen(false);
       } else {
+        // Validate required fields
+        if (!data.email || !data.senha || !data.nome || !data.usuario) {
+          toast({
+            title: 'Erro',
+            description: 'Preencha todos os campos obrigatórios',
+            variant: 'destructive',
+          });
+          return;
+        }
+
         // Create new user via auth.signUp
         const { data: authData, error: signUpError } = await supabase.auth.signUp({
           email: data.email,
@@ -110,6 +123,9 @@ const Usuarios = () => {
         if (signUpError) throw signUpError;
 
         if (authData.user) {
+          // Wait a moment for the trigger to create the profile
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
           // Update the profile with additional data
           const { error: profileError } = await supabase
             .from('profiles')
@@ -122,17 +138,23 @@ const Usuarios = () => {
           if (profileError) {
             console.error('Error updating profile:', profileError);
           }
+          
+          toast({ 
+            title: 'Sucesso', 
+            description: 'Usuário criado! Um e-mail de confirmação foi enviado.' 
+          });
+          
+          await fetchData();
+          setEditingItem(null);
+          setIsModalOpen(false);
+        } else {
+          toast({
+            title: 'Atenção',
+            description: 'Usuário já existe ou e-mail inválido.',
+            variant: 'destructive',
+          });
         }
-
-        toast({ 
-          title: 'Sucesso', 
-          description: 'Usuário criado! Um e-mail de confirmação foi enviado.' 
-        });
       }
-      
-      await fetchData();
-      setEditingItem(null);
-      setIsModalOpen(false);
     } catch (err: any) {
       console.error('Error saving user:', err);
       toast({

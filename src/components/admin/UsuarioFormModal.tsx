@@ -136,6 +136,15 @@ export const UsuarioFormModal = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validar campos obrigatórios para novos usuários
+    if (!data) {
+      if (!formData.email || !formData.senha || !formData.nome || !formData.usuario) {
+        alert('Preencha todos os campos obrigatórios');
+        return;
+      }
+    }
+    
     const saveData = {
       id: data?.id || crypto.randomUUID(),
       ...formData,
@@ -147,7 +156,7 @@ export const UsuarioFormModal = ({
       usuarioCadastro: data?.usuarioCadastro || user?.nome || 'Admin',
     };
     onSave(saveData);
-    onClose();
+    // Não fechar modal aqui - o Usuarios.tsx vai fechar após o sucesso
   };
 
   const getInitials = (name: string) => {

@@ -43,6 +43,7 @@ import { GravacaoReportGenerator } from './GravacaoReportGenerator';
 import { cn } from '@/lib/utils';
 import { DialogActionBar } from '@/components/shared/DialogActionBar';
 import { supabase } from '@/integrations/supabase/client';
+import { getCurrencyByCode } from '@/lib/currencies';
 
 interface GravacaoFormModalProps {
   isOpen: boolean;
@@ -78,15 +79,25 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
     descricao: '',
     status: '',
     conteudoId: '',
+    orcamento: '',
   });
 
-  const [unidades, setUnidades] = useState<{ id: string; nome: string }[]>([]);
+  const [unidades, setUnidades] = useState<{ id: string; nome: string; moeda?: string | null }[]>([]);
   const [centrosLucro, setCentrosLucro] = useState<{ id: string; nome: string; parentId: string | null; status: string; codigoExterno?: string }[]>([]);
   const [centroLucroUnidades, setCentroLucroUnidades] = useState<{ centro_lucro_id: string; unidade_negocio_id: string }[]>([]);
   const [classificacoes, setClassificacoes] = useState<{ id: string; nome: string }[]>([]);
   const [tipos, setTipos] = useState<{ id: string; nome: string }[]>([]);
   const [statusList, setStatusList] = useState<{ id: string; nome: string }[]>([]);
   const [conteudos, setConteudos] = useState<{ id: string; descricao: string }[]>([]);
+
+  // Get the currency for the selected business unit
+  const getSelectedCurrency = () => {
+    if (!formData.unidadeNegocio) return null;
+    const unidade = unidades.find(u => u.nome === formData.unidadeNegocio);
+    return unidade?.moeda || 'BRL';
+  };
+
+  const selectedCurrency = getSelectedCurrency();
 
   // Função para construir a hierarquia de centros de lucro
   const buildHierarchy = (items: typeof centrosLucro, parentId: string | null = null, level: number = 0): { id: string; nome: string; displayName: string; level: number }[] => {
@@ -129,7 +140,7 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
 
     try {
       const [unidadesRes, centrosRes, centroLucroUnidadesRes, classificacoesRes, tiposRes, statusRes, conteudosRes] = await Promise.all([
-        supabase.from('unidades_negocio').select('id, nome').order('nome'),
+        supabase.from('unidades_negocio').select('id, nome, moeda').order('nome'),
         supabase.from('centros_lucro').select('id, nome, parent_id, status').eq('status', 'Ativo').order('nome'),
         supabase.from('centro_lucro_unidades').select('centro_lucro_id, unidade_negocio_id'),
         supabase.from('classificacoes').select('id, nome').order('nome'),
@@ -138,7 +149,7 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
         supabase.from('conteudos').select('id, descricao').order('descricao'),
       ]);
 
-      setUnidades(unidadesRes.data || []);
+      setUnidades((unidadesRes.data || []).map(u => ({ id: u.id, nome: u.nome, moeda: u.moeda })));
       setCentrosLucro((centrosRes.data || []).map((c: any) => ({
         id: c.id,
         nome: c.nome,
@@ -179,6 +190,7 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
         descricao: data.descricao || '',
         status: data.status || '',
         conteudoId: data.conteudoId || '',
+        orcamento: String((data as any).orcamento || ''),
       });
       // Converter string de data para Date (suporta ISO yyyy-MM-dd e BR dd/MM/yyyy)
       if (data.dataPrevista) {
@@ -219,6 +231,7 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
         descricao: '',
         status: '',
         conteudoId: '',
+        orcamento: '',
       });
       setDataPrevista(undefined);
     }
@@ -465,15 +478,38 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="descricao">{t('common.description')}</Label>
-                <Textarea
-                  id="descricao"
-                  value={formData.descricao}
-                  onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
-                  rows={3}
-                  placeholder={t('common.description') + '...'}
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="descricao">{t('common.description')}</Label>
+                  <Textarea
+                    id="descricao"
+                    value={formData.descricao}
+                    onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
+                    rows={3}
+                    placeholder={t('common.description') + '...'}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="orcamento">
+                    Orçamento {selectedCurrency && `(${getCurrencyByCode(selectedCurrency)?.symbol || selectedCurrency})`}
+                  </Label>
+                  <Input
+                    id="orcamento"
+                    type="number"
+                    value={formData.orcamento}
+                    onChange={(e) => setFormData({ ...formData, orcamento: e.target.value })}
+                    disabled={!formData.unidadeNegocio}
+                    className={!formData.unidadeNegocio ? 'opacity-50 cursor-not-allowed' : ''}
+                    placeholder={!formData.unidadeNegocio ? 'Selecione uma Unidade primeiro' : 'Valor do orçamento'}
+                    step="0.01"
+                    min="0"
+                  />
+                  {!formData.unidadeNegocio && (
+                    <p className="text-xs text-muted-foreground">
+                      Selecione uma Unidade de Negócio para habilitar
+                    </p>
+                  )}
+                </div>
               </div>
 
               <DialogFooter>

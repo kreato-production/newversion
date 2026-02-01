@@ -725,8 +725,10 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
     });
   };
 
-  // Remove automatic task for RH
+  // Remove automatic task for RH - regardless of status
   const removeTaskForRH = async (rhId: string, recursoTecnicoId: string) => {
+    // Delete ALL tasks associated with this collaborator and technical resource
+    // regardless of the task's current status (Pendente, Concluída, etc.)
     await supabase
       .from('tarefas')
       .delete()

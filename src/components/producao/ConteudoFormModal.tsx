@@ -36,6 +36,7 @@ import {
 import { ConteudoCustosTab } from './ConteudoCustosTab';
 import { ElencoTab } from './ElencoTab';
 import { supabase } from '@/integrations/supabase/client';
+import { getCurrencyByCode } from '@/lib/currencies';
 
 interface ConteudoFormModalProps {
   isOpen: boolean;
@@ -63,16 +64,26 @@ export const ConteudoFormModal = ({
     classificacao: '',
     anoProducao: '',
     sinopse: '',
+    orcamento: '',
   });
 
   const [centrosLucro, setCentrosLucro] = useState<{ id: string; nome: string; parentId: string | null; status: string }[]>([]);
   const [filteredCentrosLucro, setFilteredCentrosLucro] = useState<{ id: string; nome: string; parentId: string | null; status: string }[]>([]);
-  const [unidades, setUnidades] = useState<{ id: string; nome: string }[]>([]);
+  const [unidades, setUnidades] = useState<{ id: string; nome: string; moeda?: string | null }[]>([]);
   const [tipos, setTipos] = useState<{ id: string; nome: string }[]>([]);
   const [classificacoes, setClassificacoes] = useState<{ id: string; nome: string }[]>([]);
   const [gravacoes, setGravacoes] = useState<Gravacao[]>([]);
   const [statusList, setStatusList] = useState<{ id: string; nome: string; cor: string }[]>([]);
   const [centroLucroUnidades, setCentroLucroUnidades] = useState<{ centro_lucro_id: string; unidade_negocio_id: string }[]>([]);
+
+  // Get the currency for the selected business unit
+  const getSelectedCurrency = () => {
+    if (!formData.unidadeNegocio) return null;
+    const unidade = unidades.find(u => u.nome === formData.unidadeNegocio);
+    return unidade?.moeda || 'BRL';
+  };
+
+  const selectedCurrency = getSelectedCurrency();
 
   // Função para construir a hierarquia de centros de lucro
   const buildHierarchy = (items: typeof centrosLucro, parentId: string | null = null, level: number = 0): { id: string; nome: string; displayName: string; level: number }[] => {
@@ -123,7 +134,7 @@ export const ConteudoFormModal = ({
       const [centrosRes, statusRes, unidadesRes, tiposRes, classificacoesRes, centroLucroUnidadesRes] = await Promise.all([
         supabase.from('centros_lucro').select('id, nome, parent_id, status').eq('status', 'Ativo').order('nome'),
         supabase.from('status_gravacao').select('id, nome, cor').order('nome'),
-        supabase.from('unidades_negocio').select('id, nome').order('nome'),
+        supabase.from('unidades_negocio').select('id, nome, moeda').order('nome'),
         supabase.from('tipos_gravacao').select('id, nome').order('nome'),
         supabase.from('classificacoes').select('id, nome').order('nome'),
         supabase.from('centro_lucro_unidades').select('centro_lucro_id, unidade_negocio_id'),
@@ -131,7 +142,7 @@ export const ConteudoFormModal = ({
 
       setCentrosLucro((centrosRes.data || []).map(c => ({ id: c.id, nome: c.nome, parentId: c.parent_id, status: c.status || 'Ativo' })));
       setStatusList((statusRes.data || []).map(s => ({ id: s.id, nome: s.nome, cor: s.cor || '#888888' })));
-      setUnidades(unidadesRes.data || []);
+      setUnidades((unidadesRes.data || []).map(u => ({ id: u.id, nome: u.nome, moeda: u.moeda })));
       setTipos(tiposRes.data || []);
       setClassificacoes(classificacoesRes.data || []);
       setCentroLucroUnidades(centroLucroUnidadesRes.data || []);
@@ -160,6 +171,7 @@ export const ConteudoFormModal = ({
         classificacao: data.classificacao || '',
         anoProducao: data.anoProducao || '',
         sinopse: data.sinopse || '',
+        orcamento: String((data as any).orcamento || ''),
       });
       loadGravacoes(data.id);
     } else {
@@ -174,6 +186,7 @@ export const ConteudoFormModal = ({
         classificacao: '',
         anoProducao: '',
         sinopse: '',
+        orcamento: '',
       });
       setGravacoes([]);
     }
@@ -232,6 +245,9 @@ export const ConteudoFormModal = ({
       usuarioCadastro: data?.usuarioCadastro || user?.nome || 'Admin',
       dataCadastro: data?.dataCadastro || new Date().toLocaleDateString('pt-BR'),
     };
+    
+    // Add orcamento if set
+    (conteudo as any).orcamento = parseFloat(formData.orcamento) || 0;
 
     onSave(conteudo);
     onClose();
@@ -271,16 +287,30 @@ export const ConteudoFormModal = ({
     try {
       const novasGravacoes = [];
       const startEpisode = gravacoes.length + 1;
+      const numGravacoesGeradas = quantidade - gravacoes.length;
+      
+      // Calculate budget per recording (distribute equally)
+      const orcamentoTotal = parseFloat(formData.orcamento) || 0;
+      const orcamentoPorGravacao = orcamentoTotal > 0 && numGravacoesGeradas > 0 
+        ? orcamentoTotal / quantidade // Divide by total quantity (including existing)
+        : 0;
+      
+      // Get IDs for the form values
+      const unidadeSelecionada = unidades.find(u => u.nome === formData.unidadeNegocio);
+      const centroSelecionado = centrosLucro.find(c => c.nome === formData.centroLucro);
+      const classificacaoSelecionada = classificacoes.find(c => c.nome === formData.classificacao);
+      const tipoSelecionado = tipos.find(t => t.nome === formData.tipoConteudo);
 
       for (let i = startEpisode; i <= quantidade; i++) {
         const insertData = {
           nome: `${formData.descricao} - Episódio ${i}`,
-          unidade_negocio_id: formData.unidadeNegocio || null,
-          centro_lucro_id: formData.centroLucro || null,
-          classificacao_id: formData.classificacao || null,
-          tipo_conteudo_id: formData.tipoConteudo || null,
+          unidade_negocio_id: unidadeSelecionada?.id || null,
+          centro_lucro_id: centroSelecionado?.id || null,
+          classificacao_id: classificacaoSelecionada?.id || null,
+          tipo_conteudo_id: tipoSelecionado?.id || null,
           conteudo_id: data.id,
           created_by: user?.id || null,
+          orcamento: orcamentoPorGravacao,
         };
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -473,15 +503,38 @@ export const ConteudoFormModal = ({
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="sinopse">Descrição / Sinopse</Label>
-            <Textarea
-              id="sinopse"
-              value={formData.sinopse}
-              onChange={(e) => setFormData({ ...formData, sinopse: e.target.value })}
-              rows={3}
-              placeholder="Descrição detalhada do conteúdo..."
-            />
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="sinopse">Descrição / Sinopse</Label>
+              <Textarea
+                id="sinopse"
+                value={formData.sinopse}
+                onChange={(e) => setFormData({ ...formData, sinopse: e.target.value })}
+                rows={3}
+                placeholder="Descrição detalhada do conteúdo..."
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="orcamento">
+                Orçamento {selectedCurrency && `(${getCurrencyByCode(selectedCurrency)?.symbol || selectedCurrency})`}
+              </Label>
+              <Input
+                id="orcamento"
+                type="number"
+                value={formData.orcamento}
+                onChange={(e) => setFormData({ ...formData, orcamento: e.target.value })}
+                disabled={!formData.unidadeNegocio}
+                className={!formData.unidadeNegocio ? 'opacity-50 cursor-not-allowed' : ''}
+                placeholder={!formData.unidadeNegocio ? 'Selecione uma Unidade primeiro' : 'Valor do orçamento'}
+                step="0.01"
+                min="0"
+              />
+              {!formData.unidadeNegocio && (
+                <p className="text-xs text-muted-foreground">
+                  Selecione uma Unidade de Negócio para habilitar
+                </p>
+              )}
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4 pt-4 border-t">
