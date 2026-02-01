@@ -226,60 +226,6 @@ const Dashboard = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          title={t('dashboard.recordings')}
-          value={stats.gravacoes}
-          description={`${stats.gravacoesAtivas} ${t('common.activeNow')}`}
-          icon={Video}
-          gradient="gradient-primary"
-        />
-        <StatCard
-          title={t('dashboard.contents')}
-          value={stats.conteudos}
-          description={t('common.inSystem')}
-          icon={Clapperboard}
-          gradient="gradient-brand"
-        />
-        <StatCard
-          title={t('dashboard.humanResources')}
-          value={stats.recursosHumanos}
-          description={t('common.activeCollaborators')}
-          icon={Users}
-          gradient="gradient-accent"
-        />
-        <StatCard
-          title={t('dashboard.businessUnits')}
-          value={stats.unidades}
-          description={t('common.registered')}
-          icon={Building2}
-          gradient="gradient-primary"
-        />
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <StatCard
-          title={t('dashboard.technicalResources')}
-          value={stats.recursosTecnicos}
-          description={t('common.registeredEquipment')}
-          icon={Wrench}
-          gradient="gradient-brand"
-        />
-        <StatCard
-          title={t('dashboard.physicalResources')}
-          value={stats.recursosFisicos}
-          description={t('common.locationsSpaces')}
-          icon={MapPin}
-          gradient="gradient-accent"
-        />
-        <StatCard
-          title={t('dashboard.suppliers')}
-          value={stats.fornecedores}
-          description={t('common.registeredPartners')}
-          icon={Building2}
-          gradient="gradient-primary"
-        />
-      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
