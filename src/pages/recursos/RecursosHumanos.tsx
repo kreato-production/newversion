@@ -166,7 +166,7 @@ const RecursosHumanos = () => {
     fetchRecursosHumanos();
   }, []);
 
-  const handleSave = async (data: RecursoHumano) => {
+  const handleSave = async (data: RecursoHumano, isUpdateFromMap: boolean = false) => {
     try {
       // Validate and map sexo value - send null if empty or invalid
       const validSexoValues = ['Masculino', 'Feminino', 'Outro'];
@@ -193,16 +193,23 @@ const RecursosHumanos = () => {
 
       let recursoId = data.id;
 
-      if (editingItem) {
+      // Check if this is an update: either editingItem is set, or we have an existing ID and it's from map update
+      const isUpdate = editingItem || (isUpdateFromMap && data.id);
+
+      if (isUpdate) {
         const { error } = await supabase
           .from('recursos_humanos')
           .update(dbData as TablesUpdate<'recursos_humanos'>)
           .eq('id', data.id);
         if (error) throw error;
       } else {
+        // Remove id for insert to let the database generate it
+        const insertData = { ...dbData };
+        delete insertData.id;
+        
         const { data: inserted, error } = await supabase
           .from('recursos_humanos')
-          .insert(dbData)
+          .insert(insertData)
           .select()
           .single();
         if (error) throw error;
@@ -461,7 +468,7 @@ const RecursosHumanos = () => {
         onClose={() => setIsMapaOpen(false)}
         recursos={items}
         onUpdateRecurso={async (updatedRecurso) => {
-          await handleSave(updatedRecurso);
+          await handleSave(updatedRecurso, true);
         }}
       />
     </div>
