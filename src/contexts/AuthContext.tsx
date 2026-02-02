@@ -36,7 +36,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   // Fetch user profile from database
-  const fetchUserProfile = async (userId: string): Promise<User | null> => {
+  const fetchUserProfile = async (userId: string): Promise<{ profile: User | null; status: string | null }> => {
     try {
       const { data: profile, error } = await supabase
         .from('profiles')
@@ -47,6 +47,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           usuario,
           foto_url,
           perfil_id,
+          status,
           perfis_acesso:perfil_id (nome)
         `)
         .eq('id', userId)
@@ -54,20 +55,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       if (error || !profile) {
         console.error('Error fetching profile:', error);
-        return null;
+        return { profile: null, status: null };
       }
 
       return {
-        id: profile.id,
-        nome: profile.nome,
-        email: profile.email,
-        usuario: profile.usuario,
-        perfil: (profile.perfis_acesso as { nome: string } | null)?.nome || 'Usuário',
-        foto: profile.foto_url || undefined,
+        profile: {
+          id: profile.id,
+          nome: profile.nome,
+          email: profile.email,
+          usuario: profile.usuario,
+          perfil: (profile.perfis_acesso as { nome: string } | null)?.nome || 'Usuário',
+          foto: profile.foto_url || undefined,
+        },
+        status: profile.status || 'Ativo',
       };
     } catch (error) {
       console.error('Error fetching user profile:', error);
-      return null;
+      return { profile: null, status: null };
     }
   };
 
@@ -81,8 +85,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (session?.user) {
           // Use setTimeout to avoid blocking the auth state change
           setTimeout(async () => {
-            const profile = await fetchUserProfile(session.user.id);
-            setUser(profile);
+            const { profile, status } = await fetchUserProfile(session.user.id);
+            // Only set user if status is Ativo
+            if (status === 'Ativo') {
+              setUser(profile);
+            } else {
+              // User is inactive, sign them out
+              await supabase.auth.signOut();
+              setUser(null);
+            }
             setIsLoading(false);
           }, 0);
         } else {
@@ -98,8 +109,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setSupabaseUser(session?.user ?? null);
 
       if (session?.user) {
-        fetchUserProfile(session.user.id).then((profile) => {
-          setUser(profile);
+        fetchUserProfile(session.user.id).then(({ profile, status }) => {
+          // Only set user if status is Ativo
+          if (status === 'Ativo') {
+            setUser(profile);
+          } else {
+            // User is inactive, sign them out
+            supabase.auth.signOut();
+            setUser(null);
+          }
           setIsLoading(false);
         });
       } else {
@@ -129,7 +147,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
 
       if (data.user) {
-        const profile = await fetchUserProfile(data.user.id);
+        const { profile, status } = await fetchUserProfile(data.user.id);
+        
+        // Check if user is active
+        if (status !== 'Ativo') {
+          // Sign out the user immediately
+          await supabase.auth.signOut();
+          return { success: false, error: 'Usuário inativo. Entre em contato com o administrador.' };
+        }
+        
         setUser(profile);
       }
 
