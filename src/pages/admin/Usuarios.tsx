@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
 import { ListActionBar } from '@/components/shared/ListActionBar';
 import { Edit, Trash2, UserCog, Loader2 } from 'lucide-react';
@@ -21,6 +22,7 @@ export interface Usuario {
   perfil: string;
   perfilId?: string;
   descricao: string;
+  status: 'Ativo' | 'Inativo';
   dataCadastro: string;
   usuarioCadastro: string;
 }
@@ -57,6 +59,7 @@ const Usuarios = () => {
         perfil: item.perfis_acesso?.nome || '',
         perfilId: item.perfil_id,
         descricao: item.descricao || '',
+        status: item.status || 'Ativo',
         dataCadastro: item.created_at,
         usuarioCadastro: '',
       })));
@@ -84,6 +87,7 @@ const Usuarios = () => {
         descricao: data.descricao || null,
         foto_url: data.foto || null,
         perfil_id: data.perfilId || null,
+        status: data.status || 'Ativo',
       };
 
       if (editingItem) {
@@ -141,7 +145,7 @@ const Usuarios = () => {
           
           toast({ 
             title: 'Sucesso', 
-            description: 'Usuário criado! Um e-mail de confirmação foi enviado.' 
+            description: 'Usuário criado com sucesso!' 
           });
           
           await fetchData();
@@ -241,6 +245,15 @@ const Usuarios = () => {
       key: 'perfil',
       label: 'Perfil',
       render: (item) => item.perfil || '-',
+    },
+    {
+      key: 'status',
+      label: 'Status',
+      render: (item) => (
+        <Badge variant={item.status === 'Ativo' ? 'default' : 'secondary'}>
+          {item.status}
+        </Badge>
+      ),
     },
     {
       key: 'acoes',

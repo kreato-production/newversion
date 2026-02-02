@@ -1319,6 +1319,7 @@ export type Database = {
           id: string
           nome: string
           perfil_id: string | null
+          status: string | null
           updated_at: string | null
           usuario: string
         }
@@ -1331,6 +1332,7 @@ export type Database = {
           id: string
           nome: string
           perfil_id?: string | null
+          status?: string | null
           updated_at?: string | null
           usuario: string
         }
@@ -1343,6 +1345,7 @@ export type Database = {
           id?: string
           nome?: string
           perfil_id?: string | null
+          status?: string | null
           updated_at?: string | null
           usuario?: string
         }

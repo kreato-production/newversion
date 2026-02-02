@@ -54,6 +54,7 @@ export const UsuarioFormModal = ({
     perfil: '',
     perfilId: '',
     descricao: '',
+    status: 'Ativo' as 'Ativo' | 'Inativo',
   });
 
   // Fetch perfis from Supabase
@@ -91,6 +92,7 @@ export const UsuarioFormModal = ({
         perfil: data.perfil,
         perfilId: data.perfilId || '',
         descricao: data.descricao,
+        status: data.status || 'Ativo',
       });
       setFotoPreview(data.foto || null);
     } else {
@@ -104,6 +106,7 @@ export const UsuarioFormModal = ({
         perfil: '',
         perfilId: '',
         descricao: '',
+        status: 'Ativo',
       });
       setFotoPreview(null);
     }
@@ -152,6 +155,7 @@ export const UsuarioFormModal = ({
       // Manter senha atual se estiver editando e não preencheu nova senha
       senha: formData.senha || data?.senha || '',
       foto: formData.foto || data?.foto || '',
+      status: formData.status,
       dataCadastro: data?.dataCadastro || new Date().toLocaleDateString('pt-BR'),
       usuarioCadastro: data?.usuarioCadastro || user?.nome || 'Admin',
     };
@@ -314,6 +318,22 @@ export const UsuarioFormModal = ({
                     {perfis.map((p) => (
                       <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>
                     ))}
+                  </SelectContent>
+              </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Status</Label>
+                <Select
+                  value={formData.status}
+                  onValueChange={(value) => setFormData({ ...formData, status: value as 'Ativo' | 'Inativo' })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Ativo">Ativo</SelectItem>
+                    <SelectItem value="Inativo">Inativo</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
