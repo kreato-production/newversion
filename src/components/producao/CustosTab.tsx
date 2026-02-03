@@ -127,6 +127,7 @@ export const CustosTab = ({ gravacaoId }: CustosTabProps) => {
   const custos = useMemo(() => {
     const itens: CustoItem[] = [];
     const rhProcessados = new Set<string>(); // Evitar duplicatas de RH
+    const rfProcessados = new Set<string>(); // Evitar duplicatas de RF
 
     // Processar recursos alocados
     recursos.forEach((recurso) => {
@@ -163,13 +164,17 @@ export const CustosTab = ({ gravacaoId }: CustosTabProps) => {
         }
       }
 
-      // Processar recursos físicos (apenas se não tiver recurso técnico ou humano associado)
-      if (recurso.recurso_fisico_id && recurso.recursos_fisicos && !recurso.recurso_humano_id && !recurso.recurso_tecnico_id) {
+      // Processar recursos físicos - cada alocação separadamente
+      if (recurso.recurso_fisico_id && recurso.recursos_fisicos) {
         const rf = recurso.recursos_fisicos;
         const custoHora = rf.custo_hora || 0;
         const horas = calcularHorasEntreTempo(recurso.hora_inicio, recurso.hora_fim);
+        
+        // Usar ID do registro como chave única (permite múltiplas alocações do mesmo RF em horários diferentes)
+        const rfKey = recurso.id;
 
-        if (horas > 0) {
+        if (horas > 0 && !rfProcessados.has(rfKey)) {
+          rfProcessados.add(rfKey);
           itens.push({
             categoria: t('costsTab.physicalResources'),
             recurso: rf.nome,

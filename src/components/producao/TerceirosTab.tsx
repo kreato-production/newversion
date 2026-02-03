@@ -23,6 +23,7 @@ import { Plus, Trash2, Building2, DollarSign } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { formatCurrency as formatCurrencyUtil } from '@/lib/currencies';
 
 interface Fornecedor {
   id: string;
@@ -48,9 +49,6 @@ interface TerceirosTabProps {
   gravacaoId: string;
 }
 
-const formatCurrency = (value: number) =>
-  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
-
 export const TerceirosTab = ({ gravacaoId }: TerceirosTabProps) => {
   const { toast } = useToast();
   const { session } = useAuth();
@@ -58,15 +56,41 @@ export const TerceirosTab = ({ gravacaoId }: TerceirosTabProps) => {
   const [fornecedores, setFornecedores] = useState<Fornecedor[]>([]);
   const [servicos, setServicos] = useState<Servico[]>([]);
   const [servicosFornecedor, setServicosFornecedor] = useState<Servico[]>([]);
+  const [moeda, setMoeda] = useState<string>('BRL');
   
   const [selectedFornecedor, setSelectedFornecedor] = useState('');
   const [selectedServico, setSelectedServico] = useState('');
   const [custo, setCusto] = useState('');
+  
+  // Custom currency formatter based on business unit
+  const formatCurrency = useCallback((value: number) => {
+    return formatCurrencyUtil(value, moeda);
+  }, [moeda]);
 
   const fetchData = useCallback(async () => {
     if (!session) return;
 
     try {
+      // First, fetch the gravação to get the unidade_negocio_id
+      const { data: gravacaoData } = await supabase
+        .from('gravacoes')
+        .select('unidade_negocio_id')
+        .eq('id', gravacaoId)
+        .single();
+
+      // If there's a business unit, fetch its currency preference
+      if (gravacaoData?.unidade_negocio_id) {
+        const { data: unidadeData } = await supabase
+          .from('unidades_negocio')
+          .select('moeda')
+          .eq('id', gravacaoData.unidade_negocio_id)
+          .single();
+        
+        if (unidadeData?.moeda) {
+          setMoeda(unidadeData.moeda);
+        }
+      }
+
       // Fetch terceiros alocados from Supabase
       const { data: terceirosData } = await supabase
         .from('gravacao_terceiros')

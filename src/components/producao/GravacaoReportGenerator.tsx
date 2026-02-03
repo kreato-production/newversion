@@ -232,24 +232,81 @@ export const GravacaoReportGenerator = ({ gravacaoId, disabled }: GravacaoReport
         y += 8;
         pdf.setTextColor(0, 0, 0);
 
-        const recursosTable = data.recursos.map(r => [
-          r.tipo === 'humano' ? 'Humano' : r.tipo === 'fisico' ? 'Físico' : 'Técnico',
-          r.nome,
-          r.funcao || '-',
-          r.horaInicio && r.horaFim ? `${r.horaInicio} - ${r.horaFim}` : '-',
-        ]);
+        // Separate resources by type
+        const recursosTecnicos = data.recursos.filter(r => r.tipo === 'tecnico');
+        const recursosFisicos = data.recursos.filter(r => r.tipo === 'fisico');
+        const recursosHumanosDiretos = data.recursos.filter(r => r.tipo === 'humano');
 
-        autoTable(pdf, {
-          startY: y,
-          head: [['Tipo', 'Recurso', 'Função', 'Horário']],
-          body: recursosTable,
-          theme: 'striped',
-          styles: { fontSize: 8 },
-          headStyles: { fillColor: [124, 58, 237] },
-          margin: { left: margin, right: margin },
-        });
+        // -------- Recursos Técnicos --------
+        if (recursosTecnicos.length > 0 || recursosHumanosDiretos.length > 0) {
+          y = checkPageBreak(pdf, y, 25);
+          pdf.setFontSize(11);
+          pdf.setFont('helvetica', 'bold');
+          pdf.text('Recursos Técnicos', margin, y);
+          y += 6;
 
-        y = (pdf as any).lastAutoTable.finalY + 8;
+          // Group technical resources by function
+          const tecnicosPorFuncao: Record<string, typeof recursosTecnicos> = {};
+          recursosTecnicos.forEach(rt => {
+            const funcao = rt.funcao || 'Sem Função';
+            if (!tecnicosPorFuncao[funcao]) {
+              tecnicosPorFuncao[funcao] = [];
+            }
+            tecnicosPorFuncao[funcao].push(rt);
+          });
+
+          // Also add direct HR resources grouped by their function
+          recursosHumanosDiretos.forEach(rh => {
+            const funcao = rh.funcao || 'Colaboradores';
+            if (!tecnicosPorFuncao[funcao]) {
+              tecnicosPorFuncao[funcao] = [];
+            }
+            tecnicosPorFuncao[funcao].push(rh);
+          });
+
+          Object.entries(tecnicosPorFuncao).forEach(([funcao, recursos]) => {
+            y = checkPageBreak(pdf, y, 20);
+            
+            pdf.setFontSize(10);
+            pdf.setFont('helvetica', 'bold');
+            pdf.text(`  ${funcao}`, margin, y);
+            y += 5;
+
+            pdf.setFontSize(9);
+            pdf.setFont('helvetica', 'normal');
+            
+            recursos.forEach(recurso => {
+              const horario = recurso.horaInicio && recurso.horaFim 
+                ? ` (${recurso.horaInicio} - ${recurso.horaFim})` 
+                : '';
+              pdf.text(`      • ${recurso.nome}${horario}`, margin, y);
+              y += 4;
+            });
+            y += 2;
+          });
+        }
+
+        // -------- Recursos Físicos --------
+        if (recursosFisicos.length > 0) {
+          y = checkPageBreak(pdf, y, 25);
+          pdf.setFontSize(11);
+          pdf.setFont('helvetica', 'bold');
+          pdf.text('Recursos Físicos', margin, y);
+          y += 6;
+
+          pdf.setFontSize(9);
+          pdf.setFont('helvetica', 'normal');
+          
+          recursosFisicos.forEach(rf => {
+            const horario = rf.horaInicio && rf.horaFim 
+              ? ` (${rf.horaInicio} - ${rf.horaFim})` 
+              : '';
+            pdf.text(`    • ${rf.nome}${horario}`, margin, y);
+            y += 4;
+          });
+        }
+
+        y += 5;
       }
 
       // ==================== ELENCO ====================
