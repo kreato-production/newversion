@@ -28,7 +28,7 @@ export const usePermissions = (): UsePermissionsResult => {
           .from('perfis_acesso')
           .select('id')
           .eq('nome', user.perfil)
-          .single();
+          .maybeSingle();
         
         if (error) {
           console.error('Error fetching perfil:', error);
