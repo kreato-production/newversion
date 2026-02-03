@@ -112,6 +112,19 @@ const Usuarios = () => {
           return;
         }
 
+        // Validate password length
+        if (data.senha.length < 6) {
+          toast({
+            title: 'Erro',
+            description: 'A senha deve ter pelo menos 6 caracteres',
+            variant: 'destructive',
+          });
+          return;
+        }
+
+        // Store current session before creating new user
+        const { data: currentSession } = await supabase.auth.getSession();
+        
         // Create new user via auth.signUp
         const { data: authData, error: signUpError } = await supabase.auth.signUp({
           email: data.email,
@@ -127,8 +140,8 @@ const Usuarios = () => {
         if (signUpError) throw signUpError;
 
         if (authData.user) {
-          // Wait a moment for the trigger to create the profile
-          await new Promise(resolve => setTimeout(resolve, 1500));
+          // Wait for the trigger to create the profile
+          await new Promise(resolve => setTimeout(resolve, 2000));
           
           // Update the profile with additional data
           const { error: profileError } = await supabase
@@ -143,15 +156,24 @@ const Usuarios = () => {
             console.error('Error updating profile:', profileError);
           }
           
+          // Sign out the newly created user (since signUp with auto_confirm logs them in)
+          await supabase.auth.signOut();
+          
+          // Restore the admin session if we had one
+          if (currentSession?.session) {
+            await supabase.auth.setSession({
+              access_token: currentSession.session.access_token,
+              refresh_token: currentSession.session.refresh_token,
+            });
+          }
+          
           toast({ 
             title: 'Sucesso', 
             description: 'Usuário criado com sucesso!' 
           });
           
-          // Forçar atualização da lista após um pequeno delay adicional
-          setTimeout(async () => {
-            await fetchData();
-          }, 500);
+          // Refresh the user list
+          await fetchData();
           
           setEditingItem(null);
           setIsModalOpen(false);

@@ -51,10 +51,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           perfis_acesso:perfil_id (nome)
         `)
         .eq('id', userId)
-        .single();
+        .maybeSingle();
 
-      if (error || !profile) {
+      if (error) {
         console.error('Error fetching profile:', error);
+        return { profile: null, status: null };
+      }
+
+      // Profile may not exist yet for newly created users
+      if (!profile) {
         return { profile: null, status: null };
       }
 
@@ -86,11 +91,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           // Use setTimeout to avoid blocking the auth state change
           setTimeout(async () => {
             const { profile, status } = await fetchUserProfile(session.user.id);
+            // If profile doesn't exist yet (new user being created), don't sign out
+            if (profile === null && status === null) {
+              // Profile doesn't exist yet, this is likely a new user being created
+              // Don't set user, but don't sign out either
+              setIsLoading(false);
+              return;
+            }
             // Only set user if status is Ativo
             if (status === 'Ativo') {
               setUser(profile);
-            } else {
-              // User is inactive, sign them out
+            } else if (status === 'Inativo') {
+              // User is explicitly inactive, sign them out
               await supabase.auth.signOut();
               setUser(null);
             }
@@ -110,11 +122,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       if (session?.user) {
         fetchUserProfile(session.user.id).then(({ profile, status }) => {
+          // If profile doesn't exist yet (new user being created), don't sign out
+          if (profile === null && status === null) {
+            setIsLoading(false);
+            return;
+          }
           // Only set user if status is Ativo
           if (status === 'Ativo') {
             setUser(profile);
-          } else {
-            // User is inactive, sign them out
+          } else if (status === 'Inativo') {
+            // User is explicitly inactive, sign them out
             supabase.auth.signOut();
             setUser(null);
           }
