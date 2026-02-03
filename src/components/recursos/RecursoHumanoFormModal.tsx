@@ -409,9 +409,14 @@ export const RecursoHumanoFormModal = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Find function name from ID for display purposes
+    const funcaoSelecionada = funcoesDisponiveis.find(f => f.id === formData.funcaoId);
+    
     onSave({
       id: data?.id || crypto.randomUUID(),
       ...formData,
+      funcao: funcaoSelecionada?.nome || formData.funcao || '',
       funcaoId: formData.funcaoId || undefined,
       anexos,
       ausencias,

@@ -128,7 +128,7 @@ const Usuarios = () => {
 
         if (authData.user) {
           // Wait a moment for the trigger to create the profile
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          await new Promise(resolve => setTimeout(resolve, 1500));
           
           // Update the profile with additional data
           const { error: profileError } = await supabase
@@ -148,7 +148,11 @@ const Usuarios = () => {
             description: 'Usuário criado com sucesso!' 
           });
           
-          await fetchData();
+          // Forçar atualização da lista após um pequeno delay adicional
+          setTimeout(async () => {
+            await fetchData();
+          }, 500);
+          
           setEditingItem(null);
           setIsModalOpen(false);
         } else {
