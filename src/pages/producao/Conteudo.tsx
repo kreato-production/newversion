@@ -45,7 +45,7 @@ const mapDbToConteudo = (
     tipos_gravacao?: { nome: string } | null;
     classificacoes?: { nome: string } | null;
   }
-): Conteudo => ({
+): Conteudo & { orcamento?: number } => ({
   id: db.id,
   codigoExterno: db.codigo_externo || '',
   descricao: db.descricao,
@@ -62,6 +62,7 @@ const mapDbToConteudo = (
   sinopse: db.sinopse || '',
   usuarioCadastro: '',
   dataCadastro: db.created_at ? new Date(db.created_at).toLocaleDateString('pt-BR') : '',
+  orcamento: db.orcamento || 0,
 });
 
 const Conteudo = () => {
