@@ -28,6 +28,7 @@ export interface Gravacao {
   dataCadastro: string;
   usuarioCadastro: string;
   conteudoId?: string;
+  orcamento?: number;
 }
 
 // Database format from Supabase
@@ -46,6 +47,7 @@ interface GravacaoDB {
   created_at: string | null;
   created_by: string | null;
   conteudo_id: string | null;
+  orcamento: number | null;
   // Joined fields
   unidade_negocio?: { nome: string } | null;
   centro_lucro?: { nome: string } | null;
@@ -136,6 +138,7 @@ const GravacaoList = () => {
     dataCadastro: item.created_at ? new Date(item.created_at).toLocaleDateString('pt-BR') : '',
     usuarioCadastro: user?.nome || '',
     conteudoId: item.conteudo_id || undefined,
+    orcamento: item.orcamento || 0,
   });
 
   const handleSave = async (data: Gravacao) => {
@@ -170,6 +173,7 @@ const GravacaoList = () => {
         data_prevista: dataPrevistaFormatted,
         conteudo_id: data.conteudoId || null,
         created_by: user?.id || null,
+        orcamento: data.orcamento || 0,
       };
 
       if (editingItem) {

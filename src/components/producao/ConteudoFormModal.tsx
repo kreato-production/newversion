@@ -296,18 +296,26 @@ export const ConteudoFormModal = ({
         : 0;
       
       // Get IDs for the form values
+      // First, try to use existing IDs from the data prop (when editing an existing content)
+      // Otherwise, look up by name
       const unidadeSelecionada = unidades.find(u => u.nome === formData.unidadeNegocio);
       const centroSelecionado = centrosLucro.find(c => c.nome === formData.centroLucro);
       const classificacaoSelecionada = classificacoes.find(c => c.nome === formData.classificacao);
       const tipoSelecionado = tipos.find(t => t.nome === formData.tipoConteudo);
 
+      // Use the found IDs, or fall back to the data prop IDs if available
+      const unidadeNegocioId = unidadeSelecionada?.id || (data as any)?.unidadeNegocioId || null;
+      const centroLucroId = centroSelecionado?.id || (data as any)?.centroLucroId || null;
+      const classificacaoId = classificacaoSelecionada?.id || (data as any)?.classificacaoId || null;
+      const tipoConteudoId = tipoSelecionado?.id || (data as any)?.tipoConteudoId || null;
+
       for (let i = startEpisode; i <= quantidade; i++) {
         const insertData = {
           nome: `${formData.descricao} - Episódio ${i}`,
-          unidade_negocio_id: unidadeSelecionada?.id || null,
-          centro_lucro_id: centroSelecionado?.id || null,
-          classificacao_id: classificacaoSelecionada?.id || null,
-          tipo_conteudo_id: tipoSelecionado?.id || null,
+          unidade_negocio_id: unidadeNegocioId,
+          centro_lucro_id: centroLucroId,
+          classificacao_id: classificacaoId,
+          tipo_conteudo_id: tipoConteudoId,
           conteudo_id: data.id,
           created_by: user?.id || null,
           orcamento: orcamentoPorGravacao,
