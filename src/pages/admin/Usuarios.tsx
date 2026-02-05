@@ -122,68 +122,37 @@ const Usuarios = () => {
           return;
         }
 
-        // Store current session before creating new user
-        const { data: currentSession } = await supabase.auth.getSession();
-        
-        // Create new user via auth.signUp
-        const { data: authData, error: signUpError } = await supabase.auth.signUp({
-          email: data.email,
-          password: data.senha,
-          options: {
-            data: {
-              nome: data.nome,
-              usuario: data.usuario,
-            }
-          }
+        // Criar usuário via função de backend (cria Auth + profiles)
+        const { data: result, error: invokeError } = await supabase.functions.invoke('admin-create-user', {
+          body: {
+            codigoExterno: data.codigoExterno || null,
+            nome: data.nome,
+            email: data.email,
+            usuario: data.usuario,
+            senha: data.senha,
+            foto: data.foto || null,
+            perfilId: data.perfilId || null,
+            descricao: data.descricao || null,
+            status: data.status || 'Ativo',
+          },
         });
 
-        if (signUpError) throw signUpError;
+        if (invokeError) throw invokeError;
 
-        if (authData.user) {
-          // Wait for the trigger to create the profile
-          await new Promise(resolve => setTimeout(resolve, 2000));
-          
-          // Update the profile with additional data
-          const { error: profileError } = await supabase
-            .from('profiles')
-            .update({
-              ...updateData,
-              usuario: data.usuario,
-            })
-            .eq('id', authData.user.id);
-
-          if (profileError) {
-            console.error('Error updating profile:', profileError);
-          }
-          
-          // Sign out the newly created user (since signUp with auto_confirm logs them in)
-          await supabase.auth.signOut();
-          
-          // Restore the admin session if we had one
-          if (currentSession?.session) {
-            await supabase.auth.setSession({
-              access_token: currentSession.session.access_token,
-              refresh_token: currentSession.session.refresh_token,
-            });
-          }
-          
-          toast({ 
-            title: 'Sucesso', 
-            description: 'Usuário criado com sucesso!' 
-          });
-          
-          // Refresh the user list
-          await fetchData();
-          
-          setEditingItem(null);
-          setIsModalOpen(false);
-        } else {
-          toast({
-            title: 'Atenção',
-            description: 'Usuário já existe ou e-mail inválido.',
-            variant: 'destructive',
-          });
+        if (!result?.success) {
+          throw new Error(result?.error || 'Erro ao criar usuário');
         }
+
+        toast({
+          title: 'Sucesso',
+          description: 'Usuário criado com sucesso!',
+        });
+
+        // Refresh the user list
+        await fetchData();
+
+        setEditingItem(null);
+        setIsModalOpen(false);
       }
     } catch (err: any) {
       console.error('Error saving user:', err);
