@@ -111,10 +111,12 @@ Deno.serve(async (req) => {
     }
 
     // 1) Try to create auth user
+    // Generate internal email for authentication (username@kreato.app)
+    const authEmail = `${payload.usuario.toLowerCase()}@kreato.app`
     let newUserId: string
 
     const { data: authData, error: createError } = await supabaseAdmin.auth.admin.createUser({
-      email: payload.email,
+      email: authEmail,
       password: payload.senha,
       email_confirm: true,
       user_metadata: {
@@ -139,7 +141,7 @@ Deno.serve(async (req) => {
           )
         }
 
-        const existingUser = listData.users.find(u => u.email?.toLowerCase() === payload.email.toLowerCase())
+        const existingUser = listData.users.find(u => u.email?.toLowerCase() === authEmail.toLowerCase())
         
         if (!existingUser) {
           return new Response(
