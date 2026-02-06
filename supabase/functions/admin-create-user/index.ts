@@ -108,7 +108,9 @@ Deno.serve(async (req) => {
       )
     }
 
-    // 1) Create auth user
+    // 1) Try to create auth user
+    let newUserId: string
+
     const { data: authData, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email: payload.email,
       password: payload.senha,
@@ -119,13 +121,65 @@ Deno.serve(async (req) => {
       },
     })
 
-    if (createError || !authData?.user) {
-      const msg = createError?.message || 'Falha ao criar usuário.'
-      console.error('Error creating auth user:', createError)
+    if (createError) {
+      // If email already exists, try to find the existing user and reuse
+      if (createError.message?.includes('already been registered') || (createError as any).code === 'email_exists') {
+        console.log('User already exists in auth, attempting to find and reuse...')
+        
+        // List users to find by email
+        const { data: listData, error: listError } = await supabaseAdmin.auth.admin.listUsers()
+        
+        if (listError) {
+          console.error('Error listing users:', listError)
+          return new Response(
+            JSON.stringify({ success: false, error: 'Falha ao buscar usuário existente.' }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+
+        const existingUser = listData.users.find(u => u.email?.toLowerCase() === payload.email.toLowerCase())
+        
+        if (!existingUser) {
+          return new Response(
+            JSON.stringify({ success: false, error: 'Email já registrado mas usuário não encontrado.' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+
+        // Update the existing user's password and metadata
+        const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(existingUser.id, {
+          password: payload.senha,
+          email_confirm: true,
+          user_metadata: {
+            nome: payload.nome,
+            usuario: payload.usuario,
+          },
+        })
+
+        if (updateError) {
+          console.error('Error updating existing auth user:', updateError)
+          return new Response(
+            JSON.stringify({ success: false, error: 'Falha ao atualizar usuário existente.' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+
+        newUserId = existingUser.id
+        console.log('Reusing existing auth user:', newUserId)
+      } else {
+        console.error('Error creating auth user:', createError)
+        return new Response(
+          JSON.stringify({ success: false, error: createError.message || 'Falha ao criar usuário.' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+    } else if (!authData?.user) {
       return new Response(
-        JSON.stringify({ success: false, error: msg }),
+        JSON.stringify({ success: false, error: 'Falha ao criar usuário.' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
+    } else {
+      newUserId = authData.user.id
     }
 
     const newUserId = authData.user.id
