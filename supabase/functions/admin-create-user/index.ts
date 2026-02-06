@@ -184,8 +184,6 @@ Deno.serve(async (req) => {
       newUserId = authData.user.id
     }
 
-    const newUserId = authData.user.id
-
     // 2) Create/Update profile
     const { error: profileError } = await supabaseAdmin.from('profiles').upsert(
       {
