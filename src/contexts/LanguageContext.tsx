@@ -1368,7 +1368,7 @@ const currencyLocales: Record<Language, { locale: string; currency: string }> = 
 
 // Language labels
 export const languageLabels: Record<Language, { name: string; flag: string }> = {
-  pt: { name: 'Português', flag: '🇧🇷' },
+  pt: { name: 'Português', flag: '🇵🇹' },
   en: { name: 'English', flag: '🇺🇸' },
   es: { name: 'Español', flag: '🇪🇸' },
 };
