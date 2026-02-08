@@ -39,6 +39,7 @@ import { ConvidadosTab } from './ConvidadosTab';
 import FigurinosTab from './FigurinosTab';
 import { ElencoTab } from './ElencoTab';
 import { RoteiroTab } from './RoteiroTab';
+import { GravacaoTarefasTab } from './GravacaoTarefasTab';
 import { GravacaoReportGenerator } from './GravacaoReportGenerator';
 import { cn } from '@/lib/utils';
 import { DialogActionBar } from '@/components/shared/DialogActionBar';
@@ -312,6 +313,7 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
             {isVisible('Produção', 'Gravação', '-', 'Tabulador "Custos"') && (
               <TabsTrigger value="custos" disabled={!data} className="flex-1">{t('recordings.costs')}</TabsTrigger>
             )}
+            <TabsTrigger value="tarefas" disabled={!data} className="flex-1">Tarefas</TabsTrigger>
           </TabsList>
 
           <TabsContent value="dados">
@@ -573,6 +575,10 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
               {data && <CustosTab gravacaoId={data.id} />}
             </TabsContent>
           )}
+
+          <TabsContent value="tarefas">
+            {data && <GravacaoTarefasTab gravacaoId={data.id} />}
+          </TabsContent>
         </Tabs>
       </DialogContent>
     </Dialog>
