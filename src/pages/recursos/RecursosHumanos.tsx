@@ -270,8 +270,8 @@ const RecursosHumanos = () => {
     }
   };
 
-  const formatCurrency = (value: number) =>
-    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+  const formatCustoHora = (value: number) =>
+    new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
 
   const filteredItems = items.filter(
     (item) =>
@@ -360,7 +360,7 @@ const RecursosHumanos = () => {
     {
       key: 'custoHora',
       label: 'Custo/Hora',
-      render: (item) => formatCurrency(item.custoHora),
+      render: (item) => formatCustoHora(item.custoHora),
     },
     {
       key: 'status',
