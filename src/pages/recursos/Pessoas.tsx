@@ -10,6 +10,7 @@ import { PessoaFormModal } from '@/components/recursos/PessoaFormModal';
 import { SortableTable, Column } from '@/components/shared/SortableTable';
 import { supabase } from '@/integrations/supabase/client';
 import type { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 type PessoaDB = Tables<'pessoas'>;
 
@@ -63,6 +64,7 @@ const mapDbToPessoa = (db: PessoaDB & { classificacoes_pessoa?: { nome: string }
 
 const Pessoas = () => {
   const { toast } = useToast();
+  const { t } = useLanguage();
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Pessoa | null>(null);
@@ -175,33 +177,33 @@ const Pessoas = () => {
     },
     {
       key: 'nome',
-      label: 'Nome',
+      label: t('common.name'),
       render: (item) => (
         <span className="font-medium">{item.nome} {item.sobrenome}</span>
       ),
     },
     {
       key: 'email',
-      label: 'E-mail',
+      label: t('common.email'),
     },
     {
       key: 'telefone',
-      label: 'Telefone',
+      label: t('common.phone'),
       render: (item) => item.telefone || '-',
     },
     {
       key: 'classificacao',
-      label: 'Classificação',
+      label: t('field.classification'),
       render: (item) => item.classificacao || '-',
     },
     {
       key: 'cidade',
-      label: 'Cidade/Estado',
+      label: t('field.cityState'),
       render: (item) => item.cidade && item.estado ? `${item.cidade}/${item.estado}` : '-',
     },
     {
       key: 'status',
-      label: 'Status',
+      label: t('common.status'),
       render: (item) => (
         <Badge variant={item.status === 'Ativo' ? 'default' : 'secondary'}>
           {item.status}
@@ -210,7 +212,7 @@ const Pessoas = () => {
     },
     {
       key: 'acoes',
-      label: 'Ações',
+      label: t('common.actions'),
       className: 'w-24 text-right',
       sortable: false,
       render: (item) => (
@@ -245,13 +247,13 @@ const Pessoas = () => {
   return (
     <div>
       <PageHeader
-        title="Pessoas"
-        description="Gerencie as pessoas cadastradas no sistema"
+        title={t('people.title')}
+        description={t('field.managePeople')}
         onAdd={() => {
           setEditingItem(null);
           setIsModalOpen(true);
         }}
-        addLabel="Nova Pessoa"
+        addLabel={t('field.newPerson')}
       />
 
       <ListActionBar>
@@ -265,11 +267,11 @@ const Pessoas = () => {
           </div>
         ) : filteredItems.length === 0 ? (
           <EmptyState
-            title="Nenhuma pessoa cadastrada"
-            description="Adicione pessoas para gerenciar seu cadastro."
+            title={t('field.noPersonRegistered')}
+            description={t('field.peopleHint')}
             icon={Users}
             onAction={() => setIsModalOpen(true)}
-            actionLabel="Adicionar Pessoa"
+            actionLabel={t('field.addPerson')}
           />
         ) : (
           <SortableTable

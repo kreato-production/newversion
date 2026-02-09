@@ -8,6 +8,7 @@ import { FornecedorFormModal } from '@/components/recursos/FornecedorFormModal';
 import { SortableTable, Column } from '@/components/shared/SortableTable';
 import { supabase } from '@/integrations/supabase/client';
 import type { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 type FornecedorDB = Tables<'fornecedores'>;
 
@@ -43,7 +44,7 @@ const mapDbToFornecedor = (
 
 const Fornecedores = () => {
   const { toast } = useToast();
-  const [search, setSearch] = useState('');
+  const { t } = useLanguage();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Fornecedor | null>(null);
   const [items, setItems] = useState<Fornecedor[]>([]);

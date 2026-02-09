@@ -8,6 +8,7 @@ import { RecursoTecnicoFormModal } from '@/components/recursos/RecursoTecnicoFor
 import { SortableTable, Column } from '@/components/shared/SortableTable';
 import { supabase } from '@/integrations/supabase/client';
 import type { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 type RecursoTecnicoDB = Tables<'recursos_tecnicos'>;
 
@@ -35,6 +36,7 @@ const mapDbToRecursoTecnico = (
 
 const RecursosTecnicos = () => {
   const { toast } = useToast();
+  const { t } = useLanguage();
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<RecursoTecnico | null>(null);
@@ -53,7 +55,7 @@ const RecursosTecnicos = () => {
       setItems((data || []).map(mapDbToRecursoTecnico));
     } catch (error) {
       console.error('Error fetching recursos tecnicos:', error);
-      toast({ title: 'Erro', description: 'Erro ao carregar recursos técnicos', variant: 'destructive' });
+      toast({ title: t('common.error'), description: t('common.error'), variant: 'destructive' });
     } finally {
       setIsLoading(false);
     }
@@ -78,31 +80,31 @@ const RecursosTecnicos = () => {
           .update(dbData as TablesUpdate<'recursos_tecnicos'>)
           .eq('id', data.id);
         if (error) throw error;
-        toast({ title: 'Sucesso', description: 'Recurso técnico atualizado!' });
+        toast({ title: t('common.success'), description: t('common.success') });
       } else {
         const { error } = await supabase.from('recursos_tecnicos').insert(dbData);
         if (error) throw error;
-        toast({ title: 'Sucesso', description: 'Recurso técnico cadastrado!' });
+        toast({ title: t('common.success'), description: t('common.success') });
       }
 
       await fetchRecursosTecnicos();
       setEditingItem(null);
     } catch (error) {
       console.error('Error saving recurso tecnico:', error);
-      toast({ title: 'Erro', description: 'Erro ao salvar recurso técnico', variant: 'destructive' });
+      toast({ title: t('common.error'), description: t('common.error'), variant: 'destructive' });
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm('Deseja realmente excluir este recurso técnico?')) {
+    if (confirm(t('common.confirm.delete'))) {
       try {
         const { error } = await supabase.from('recursos_tecnicos').delete().eq('id', id);
         if (error) throw error;
-        toast({ title: 'Excluído', description: 'Recurso técnico removido!' });
+        toast({ title: t('common.deleted'), description: t('common.deleted') });
         await fetchRecursosTecnicos();
       } catch (error) {
         console.error('Error deleting recurso tecnico:', error);
-        toast({ title: 'Erro', description: 'Erro ao excluir recurso técnico', variant: 'destructive' });
+        toast({ title: t('common.error'), description: t('common.error'), variant: 'destructive' });
       }
     }
   };
@@ -116,7 +118,7 @@ const RecursosTecnicos = () => {
   const columns: Column<RecursoTecnico>[] = [
     {
       key: 'codigoExterno',
-      label: 'Código',
+      label: t('common.code'),
       className: 'w-24',
       render: (item) => (
         <span className="font-mono text-sm">{item.codigoExterno || '-'}</span>
@@ -124,27 +126,27 @@ const RecursosTecnicos = () => {
     },
     {
       key: 'nome',
-      label: 'Nome',
+      label: t('common.name'),
       render: (item) => <span className="font-medium">{item.nome}</span>,
     },
     {
       key: 'funcaoOperador',
-      label: 'Função Operador',
+      label: t('field.operatorFunction'),
       render: (item) => item.funcaoOperador || '-',
     },
     {
       key: 'dataCadastro',
-      label: 'Data Cadastro',
+      label: t('common.registrationDate'),
       className: 'w-32',
     },
     {
       key: 'usuarioCadastro',
-      label: 'Usuário',
+      label: t('common.user'),
       className: 'w-32',
     },
     {
       key: 'acoes',
-      label: 'Ações',
+      label: t('common.actions'),
       className: 'w-24 text-right',
       sortable: false,
       render: (item) => (
@@ -179,13 +181,13 @@ const RecursosTecnicos = () => {
   return (
     <div>
       <PageHeader
-        title="Recursos Técnicos"
-        description="Gerencie os recursos técnicos disponíveis"
+        title={t('technicalResources.title')}
+        description={t('field.manageTechnicalResources')}
         onAdd={() => {
           setEditingItem(null);
           setIsModalOpen(true);
         }}
-        addLabel="Novo Recurso"
+        addLabel={t('field.newResource')}
       />
 
       <ListActionBar>
@@ -199,11 +201,11 @@ const RecursosTecnicos = () => {
           </div>
         ) : filteredItems.length === 0 ? (
           <EmptyState
-            title="Nenhum recurso técnico cadastrado"
-            description="Adicione recursos técnicos para utilizar nas gravações."
+            title={t('field.noTechnicalResourceRegistered')}
+            description={t('field.technicalResourcesHint')}
             icon={Wrench}
             onAction={() => setIsModalOpen(true)}
-            actionLabel="Adicionar Recurso"
+            actionLabel={t('field.addTechnicalResource')}
           />
         ) : (
           <SortableTable
