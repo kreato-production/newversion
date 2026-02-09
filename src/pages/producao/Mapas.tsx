@@ -1028,13 +1028,33 @@ const Mapas = () => {
     });
   }, [recursosFisicos, ocupacoesFisicas, displayDays, filtroTipoFisico, filtroNomeFisico]);
 
-  const filteredRecursosHumanos = recursosHumanos.filter((r) => {
-    const matchFuncao =
-      filtroFuncaoHumano === 'Todas' ||
-      r.funcao === filtroFuncaoHumano;
-    const matchNome = r.nome.toLowerCase().includes(filtroNomeHumano.toLowerCase());
-    return matchFuncao && matchNome;
-  });
+  // Filter human resources: only show those with allocations in the selected period
+  const filteredRecursosHumanos = useMemo(() => {
+    // Get date strings for the current display period
+    const periodoDatas = displayDays.map((d) => format(d, 'yyyy-MM-dd'));
+    
+    // Get resource IDs that have allocations (from tasks) in this period
+    const recursosComAlocacao = new Set<string>();
+    Object.keys(ocupacoesHumanas).forEach((recursoId) => {
+      const ocupacoesPorDia = ocupacoesHumanas[recursoId];
+      // Check if any day in the period has allocations
+      const temAlocacaoNoPeriodo = periodoDatas.some((data) => 
+        ocupacoesPorDia[data] && ocupacoesPorDia[data].length > 0
+      );
+      if (temAlocacaoNoPeriodo) {
+        recursosComAlocacao.add(recursoId);
+      }
+    });
+    
+    return recursosHumanos.filter((r) => {
+      // Must have allocation in the period
+      if (!recursosComAlocacao.has(r.id)) return false;
+      
+      const matchFuncao = filtroFuncaoHumano === 'Todas' || r.funcao === filtroFuncaoHumano;
+      const matchNome = r.nome.toLowerCase().includes(filtroNomeHumano.toLowerCase());
+      return matchFuncao && matchNome;
+    });
+  }, [recursosHumanos, ocupacoesHumanas, displayDays, filtroFuncaoHumano, filtroNomeHumano]);
 
   // Agrupar recursos humanos por função
   const recursosHumanosAgrupados = useMemo(() => {
