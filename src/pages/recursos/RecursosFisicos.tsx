@@ -10,6 +10,7 @@ import { SortableTable, Column } from '@/components/shared/SortableTable';
 import { supabase } from '@/integrations/supabase/client';
 import type { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
 import type { EstoqueItem } from '@/components/recursos/EstoqueTab';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 type RecursoFisicoDB = Tables<'recursos_fisicos'>;
 
@@ -55,6 +56,7 @@ const mapDbToRecursoFisico = (
 
 const RecursosFisicos = () => {
   const { toast } = useToast();
+  const { t } = useLanguage();
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isMapaOpen, setIsMapaOpen] = useState(false);
@@ -72,7 +74,6 @@ const RecursosFisicos = () => {
 
       if (recursosError) throw recursosError;
 
-      // Fetch profiles to get user names
       const { data: profilesData } = await supabase
         .from('profiles')
         .select('id, nome');
@@ -82,7 +83,6 @@ const RecursosFisicos = () => {
 
       const recursosWithFaixas = await Promise.all(
         (recursosData || []).map(async (rf) => {
-          // Fetch faixas
           const { data: faixasData } = await supabase
             .from('rf_faixas_disponibilidade')
             .select('*')
@@ -97,7 +97,6 @@ const RecursosFisicos = () => {
             diasSemana: f.dias_semana || [1, 2, 3, 4, 5],
           }));
 
-          // Fetch estoque items
           const { data: estoqueData } = await supabase
             .from('rf_estoque_itens')
             .select('*')
@@ -122,7 +121,7 @@ const RecursosFisicos = () => {
       setItems(recursosWithFaixas);
     } catch (error) {
       console.error('Error fetching recursos fisicos:', error);
-      toast({ title: 'Erro', description: 'Erro ao carregar recursos físicos', variant: 'destructive' });
+      toast({ title: t('common.error'), description: t('common.error'), variant: 'destructive' });
     } finally {
       setIsLoading(false);
     }
@@ -134,7 +133,6 @@ const RecursosFisicos = () => {
 
   const handleSave = async (data: RecursoFisico) => {
     try {
-      // Get current user ID
       const { data: { user: currentUser } } = await supabase.auth.getUser();
       
       const dbData: TablesInsert<'recursos_fisicos'> = {
@@ -163,7 +161,6 @@ const RecursosFisicos = () => {
         recursoId = inserted.id;
       }
 
-      // Handle faixas de disponibilidade
       if (data.faixasDisponibilidade) {
         await supabase.from('rf_faixas_disponibilidade').delete().eq('recurso_fisico_id', recursoId);
         if (data.faixasDisponibilidade.length > 0) {
@@ -179,7 +176,6 @@ const RecursosFisicos = () => {
         }
       }
 
-      // Handle estoque items
       if (data.estoqueItens) {
         await supabase.from('rf_estoque_itens').delete().eq('recurso_fisico_id', recursoId);
         if (data.estoqueItens.length > 0) {
@@ -196,25 +192,25 @@ const RecursosFisicos = () => {
         }
       }
 
-      toast({ title: 'Sucesso', description: editingItem ? 'Recurso físico atualizado!' : 'Recurso físico cadastrado!' });
+      toast({ title: t('common.success'), description: t('common.success') });
       await fetchRecursosFisicos();
       setEditingItem(null);
     } catch (error) {
       console.error('Error saving recurso fisico:', error);
-      toast({ title: 'Erro', description: 'Erro ao salvar recurso físico', variant: 'destructive' });
+      toast({ title: t('common.error'), description: t('common.error'), variant: 'destructive' });
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm('Deseja realmente excluir este recurso físico?')) {
+    if (confirm(t('common.confirm.delete'))) {
       try {
         const { error } = await supabase.from('recursos_fisicos').delete().eq('id', id);
         if (error) throw error;
-        toast({ title: 'Excluído', description: 'Recurso físico removido!' });
+        toast({ title: t('common.deleted'), description: t('common.deleted') });
         await fetchRecursosFisicos();
       } catch (error) {
         console.error('Error deleting recurso fisico:', error);
-        toast({ title: 'Erro', description: 'Erro ao excluir recurso físico', variant: 'destructive' });
+        toast({ title: t('common.error'), description: t('common.error'), variant: 'destructive' });
       }
     }
   };
@@ -231,7 +227,7 @@ const RecursosFisicos = () => {
   const columns: Column<RecursoFisico>[] = [
     {
       key: 'codigoExterno',
-      label: 'Código',
+      label: t('common.code'),
       className: 'w-24',
       render: (item) => (
         <span className="font-mono text-sm">{item.codigoExterno || '-'}</span>
@@ -239,18 +235,18 @@ const RecursosFisicos = () => {
     },
     {
       key: 'nome',
-      label: 'Nome',
+      label: t('common.name'),
       render: (item) => <span className="font-medium">{item.nome}</span>,
     },
     {
       key: 'custoHora',
-      label: 'Custo/Hora',
+      label: t('field.costPerHour'),
       className: 'w-32',
       render: (item) => formatCustoHora(item.custoHora),
     },
     {
       key: 'estoqueCount',
-      label: 'Estoque',
+      label: t('field.stock'),
       className: 'w-24',
       render: (item) => {
         const count = item.estoqueCount || 0;
@@ -265,12 +261,12 @@ const RecursosFisicos = () => {
     },
     {
       key: 'dataCadastro',
-      label: 'Data Cadastro',
+      label: t('common.registrationDate'),
       className: 'w-32',
     },
     {
       key: 'usuarioCadastro',
-      label: 'Usuário',
+      label: t('common.user'),
       className: 'w-40',
       render: (item) => (
         <span className="text-muted-foreground">{item.usuarioCadastro || '-'}</span>
@@ -278,7 +274,7 @@ const RecursosFisicos = () => {
     },
     {
       key: 'acoes',
-      label: 'Ações',
+      label: t('common.actions'),
       className: 'w-24 text-right',
       sortable: false,
       render: (item) => (
@@ -313,13 +309,13 @@ const RecursosFisicos = () => {
   return (
     <div>
       <PageHeader
-        title="Recursos Físicos"
-        description="Gerencie os recursos físicos (espaços, estúdios, etc.)"
+        title={t('physicalResources.title')}
+        description={t('field.managePhysicalResources')}
         onAdd={() => {
           setEditingItem(null);
           setIsModalOpen(true);
         }}
-        addLabel="Novo Recurso"
+        addLabel={t('field.newResource')}
       />
 
       <ListActionBar>
@@ -331,7 +327,7 @@ const RecursosFisicos = () => {
           className="flex items-center gap-2"
         >
           <Calendar className="w-4 h-4" />
-          Mapa de Disponibilidade
+          {t('field.availabilityMap')}
         </Button>
       </ListActionBar>
 
@@ -342,11 +338,11 @@ const RecursosFisicos = () => {
           </div>
         ) : filteredItems.length === 0 ? (
           <EmptyState
-            title="Nenhum recurso físico cadastrado"
-            description="Adicione recursos físicos como estúdios e salas."
+            title={t('field.noPhysicalResourceRegistered')}
+            description={t('field.physicalResourcesHint')}
             icon={MapPin}
             onAction={() => setIsModalOpen(true)}
-            actionLabel="Adicionar Recurso"
+            actionLabel={t('field.addPhysicalResource')}
           />
         ) : (
           <SortableTable

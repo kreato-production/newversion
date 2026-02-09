@@ -13,6 +13,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { SortableTable, Column } from '@/components/shared/SortableTable';
 import { supabase } from '@/integrations/supabase/client';
 import type { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 type RecursoHumanoDB = Tables<'recursos_humanos'>;
 
@@ -99,6 +100,7 @@ const mapDbToRecursoHumano = (
 
 const RecursosHumanos = () => {
   const { toast } = useToast();
+  const { t } = useLanguage();
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isMapaOpen, setIsMapaOpen] = useState(false);
@@ -156,7 +158,7 @@ const RecursosHumanos = () => {
       setItems(recursosWithDetails);
     } catch (error) {
       console.error('Error fetching recursos humanos:', error);
-      toast({ title: 'Erro', description: 'Erro ao carregar colaboradores', variant: 'destructive' });
+      toast({ title: t('common.error'), description: t('common.error'), variant: 'destructive' });
     } finally {
       setIsLoading(false);
     }
@@ -168,7 +170,6 @@ const RecursosHumanos = () => {
 
   const handleSave = async (data: RecursoHumano, isUpdateFromMap: boolean = false) => {
     try {
-      // Validate and map sexo value - send null if empty or invalid
       const validSexoValues = ['Masculino', 'Feminino', 'Outro'];
       const sexoValue = data.sexo && validSexoValues.includes(data.sexo) 
         ? (data.sexo as 'Masculino' | 'Feminino' | 'Outro') 
@@ -192,8 +193,6 @@ const RecursosHumanos = () => {
       };
 
       let recursoId = data.id;
-
-      // Check if this is an update: either editingItem is set, or we have an existing ID and it's from map update
       const isUpdate = editingItem || (isUpdateFromMap && data.id);
 
       if (isUpdate) {
@@ -203,7 +202,6 @@ const RecursosHumanos = () => {
           .eq('id', data.id);
         if (error) throw error;
       } else {
-        // Remove id for insert to let the database generate it
         const insertData = { ...dbData };
         delete insertData.id;
         
@@ -216,7 +214,6 @@ const RecursosHumanos = () => {
         recursoId = inserted.id;
       }
 
-      // Handle escalas
       if (data.escalas) {
         await supabase.from('rh_escalas').delete().eq('recurso_humano_id', recursoId);
         if (data.escalas.length > 0) {
@@ -232,7 +229,6 @@ const RecursosHumanos = () => {
         }
       }
 
-      // Handle ausencias
       if (data.ausencias) {
         await supabase.from('rh_ausencias').delete().eq('recurso_humano_id', recursoId);
         if (data.ausencias.length > 0) {
@@ -247,25 +243,25 @@ const RecursosHumanos = () => {
         }
       }
 
-      toast({ title: 'Sucesso', description: editingItem ? 'Colaborador atualizado!' : 'Colaborador cadastrado!' });
+      toast({ title: t('common.success'), description: editingItem ? t('common.success') : t('common.success') });
       await fetchRecursosHumanos();
       setEditingItem(null);
     } catch (error) {
       console.error('Error saving recurso humano:', error);
-      toast({ title: 'Erro', description: 'Erro ao salvar colaborador', variant: 'destructive' });
+      toast({ title: t('common.error'), description: t('common.error'), variant: 'destructive' });
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm('Deseja realmente excluir este colaborador?')) {
+    if (confirm(t('common.confirm.delete'))) {
       try {
         const { error } = await supabase.from('recursos_humanos').delete().eq('id', id);
         if (error) throw error;
-        toast({ title: 'Excluído', description: 'Colaborador removido!' });
+        toast({ title: t('common.deleted'), description: t('common.deleted') });
         await fetchRecursosHumanos();
       } catch (error) {
         console.error('Error deleting recurso humano:', error);
-        toast({ title: 'Erro', description: 'Erro ao excluir colaborador', variant: 'destructive' });
+        toast({ title: t('common.error'), description: t('common.error'), variant: 'destructive' });
       }
     }
   };
@@ -319,7 +315,7 @@ const RecursosHumanos = () => {
     },
     {
       key: 'nome',
-      label: 'Nome',
+      label: t('common.name'),
       render: (item) => {
         const ausenciaHoje = getAusenciaHoje(item);
         return (
@@ -334,7 +330,7 @@ const RecursosHumanos = () => {
                     </Badge>
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p>Ausente hoje: {ausenciaHoje.motivo}</p>
+                    <p>{ausenciaHoje.motivo}</p>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
@@ -345,26 +341,26 @@ const RecursosHumanos = () => {
     },
     {
       key: 'email',
-      label: 'E-mail',
+      label: t('common.email'),
     },
     {
       key: 'departamento',
-      label: 'Departamento',
+      label: t('field.department'),
       render: (item) => item.departamento || '-',
     },
     {
       key: 'funcao',
-      label: 'Função',
+      label: t('field.function'),
       render: (item) => item.funcao || '-',
     },
     {
       key: 'custoHora',
-      label: 'Custo/Hora',
+      label: t('field.costPerHour'),
       render: (item) => formatCustoHora(item.custoHora),
     },
     {
       key: 'status',
-      label: 'Status',
+      label: t('common.status'),
       render: (item) => (
         <Badge variant={item.status === 'Ativo' ? 'default' : 'secondary'}>
           {item.status}
@@ -373,7 +369,7 @@ const RecursosHumanos = () => {
     },
     {
       key: 'acoes',
-      label: 'Ações',
+      label: t('common.actions'),
       className: 'w-24 text-right',
       sortable: false,
       render: (item) => (
@@ -408,13 +404,13 @@ const RecursosHumanos = () => {
   return (
     <div>
       <PageHeader
-        title="Recursos Humanos"
-        description="Gerencie os colaboradores da organização"
+        title={t('humanResources.title')}
+        description={t('field.manageCollaborators')}
         onAdd={() => {
           setEditingItem(null);
           setIsModalOpen(true);
         }}
-        addLabel="Novo Colaborador"
+        addLabel={t('field.newCollaborator')}
       />
 
       <ListActionBar>
@@ -426,7 +422,7 @@ const RecursosHumanos = () => {
           className="flex items-center gap-2"
         >
           <Calendar className="w-4 h-4" />
-          Mapa de Escalas
+          {t('field.scaleMap')}
         </Button>
       </ListActionBar>
 
@@ -437,11 +433,11 @@ const RecursosHumanos = () => {
           </div>
         ) : filteredItems.length === 0 ? (
           <EmptyState
-            title="Nenhum colaborador cadastrado"
-            description="Adicione colaboradores para gerenciar sua equipe."
+            title={t('field.noCollaboratorRegistered')}
+            description={t('field.manageCollaboratorsTeam')}
             icon={Users}
             onAction={() => setIsModalOpen(true)}
-            actionLabel="Adicionar Colaborador"
+            actionLabel={t('field.addCollaborator')}
           />
         ) : (
           <SortableTable
