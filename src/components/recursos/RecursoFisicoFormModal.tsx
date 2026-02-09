@@ -277,7 +277,7 @@ export const RecursoFisicoFormModal = ({
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="custoHora">Custo/Hora (R$)</Label>
+                  <Label htmlFor="custoHora">Custo/Hora</Label>
                   <Input
                     id="custoHora"
                     type="number"
