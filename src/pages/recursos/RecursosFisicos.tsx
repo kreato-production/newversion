@@ -219,8 +219,8 @@ const RecursosFisicos = () => {
     }
   };
 
-  const formatCurrency = (value: number) =>
-    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+  const formatCustoHora = (value: number) =>
+    new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
 
   const filteredItems = items.filter(
     (item) =>
@@ -246,7 +246,7 @@ const RecursosFisicos = () => {
       key: 'custoHora',
       label: 'Custo/Hora',
       className: 'w-32',
-      render: (item) => formatCurrency(item.custoHora),
+      render: (item) => formatCustoHora(item.custoHora),
     },
     {
       key: 'estoqueCount',
