@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { useToast } from '@/hooks/use-toast';
 import { type Conteudo, generateCodigoConteudo } from '@/pages/producao/Conteudo';
 import { type Gravacao } from '@/pages/producao/GravacaoList';
@@ -52,6 +53,7 @@ export const ConteudoFormModal = ({
   data,
 }: ConteudoFormModalProps) => {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const { toast } = useToast();
   const [isGenerating, setIsGenerating] = useState(false);
   const [formData, setFormData] = useState({
@@ -227,7 +229,7 @@ export const ConteudoFormModal = ({
     e.preventDefault();
     
     if (!formData.descricao.trim()) {
-      toast({ title: 'Erro', description: 'Descrição é obrigatória.', variant: 'destructive' });
+      toast({ title: t('common.error'), description: t('field.descriptionRequired'), variant: 'destructive' });
       return;
     }
 
@@ -256,8 +258,8 @@ export const ConteudoFormModal = ({
   const handleGenerateGravacoes = async () => {
     if (!data?.id) {
       toast({
-        title: 'Atenção',
-        description: 'Salve o conteúdo antes de gerar gravações.',
+        title: t('common.error'),
+        description: t('field.saveBeforeGenerating'),
         variant: 'destructive',
       });
       return;
@@ -266,8 +268,8 @@ export const ConteudoFormModal = ({
     const quantidade = parseInt(formData.quantidadeEpisodios);
     if (!quantidade || quantidade <= 0) {
       toast({
-        title: 'Atenção',
-        description: 'Defina a quantidade de episódios antes de gerar.',
+        title: t('common.error'),
+        description: t('field.defineEpisodesFirst'),
         variant: 'destructive',
       });
       return;
@@ -275,8 +277,8 @@ export const ConteudoFormModal = ({
 
     if (gravacoes.length >= quantidade) {
       toast({
-        title: 'Atenção',
-        description: 'Todas as gravações já foram geradas para este conteúdo.',
+        title: t('common.error'),
+        description: t('field.allRecordingsGenerated'),
         variant: 'destructive',
       });
       return;
@@ -350,14 +352,14 @@ export const ConteudoFormModal = ({
 
       setGravacoes([...gravacoes, ...novasGravacoes]);
       toast({
-        title: 'Sucesso',
-        description: `${novasGravacoes.length} gravações geradas com sucesso!`,
+        title: t('common.success'),
+        description: `${novasGravacoes.length} ${t('field.recordingsGenerated')}`,
       });
     } catch (err) {
       console.error('Error generating gravacoes:', err);
       toast({
-        title: 'Erro',
-        description: 'Erro ao gerar gravações.',
+        title: t('common.error'),
+        description: t('field.contentSaveError'),
         variant: 'destructive',
       });
     } finally {
@@ -374,16 +376,16 @@ export const ConteudoFormModal = ({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="w-[900px] max-w-[900px] max-h-[80vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{data ? 'Editar Conteúdo' : 'Novo Conteúdo'}</DialogTitle>
+          <DialogTitle>{data ? t('content.edit') : t('content.new')}</DialogTitle>
           <DialogDescription>
-            Preencha os campos para {data ? 'editar' : 'cadastrar'} o conteúdo.
+            {data ? t('field.editContentData') : t('field.fillContentData')}
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 mt-4">
           <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="codigoExterno">Código Externo</Label>
+              <Label htmlFor="codigoExterno">{t('common.externalCode')}</Label>
               <Input
                 id="codigoExterno"
                 value={formData.codigoExterno}
@@ -393,7 +395,7 @@ export const ConteudoFormModal = ({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="descricao">Descrição *</Label>
+              <Label htmlFor="descricao">{t('common.description')} *</Label>
               <Input
                 id="descricao"
                 value={formData.descricao}
@@ -403,7 +405,7 @@ export const ConteudoFormModal = ({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="quantidadeEpisodios">Qtd. Episódios</Label>
+              <Label htmlFor="quantidadeEpisodios">{t('content.episodes')}</Label>
               <Input
                 id="quantidadeEpisodios"
                 type="number"
@@ -422,7 +424,7 @@ export const ConteudoFormModal = ({
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Unidade de Negócio</Label>
+              <Label>{t('nav.businessUnits')}</Label>
               <Select
                 value={formData.unidadeNegocio}
                 onValueChange={(value) => {
@@ -431,7 +433,7 @@ export const ConteudoFormModal = ({
                 }}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Selecione..." />
+                  <SelectValue placeholder={t('common.select')} />
                 </SelectTrigger>
                 <SelectContent>
                   {unidades.map((u) => (
@@ -441,14 +443,14 @@ export const ConteudoFormModal = ({
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Centro de Lucro</Label>
+              <Label>{t('nav.profitCenters')}</Label>
               <Select
                 value={formData.centroLucro}
                 onValueChange={(value) => setFormData({ ...formData, centroLucro: value })}
                 disabled={!formData.unidadeNegocio}
               >
                 <SelectTrigger className={!formData.unidadeNegocio ? 'opacity-50 cursor-not-allowed' : ''}>
-                  <SelectValue placeholder={!formData.unidadeNegocio ? "Selecione uma Unidade primeiro" : "Selecione..."} />
+                  <SelectValue placeholder={!formData.unidadeNegocio ? t('field.selectUnitFirst') : t('common.select')} />
                 </SelectTrigger>
                 <SelectContent>
                   {centrosLucroHierarquicos.map((cl) => (
@@ -463,13 +465,13 @@ export const ConteudoFormModal = ({
 
           <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label>Tipo de Conteúdo</Label>
+              <Label>{t('content.contentType')}</Label>
               <Select
                 value={formData.tipoConteudo}
                 onValueChange={(value) => setFormData({ ...formData, tipoConteudo: value })}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Selecione..." />
+                  <SelectValue placeholder={t('common.select')} />
                 </SelectTrigger>
                 <SelectContent>
                   {tipos.map((t) => (
@@ -479,13 +481,13 @@ export const ConteudoFormModal = ({
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Classificação</Label>
+              <Label>{t('content.classification')}</Label>
               <Select
                 value={formData.classificacao}
                 onValueChange={(value) => setFormData({ ...formData, classificacao: value })}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Selecione..." />
+                  <SelectValue placeholder={t('common.select')} />
                 </SelectTrigger>
                 <SelectContent>
                   {classificacoes.map((c) => (
@@ -495,7 +497,7 @@ export const ConteudoFormModal = ({
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="anoProducao">Ano de Produção</Label>
+              <Label htmlFor="anoProducao">{t('content.productionYear')}</Label>
               <Input
                 id="anoProducao"
                 value={formData.anoProducao}
@@ -513,7 +515,7 @@ export const ConteudoFormModal = ({
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="sinopse">Descrição / Sinopse</Label>
+              <Label htmlFor="sinopse">{t('content.synopsis')}</Label>
               <Textarea
                 id="sinopse"
                 value={formData.sinopse}
@@ -524,7 +526,7 @@ export const ConteudoFormModal = ({
             </div>
             <div className="space-y-2">
               <Label htmlFor="orcamento">
-                Orçamento {selectedCurrency && `(${getCurrencyByCode(selectedCurrency)?.symbol || selectedCurrency})`}
+                {t('field.budget')} {selectedCurrency && `(${getCurrencyByCode(selectedCurrency)?.symbol || selectedCurrency})`}
               </Label>
               <Input
                 id="orcamento"
@@ -533,13 +535,13 @@ export const ConteudoFormModal = ({
                 onChange={(e) => setFormData({ ...formData, orcamento: e.target.value })}
                 disabled={!formData.unidadeNegocio}
                 className={!formData.unidadeNegocio ? 'opacity-50 cursor-not-allowed' : ''}
-                placeholder={!formData.unidadeNegocio ? 'Selecione uma Unidade primeiro' : 'Valor do orçamento'}
+                placeholder={!formData.unidadeNegocio ? t('field.selectUnitFirst') : t('field.budgetPlaceholder')}
                 step="0.01"
                 min="0"
               />
               {!formData.unidadeNegocio && (
                 <p className="text-xs text-muted-foreground">
-                  Selecione uma Unidade de Negócio para habilitar
+                  {t('field.selectUnitToEnable')}
                 </p>
               )}
             </div>
@@ -547,7 +549,7 @@ export const ConteudoFormModal = ({
 
           <div className="grid grid-cols-2 gap-4 pt-4 border-t">
             <div className="space-y-2">
-              <Label>Usuário de Cadastro</Label>
+              <Label>{t('common.registrationUser')}</Label>
               <Input
                 value={data?.usuarioCadastro || user?.nome || 'Admin'}
                 readOnly
@@ -555,7 +557,7 @@ export const ConteudoFormModal = ({
               />
             </div>
             <div className="space-y-2">
-              <Label>Data de Cadastro</Label>
+              <Label>{t('common.registrationDate')}</Label>
               <Input
                 value={data?.dataCadastro || new Date().toLocaleDateString('pt-BR')}
                 readOnly
@@ -568,14 +570,14 @@ export const ConteudoFormModal = ({
             <div className="pt-4 border-t">
               <Tabs defaultValue="gravacoes" className="w-full">
                 <TabsList className="grid w-full grid-cols-3">
-                  <TabsTrigger value="gravacoes">Gravações</TabsTrigger>
-                  <TabsTrigger value="elenco">Elenco</TabsTrigger>
-                  <TabsTrigger value="custos">Custos</TabsTrigger>
+                  <TabsTrigger value="gravacoes">{t('field.recordings')}</TabsTrigger>
+                  <TabsTrigger value="elenco">{t('field.cast')}</TabsTrigger>
+                  <TabsTrigger value="custos">{t('field.costs')}</TabsTrigger>
                 </TabsList>
                 
                 <TabsContent value="gravacoes" className="mt-4">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold">Gravações do Conteúdo</h3>
+                    <h3 className="text-lg font-semibold">{t('content.contentRecordings')}</h3>
                     <Button
                       type="button"
                       onClick={handleGenerateGravacoes}
@@ -585,12 +587,12 @@ export const ConteudoFormModal = ({
                       {isGenerating ? (
                         <>
                           <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          Gerando...
+                          {t('common.generating')}
                         </>
                       ) : (
                         <>
                           <Wand2 className="w-4 h-4 mr-2" />
-                          Gerar
+                          {t('common.generate')}
                         </>
                       )}
                     </Button>
@@ -598,18 +600,18 @@ export const ConteudoFormModal = ({
 
                   {gravacoes.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground border rounded-lg">
-                      <p>Nenhuma gravação associada.</p>
-                      <p className="text-sm mt-1">Clique em "Gerar" para criar as gravações automaticamente.</p>
+                      <p>{t('field.noRecordings')}</p>
+                      <p className="text-sm mt-1">{t('field.clickGenerate')}</p>
                     </div>
                   ) : (
                     <div className="border rounded-lg overflow-hidden max-h-[300px] overflow-y-auto">
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead className="w-32">Código</TableHead>
-                            <TableHead>Nome</TableHead>
-                            <TableHead className="w-32">Status</TableHead>
-                            <TableHead className="w-32">Data Cadastro</TableHead>
+                             <TableHead className="w-32">{t('common.code')}</TableHead>
+                             <TableHead>{t('common.name')}</TableHead>
+                             <TableHead className="w-32">{t('common.status')}</TableHead>
+                             <TableHead className="w-32">{t('common.registrationDate')}</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -626,7 +628,7 @@ export const ConteudoFormModal = ({
                                     style={cor ? { backgroundColor: cor } : undefined}
                                     className={cor ? 'text-white' : 'bg-muted text-muted-foreground'}
                                   >
-                                    {gravacao.status || 'Sem status'}
+                                    {gravacao.status || t('field.noStatus')}
                                   </Badge>
                                 </TableCell>
                                 <TableCell>{gravacao.dataCadastro}</TableCell>
@@ -652,10 +654,10 @@ export const ConteudoFormModal = ({
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>
-              Cancelar
+              {t('common.cancel')}
             </Button>
             <Button type="submit" className="gradient-primary hover:opacity-90">
-              Salvar
+              {t('common.save')}
             </Button>
           </DialogFooter>
         </form>

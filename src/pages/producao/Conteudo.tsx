@@ -9,6 +9,7 @@ import { SortableTable, Column } from '@/components/shared/SortableTable';
 import { usePermissions } from '@/hooks/usePermissions';
 import { supabase } from '@/integrations/supabase/client';
 import type { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 type ConteudoDB = Tables<'conteudos'>;
 
@@ -67,6 +68,7 @@ const mapDbToConteudo = (
 
 const Conteudo = () => {
   const { toast } = useToast();
+  const { t } = useLanguage();
   const { canIncluir, canAlterar, canExcluir } = usePermissions();
   
   const podeIncluir = canIncluir('Produção', 'Conteúdo');
@@ -97,7 +99,7 @@ const Conteudo = () => {
       setItems((data || []).map(mapDbToConteudo));
     } catch (error) {
       console.error('Error fetching conteudos:', error);
-      toast({ title: 'Erro', description: 'Erro ao carregar conteúdos', variant: 'destructive' });
+      toast({ title: t('common.error'), description: t('field.contentLoadError'), variant: 'destructive' });
     } finally {
       setIsLoading(false);
     }
@@ -109,7 +111,6 @@ const Conteudo = () => {
 
   const handleSave = async (data: Conteudo) => {
     try {
-      // Find IDs from names
       const { data: unidadesData } = await supabase.from('unidades_negocio').select('id, nome');
       const { data: centrosData } = await supabase.from('centros_lucro').select('id, nome');
       const { data: tiposData } = await supabase.from('tipos_gravacao').select('id, nome');
@@ -140,23 +141,22 @@ const Conteudo = () => {
           .update(dbData as TablesUpdate<'conteudos'>)
           .eq('id', data.id);
         if (error) throw error;
-        toast({ title: 'Sucesso', description: 'Conteúdo atualizado!' });
+        toast({ title: t('common.success'), description: t('field.contentUpdated') });
       } else {
         const { error } = await supabase.from('conteudos').insert(dbData);
         if (error) throw error;
-        toast({ title: 'Sucesso', description: 'Conteúdo cadastrado!' });
+        toast({ title: t('common.success'), description: t('field.contentCreated') });
       }
 
       await fetchConteudos();
       setEditingItem(null);
     } catch (error) {
       console.error('Error saving conteudo:', error);
-      toast({ title: 'Erro', description: 'Erro ao salvar conteúdo', variant: 'destructive' });
+      toast({ title: t('common.error'), description: t('field.contentSaveError'), variant: 'destructive' });
     }
   };
 
   const handleDelete = async (id: string) => {
-    // Check if has associated recordings with resources
     try {
       const { data: gravacoes } = await supabase
         .from('gravacoes')
@@ -180,26 +180,25 @@ const Conteudo = () => {
 
         if ((recursos && recursos.length > 0) || (terceiros && terceiros.length > 0)) {
           toast({
-            title: 'Exclusão não permitida',
-            description: 'Este conteúdo possui gravações com recursos, técnicos, físicos ou terceiros associados.',
+            title: t('common.error'),
+            description: t('field.contentDeleteBlocked'),
             variant: 'destructive',
           });
           return;
         }
       }
 
-      if (confirm('Deseja realmente excluir este conteúdo? Todas as gravações associadas também serão removidas.')) {
-        // Delete associated gravações first
+      if (confirm(t('field.confirmDeleteContent'))) {
         await supabase.from('gravacoes').delete().eq('conteudo_id', id);
         
         const { error } = await supabase.from('conteudos').delete().eq('id', id);
         if (error) throw error;
-        toast({ title: 'Excluído', description: 'Conteúdo e gravações associadas removidos!' });
+        toast({ title: t('common.deleted'), description: t('field.contentDeleted') });
         await fetchConteudos();
       }
     } catch (error) {
       console.error('Error deleting conteudo:', error);
-      toast({ title: 'Erro', description: 'Erro ao excluir conteúdo', variant: 'destructive' });
+      toast({ title: t('common.error'), description: t('field.contentDeleteError'), variant: 'destructive' });
     }
   };
 
@@ -212,12 +211,12 @@ const Conteudo = () => {
   const columns: Column<Conteudo>[] = [
     {
       key: 'descricao',
-      label: 'Descrição',
+      label: t('common.description'),
       render: (item) => <span className="font-medium">{item.descricao}</span>,
     },
     {
       key: 'quantidadeEpisodios',
-      label: 'Episódios',
+      label: t('content.episodes'),
       className: 'w-24 text-center',
       render: (item) => (
         <span className="font-mono">{item.quantidadeEpisodios}</span>
@@ -225,23 +224,23 @@ const Conteudo = () => {
     },
     {
       key: 'centroLucro',
-      label: 'Centro de Lucro',
+      label: t('nav.profitCenters'),
       render: (item) => item.centroLucro || '-',
     },
     {
       key: 'anoProducao',
-      label: 'Ano',
+      label: t('content.productionYear'),
       className: 'w-20',
       render: (item) => item.anoProducao || '-',
     },
     {
       key: 'dataCadastro',
-      label: 'Data Cadastro',
+      label: t('common.registrationDate'),
       className: 'w-32',
     },
     {
       key: 'acoes',
-      label: 'Ações',
+      label: t('common.actions'),
       className: 'w-24 text-right',
       sortable: false,
       render: (item) => (
@@ -280,13 +279,13 @@ const Conteudo = () => {
   return (
     <div>
       <PageHeader
-        title="Conteúdos"
-        description="Gerencie os conteúdos de produção"
+        title={t('content.title')}
+        description={t('content.description')}
         onAdd={podeIncluir ? () => {
           setEditingItem(null);
           setIsModalOpen(true);
         } : undefined}
-        addLabel="Novo Conteúdo"
+        addLabel={t('content.new')}
       />
       
       <ListActionBar>
@@ -300,11 +299,11 @@ const Conteudo = () => {
           </div>
         ) : filteredItems.length === 0 ? (
           <EmptyState
-            title="Nenhum conteúdo cadastrado"
-            description="Comece adicionando seu primeiro conteúdo de produção."
+            title={t('content.empty')}
+            description={t('content.emptyDescription')}
             icon={Film}
             onAction={() => setIsModalOpen(true)}
-            actionLabel="Novo Conteúdo"
+            actionLabel={t('content.new')}
           />
         ) : (
           <SortableTable
