@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import type { Fornecedor } from '@/pages/recursos/Fornecedores';
 import { ServicosTab } from './ServicosTab';
 import { FornecedorArquivosTab } from './FornecedorArquivosTab';
@@ -45,6 +46,7 @@ export const FornecedorFormModal = ({
   data,
 }: FornecedorFormModalProps) => {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [categorias, setCategorias] = useState<{ id: string; nome: string }[]>([]);
 
   const [formData, setFormData] = useState({
@@ -94,7 +96,6 @@ export const FornecedorFormModal = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Find the category name for the interface
     const categoriaObj = categorias.find(c => c.id === formData.categoriaId);
     onSave({
       id: data?.id || crypto.randomUUID(),
@@ -116,24 +117,24 @@ export const FornecedorFormModal = ({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="w-[900px] max-w-[900px] max-h-[80vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{data ? 'Editar Fornecedor' : 'Novo Fornecedor'}</DialogTitle>
+          <DialogTitle>{data ? t('field.editSupplier') : t('field.newSupplier')}</DialogTitle>
           <DialogDescription>
-            Preencha os dados do fornecedor.
+            {t('field.fillSupplierData')}
           </DialogDescription>
         </DialogHeader>
 
         <Tabs defaultValue="dados" className="w-full">
           <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="dados">Dados Gerais</TabsTrigger>
-            <TabsTrigger value="servicos" disabled={!data}>Serviços</TabsTrigger>
-            <TabsTrigger value="arquivos" disabled={!data}>Arquivos</TabsTrigger>
+            <TabsTrigger value="dados">{t('field.generalData')}</TabsTrigger>
+            <TabsTrigger value="servicos" disabled={!data}>{t('field.services')}</TabsTrigger>
+            <TabsTrigger value="arquivos" disabled={!data}>{t('field.files')}</TabsTrigger>
           </TabsList>
 
           <TabsContent value="dados">
             <form onSubmit={handleSubmit} className="space-y-4 mt-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="codigoExterno">Código Externo</Label>
+                  <Label htmlFor="codigoExterno">{t('common.externalCode')}</Label>
                   <Input
                     id="codigoExterno"
                     value={formData.codigoExterno}
@@ -142,7 +143,7 @@ export const FornecedorFormModal = ({
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="nome">Nome <span className="text-destructive">*</span></Label>
+                  <Label htmlFor="nome">{t('common.name')} <span className="text-destructive">*</span></Label>
                   <Input
                     id="nome"
                     value={formData.nome}
@@ -155,13 +156,13 @@ export const FornecedorFormModal = ({
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Categoria</Label>
+                  <Label>{t('common.category')}</Label>
                   <Select
                     value={formData.categoriaId}
                     onValueChange={(value) => setFormData({ ...formData, categoriaId: value })}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Selecione..." />
+                      <SelectValue placeholder={t('common.select')} />
                     </SelectTrigger>
                     <SelectContent>
                       {categorias.map((c) => (
@@ -171,7 +172,7 @@ export const FornecedorFormModal = ({
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="email">E-mail <span className="text-destructive">*</span></Label>
+                  <Label htmlFor="email">{t('common.email')} <span className="text-destructive">*</span></Label>
                   <Input
                     id="email"
                     type="email"
@@ -184,13 +185,13 @@ export const FornecedorFormModal = ({
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>País</Label>
+                  <Label>{t('common.country')}</Label>
                   <Select
                     value={formData.pais}
                     onValueChange={(value) => setFormData({ ...formData, pais: value })}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Selecione..." />
+                      <SelectValue placeholder={t('common.select')} />
                     </SelectTrigger>
                     <SelectContent>
                       {PAISES.map((pais) => (
@@ -200,7 +201,7 @@ export const FornecedorFormModal = ({
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="identificacaoFiscal">Identificação Fiscal</Label>
+                  <Label htmlFor="identificacaoFiscal">{t('field.fiscalId')}</Label>
                   <Input
                     id="identificacaoFiscal"
                     value={formData.identificacaoFiscal}
@@ -211,7 +212,7 @@ export const FornecedorFormModal = ({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="descricao">Descrição</Label>
+                <Label htmlFor="descricao">{t('common.description')}</Label>
                 <Textarea
                   id="descricao"
                   value={formData.descricao}
@@ -222,10 +223,10 @@ export const FornecedorFormModal = ({
 
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={onClose}>
-                  Cancelar
+                  {t('common.cancel')}
                 </Button>
                 <Button type="submit" className="gradient-primary hover:opacity-90">
-                  Salvar
+                  {t('common.save')}
                 </Button>
               </DialogFooter>
             </form>

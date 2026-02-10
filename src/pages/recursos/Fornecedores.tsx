@@ -63,7 +63,7 @@ const Fornecedores = () => {
       setItems((data || []).map(mapDbToFornecedor));
     } catch (error) {
       console.error('Error fetching fornecedores:', error);
-      toast({ title: 'Erro', description: 'Erro ao carregar fornecedores', variant: 'destructive' });
+      toast({ title: t('common.error'), description: t('field.supplierLoadError'), variant: 'destructive' });
     } finally {
       setIsLoading(false);
     }
@@ -92,31 +92,31 @@ const Fornecedores = () => {
           .update(dbData as TablesUpdate<'fornecedores'>)
           .eq('id', data.id);
         if (error) throw error;
-        toast({ title: 'Sucesso', description: 'Fornecedor atualizado!' });
+        toast({ title: t('common.success'), description: t('field.supplierUpdated') });
       } else {
         const { error } = await supabase.from('fornecedores').insert(dbData);
         if (error) throw error;
-        toast({ title: 'Sucesso', description: 'Fornecedor cadastrado!' });
+        toast({ title: t('common.success'), description: t('field.supplierCreated') });
       }
 
       await fetchFornecedores();
       setEditingItem(null);
     } catch (error) {
       console.error('Error saving fornecedor:', error);
-      toast({ title: 'Erro', description: 'Erro ao salvar fornecedor', variant: 'destructive' });
+      toast({ title: t('common.error'), description: t('field.supplierSaveError'), variant: 'destructive' });
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm('Deseja realmente excluir este fornecedor?')) {
+    if (confirm(t('field.confirmDeleteSupplier'))) {
       try {
         const { error } = await supabase.from('fornecedores').delete().eq('id', id);
         if (error) throw error;
-        toast({ title: 'Excluído', description: 'Fornecedor removido!' });
+        toast({ title: t('common.deleted'), description: t('field.supplierDeleted') });
         await fetchFornecedores();
       } catch (error) {
         console.error('Error deleting fornecedor:', error);
-        toast({ title: 'Erro', description: 'Erro ao excluir fornecedor', variant: 'destructive' });
+        toast({ title: t('common.error'), description: t('field.supplierDeleteError'), variant: 'destructive' });
       }
     }
   };
@@ -130,7 +130,7 @@ const Fornecedores = () => {
   const columns: Column<Fornecedor>[] = [
     {
       key: 'codigoExterno',
-      label: 'Código',
+      label: t('common.code'),
       className: 'w-24',
       render: (item) => (
         <span className="font-mono text-sm">{item.codigoExterno || '-'}</span>
@@ -138,26 +138,26 @@ const Fornecedores = () => {
     },
     {
       key: 'nome',
-      label: 'Nome',
+      label: t('common.name'),
       render: (item) => <span className="font-medium">{item.nome}</span>,
     },
     {
       key: 'categoria',
-      label: 'Categoria',
+      label: t('common.category'),
       render: (item) => item.categoria || '-',
     },
     {
       key: 'email',
-      label: 'E-mail',
+      label: t('common.email'),
     },
     {
       key: 'pais',
-      label: 'País',
+      label: t('common.country'),
       render: (item) => item.pais || '-',
     },
     {
       key: 'acoes',
-      label: 'Ações',
+      label: t('common.actions'),
       className: 'w-24 text-right',
       sortable: false,
       render: (item) => (
@@ -192,13 +192,13 @@ const Fornecedores = () => {
   return (
     <div>
       <PageHeader
-        title="Fornecedores"
-        description="Gerencie os fornecedores de serviços"
+        title={t('field.suppliers')}
+        description={t('field.manageSuppliers')}
         onAdd={() => {
           setEditingItem(null);
           setIsModalOpen(true);
         }}
-        addLabel="Novo Fornecedor"
+        addLabel={t('field.newSupplier')}
       />
 
       <ListActionBar>
@@ -212,11 +212,11 @@ const Fornecedores = () => {
           </div>
         ) : filteredItems.length === 0 ? (
           <EmptyState
-            title="Nenhum fornecedor cadastrado"
-            description="Adicione fornecedores para gerenciar parcerias."
+            title={t('field.noSupplierRegistered')}
+            description={t('field.suppliersHint')}
             icon={Truck}
             onAction={() => setIsModalOpen(true)}
-            actionLabel="Adicionar Fornecedor"
+            actionLabel={t('field.addSupplier')}
           />
         ) : (
           <SortableTable
