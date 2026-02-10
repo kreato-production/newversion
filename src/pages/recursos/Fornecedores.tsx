@@ -49,6 +49,7 @@ const Fornecedores = () => {
   const [editingItem, setEditingItem] = useState<Fornecedor | null>(null);
   const [items, setItems] = useState<Fornecedor[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [search, setSearch] = useState('');
 
   const fetchFornecedores = async () => {
     setIsLoading(true);
