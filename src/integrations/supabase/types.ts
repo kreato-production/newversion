@@ -417,6 +417,69 @@ export type Database = {
         }
         Relationships: []
       }
+      equipe_membros: {
+        Row: {
+          created_at: string | null
+          equipe_id: string
+          id: string
+          recurso_humano_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          equipe_id: string
+          id?: string
+          recurso_humano_id: string
+        }
+        Update: {
+          created_at?: string | null
+          equipe_id?: string
+          id?: string
+          recurso_humano_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "equipe_membros_equipe_id_fkey"
+            columns: ["equipe_id"]
+            isOneToOne: false
+            referencedRelation: "equipes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "equipe_membros_recurso_humano_id_fkey"
+            columns: ["recurso_humano_id"]
+            isOneToOne: false
+            referencedRelation: "recursos_humanos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      equipes: {
+        Row: {
+          codigo: string
+          created_at: string | null
+          created_by: string | null
+          descricao: string
+          id: string
+          updated_at: string | null
+        }
+        Insert: {
+          codigo: string
+          created_at?: string | null
+          created_by?: string | null
+          descricao: string
+          id?: string
+          updated_at?: string | null
+        }
+        Update: {
+          codigo?: string
+          created_at?: string | null
+          created_by?: string | null
+          descricao?: string
+          id?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       figurino_imagens: {
         Row: {
           created_at: string | null
