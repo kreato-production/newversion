@@ -179,6 +179,12 @@ export const basePermissionsMatrix: Omit<PermissionItem, 'id'>[] = [
   { modulo: 'Recursos', subModulo1: 'Figurinos', subModulo2: '-', campo: 'Cor Secundária', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
   { modulo: 'Recursos', subModulo1: 'Figurinos', subModulo2: '-', campo: 'Botão "Adicionar Imagem"', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
   
+  // Recursos > Equipes
+  { modulo: 'Recursos', subModulo1: 'Equipes', subModulo2: '-', campo: '-', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'submodulo1' },
+  { modulo: 'Recursos', subModulo1: 'Equipes', subModulo2: '-', campo: 'Código', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Recursos', subModulo1: 'Equipes', subModulo2: '-', campo: 'Descrição', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Recursos', subModulo1: 'Equipes', subModulo2: '-', campo: 'Tabulador "Membros"', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  
   // Recursos > Fornecedores
   { modulo: 'Recursos', subModulo1: 'Fornecedores', subModulo2: '-', campo: '-', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'submodulo1' },
   { modulo: 'Recursos', subModulo1: 'Fornecedores', subModulo2: '-', campo: 'Código Externo', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },

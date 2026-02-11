@@ -83,6 +83,7 @@ const getMenuItems = (): MenuItemData[] => [
       { labelKey: 'menu.suppliers', icon: Truck, path: '/recursos/fornecedores', permission: { modulo: 'Recursos', subModulo1: 'Fornecedores' } },
       { labelKey: 'menu.people', icon: Contact, path: '/recursos/pessoas', permission: { modulo: 'Recursos', subModulo1: 'Pessoas' } },
       { labelKey: 'menu.costumes', icon: Shirt, path: '/recursos/figurinos', permission: { modulo: 'Recursos', subModulo1: 'Figurinos' } },
+      { labelKey: 'menu.teams', icon: Users, path: '/recursos/equipes', permission: { modulo: 'Recursos', subModulo1: 'Equipes' } },
       {
         labelKey: 'menu.parameters',
         icon: FolderCog,

@@ -31,6 +31,7 @@ import ClassificacaoPessoas from "@/pages/recursos/ClassificacaoPessoas";
 import Figurinos from "@/pages/recursos/Figurinos";
 import TipoFigurino from "@/pages/recursos/TipoFigurino";
 import Material from "@/pages/recursos/Material";
+import Equipes from "@/pages/recursos/Equipes";
 import UnidadesNegocio from "@/pages/admin/UnidadesNegocio";
 import Usuarios from "@/pages/admin/Usuarios";
 import PerfisAcesso from "@/pages/admin/PerfisAcesso";
@@ -75,6 +76,7 @@ const App = () => (
                 <Route path="/recursos/figurinos" element={<Figurinos />} />
                 <Route path="/recursos/tipo-figurino" element={<TipoFigurino />} />
                 <Route path="/recursos/material" element={<Material />} />
+                <Route path="/recursos/equipes" element={<Equipes />} />
                 <Route path="/admin/unidades" element={<UnidadesNegocio />} />
                 <Route path="/admin/usuarios" element={<Usuarios />} />
                 <Route path="/admin/perfis" element={<PerfisAcesso />} />
