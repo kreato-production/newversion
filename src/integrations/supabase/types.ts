@@ -1382,6 +1382,7 @@ export type Database = {
           id: string
           nome: string
           perfil_id: string | null
+          recurso_humano_id: string | null
           status: string | null
           tipo_acesso: string | null
           updated_at: string | null
@@ -1396,6 +1397,7 @@ export type Database = {
           id: string
           nome: string
           perfil_id?: string | null
+          recurso_humano_id?: string | null
           status?: string | null
           tipo_acesso?: string | null
           updated_at?: string | null
@@ -1410,6 +1412,7 @@ export type Database = {
           id?: string
           nome?: string
           perfil_id?: string | null
+          recurso_humano_id?: string | null
           status?: string | null
           tipo_acesso?: string | null
           updated_at?: string | null
@@ -1421,6 +1424,13 @@ export type Database = {
             columns: ["perfil_id"]
             isOneToOne: false
             referencedRelation: "perfis_acesso"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_recurso_humano_id_fkey"
+            columns: ["recurso_humano_id"]
+            isOneToOne: false
+            referencedRelation: "recursos_humanos"
             referencedColumns: ["id"]
           },
         ]

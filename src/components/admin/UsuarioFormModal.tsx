@@ -23,8 +23,10 @@ import { useAuth } from '@/contexts/AuthContext';
 import type { Usuario } from '@/pages/admin/Usuarios';
 import { UnidadesNegocioTab } from './UnidadesNegocioTab';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Camera, X } from 'lucide-react';
+import { Camera, X, Plus, Trash2, Users } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
+import { toast } from 'sonner';
 
 interface UsuarioFormModalProps {
   isOpen: boolean;
@@ -41,8 +43,14 @@ export const UsuarioFormModal = ({
 }: UsuarioFormModalProps) => {
   const { user, session } = useAuth();
   const [perfis, setPerfis] = useState<{ id: string; nome: string }[]>([]);
+  const [recursosHumanos, setRecursosHumanos] = useState<{ id: string; nome: string; sobrenome: string }[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [fotoPreview, setFotoPreview] = useState<string | null>(null);
+
+  // Equipe tab state
+  const [equipes, setEquipes] = useState<{ id: string; codigo: string; descricao: string }[]>([]);
+  const [usuarioEquipes, setUsuarioEquipes] = useState<{ id: string; equipe_id: string; equipe_codigo: string; equipe_descricao: string }[]>([]);
+  const [selectedEquipeId, setSelectedEquipeId] = useState('');
 
   const [formData, setFormData] = useState({
     codigoExterno: '',
@@ -55,6 +63,8 @@ export const UsuarioFormModal = ({
     perfilId: '',
     descricao: '',
     status: 'Ativo' as 'Ativo' | 'Inativo',
+    tipoAcesso: 'Operacional',
+    recursoHumanoId: '',
   });
 
   // Fetch perfis from Supabase
@@ -74,11 +84,62 @@ export const UsuarioFormModal = ({
     }
   }, [session]);
 
+  // Fetch recursos humanos
+  const fetchRecursosHumanos = useCallback(async () => {
+    if (!session) return;
+    try {
+      const { data: rhData, error } = await supabase
+        .from('recursos_humanos')
+        .select('id, nome, sobrenome')
+        .order('nome');
+      if (error) throw error;
+      setRecursosHumanos(rhData || []);
+    } catch (err) {
+      console.error('Error fetching recursos humanos:', err);
+    }
+  }, [session]);
+
+  // Fetch equipes
+  const fetchEquipes = useCallback(async () => {
+    if (!session) return;
+    try {
+      const { data: eqData, error } = await supabase
+        .from('equipes')
+        .select('id, codigo, descricao')
+        .order('descricao');
+      if (error) throw error;
+      setEquipes(eqData || []);
+    } catch (err) {
+      console.error('Error fetching equipes:', err);
+    }
+  }, [session]);
+
+  // Fetch usuario equipes
+  const fetchUsuarioEquipes = useCallback(async (usuarioId: string) => {
+    try {
+      const { data: ueData, error } = await supabase
+        .from('usuario_equipes')
+        .select('id, equipe_id, equipes:equipe_id(codigo, descricao)')
+        .eq('usuario_id', usuarioId);
+      if (error) throw error;
+      setUsuarioEquipes((ueData || []).map((ue: any) => ({
+        id: ue.id,
+        equipe_id: ue.equipe_id,
+        equipe_codigo: ue.equipes?.codigo || '',
+        equipe_descricao: ue.equipes?.descricao || '',
+      })));
+    } catch (err) {
+      console.error('Error fetching usuario equipes:', err);
+    }
+  }, []);
+
   useEffect(() => {
     if (isOpen) {
       fetchPerfis();
+      fetchRecursosHumanos();
+      fetchEquipes();
     }
-  }, [isOpen, fetchPerfis]);
+  }, [isOpen, fetchPerfis, fetchRecursosHumanos, fetchEquipes]);
 
   useEffect(() => {
     if (data) {
@@ -93,8 +154,11 @@ export const UsuarioFormModal = ({
         perfilId: data.perfilId || '',
         descricao: data.descricao,
         status: data.status || 'Ativo',
+        tipoAcesso: data.tipoAcesso || 'Operacional',
+        recursoHumanoId: data.recursoHumanoId || '',
       });
       setFotoPreview(data.foto || null);
+      fetchUsuarioEquipes(data.id);
     } else {
       setFormData({
         codigoExterno: '',
@@ -107,10 +171,14 @@ export const UsuarioFormModal = ({
         perfilId: '',
         descricao: '',
         status: 'Ativo',
+        tipoAcesso: 'Operacional',
+        recursoHumanoId: '',
       });
       setFotoPreview(null);
+      setUsuarioEquipes([]);
     }
-  }, [data, isOpen]);
+    setSelectedEquipeId('');
+  }, [data, isOpen, fetchUsuarioEquipes]);
 
   const handleFotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -137,6 +205,45 @@ export const UsuarioFormModal = ({
     }
   };
 
+  const handleAddEquipe = async () => {
+    if (!selectedEquipeId || !data) return;
+    if (usuarioEquipes.some(ue => ue.equipe_id === selectedEquipeId)) {
+      toast.error('Equipe já adicionada.');
+      return;
+    }
+    try {
+      const { data: inserted, error } = await supabase
+        .from('usuario_equipes')
+        .insert({ usuario_id: data.id, equipe_id: selectedEquipeId })
+        .select('id, equipe_id, equipes:equipe_id(codigo, descricao)')
+        .single();
+      if (error) throw error;
+      setUsuarioEquipes(prev => [...prev, {
+        id: inserted.id,
+        equipe_id: inserted.equipe_id,
+        equipe_codigo: (inserted as any).equipes?.codigo || '',
+        equipe_descricao: (inserted as any).equipes?.descricao || '',
+      }]);
+      setSelectedEquipeId('');
+      toast.success('Equipe adicionada!');
+    } catch (err) {
+      console.error('Error adding equipe:', err);
+      toast.error('Erro ao adicionar equipe.');
+    }
+  };
+
+  const handleRemoveEquipe = async (id: string) => {
+    try {
+      const { error } = await supabase.from('usuario_equipes').delete().eq('id', id);
+      if (error) throw error;
+      setUsuarioEquipes(prev => prev.filter(ue => ue.id !== id));
+      toast.success('Equipe removida!');
+    } catch (err) {
+      console.error('Error removing equipe:', err);
+      toast.error('Erro ao remover equipe.');
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -152,6 +259,7 @@ export const UsuarioFormModal = ({
       id: data?.id || crypto.randomUUID(),
       ...formData,
       perfilId: formData.perfilId || undefined,
+      recursoHumanoId: formData.recursoHumanoId || undefined,
       // Manter senha atual se estiver editando e não preencheu nova senha
       senha: formData.senha || data?.senha || '',
       foto: formData.foto || data?.foto || '',
@@ -160,7 +268,6 @@ export const UsuarioFormModal = ({
       usuarioCadastro: data?.usuarioCadastro || user?.nome || 'Admin',
     };
     onSave(saveData);
-    // Não fechar modal aqui - o Usuarios.tsx vai fechar após o sucesso
   };
 
   const getInitials = (name: string) => {
@@ -171,6 +278,9 @@ export const UsuarioFormModal = ({
       .toUpperCase()
       .slice(0, 2);
   };
+
+  const isCoordenacao = formData.tipoAcesso === 'Coordenação';
+  const tabCount = 2 + (isCoordenacao && data ? 1 : 0);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -183,9 +293,12 @@ export const UsuarioFormModal = ({
         </DialogHeader>
 
         <Tabs defaultValue="dados" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className={`grid w-full ${tabCount === 3 ? 'grid-cols-3' : 'grid-cols-2'}`}>
             <TabsTrigger value="dados">Dados Gerais</TabsTrigger>
             <TabsTrigger value="unidades" disabled={!data}>Unidades de Negócio</TabsTrigger>
+            {isCoordenacao && data && (
+              <TabsTrigger value="equipes">Equipes</TabsTrigger>
+            )}
           </TabsList>
 
           <TabsContent value="dados">
@@ -298,44 +411,80 @@ export const UsuarioFormModal = ({
                 )}
               </div>
 
-              <div className="space-y-2">
-                <Label>Perfil de Acesso</Label>
-                <Select
-                  value={formData.perfilId}
-                  onValueChange={(value) => {
-                    const perfilSelecionado = perfis.find(p => p.id === value);
-                    setFormData({ 
-                      ...formData, 
-                      perfilId: value,
-                      perfil: perfilSelecionado?.nome || ''
-                    });
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {perfis.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>
-                    ))}
-                  </SelectContent>
-              </Select>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Perfil de Acesso</Label>
+                  <Select
+                    value={formData.perfilId}
+                    onValueChange={(value) => {
+                      const perfilSelecionado = perfis.find(p => p.id === value);
+                      setFormData({ 
+                        ...formData, 
+                        perfilId: value,
+                        perfil: perfilSelecionado?.nome || ''
+                      });
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {perfis.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Tipo de Acesso</Label>
+                  <Select
+                    value={formData.tipoAcesso}
+                    onValueChange={(value) => setFormData({ ...formData, tipoAcesso: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Operacional">Operacional</SelectItem>
+                      <SelectItem value="Coordenação">Coordenação</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
-              <div className="space-y-2">
-                <Label>Status</Label>
-                <Select
-                  value={formData.status}
-                  onValueChange={(value) => setFormData({ ...formData, status: value as 'Ativo' | 'Inativo' })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Ativo">Ativo</SelectItem>
-                    <SelectItem value="Inativo">Inativo</SelectItem>
-                  </SelectContent>
-                </Select>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Status</Label>
+                  <Select
+                    value={formData.status}
+                    onValueChange={(value) => setFormData({ ...formData, status: value as 'Ativo' | 'Inativo' })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Ativo">Ativo</SelectItem>
+                      <SelectItem value="Inativo">Inativo</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Recurso Humano</Label>
+                  <Select
+                    value={formData.recursoHumanoId}
+                    onValueChange={(value) => setFormData({ ...formData, recursoHumanoId: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Vincular a um recurso humano..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Nenhum</SelectItem>
+                      {recursosHumanos.map((rh) => (
+                        <SelectItem key={rh.id} value={rh.id}>{rh.nome} {rh.sobrenome}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
               <div className="space-y-2">
@@ -362,6 +511,76 @@ export const UsuarioFormModal = ({
           <TabsContent value="unidades">
             {data && <UnidadesNegocioTab usuarioId={data.id} />}
           </TabsContent>
+
+          {isCoordenacao && data && (
+            <TabsContent value="equipes">
+              <div className="space-y-4 mt-4">
+                <div className="flex items-end gap-2">
+                  <div className="flex-1 space-y-2">
+                    <Label>Selecionar Equipe</Label>
+                    <Select value={selectedEquipeId} onValueChange={setSelectedEquipeId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione uma equipe..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {equipes
+                          .filter(eq => !usuarioEquipes.some(ue => ue.equipe_id === eq.id))
+                          .map((eq) => (
+                            <SelectItem key={eq.id} value={eq.id}>
+                              {eq.codigo} - {eq.descricao}
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button
+                    type="button"
+                    onClick={handleAddEquipe}
+                    disabled={!selectedEquipeId}
+                    size="sm"
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Adicionar
+                  </Button>
+                </div>
+
+                {usuarioEquipes.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-8 text-center">
+                    <Users className="w-12 h-12 text-muted-foreground mb-2" />
+                    <p className="text-muted-foreground">Nenhuma equipe vinculada a este usuário.</p>
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Código</TableHead>
+                        <TableHead>Descrição</TableHead>
+                        <TableHead className="w-16">Ações</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {usuarioEquipes.map((ue) => (
+                        <TableRow key={ue.id}>
+                          <TableCell className="font-mono">{ue.equipe_codigo}</TableCell>
+                          <TableCell>{ue.equipe_descricao}</TableCell>
+                          <TableCell>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="text-destructive hover:text-destructive"
+                              onClick={() => handleRemoveEquipe(ue.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </div>
+            </TabsContent>
+          )}
         </Tabs>
       </DialogContent>
     </Dialog>
