@@ -1383,6 +1383,7 @@ export type Database = {
           nome: string
           perfil_id: string | null
           status: string | null
+          tipo_acesso: string | null
           updated_at: string | null
           usuario: string
         }
@@ -1396,6 +1397,7 @@ export type Database = {
           nome: string
           perfil_id?: string | null
           status?: string | null
+          tipo_acesso?: string | null
           updated_at?: string | null
           usuario: string
         }
@@ -1409,6 +1411,7 @@ export type Database = {
           nome?: string
           perfil_id?: string | null
           status?: string | null
+          tipo_acesso?: string | null
           updated_at?: string | null
           usuario?: string
         }
@@ -2068,6 +2071,42 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      usuario_equipes: {
+        Row: {
+          created_at: string | null
+          equipe_id: string
+          id: string
+          usuario_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          equipe_id: string
+          id?: string
+          usuario_id: string
+        }
+        Update: {
+          created_at?: string | null
+          equipe_id?: string
+          id?: string
+          usuario_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "usuario_equipes_equipe_id_fkey"
+            columns: ["equipe_id"]
+            isOneToOne: false
+            referencedRelation: "equipes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "usuario_equipes_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       usuario_unidades: {
         Row: {
