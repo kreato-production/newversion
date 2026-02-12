@@ -10,6 +10,8 @@ export interface User {
   usuario: string;
   perfil: string;
   foto?: string;
+  tipoAcesso?: string;
+  recursoHumanoId?: string;
 }
 
 interface AuthContextType {
@@ -48,6 +50,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           foto_url,
           perfil_id,
           status,
+          tipo_acesso,
+          recurso_humano_id,
           perfis_acesso:perfil_id (nome)
         `)
         .eq('id', userId)
@@ -71,6 +75,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           usuario: profile.usuario,
           perfil: (profile.perfis_acesso as { nome: string } | null)?.nome || 'Usuário',
           foto: profile.foto_url || undefined,
+          tipoAcesso: (profile as any).tipo_acesso || 'Operacional',
+          recursoHumanoId: (profile as any).recurso_humano_id || undefined,
         },
         status: profile.status || 'Ativo',
       };

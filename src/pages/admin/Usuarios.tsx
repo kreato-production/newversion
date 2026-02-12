@@ -23,6 +23,8 @@ export interface Usuario {
   perfilId?: string;
   descricao: string;
   status: 'Ativo' | 'Inativo';
+  tipoAcesso: string;
+  recursoHumanoId?: string;
   dataCadastro: string;
   usuarioCadastro: string;
 }
@@ -60,6 +62,8 @@ const Usuarios = () => {
         perfilId: item.perfil_id,
         descricao: item.descricao || '',
         status: item.status || 'Ativo',
+        tipoAcesso: item.tipo_acesso || 'Operacional',
+        recursoHumanoId: item.recurso_humano_id || undefined,
         dataCadastro: item.created_at,
         usuarioCadastro: '',
       })));
@@ -88,6 +92,8 @@ const Usuarios = () => {
         foto_url: data.foto || null,
         perfil_id: data.perfilId || null,
         status: data.status || 'Ativo',
+        tipo_acesso: data.tipoAcesso || 'Operacional',
+        recurso_humano_id: (data.recursoHumanoId && data.recursoHumanoId !== 'none') ? data.recursoHumanoId : null,
       };
 
       if (editingItem) {

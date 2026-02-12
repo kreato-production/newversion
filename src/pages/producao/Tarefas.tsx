@@ -29,6 +29,7 @@ import { ListActionBar } from '@/components/shared/ListActionBar';
 import { TarefaFormModal } from '@/components/producao/TarefaFormModal';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { usePermissions } from '@/hooks/usePermissions';
+import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
@@ -76,6 +77,7 @@ interface Gravacao {
 const Tarefas = () => {
   const { t, formatDate } = useLanguage();
   const { canIncluir, canAlterar, canExcluir } = usePermissions();
+  const { user } = useAuth();
   
   const podeIncluir = canIncluir('Produção', 'Tarefas');
   const podeAlterar = canAlterar('Produção', 'Tarefas');
@@ -90,6 +92,67 @@ const Tarefas = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTarefa, setEditingTarefa] = useState<Tarefa | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [allowedRHIds, setAllowedRHIds] = useState<string[] | null>(null); // null = no filter (admin/all)
+
+  // Fetch the allowed RH IDs based on user tipo_acesso
+  const loadAllowedRHIds = async () => {
+    if (!user) return;
+
+    const tipoAcesso = user.tipoAcesso || 'Operacional';
+    const recursoHumanoId = user.recursoHumanoId;
+
+    if (tipoAcesso === 'Operacional') {
+      // Only show tasks assigned to the user's recurso_humano
+      if (recursoHumanoId) {
+        setAllowedRHIds([recursoHumanoId]);
+      } else {
+        // No RH linked - show no tasks
+        setAllowedRHIds([]);
+      }
+    } else if (tipoAcesso === 'Coordenação') {
+      // Show tasks from all RH members of the user's teams + own tasks
+      try {
+        // Get user's equipes
+        const { data: userEquipes, error: ueError } = await supabase
+          .from('usuario_equipes')
+          .select('equipe_id')
+          .eq('usuario_id', user.id);
+
+        if (ueError) throw ueError;
+
+        const equipeIds = (userEquipes || []).map(ue => ue.equipe_id);
+
+        if (equipeIds.length === 0) {
+          // No teams - only own tasks
+          setAllowedRHIds(recursoHumanoId ? [recursoHumanoId] : []);
+          return;
+        }
+
+        // Get all RH members from those teams
+        const { data: membros, error: mError } = await supabase
+          .from('equipe_membros')
+          .select('recurso_humano_id')
+          .in('equipe_id', equipeIds);
+
+        if (mError) throw mError;
+
+        const rhIds = new Set((membros || []).map(m => m.recurso_humano_id));
+        // Also include own RH id
+        if (recursoHumanoId) {
+          rhIds.add(recursoHumanoId);
+        }
+
+        setAllowedRHIds(Array.from(rhIds));
+      } catch (error) {
+        console.error('Error loading allowed RH IDs:', error);
+        // Fallback: show only own tasks
+        setAllowedRHIds(recursoHumanoId ? [recursoHumanoId] : []);
+      }
+    } else {
+      // Unknown type - no filter
+      setAllowedRHIds(null);
+    }
+  };
 
   const loadData = async () => {
     setIsLoading(true);
@@ -120,7 +183,7 @@ const Tarefas = () => {
       setGravacoes(gravacoesData || []);
 
       // Load tarefas with relations
-      const { data: tarefasData, error: tarefasError } = await supabase
+      let query = supabase
         .from('tarefas')
         .select(`
           *,
@@ -132,6 +195,18 @@ const Tarefas = () => {
           status_tarefa:status_id(nome, cor)
         `)
         .order('created_at', { ascending: false });
+
+      // Apply RH filter if set
+      if (allowedRHIds !== null && allowedRHIds.length > 0) {
+        query = query.in('recurso_humano_id', allowedRHIds);
+      } else if (allowedRHIds !== null && allowedRHIds.length === 0) {
+        // No allowed IDs - return empty
+        setTarefas([]);
+        setIsLoading(false);
+        return;
+      }
+
+      const { data: tarefasData, error: tarefasError } = await query;
 
       if (tarefasError) throw tarefasError;
 
@@ -167,8 +242,14 @@ const Tarefas = () => {
   };
 
   useEffect(() => {
-    loadData();
-  }, []);
+    loadAllowedRHIds();
+  }, [user]);
+
+  useEffect(() => {
+    if (allowedRHIds !== undefined) {
+      loadData();
+    }
+  }, [allowedRHIds]);
 
   const handleSave = async (tarefa: Tarefa) => {
     try {
