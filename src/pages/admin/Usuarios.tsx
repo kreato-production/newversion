@@ -97,12 +97,27 @@ const Usuarios = () => {
       };
 
       if (editingItem) {
+        // Update profile data
         const { error } = await supabase
           .from('profiles')
           .update(updateData)
           .eq('id', data.id);
 
         if (error) throw error;
+
+        // If password was changed, update auth via edge function
+        if (data.senha && data.senha.length > 0) {
+          const { data: result, error: pwError } = await supabase.functions.invoke('admin-create-user', {
+            body: {
+              updateOnly: true,
+              userId: data.id,
+              senha: data.senha,
+            },
+          });
+          if (pwError) throw pwError;
+          if (!result?.success) throw new Error(result?.error || 'Erro ao atualizar senha');
+        }
+
         toast({ title: 'Sucesso', description: 'Usuário atualizado!' });
         await fetchData();
         setEditingItem(null);
@@ -140,6 +155,8 @@ const Usuarios = () => {
             perfilId: data.perfilId || null,
             descricao: data.descricao || null,
             status: data.status || 'Ativo',
+            tipoAcesso: data.tipoAcesso || 'Operacional',
+            recursoHumanoId: (data.recursoHumanoId && data.recursoHumanoId !== 'none') ? data.recursoHumanoId : null,
           },
         });
 
