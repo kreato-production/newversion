@@ -28,6 +28,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { cn } from '@/lib/utils';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import kreatoLogo from '@/assets/kreato-logo.png';
 
 interface MenuItemData {
@@ -230,9 +231,12 @@ const AppSidebar = () => {
 
       <div className="p-3 border-t border-sidebar-border">
         <div className="flex items-center gap-3 px-3 py-2 text-sidebar-foreground">
-          <div className="w-8 h-8 rounded-full gradient-accent flex items-center justify-center text-sm font-bold text-accent-foreground">
-            {user?.nome?.charAt(0) || 'U'}
-          </div>
+          <Avatar className="h-8 w-8">
+            <AvatarImage src={user?.foto || undefined} alt={user?.nome} />
+            <AvatarFallback className="text-sm font-bold bg-accent text-accent-foreground">
+              {user?.nome?.charAt(0) || 'U'}
+            </AvatarFallback>
+          </Avatar>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium truncate">{user?.nome}</p>
             <p className="text-xs text-sidebar-foreground/70 truncate">{user?.perfil}</p>
