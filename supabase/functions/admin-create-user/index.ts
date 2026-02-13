@@ -94,18 +94,34 @@ Deno.serve(async (req) => {
     // UPDATE-ONLY MODE: update auth password for existing user
     // ──────────────────────────────────────────────
     if (payload.updateOnly && payload.userId) {
+      const updateAuthData: Record<string, unknown> = {}
+
+      // Update password if provided
       if (payload.senha && payload.senha.length > 0) {
         if (payload.senha.length < 6) {
           return jsonResponse({ success: false, error: 'A senha deve ter pelo menos 6 caracteres.' }, 400)
         }
-        const { error: updateAuthError } = await supabaseAdmin.auth.admin.updateUserById(payload.userId, {
-          password: payload.senha,
-        })
-        if (updateAuthError) {
-          console.error('Error updating auth password:', updateAuthError)
-          return jsonResponse({ success: false, error: 'Falha ao atualizar senha.' }, 400)
+        updateAuthData.password = payload.senha
+      }
+
+      // Update auth email if username changed
+      if (payload.usuario) {
+        const newAuthEmail = `${payload.usuario.toLowerCase()}@kreato.app`
+        updateAuthData.email = newAuthEmail
+        updateAuthData.user_metadata = {
+          usuario: payload.usuario,
+          nome: payload.nome || undefined,
         }
       }
+
+      if (Object.keys(updateAuthData).length > 0) {
+        const { error: updateAuthError } = await supabaseAdmin.auth.admin.updateUserById(payload.userId, updateAuthData)
+        if (updateAuthError) {
+          console.error('Error updating auth user:', updateAuthError)
+          return jsonResponse({ success: false, error: 'Falha ao atualizar dados de autenticação.' }, 400)
+        }
+      }
+
       return jsonResponse({ success: true, userId: payload.userId })
     }
 
