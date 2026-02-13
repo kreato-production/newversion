@@ -285,16 +285,36 @@ export const RecursoHumanoFormModal = ({
     toast.success('Ausência removida');
   };
 
-  // Verificar sobreposição de escalas
+  // Verificar sobreposição de escalas (permite mesmo período de datas com horários diferentes)
   const verificarSobreposicaoEscala = (nova: typeof novaEscala, excludeId?: string): boolean => {
-    const novoInicio = new Date(`${nova.dataInicio}T${nova.horaInicio}`);
-    const novoFim = new Date(`${nova.dataFim}T${nova.horaFim}`);
+    const novaDataInicio = new Date(nova.dataInicio);
+    const novaDataFim = new Date(nova.dataFim);
+    const novaHoraInicioMin = nova.horaInicio.split(':').map(Number);
+    const novaHoraFimMin = nova.horaFim.split(':').map(Number);
+    const novaHI = novaHoraInicioMin[0] * 60 + novaHoraInicioMin[1];
+    const novaHF = novaHoraFimMin[0] * 60 + novaHoraFimMin[1];
 
     return escalas.some((e) => {
       if (excludeId && e.id === excludeId) return false;
-      const escalaInicio = new Date(`${e.dataInicio}T${e.horaInicio}`);
-      const escalaFim = new Date(`${e.dataFim}T${e.horaFim}`);
-      return novoInicio < escalaFim && novoFim > escalaInicio;
+
+      // 1. Verificar sobreposição de período de datas
+      const eDataInicio = new Date(e.dataInicio);
+      const eDataFim = new Date(e.dataFim);
+      const datasSeOverlap = novaDataInicio <= eDataFim && novaDataFim >= eDataInicio;
+      if (!datasSeOverlap) return false;
+
+      // 2. Verificar sobreposição de dias da semana
+      const diasEmComum = (nova.diasSemana || [1,2,3,4,5]).some(d => (e.diasSemana || [1,2,3,4,5]).includes(d));
+      if (!diasEmComum) return false;
+
+      // 3. Verificar sobreposição de faixa horária
+      const eHI = e.horaInicio.split(':').map(Number);
+      const eHF = e.horaFim.split(':').map(Number);
+      const eHIMin = eHI[0] * 60 + eHI[1];
+      const eHFMin = eHF[0] * 60 + eHF[1];
+      const horariosSeOverlap = novaHI < eHFMin && novaHF > eHIMin;
+
+      return horariosSeOverlap;
     });
   };
 
