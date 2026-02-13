@@ -88,6 +88,8 @@ const Usuarios = () => {
       const updateData = {
         codigo_externo: data.codigoExterno || null,
         nome: data.nome,
+        email: data.email,
+        usuario: data.usuario,
         descricao: data.descricao || null,
         foto_url: data.foto || null,
         perfil_id: data.perfilId || null,
@@ -105,17 +107,21 @@ const Usuarios = () => {
 
         if (error) throw error;
 
-        // If password was changed, update auth via edge function
-        if (data.senha && data.senha.length > 0) {
+        // Check if password or username changed - update auth via edge function
+        const senhaChanged = data.senha && data.senha.length > 0;
+        const usuarioChanged = data.usuario !== editingItem.usuario;
+        
+        if (senhaChanged || usuarioChanged) {
           const { data: result, error: pwError } = await supabase.functions.invoke('admin-create-user', {
             body: {
               updateOnly: true,
               userId: data.id,
-              senha: data.senha,
+              senha: senhaChanged ? data.senha : undefined,
+              usuario: usuarioChanged ? data.usuario : undefined,
             },
           });
           if (pwError) throw pwError;
-          if (!result?.success) throw new Error(result?.error || 'Erro ao atualizar senha');
+          if (!result?.success) throw new Error(result?.error || 'Erro ao atualizar usuário');
         }
 
         toast({ title: 'Sucesso', description: 'Usuário atualizado!' });
