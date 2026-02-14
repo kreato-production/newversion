@@ -3,11 +3,12 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
 import { ListActionBar } from '@/components/shared/ListActionBar';
-import { Edit, Trash2, Users, UserX, Calendar, Loader2, Plus } from 'lucide-react';
+import { Edit, Trash2, Users, UserX, Calendar, Loader2, Plus, Clock } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { RecursoHumanoFormModal } from '@/components/recursos/RecursoHumanoFormModal';
 import { MapaEscalasModal } from '@/components/recursos/MapaEscalasModal';
+import { MapaOciosidadeModal } from '@/components/recursos/MapaOciosidadeModal';
 import { parseISO, isWithinInterval, startOfDay } from 'date-fns';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { SortableTable, Column } from '@/components/shared/SortableTable';
@@ -105,6 +106,7 @@ const RecursosHumanos = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isMapaOpen, setIsMapaOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<RecursoHumano | null>(null);
+  const [isMapaOciosidadeOpen, setIsMapaOciosidadeOpen] = useState(false);
   const [items, setItems] = useState<RecursoHumano[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -419,6 +421,15 @@ const RecursosHumanos = () => {
           <Calendar className="w-4 h-4" />
           {t('field.scaleMap')}
         </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setIsMapaOciosidadeOpen(true)}
+          className="flex items-center gap-2"
+        >
+          <Clock className="w-4 h-4" />
+          Mapa de Ociosidade
+        </Button>
         <Button onClick={() => { setEditingItem(null); setIsModalOpen(true); }}>
           <Plus className="w-4 h-4 mr-1" />
           {t('field.newCollaborator')}
@@ -465,6 +476,12 @@ const RecursosHumanos = () => {
         onUpdateRecurso={async (updatedRecurso) => {
           await handleSave(updatedRecurso, true);
         }}
+      />
+
+      <MapaOciosidadeModal
+        isOpen={isMapaOciosidadeOpen}
+        onClose={() => setIsMapaOciosidadeOpen(false)}
+        recursos={items}
       />
     </div>
   );
