@@ -280,10 +280,10 @@ const GravacaoList = () => {
       },
     },
     {
-      key: 'created_at',
-      label: t('common.registrationDate'),
+      key: 'data_prevista',
+      label: t('recordings.expectedDate'),
       className: 'w-32',
-      render: (item) => item.created_at ? new Date(item.created_at).toLocaleDateString('pt-BR') : '-',
+      render: (item) => item.data_prevista ? new Date(item.data_prevista + 'T00:00:00').toLocaleDateString('pt-BR') : '-',
     },
     {
       key: 'acoes',
