@@ -254,11 +254,10 @@ const Tarefas = () => {
   const handleSave = async (tarefa: Tarefa) => {
     try {
       const dbData: any = {
-        id: tarefa.id || undefined,
         titulo: tarefa.titulo,
         descricao: tarefa.descricao || null,
         gravacao_id: tarefa.gravacaoId || null,
-        recurso_humano_id: tarefa.recursoHumanoId || null,
+        recurso_humano_id: tarefa.recursoHumanoId || (editingTarefa?.recursoHumanoId) || null,
         recurso_tecnico_id: tarefa.recursoTecnicoId || null,
         status_id: tarefa.statusId || null,
         prioridade: tarefa.prioridade,
@@ -277,14 +276,15 @@ const Tarefas = () => {
         if (error) throw error;
         toast.success(t('tasks.updated'));
       } else {
+        dbData.id = tarefa.id || undefined;
         const { error } = await supabase.from('tarefas').insert(dbData);
         if (error) throw error;
         toast.success(t('tasks.created'));
       }
 
-      await loadData();
       setIsModalOpen(false);
       setEditingTarefa(null);
+      await loadData();
     } catch (error) {
       console.error('Error saving tarefa:', error);
       toast.error('Erro ao salvar tarefa');
