@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
 import { ListActionBar } from '@/components/shared/ListActionBar';
-import { Edit, Trash2, Film, Loader2 } from 'lucide-react';
+import { Edit, Trash2, Film, Loader2, Plus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ConteudoFormModal } from '@/components/producao/ConteudoFormModal';
 import { SortableTable, Column } from '@/components/shared/SortableTable';
@@ -281,15 +281,16 @@ const Conteudo = () => {
       <PageHeader
         title={t('content.title')}
         description={t('content.description')}
-        onAdd={podeIncluir ? () => {
-          setEditingItem(null);
-          setIsModalOpen(true);
-        } : undefined}
-        addLabel={t('content.new')}
       />
       
       <ListActionBar>
         <SearchBar value={search} onChange={setSearch} />
+        {podeIncluir && (
+          <Button onClick={() => { setEditingItem(null); setIsModalOpen(true); }}>
+            <Plus className="w-4 h-4 mr-1" />
+            {t('content.new')}
+          </Button>
+        )}
       </ListActionBar>
 
       <DataCard>

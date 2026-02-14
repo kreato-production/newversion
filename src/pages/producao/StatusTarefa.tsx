@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
-import { Settings, Edit, Trash2, Loader2 } from 'lucide-react';
+import { ListActionBar } from '@/components/shared/ListActionBar';
+import { Settings, Edit, Trash2, Loader2, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -189,15 +190,19 @@ const StatusTarefa = () => {
       <PageHeader
         title={t('parameters.taskStatus')}
         description={t('parameters.taskStatusDescription')}
-        onAdd={() => handleOpenModal()}
-        addLabel={t('common.new')}
-      >
+      />
+
+      <ListActionBar>
         <SearchBar
           value={search}
           onChange={setSearch}
           placeholder={t('common.search')}
         />
-      </PageHeader>
+        <Button onClick={() => handleOpenModal()}>
+          <Plus className="w-4 h-4 mr-1" />
+          {t('common.new')}
+        </Button>
+      </ListActionBar>
 
       {filteredItems.length === 0 ? (
         <EmptyState

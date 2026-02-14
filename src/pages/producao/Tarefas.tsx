@@ -415,8 +415,6 @@ const Tarefas = () => {
       <PageHeader
         title={t('tasks.title')}
         description={t('tasks.description')}
-        onAdd={podeIncluir ? () => { setEditingTarefa(null); setIsModalOpen(true); } : undefined}
-        addLabel={t('tasks.new')}
       />
 
       <div className="space-y-6">
@@ -490,6 +488,12 @@ const Tarefas = () => {
               ))}
             </SelectContent>
           </Select>
+          {podeIncluir && (
+            <Button onClick={() => { setEditingTarefa(null); setIsModalOpen(true); }}>
+              <Plus className="w-4 h-4 mr-1" />
+              {t('tasks.new')}
+            </Button>
+          )}
         </ListActionBar>
 
         {/* Tasks Table */}

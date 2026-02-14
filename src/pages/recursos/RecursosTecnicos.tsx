@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
 import { ListActionBar } from '@/components/shared/ListActionBar';
-import { Edit, Trash2, Wrench, Loader2 } from 'lucide-react';
+import { Edit, Trash2, Wrench, Loader2, Plus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { RecursoTecnicoFormModal } from '@/components/recursos/RecursoTecnicoFormModal';
 import { SortableTable, Column } from '@/components/shared/SortableTable';
@@ -183,15 +183,14 @@ const RecursosTecnicos = () => {
       <PageHeader
         title={t('technicalResources.title')}
         description={t('field.manageTechnicalResources')}
-        onAdd={() => {
-          setEditingItem(null);
-          setIsModalOpen(true);
-        }}
-        addLabel={t('field.newResource')}
       />
 
       <ListActionBar>
         <SearchBar value={search} onChange={setSearch} />
+        <Button onClick={() => { setEditingItem(null); setIsModalOpen(true); }}>
+          <Plus className="w-4 h-4 mr-1" />
+          {t('field.newResource')}
+        </Button>
       </ListActionBar>
 
       <DataCard>

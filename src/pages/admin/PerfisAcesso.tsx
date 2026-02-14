@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
 import { ListActionBar } from '@/components/shared/ListActionBar';
 import { SortableTable, Column } from '@/components/shared/SortableTable';
-import { Edit, Trash2, Settings, Copy, FileText, Loader2 } from 'lucide-react';
+import { Edit, Trash2, Settings, Copy, FileText, Loader2, Plus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
 import PerfilFormModal from '@/components/admin/PerfilFormModal';
@@ -387,15 +387,14 @@ const PerfisAcesso = () => {
       <PageHeader
         title="Perfis de Acesso"
         description="Gerencie os perfis de acesso do sistema"
-        onAdd={() => {
-          setEditingItem(null);
-          setIsModalOpen(true);
-        }}
-        addLabel={`${t('common.new')} Perfil`}
       />
 
       <ListActionBar>
         <SearchBar value={search} onChange={setSearch} placeholder={t('common.search')} />
+        <Button onClick={() => { setEditingItem(null); setIsModalOpen(true); }}>
+          <Plus className="w-4 h-4 mr-1" />
+          {`${t('common.new')} Perfil`}
+        </Button>
       </ListActionBar>
 
       <DataCard>

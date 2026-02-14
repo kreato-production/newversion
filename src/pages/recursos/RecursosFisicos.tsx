@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
 import { ListActionBar } from '@/components/shared/ListActionBar';
-import { Edit, Trash2, MapPin, Calendar, Loader2, Package } from 'lucide-react';
+import { Edit, Trash2, MapPin, Calendar, Loader2, Package, Plus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { RecursoFisicoFormModal } from '@/components/recursos/RecursoFisicoFormModal';
 import { MapaRecursosFisicosModal } from '@/components/recursos/MapaRecursosFisicosModal';
@@ -311,11 +311,6 @@ const RecursosFisicos = () => {
       <PageHeader
         title={t('physicalResources.title')}
         description={t('field.managePhysicalResources')}
-        onAdd={() => {
-          setEditingItem(null);
-          setIsModalOpen(true);
-        }}
-        addLabel={t('field.newResource')}
       />
 
       <ListActionBar>
@@ -328,6 +323,10 @@ const RecursosFisicos = () => {
         >
           <Calendar className="w-4 h-4" />
           {t('field.availabilityMap')}
+        </Button>
+        <Button onClick={() => { setEditingItem(null); setIsModalOpen(true); }}>
+          <Plus className="w-4 h-4 mr-1" />
+          {t('field.newResource')}
         </Button>
       </ListActionBar>
 

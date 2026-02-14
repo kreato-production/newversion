@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
+import { ListActionBar } from '@/components/shared/ListActionBar';
 import { SortableTable, Column } from '@/components/shared/SortableTable';
-import { Edit, Trash2, Settings, Loader2 } from 'lucide-react';
+import { Edit, Trash2, Settings, Loader2, Plus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { StatusGravacaoFormModal } from '@/components/producao/StatusGravacaoFormModal';
 import { Badge } from '@/components/ui/badge';
@@ -191,14 +192,15 @@ const StatusGravacao = () => {
       <PageHeader
         title="Status de Gravação"
         description="Gerencie os status possíveis para gravações"
-        onAdd={() => {
-          setEditingItem(null);
-          setIsModalOpen(true);
-        }}
-        addLabel="Novo Status"
-      >
+      />
+
+      <ListActionBar>
         <SearchBar value={search} onChange={setSearch} />
-      </PageHeader>
+        <Button onClick={() => { setEditingItem(null); setIsModalOpen(true); }}>
+          <Plus className="w-4 h-4 mr-1" />
+          Novo Status
+        </Button>
+      </ListActionBar>
 
       <DataCard>
         {isLoading ? (
