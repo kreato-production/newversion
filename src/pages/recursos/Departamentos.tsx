@@ -4,7 +4,7 @@ import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared
 import { ListActionBar } from '@/components/shared/ListActionBar';
 import { DepartamentoFormModal } from '@/components/recursos/DepartamentoFormModal';
 import { SortableTable, Column } from '@/components/shared/SortableTable';
-import { Edit, Trash2, Building2, Loader2 } from 'lucide-react';
+import { Edit, Trash2, Building2, Loader2, Plus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -182,15 +182,14 @@ const Departamentos = () => {
       <PageHeader
         title="Departamentos"
         description="Gerencie os departamentos da organização"
-        onAdd={() => {
-          setEditingItem(null);
-          setIsModalOpen(true);
-        }}
-        addLabel={`${t('common.new')} Departamento`}
       />
 
       <ListActionBar>
         <SearchBar value={search} onChange={setSearch} placeholder={t('common.search')} />
+        <Button onClick={() => { setEditingItem(null); setIsModalOpen(true); }}>
+          <Plus className="w-4 h-4 mr-1" />
+          {`${t('common.new')} Departamento`}
+        </Button>
       </ListActionBar>
 
       <DataCard>

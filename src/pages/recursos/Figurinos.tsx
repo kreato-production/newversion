@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, Edit, Trash2, Image as ImageIcon, Loader2 } from 'lucide-react';
+import { Search, Edit, Trash2, Image as ImageIcon, Loader2, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -269,8 +269,6 @@ const Figurinos = () => {
       <PageHeader
         title="Figurinos"
         description="Gerencie os figurinos disponíveis para as produções"
-        onAdd={() => setIsModalOpen(true)}
-        addLabel="Novo Figurino"
       />
 
       <ListActionBar>
@@ -283,6 +281,10 @@ const Figurinos = () => {
             className="pl-9 w-64"
           />
         </div>
+        <Button onClick={() => setIsModalOpen(true)}>
+          <Plus className="w-4 h-4 mr-1" />
+          Novo Figurino
+        </Button>
       </ListActionBar>
 
       {isLoading ? (

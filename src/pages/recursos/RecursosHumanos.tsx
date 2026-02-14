@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
 import { ListActionBar } from '@/components/shared/ListActionBar';
-import { Edit, Trash2, Users, UserX, Calendar, Loader2 } from 'lucide-react';
+import { Edit, Trash2, Users, UserX, Calendar, Loader2, Plus } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { RecursoHumanoFormModal } from '@/components/recursos/RecursoHumanoFormModal';
@@ -406,11 +406,6 @@ const RecursosHumanos = () => {
       <PageHeader
         title={t('humanResources.title')}
         description={t('field.manageCollaborators')}
-        onAdd={() => {
-          setEditingItem(null);
-          setIsModalOpen(true);
-        }}
-        addLabel={t('field.newCollaborator')}
       />
 
       <ListActionBar>
@@ -423,6 +418,10 @@ const RecursosHumanos = () => {
         >
           <Calendar className="w-4 h-4" />
           {t('field.scaleMap')}
+        </Button>
+        <Button onClick={() => { setEditingItem(null); setIsModalOpen(true); }}>
+          <Plus className="w-4 h-4 mr-1" />
+          {t('field.newCollaborator')}
         </Button>
       </ListActionBar>
 

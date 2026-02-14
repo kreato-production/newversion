@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
 import { ListActionBar } from '@/components/shared/ListActionBar';
-import { Edit, Trash2, Truck, Loader2 } from 'lucide-react';
+import { Edit, Trash2, Truck, Loader2, Plus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { FornecedorFormModal } from '@/components/recursos/FornecedorFormModal';
 import { SortableTable, Column } from '@/components/shared/SortableTable';
@@ -194,15 +194,14 @@ const Fornecedores = () => {
       <PageHeader
         title={t('field.suppliers')}
         description={t('field.manageSuppliers')}
-        onAdd={() => {
-          setEditingItem(null);
-          setIsModalOpen(true);
-        }}
-        addLabel={t('field.newSupplier')}
       />
 
       <ListActionBar>
         <SearchBar value={search} onChange={setSearch} />
+        <Button onClick={() => { setEditingItem(null); setIsModalOpen(true); }}>
+          <Plus className="w-4 h-4 mr-1" />
+          {t('field.newSupplier')}
+        </Button>
       </ListActionBar>
 
       <DataCard>

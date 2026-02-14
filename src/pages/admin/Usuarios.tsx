@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
 import { ListActionBar } from '@/components/shared/ListActionBar';
-import { Edit, Trash2, UserCog, Loader2 } from 'lucide-react';
+import { Edit, Trash2, UserCog, Loader2, Plus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { UsuarioFormModal } from '@/components/admin/UsuarioFormModal';
 import { SortableTable, Column } from '@/components/shared/SortableTable';
@@ -326,15 +326,14 @@ const Usuarios = () => {
       <PageHeader
         title="Usuários"
         description="Gerencie os usuários do sistema"
-        onAdd={() => {
-          setEditingItem(null);
-          setIsModalOpen(true);
-        }}
-        addLabel="Novo Usuário"
       />
 
       <ListActionBar>
         <SearchBar value={search} onChange={setSearch} />
+        <Button onClick={() => { setEditingItem(null); setIsModalOpen(true); }}>
+          <Plus className="w-4 h-4 mr-1" />
+          Novo Usuário
+        </Button>
       </ListActionBar>
 
       <DataCard>

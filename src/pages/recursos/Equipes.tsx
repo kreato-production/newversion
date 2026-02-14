@@ -4,7 +4,7 @@ import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared
 import { ListActionBar } from '@/components/shared/ListActionBar';
 import { EquipeFormModal } from '@/components/recursos/EquipeFormModal';
 import { SortableTable, Column } from '@/components/shared/SortableTable';
-import { Edit, Trash2, UsersRound, Loader2 } from 'lucide-react';
+import { Edit, Trash2, UsersRound, Loader2, Plus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -163,15 +163,14 @@ const Equipes = () => {
       <PageHeader
         title={t('teams.title')}
         description={t('teams.description')}
-        onAdd={() => {
-          setEditingItem(null);
-          setIsModalOpen(true);
-        }}
-        addLabel={t('teams.new')}
       />
 
       <ListActionBar>
         <SearchBar value={search} onChange={setSearch} placeholder={t('common.search')} />
+        <Button onClick={() => { setEditingItem(null); setIsModalOpen(true); }}>
+          <Plus className="w-4 h-4 mr-1" />
+          {t('teams.new')}
+        </Button>
       </ListActionBar>
 
       <DataCard>
