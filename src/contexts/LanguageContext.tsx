@@ -1430,6 +1430,8 @@ const translations: Record<Language, Record<string, string>> = {
     'menu.costumeType': 'Tipo de Vestuario',
     'menu.material': 'Material',
     'menu.teams': 'Equipos',
+    'menu.tasks': 'Tareas',
+    'menu.taskStatus': 'Estado de Tarea',
     
     // Dashboard
     'dashboard.title': 'Panel',
