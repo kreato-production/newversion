@@ -155,7 +155,8 @@ const Tarefas = () => {
   };
 
   const loadData = async (showLoading = true) => {
-    if (showLoading) setIsLoading(true);
+    const shouldShowLoading = showLoading && tarefas.length === 0;
+    if (shouldShowLoading) setIsLoading(true);
     try {
       // Load status list
       const { data: statusData, error: statusError } = await supabase
@@ -237,7 +238,7 @@ const Tarefas = () => {
       console.error('Error loading data:', error);
       toast.error('Erro ao carregar dados');
     } finally {
-      setIsLoading(false);
+      if (shouldShowLoading) setIsLoading(false);
     }
   };
 
