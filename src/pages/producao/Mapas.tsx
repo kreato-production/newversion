@@ -548,13 +548,15 @@ const Mapas = () => {
     }
   }, [gravacoes, recursosHumanos]);
 
-  // Função para obter escala do colaborador em um dia específico
-  const getEscalaParaDia = (rhId: string, dia: string): { horaInicio: string; horaFim: string; totalMinutos: number } | null => {
+  // Função para obter todas as escalas do colaborador em um dia específico
+  const getEscalasParaDia = (rhId: string, dia: string): { faixas: { horaInicio: string; horaFim: string; minutos: number }[]; totalMinutos: number } | null => {
     const escalas = rhEscalas[rhId] || [];
     if (escalas.length === 0) return null;
 
     const dataObj = parseISO(dia);
     const diaSemana = dataObj.getDay();
+
+    const faixas: { horaInicio: string; horaFim: string; minutos: number }[] = [];
 
     for (const escala of escalas) {
       const dataInicio = parseISO(escala.data_inicio);
@@ -568,13 +570,20 @@ const Mapas = () => {
           
           const [hi, mi] = horaInicio.split(':').map(Number);
           const [hf, mf] = horaFim.split(':').map(Number);
-          const totalMinutos = (hf * 60 + mf) - (hi * 60 + mi);
+          const minutos = (hf * 60 + mf) - (hi * 60 + mi);
           
-          return { horaInicio, horaFim, totalMinutos };
+          faixas.push({ horaInicio, horaFim, minutos });
         }
       }
     }
-    return null;
+
+    if (faixas.length === 0) return null;
+
+    // Ordenar por hora de início
+    faixas.sort((a, b) => a.horaInicio.localeCompare(b.horaInicio));
+    const totalMinutos = faixas.reduce((sum, f) => sum + f.minutos, 0);
+
+    return { faixas, totalMinutos };
   };
 
   const ocupacoesHumanas = useMemo(() => {
@@ -1671,10 +1680,10 @@ const Mapas = () => {
                                   const dataStr = format(day, 'yyyy-MM-dd');
                                   
                                   // Calcular tempo de escala e ocupação
-                                  const escala = getEscalaParaDia(recurso.id, dataStr);
+                                  const escalas = getEscalasParaDia(recurso.id, dataStr);
                                   const todasOcupacoesDia = ocupacoes[recurso.id]?.[dataStr] || [];
                                   const tempoTotalOcupadoMinutos = todasOcupacoesDia.reduce((sum, o) => sum + (o.duracaoMinutos || 0), 0);
-                                  const tempoEscalaMinutos = escala?.totalMinutos || 0;
+                                  const tempoEscalaMinutos = escalas?.totalMinutos || 0;
                                   const tempoOciosoMinutos = Math.max(0, tempoEscalaMinutos - tempoTotalOcupadoMinutos);
                                   const percentualOcupacao = tempoEscalaMinutos > 0 
                                     ? Math.round((tempoTotalOcupadoMinutos / tempoEscalaMinutos) * 100)
@@ -1753,11 +1762,22 @@ const Mapas = () => {
                                           )}
                                           
                                           {/* Informações de tempo/ociosidade */}
-                                          {escala && (
+                                          {escalas && (
                                             <div className="border-t pt-3 mt-3 space-y-2">
-                                              <div className="flex items-center justify-between text-sm">
+                                              <div className="text-sm">
                                                 <span className="text-muted-foreground">Escala do dia:</span>
-                                                <span className="font-medium">{escala.horaInicio} - {escala.horaFim} ({Math.floor(tempoEscalaMinutos / 60)}h)</span>
+                                                <div className="ml-6 mt-0.5 space-y-0.5">
+                                                  {escalas.faixas.map((faixa, fi) => (
+                                                    <div key={fi} className="font-medium text-xs">
+                                                      {faixa.horaInicio} - {faixa.horaFim} ({Math.floor(faixa.minutos / 60)}h{faixa.minutos % 60 > 0 ? `${faixa.minutos % 60}min` : ''})
+                                                    </div>
+                                                  ))}
+                                                  {escalas.faixas.length > 1 && (
+                                                    <div className="text-xs text-muted-foreground font-medium mt-0.5">
+                                                      Total: {Math.floor(tempoEscalaMinutos / 60)}h{tempoEscalaMinutos % 60 > 0 ? ` ${tempoEscalaMinutos % 60}min` : ''}
+                                                    </div>
+                                                  )}
+                                                </div>
                                               </div>
                                               <div className="flex items-center justify-between text-sm">
                                                 <span className="text-muted-foreground">Tempo ocupado:</span>
@@ -1781,7 +1801,7 @@ const Mapas = () => {
                                               )}
                                             </div>
                                           )}
-                                          {!escala && (
+                                          {!escalas && (
                                             <div className="border-t pt-3 mt-3">
                                               <p className="text-xs text-muted-foreground italic">
                                                 Sem escala de trabalho definida para este dia
