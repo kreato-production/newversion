@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -105,6 +105,7 @@ export const TarefaFormModal = ({
   const { isReadOnly, isVisible } = usePermissions();
   const [formData, setFormData] = useState<Partial<Tarefa>>({});
   const [recursosHumanos, setRecursosHumanos] = useState<RecursoHumano[]>([]);
+  const initializedForRef = useRef<string | null>(null);
 
   const localeMap = { pt: ptBR, en: enUS, es: es };
 
@@ -135,6 +136,15 @@ export const TarefaFormModal = ({
   const showObservacoes = isVisible('Produção', 'Tarefas', '-', 'Observações');
 
   useEffect(() => {
+    if (!open) {
+      initializedForRef.current = null;
+      return;
+    }
+
+    const dataId = data?.id || '__new__';
+    if (initializedForRef.current === dataId) return;
+    initializedForRef.current = dataId;
+
     if (data) {
       const incomingRecursoHumanoId =
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
