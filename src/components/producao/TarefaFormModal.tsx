@@ -154,7 +154,8 @@ export const TarefaFormModal = ({
         recursoHumanoId: '',
       });
     }
-  }, [data, statusList]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, open]);
 
   const fetchRecursosHumanos = useCallback(async () => {
     if (!session) return;
