@@ -277,6 +277,9 @@ export const basePermissionsMatrix: Omit<PermissionItem, 'id'>[] = [
   { modulo: 'Administração', subModulo1: 'Centros de Lucro', subModulo2: '-', campo: 'Descrição', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
   { modulo: 'Administração', subModulo1: 'Centros de Lucro', subModulo2: '-', campo: 'Status', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
   { modulo: 'Administração', subModulo1: 'Centros de Lucro', subModulo2: '-', campo: 'Centro de Lucro Superior', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  
+  // Administração > Formulários
+  { modulo: 'Administração', subModulo1: 'Formulários', subModulo2: '-', campo: '-', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'submodulo1' },
 ];
 
 // Gera a matriz com IDs

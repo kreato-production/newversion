@@ -23,6 +23,7 @@ import { Pessoa } from '@/pages/recursos/Pessoas';
 import { Camera } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { PessoaGravacoesTab } from './PessoaGravacoesTab';
+import { useFormFieldConfig, FieldAsterisk } from '@/hooks/useFormFieldConfig';
 
 interface PessoaFormModalProps {
   isOpen: boolean;
@@ -72,6 +73,7 @@ export const PessoaFormModal = ({
   const { user } = useAuth();
   const [formData, setFormData] = useState<Omit<Pessoa, 'id' | 'dataCadastro' | 'usuarioCadastro'>>(emptyFormData);
   const [classificacoes, setClassificacoes] = useState<Classificacao[]>([]);
+  const { getAsterisk, validateRequired, showValidationError } = useFormFieldConfig('pessoa');
 
   useEffect(() => {
     if (isOpen) {
@@ -123,9 +125,22 @@ export const PessoaFormModal = ({
     }
   };
 
+  const fieldLabels: Record<string, string> = {
+    codigoExterno: 'Código Externo', classificacao: 'Classificação', nome: 'Nome', sobrenome: 'Sobrenome',
+    nomeTrabalho: 'Nome de Trabalho', dataNascimento: 'Data de Nascimento', sexo: 'Sexo',
+    documento: 'Documento', email: 'E-mail', telefone: 'Telefone', endereco: 'Endereço',
+    cidade: 'Cidade', estado: 'Estado', cep: 'CEP', observacoes: 'Observações', status: 'Status',
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
+    const missing = validateRequired(formData as any, fieldLabels);
+    if (missing.length > 0) {
+      showValidationError(missing);
+      return;
+    }
+
     const pessoaData: Pessoa = {
       id: data?.id || crypto.randomUUID(),
       ...formData,
@@ -176,7 +191,7 @@ export const PessoaFormModal = ({
               {/* Basic Info */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="codigoExterno">Código Externo</Label>
+                  <Label htmlFor="codigoExterno">Código Externo <FieldAsterisk type={getAsterisk('codigoExterno')} /></Label>
                   <Input
                     id="codigoExterno"
                     value={formData.codigoExterno}
@@ -184,7 +199,7 @@ export const PessoaFormModal = ({
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="classificacao">Classificação <span className="text-destructive">*</span></Label>
+                  <Label htmlFor="classificacao">Classificação <FieldAsterisk type={getAsterisk('classificacao')} /></Label>
                   <Select
                     value={formData.classificacaoId || ''}
                     onValueChange={(value) => {
@@ -208,7 +223,7 @@ export const PessoaFormModal = ({
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="nome">Nome <span className="text-destructive">*</span></Label>
+                  <Label htmlFor="nome">Nome <FieldAsterisk type={getAsterisk('nome')} /></Label>
                   <Input
                     id="nome"
                     value={formData.nome}
@@ -217,7 +232,7 @@ export const PessoaFormModal = ({
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="sobrenome">Sobrenome <span className="text-destructive">*</span></Label>
+                  <Label htmlFor="sobrenome">Sobrenome <FieldAsterisk type={getAsterisk('sobrenome')} /></Label>
                   <Input
                     id="sobrenome"
                     value={formData.sobrenome}
@@ -228,7 +243,7 @@ export const PessoaFormModal = ({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="nomeTrabalho">Nome de Trabalho</Label>
+                <Label htmlFor="nomeTrabalho">Nome de Trabalho <FieldAsterisk type={getAsterisk('nomeTrabalho')} /></Label>
                 <Input
                   id="nomeTrabalho"
                   value={formData.nomeTrabalho}
@@ -239,7 +254,7 @@ export const PessoaFormModal = ({
 
               <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="dataNascimento">Data de Nascimento</Label>
+                  <Label htmlFor="dataNascimento">Data de Nascimento <FieldAsterisk type={getAsterisk('dataNascimento')} /></Label>
                   <Input
                     id="dataNascimento"
                     type="date"
@@ -248,7 +263,7 @@ export const PessoaFormModal = ({
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="sexo">Sexo</Label>
+                  <Label htmlFor="sexo">Sexo <FieldAsterisk type={getAsterisk('sexo')} /></Label>
                   <Select
                     value={formData.sexo}
                     onValueChange={(value) => setFormData({ ...formData, sexo: value })}
@@ -264,7 +279,7 @@ export const PessoaFormModal = ({
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="documento">CPF/Documento</Label>
+                  <Label htmlFor="documento">CPF/Documento <FieldAsterisk type={getAsterisk('documento')} /></Label>
                   <Input
                     id="documento"
                     value={formData.documento}
@@ -276,7 +291,7 @@ export const PessoaFormModal = ({
               {/* Contact */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="email">E-mail</Label>
+                  <Label htmlFor="email">E-mail <FieldAsterisk type={getAsterisk('email')} /></Label>
                   <Input
                     id="email"
                     type="email"
@@ -285,7 +300,7 @@ export const PessoaFormModal = ({
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="telefone">Telefone</Label>
+                  <Label htmlFor="telefone">Telefone <FieldAsterisk type={getAsterisk('telefone')} /></Label>
                   <Input
                     id="telefone"
                     value={formData.telefone}
@@ -296,7 +311,7 @@ export const PessoaFormModal = ({
 
               {/* Address */}
               <div className="space-y-2">
-                <Label htmlFor="endereco">Endereço</Label>
+                <Label htmlFor="endereco">Endereço <FieldAsterisk type={getAsterisk('endereco')} /></Label>
                 <Input
                   id="endereco"
                   value={formData.endereco}
@@ -306,7 +321,7 @@ export const PessoaFormModal = ({
 
               <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="cidade">Cidade</Label>
+                  <Label htmlFor="cidade">Cidade <FieldAsterisk type={getAsterisk('cidade')} /></Label>
                   <Input
                     id="cidade"
                     value={formData.cidade}
@@ -314,7 +329,7 @@ export const PessoaFormModal = ({
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="estado">Estado</Label>
+                  <Label htmlFor="estado">Estado <FieldAsterisk type={getAsterisk('estado')} /></Label>
                   <Select
                     value={formData.estado}
                     onValueChange={(value) => setFormData({ ...formData, estado: value })}
@@ -332,7 +347,7 @@ export const PessoaFormModal = ({
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="cep">CEP</Label>
+                  <Label htmlFor="cep">CEP <FieldAsterisk type={getAsterisk('cep')} /></Label>
                   <Input
                     id="cep"
                     value={formData.cep}
@@ -343,7 +358,7 @@ export const PessoaFormModal = ({
 
               {/* Status */}
               <div className="space-y-2">
-                <Label htmlFor="status">Status <span className="text-destructive">*</span></Label>
+                <Label htmlFor="status">Status <FieldAsterisk type={getAsterisk('status')} /></Label>
                 <Select
                   value={formData.status}
                   onValueChange={(value) => setFormData({ ...formData, status: value as 'Ativo' | 'Inativo' })}
@@ -360,7 +375,7 @@ export const PessoaFormModal = ({
 
               {/* Observations */}
               <div className="space-y-2">
-                <Label htmlFor="observacoes">Observações</Label>
+                <Label htmlFor="observacoes">Observações <FieldAsterisk type={getAsterisk('observacoes')} /></Label>
                 <Textarea
                   id="observacoes"
                   value={formData.observacoes}
