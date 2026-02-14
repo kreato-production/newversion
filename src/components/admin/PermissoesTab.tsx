@@ -10,8 +10,8 @@ import {
   PermissionItem,
   PerfilPermissoes,
   getPermissionsMatrixWithIds,
-  getPerfilPermissions,
-  savePerfilPermissions,
+  getPerfilPermissionsAsync,
+  savePerfilPermissionsAsync,
   createDefaultPermissions,
   getModulos,
 } from '@/data/permissionsMatrix';
@@ -37,31 +37,34 @@ const PermissoesTab = ({ perfilId, perfilNome }: PermissoesTabProps) => {
   useEffect(() => {
     if (!perfilId) return;
 
-    let perfilPermissions = getPerfilPermissions(perfilId);
-    if (!perfilPermissions) {
-      perfilPermissions = createDefaultPermissions(perfilId);
-      savePerfilPermissions(perfilPermissions);
-    }
+    const loadPermissions = async () => {
+      let perfilPermissions = await getPerfilPermissionsAsync(perfilId);
+      if (!perfilPermissions) {
+        perfilPermissions = createDefaultPermissions(perfilId);
+        await savePerfilPermissionsAsync(perfilPermissions);
+      }
 
-    // Perfis já existentes no storage não recebem automaticamente novos itens adicionados na matriz base.
-    // Aqui fazemos o merge (apenas adicionando os que faltam) para que "Mapas" e novas vistas apareçam.
-    const matrix = getPermissionsMatrixWithIds();
-    const existingIds = new Set(perfilPermissions.permissoes.map((p) => p.id));
-    const missing = matrix.filter((p) => !existingIds.has(p.id));
+      // Merge missing items from base matrix
+      const matrix = getPermissionsMatrixWithIds();
+      const existingIds = new Set(perfilPermissions.permissoes.map((p) => p.id));
+      const missing = matrix.filter((p) => !existingIds.has(p.id));
 
-    if (missing.length > 0) {
-      perfilPermissions = {
-        ...perfilPermissions,
-        permissoes: [...perfilPermissions.permissoes, ...missing],
-      };
-      savePerfilPermissions(perfilPermissions);
-    }
+      if (missing.length > 0) {
+        perfilPermissions = {
+          ...perfilPermissions,
+          permissoes: [...perfilPermissions.permissoes, ...missing],
+        };
+        await savePerfilPermissionsAsync(perfilPermissions);
+      }
 
-    setPermissions(perfilPermissions);
+      setPermissions(perfilPermissions);
 
-    // Expande todos os módulos por padrão
-    const modulos = getModulos();
-    setExpandedNodes(new Set(modulos.map((m) => `modulo_${m}`)));
+      // Expande todos os módulos por padrão
+      const modulos = getModulos();
+      setExpandedNodes(new Set(modulos.map((m) => `modulo_${m}`)));
+    };
+
+    loadPermissions();
   }, [perfilId]);
 
   const buildTree = useMemo((): TreeNode[] => {
@@ -201,7 +204,7 @@ const PermissoesTab = ({ perfilId, perfilNome }: PermissoesTabProps) => {
     };
 
     setPermissions(newPerfilPermissions);
-    savePerfilPermissions(newPerfilPermissions);
+    savePerfilPermissionsAsync(newPerfilPermissions);
   };
 
   const renderPermissionControls = (permission: PermissionItem) => {
