@@ -298,7 +298,7 @@ export const TerceirosTab = ({ gravacaoId }: TerceirosTabProps) => {
             </div>
 
             <div className="space-y-2">
-              <Label>Custo (R$)</Label>
+              <Label>Custo</Label>
               <Input
                 type="text"
                 value={custo}
