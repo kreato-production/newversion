@@ -1,6 +1,6 @@
-import { useMemo, useCallback, useState, useEffect } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { getPerfilPermissions, PermissionItem } from '@/data/permissionsMatrix';
+import { getPerfilPermissionsAsync, PermissionItem } from '@/data/permissionsMatrix';
 import { supabase } from '@/integrations/supabase/client';
 
 interface UsePermissionsResult {
@@ -16,11 +16,11 @@ interface UsePermissionsResult {
 
 export const usePermissions = (): UsePermissionsResult => {
   const { user, session } = useAuth();
-  const [perfilId, setPerfilId] = useState<string | null>(null);
+  const [permissions, setPermissions] = useState<PermissionItem[]>([]);
   
-  // Buscar o perfil do usuário do Supabase
+  // Buscar perfil e permissões do Supabase
   useEffect(() => {
-    const fetchPerfil = async () => {
+    const fetchPermissions = async () => {
       if (!user?.perfil || !session) return;
       
       try {
@@ -30,26 +30,20 @@ export const usePermissions = (): UsePermissionsResult => {
           .eq('nome', user.perfil)
           .maybeSingle();
         
-        if (error) {
+        if (error || !data?.id) {
           console.error('Error fetching perfil:', error);
           return;
         }
         
-        setPerfilId(data?.id || null);
+        const perfilPermissoes = await getPerfilPermissionsAsync(data.id);
+        setPermissions(perfilPermissoes?.permissoes || []);
       } catch (err) {
-        console.error('Error in fetchPerfil:', err);
+        console.error('Error in fetchPermissions:', err);
       }
     };
     
-    fetchPerfil();
+    fetchPermissions();
   }, [user?.perfil, session]);
-  
-  const permissions = useMemo(() => {
-    if (!perfilId) return [];
-    
-    const perfilPermissoes = getPerfilPermissions(perfilId);
-    return perfilPermissoes?.permissoes || [];
-  }, [perfilId]);
   
   const findPermission = useCallback((
     modulo: string,
