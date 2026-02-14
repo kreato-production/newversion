@@ -399,7 +399,7 @@ export const ConteudoFormModal = ({
         <form onSubmit={handleSubmit} className="space-y-4 mt-4">
           <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="codigoExterno">{t('common.externalCode')}</Label>
+              <Label htmlFor="codigoExterno">{t('common.externalCode')} <FieldAsterisk type={getAsterisk('codigoExterno')} /></Label>
               <Input
                 id="codigoExterno"
                 value={formData.codigoExterno}
@@ -409,7 +409,7 @@ export const ConteudoFormModal = ({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="descricao">{t('common.description')} *</Label>
+              <Label htmlFor="descricao">{t('common.description')} <FieldAsterisk type={getAsterisk('descricao')} /></Label>
               <Input
                 id="descricao"
                 value={formData.descricao}
@@ -419,7 +419,7 @@ export const ConteudoFormModal = ({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="quantidadeEpisodios">{t('content.episodes')}</Label>
+              <Label htmlFor="quantidadeEpisodios">{t('content.episodes')} <FieldAsterisk type={getAsterisk('quantidadeEpisodios')} /></Label>
               <Input
                 id="quantidadeEpisodios"
                 type="number"
@@ -438,7 +438,7 @@ export const ConteudoFormModal = ({
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>{t('nav.businessUnits')}</Label>
+              <Label>{t('nav.businessUnits')} <FieldAsterisk type={getAsterisk('unidadeNegocio')} /></Label>
               <Select
                 value={formData.unidadeNegocio}
                 onValueChange={(value) => {
@@ -457,7 +457,7 @@ export const ConteudoFormModal = ({
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>{t('nav.profitCenters')}</Label>
+              <Label>{t('nav.profitCenters')} <FieldAsterisk type={getAsterisk('centroLucro')} /></Label>
               <Select
                 value={formData.centroLucro}
                 onValueChange={(value) => setFormData({ ...formData, centroLucro: value })}
@@ -479,7 +479,7 @@ export const ConteudoFormModal = ({
 
           <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label>{t('content.contentType')}</Label>
+              <Label>{t('content.contentType')} <FieldAsterisk type={getAsterisk('tipoConteudo')} /></Label>
               <Select
                 value={formData.tipoConteudo}
                 onValueChange={(value) => setFormData({ ...formData, tipoConteudo: value })}
@@ -495,7 +495,7 @@ export const ConteudoFormModal = ({
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>{t('content.classification')}</Label>
+              <Label>{t('content.classification')} <FieldAsterisk type={getAsterisk('classificacao')} /></Label>
               <Select
                 value={formData.classificacao}
                 onValueChange={(value) => setFormData({ ...formData, classificacao: value })}
@@ -511,7 +511,7 @@ export const ConteudoFormModal = ({
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="anoProducao">{t('content.productionYear')}</Label>
+              <Label htmlFor="anoProducao">{t('content.productionYear')} <FieldAsterisk type={getAsterisk('anoProducao')} /></Label>
               <Input
                 id="anoProducao"
                 value={formData.anoProducao}
@@ -529,7 +529,7 @@ export const ConteudoFormModal = ({
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="sinopse">{t('content.synopsis')}</Label>
+              <Label htmlFor="sinopse">{t('content.synopsis')} <FieldAsterisk type={getAsterisk('sinopse')} /></Label>
               <Textarea
                 id="sinopse"
                 value={formData.sinopse}
@@ -540,7 +540,7 @@ export const ConteudoFormModal = ({
             </div>
             <div className="space-y-2">
               <Label htmlFor="orcamento">
-                {t('field.budget')} {selectedCurrency && `(${getCurrencyByCode(selectedCurrency)?.symbol || selectedCurrency})`}
+                {t('field.budget')} {selectedCurrency && `(${getCurrencyByCode(selectedCurrency)?.symbol || selectedCurrency})`} <FieldAsterisk type={getAsterisk('orcamento')} />
               </Label>
               <Input
                 id="orcamento"

@@ -368,7 +368,7 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
 
               <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label>{t('recordings.businessUnit')}</Label>
+                  <Label>{t('recordings.businessUnit')} <FieldAsterisk type={getAsterisk('unidadeNegocio')} /></Label>
                   <Select
                     value={formData.unidadeNegocio}
                     onValueChange={(value) => setFormData({ ...formData, unidadeNegocio: value, centroLucro: '' })}
@@ -384,7 +384,7 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>{t('recordings.profitCenter')}</Label>
+                  <Label>{t('recordings.profitCenter')} <FieldAsterisk type={getAsterisk('centroLucro')} /></Label>
                   <Select
                     value={formData.centroLucro}
                     onValueChange={(value) => setFormData({ ...formData, centroLucro: value })}
@@ -409,7 +409,7 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>{t('content.contentType')}</Label>
+                  <Label>{t('content.contentType')} <FieldAsterisk type={getAsterisk('tipoConteudo')} /></Label>
                   <Select
                     value={formData.tipoConteudo}
                     onValueChange={(value) => setFormData({ ...formData, tipoConteudo: value })}
@@ -428,7 +428,7 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
 
               <div className="grid grid-cols-4 gap-4">
                 <div className="space-y-2">
-                  <Label>{t('content.classification')}</Label>
+                  <Label>{t('content.classification')} <FieldAsterisk type={getAsterisk('classificacao')} /></Label>
                   <Select
                     value={formData.classificacao}
                     onValueChange={(value) => setFormData({ ...formData, classificacao: value })}
@@ -444,7 +444,7 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>{t('common.status')}</Label>
+                  <Label>{t('common.status')} <FieldAsterisk type={getAsterisk('status')} /></Label>
                   <Select
                     value={formData.status}
                     onValueChange={(value) => setFormData({ ...formData, status: value })}
@@ -460,7 +460,7 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>{t('content.title')}</Label>
+                  <Label>{t('content.title')} <FieldAsterisk type={getAsterisk('conteudoId')} /></Label>
                   <Select
                     value={formData.conteudoId || "__none__"}
                     onValueChange={(value) => setFormData({ ...formData, conteudoId: value === "__none__" ? "" : value })}
@@ -477,7 +477,7 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>{t('recordings.expectedDate')}</Label>
+                  <Label>{t('recordings.expectedDate')} <FieldAsterisk type={getAsterisk('dataPrevista')} /></Label>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button
@@ -507,7 +507,7 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="descricao">{t('common.description')}</Label>
+                  <Label htmlFor="descricao">{t('common.description')} <FieldAsterisk type={getAsterisk('descricao')} /></Label>
                   <Textarea
                     id="descricao"
                     value={formData.descricao}
@@ -518,7 +518,7 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="orcamento">
-                    Orçamento {selectedCurrency && `(${getCurrencyByCode(selectedCurrency)?.symbol || selectedCurrency})`}
+                    Orçamento {selectedCurrency && `(${getCurrencyByCode(selectedCurrency)?.symbol || selectedCurrency})`} <FieldAsterisk type={getAsterisk('orcamento')} />
                   </Label>
                   <Input
                     id="orcamento"
