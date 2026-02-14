@@ -18,6 +18,7 @@ import { useWeatherForecast } from '@/hooks/useWeatherForecast';
 import { useRecursoFisicoDisponibilidade } from '@/hooks/useRecursoFisicoDisponibilidade';
 import { supabase } from '@/integrations/supabase/client';
 import { formatCurrency as formatCurrencyUtil } from '@/lib/currencies';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface RecursoHumanoAlocado {
   id: string;
@@ -101,6 +102,7 @@ interface UnidadeNegocio {
 }
 
 const Mapas = () => {
+  const { t } = useLanguage();
   const [viewMode, setViewMode] = useState<'week' | 'month'>('week');
   const [currentWeekStart, setCurrentWeekStart] = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }));
   const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(new Date()));
@@ -1852,15 +1854,15 @@ const Mapas = () => {
         <TabsList>
           <TabsTrigger value="fisicos" className="gap-2">
             <MapPin className="h-4 w-4" />
-            Recursos Físicos
+            {t('maps.physicalResources')}
           </TabsTrigger>
           <TabsTrigger value="humanos" className="gap-2">
             <Users className="h-4 w-4" />
-            Recursos Humanos
+            {t('maps.humanResources')}
           </TabsTrigger>
           <TabsTrigger value="custos" className="gap-2">
             <DollarSign className="h-4 w-4" />
-            Apropriação de Custos
+            {t('maps.costAppropriation')}
           </TabsTrigger>
         </TabsList>
 
