@@ -6,8 +6,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Eye, EyeOff, LogIn, Zap } from 'lucide-react';
+import { Eye, EyeOff, LogIn, Zap, Sun, Moon } from 'lucide-react';
 import { LanguageSelector } from '@/components/shared/LanguageSelector';
+import { useTheme } from '@/hooks/use-theme';
 import kreatoLogo from '@/assets/kreato-logo.png';
 
 const Login = () => {
@@ -19,6 +20,7 @@ const Login = () => {
   const [mounted, setMounted] = useState(false);
   
   const { login, isAuthenticated, isLoading: authLoading } = useAuth();
+  const { theme, setTheme } = useTheme();
   const { t } = useLanguage();
   const navigate = useNavigate();
 
@@ -58,7 +60,33 @@ const Login = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-4 overflow-hidden">
       {/* Language Selector - Top Right */}
-      <div className="absolute top-4 right-4 z-50">
+      <div className="absolute top-4 right-4 z-50 flex items-center gap-2">
+        <div className="flex items-center bg-slate-800/50 rounded-md border border-slate-700/50 p-0.5">
+          <button
+            type="button"
+            onClick={() => setTheme('light')}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs font-medium transition-all duration-200 ${
+              theme === 'light'
+                ? 'bg-kreato-cyan/20 text-kreato-cyan shadow-sm'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <Sun size={14} />
+            Claro
+          </button>
+          <button
+            type="button"
+            onClick={() => setTheme('dark')}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs font-medium transition-all duration-200 ${
+              theme === 'dark'
+                ? 'bg-kreato-cyan/20 text-kreato-cyan shadow-sm'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <Moon size={14} />
+            Escuro
+          </button>
+        </div>
         <LanguageSelector 
           variant="ghost" 
           className="text-slate-400 hover:text-white hover:bg-slate-800"
