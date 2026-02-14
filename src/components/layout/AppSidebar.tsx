@@ -222,7 +222,7 @@ const AppSidebar = () => {
   return (
     <aside className="w-64 h-screen bg-sidebar flex flex-col border-r border-sidebar-border">
       <div className="p-4 border-b border-sidebar-border">
-        <img src={kreatoLogo} alt="Kreato" className="h-10 object-contain" />
+        <img src={kreatoLogo} alt="Kreato" className="h-10 object-contain dark:brightness-0 dark:invert" />
       </div>
 
       <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
