@@ -572,6 +572,33 @@ export type Database = {
           },
         ]
       }
+      formulario_campos: {
+        Row: {
+          campo: string
+          created_at: string | null
+          formulario: string
+          id: string
+          tipo_validacao: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          campo: string
+          created_at?: string | null
+          formulario: string
+          id?: string
+          tipo_validacao?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          campo?: string
+          created_at?: string | null
+          formulario?: string
+          id?: string
+          tipo_validacao?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       fornecedor_arquivos: {
         Row: {
           created_at: string | null

@@ -45,6 +45,7 @@ import { cn } from '@/lib/utils';
 import { DialogActionBar } from '@/components/shared/DialogActionBar';
 import { supabase } from '@/integrations/supabase/client';
 import { getCurrencyByCode } from '@/lib/currencies';
+import { useFormFieldConfig, FieldAsterisk } from '@/hooks/useFormFieldConfig';
 
 interface GravacaoFormModalProps {
   isOpen: boolean;
@@ -68,6 +69,7 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
   const { user, session } = useAuth();
   const { t, language, formatDate } = useLanguage();
   const { isVisible } = usePermissions();
+  const { getAsterisk, validateRequired, showValidationError } = useFormFieldConfig('gravacao');
   const [codigoGerado, setCodigoGerado] = useState('');
   const [dataPrevista, setDataPrevista] = useState<Date | undefined>(undefined);
   const [formData, setFormData] = useState({
@@ -249,8 +251,22 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
     });
   }, [isOpen, incomingStatus]);
 
+  const gravacaoFieldLabels: Record<string, string> = {
+    codigoExterno: 'Código Externo', nome: 'Nome', unidadeNegocio: 'Unidade de Negócio',
+    centroLucro: 'Centro de Lucro', tipoConteudo: 'Tipo de Conteúdo', classificacao: 'Classificação',
+    status: 'Status', conteudoId: 'Conteúdo', dataPrevista: 'Data Prevista', descricao: 'Descrição', orcamento: 'Orçamento',
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    const dataToValidate = { ...formData, dataPrevista: dataPrevista ? 'set' : '' };
+    const missing = validateRequired(dataToValidate, gravacaoFieldLabels);
+    if (missing.length > 0) {
+      showValidationError(missing);
+      return;
+    }
+
     onSave({
       id: data?.id || crypto.randomUUID(),
       codigo: codigoGerado,
@@ -329,7 +345,7 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="codigoExterno">{t('common.externalCode')}</Label>
+                  <Label htmlFor="codigoExterno">{t('common.externalCode')} <FieldAsterisk type={getAsterisk('codigoExterno')} /></Label>
                   <Input
                     id="codigoExterno"
                     value={formData.codigoExterno}
@@ -339,7 +355,7 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="nome">{t('common.name')} <span className="text-destructive">*</span></Label>
+                  <Label htmlFor="nome">{t('common.name')} <FieldAsterisk type={getAsterisk('nome')} /></Label>
                   <Input
                     id="nome"
                     value={formData.nome}

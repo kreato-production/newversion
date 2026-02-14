@@ -38,6 +38,7 @@ import { ConteudoCustosTab } from './ConteudoCustosTab';
 import { ElencoTab } from './ElencoTab';
 import { supabase } from '@/integrations/supabase/client';
 import { getCurrencyByCode } from '@/lib/currencies';
+import { useFormFieldConfig, FieldAsterisk } from '@/hooks/useFormFieldConfig';
 
 interface ConteudoFormModalProps {
   isOpen: boolean;
@@ -56,6 +57,7 @@ export const ConteudoFormModal = ({
   const { t } = useLanguage();
   const { toast } = useToast();
   const [isGenerating, setIsGenerating] = useState(false);
+  const { getAsterisk, validateRequired, showValidationError } = useFormFieldConfig('conteudo');
   const [formData, setFormData] = useState({
     codigoExterno: '',
     descricao: '',
@@ -225,9 +227,21 @@ export const ConteudoFormModal = ({
     }
   };
 
+  const conteudoFieldLabels: Record<string, string> = {
+    codigoExterno: 'Código Externo', descricao: 'Descrição', quantidadeEpisodios: 'Qtd. Episódios',
+    unidadeNegocio: 'Unidade de Negócio', centroLucro: 'Centro de Lucro', tipoConteudo: 'Tipo de Conteúdo',
+    classificacao: 'Classificação', anoProducao: 'Ano de Produção', sinopse: 'Sinopse', orcamento: 'Orçamento',
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
+    const missing = validateRequired(formData as any, conteudoFieldLabels);
+    if (missing.length > 0) {
+      showValidationError(missing);
+      return;
+    }
+
     if (!formData.descricao.trim()) {
       toast({ title: t('common.error'), description: t('field.descriptionRequired'), variant: 'destructive' });
       return;
