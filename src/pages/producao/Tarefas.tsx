@@ -154,8 +154,8 @@ const Tarefas = () => {
     }
   };
 
-  const loadData = async () => {
-    setIsLoading(true);
+  const loadData = async (showLoading = true) => {
+    if (showLoading) setIsLoading(true);
     try {
       // Load status list
       const { data: statusData, error: statusError } = await supabase
@@ -284,7 +284,7 @@ const Tarefas = () => {
 
       setIsModalOpen(false);
       setEditingTarefa(null);
-      await loadData();
+      await loadData(false);
     } catch (error) {
       console.error('Error saving tarefa:', error);
       toast.error('Erro ao salvar tarefa');
