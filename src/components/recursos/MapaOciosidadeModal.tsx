@@ -52,13 +52,13 @@ const getIdleColor = (idleMinutes: number, totalMinutes: number): { bg: string; 
   
   const idlePercent = (idleMinutes / totalMinutes) * 100;
   
-  if (idlePercent >= 100) return { bg: 'bg-red-600', text: 'text-white' };
-  if (idlePercent >= 80) return { bg: 'bg-red-500', text: 'text-white' };
-  if (idlePercent >= 60) return { bg: 'bg-orange-500', text: 'text-white' };
-  if (idlePercent >= 40) return { bg: 'bg-amber-500', text: 'text-white' };
-  if (idlePercent >= 20) return { bg: 'bg-yellow-400', text: 'text-black' };
-  if (idlePercent > 0) return { bg: 'bg-lime-500', text: 'text-white' };
-  return { bg: 'bg-green-600', text: 'text-white' };
+  if (idlePercent >= 100) return { bg: 'bg-red-400', text: 'text-white' };
+  if (idlePercent >= 80) return { bg: 'bg-red-300', text: 'text-red-900' };
+  if (idlePercent >= 60) return { bg: 'bg-orange-300', text: 'text-orange-900' };
+  if (idlePercent >= 40) return { bg: 'bg-amber-300', text: 'text-amber-900' };
+  if (idlePercent >= 20) return { bg: 'bg-yellow-200', text: 'text-yellow-900' };
+  if (idlePercent > 0) return { bg: 'bg-lime-300', text: 'text-lime-900' };
+  return { bg: 'bg-green-300', text: 'text-green-900' };
 };
 
 const formatMinutesToHours = (minutes: number): string => {
@@ -318,27 +318,27 @@ export const MapaOciosidadeModal = ({
           <div className="flex items-center gap-2 ml-auto text-xs">
             <span className="font-medium">Legenda:</span>
             <div className="flex items-center gap-1">
-              <span className="w-5 h-4 bg-green-600 rounded" />
+              <span className="w-5 h-4 bg-green-300 rounded" />
               <span>0%</span>
             </div>
             <div className="flex items-center gap-1">
-              <span className="w-5 h-4 bg-yellow-400 rounded" />
+              <span className="w-5 h-4 bg-yellow-200 rounded" />
               <span>20%</span>
             </div>
             <div className="flex items-center gap-1">
-              <span className="w-5 h-4 bg-amber-500 rounded" />
+              <span className="w-5 h-4 bg-amber-300 rounded" />
               <span>40%</span>
             </div>
             <div className="flex items-center gap-1">
-              <span className="w-5 h-4 bg-orange-500 rounded" />
+              <span className="w-5 h-4 bg-orange-300 rounded" />
               <span>60%</span>
             </div>
             <div className="flex items-center gap-1">
-              <span className="w-5 h-4 bg-red-500 rounded" />
+              <span className="w-5 h-4 bg-red-300 rounded" />
               <span>80%</span>
             </div>
             <div className="flex items-center gap-1">
-              <span className="w-5 h-4 bg-red-600 rounded" />
+              <span className="w-5 h-4 bg-red-400 rounded" />
               <span>100%</span>
             </div>
           </div>
