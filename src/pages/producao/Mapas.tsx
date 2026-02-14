@@ -612,9 +612,11 @@ const Mapas = () => {
       );
 
       if (!jaExiste) {
-        // Buscar horário real da alocação
-        const key = `${tarefa.recursoHumanoId}_${dia}_${gravacao.id}`;
-        const horarioAlocado = rhHorariosAlocados[tarefa.recursoHumanoId]?.[key];
+        // Buscar horário real da alocação - usar dataPrevista da gravação pois é assim que o key foi criado
+        const keyWithGravacaoDate = `${tarefa.recursoHumanoId}_${gravacao.dataPrevista || dia}_${gravacao.id}`;
+        const keyWithTaskDate = `${tarefa.recursoHumanoId}_${dia}_${gravacao.id}`;
+        const horarioAlocado = rhHorariosAlocados[tarefa.recursoHumanoId]?.[keyWithGravacaoDate] 
+          || rhHorariosAlocados[tarefa.recursoHumanoId]?.[keyWithTaskDate];
         
         let horarioStr = 'Conforme escala';
         let duracaoMinutos = 0;
