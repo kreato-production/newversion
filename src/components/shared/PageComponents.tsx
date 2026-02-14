@@ -14,7 +14,7 @@ interface PageHeaderProps {
 
 export const PageHeader = ({ title, description, onAdd, addLabel = 'Adicionar', children }: PageHeaderProps) => (
   <div className="rounded-lg mb-4 overflow-hidden shadow-sm">
-    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 bg-gradient-to-r from-kreato-cyan via-primary to-kreato-orange">
+    <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 p-3 bg-gradient-to-r from-kreato-cyan via-primary to-kreato-orange">
       <div>
         <h1 className="text-2xl font-bold text-white">{title}</h1>
         {description && <p className="text-white/80 mt-1">{description}</p>}
