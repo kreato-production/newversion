@@ -23,6 +23,7 @@ const Login = () => {
   const { theme, setTheme } = useTheme();
   const { t } = useLanguage();
   const navigate = useNavigate();
+  const isDark = theme === 'dark';
 
   useEffect(() => {
     setMounted(true);
@@ -51,24 +52,24 @@ const Login = () => {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
+      <div className={`min-h-screen flex items-center justify-center ${isDark ? 'bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950' : 'bg-gradient-to-br from-slate-100 via-white to-slate-100'}`}>
         <div className="w-8 h-8 border-2 border-kreato-cyan border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-4 overflow-hidden">
+    <div className={`min-h-screen flex items-center justify-center p-4 overflow-hidden ${isDark ? 'bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950' : 'bg-gradient-to-br from-slate-100 via-white to-slate-100'}`}>
       {/* Language Selector - Top Right */}
       <div className="absolute top-4 right-4 z-50 flex items-center gap-2">
-        <div className="flex items-center bg-slate-800/50 rounded-md border border-slate-700/50 p-0.5">
+        <div className={`flex items-center rounded-md border p-0.5 ${isDark ? 'bg-slate-800/50 border-slate-700/50' : 'bg-white/80 border-slate-200'}`}>
           <button
             type="button"
             onClick={() => setTheme('light')}
             className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs font-medium transition-all duration-200 ${
               theme === 'light'
                 ? 'bg-kreato-cyan/20 text-kreato-cyan shadow-sm'
-                : 'text-slate-400 hover:text-white'
+                : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-700'
             }`}
           >
             <Sun size={14} />
@@ -80,7 +81,7 @@ const Login = () => {
             className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs font-medium transition-all duration-200 ${
               theme === 'dark'
                 ? 'bg-kreato-cyan/20 text-kreato-cyan shadow-sm'
-                : 'text-slate-400 hover:text-white'
+                : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-700'
             }`}
           >
             <Moon size={14} />
@@ -89,18 +90,18 @@ const Login = () => {
         </div>
         <LanguageSelector 
           variant="ghost" 
-          className="text-slate-400 hover:text-white hover:bg-slate-800"
+          className={isDark ? 'text-slate-400 hover:text-white hover:bg-slate-800' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'}
         />
       </div>
 
       {/* Animated Grid Background */}
-      <div className="absolute inset-0 bg-[linear-gradient(rgba(6,182,212,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(6,182,212,0.03)_1px,transparent_1px)] bg-[size:50px_50px] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_0%,#000_70%,transparent_110%)]" />
+      <div className={`absolute inset-0 bg-[size:50px_50px] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_0%,#000_70%,transparent_110%)] ${isDark ? 'bg-[linear-gradient(rgba(6,182,212,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(6,182,212,0.03)_1px,transparent_1px)]' : 'bg-[linear-gradient(rgba(30,64,175,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(30,64,175,0.04)_1px,transparent_1px)]'}`} />
       
       {/* Floating Orbs */}
       <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-kreato-cyan/10 rounded-full blur-[100px] animate-pulse-slow" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-kreato-orange/10 rounded-full blur-[100px] animate-pulse-slow animation-delay-2000" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/5 rounded-full blur-[120px] animate-pulse-slow animation-delay-4000" />
+        <div className={`absolute top-1/4 left-1/4 w-96 h-96 rounded-full blur-[100px] animate-pulse-slow ${isDark ? 'bg-kreato-cyan/10' : 'bg-kreato-cyan/8'}`} />
+        <div className={`absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full blur-[100px] animate-pulse-slow animation-delay-2000 ${isDark ? 'bg-kreato-orange/10' : 'bg-kreato-orange/8'}`} />
+        <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full blur-[120px] animate-pulse-slow animation-delay-4000 ${isDark ? 'bg-primary/5' : 'bg-primary/5'}`} />
       </div>
 
       {/* Animated Particles */}
@@ -108,7 +109,7 @@ const Login = () => {
         {[...Array(20)].map((_, i) => (
           <div
             key={i}
-            className="absolute w-1 h-1 bg-kreato-cyan/60 rounded-full animate-float-particle"
+            className={`absolute w-1 h-1 rounded-full animate-float-particle ${isDark ? 'bg-kreato-cyan/60' : 'bg-kreato-cyan/40'}`}
             style={{
               left: `${Math.random() * 100}%`,
               top: `${Math.random() * 100}%`,
@@ -121,15 +122,15 @@ const Login = () => {
 
       {/* Scanning Line Effect */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute w-full h-[2px] bg-gradient-to-r from-transparent via-kreato-cyan/50 to-transparent animate-scan-line" />
+        <div className={`absolute w-full h-[2px] bg-gradient-to-r from-transparent to-transparent animate-scan-line ${isDark ? 'via-kreato-cyan/50' : 'via-kreato-cyan/30'}`} />
       </div>
       
       {/* Main Card */}
       <div className={`relative z-10 transition-all duration-1000 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
         {/* Glowing Border Effect */}
-        <div className="absolute -inset-[1px] bg-gradient-to-r from-kreato-cyan/50 via-primary/50 to-kreato-orange/50 rounded-xl blur-sm opacity-75 animate-border-glow" />
+        <div className={`absolute -inset-[1px] bg-gradient-to-r from-kreato-cyan/50 via-primary/50 to-kreato-orange/50 rounded-xl blur-sm animate-border-glow ${isDark ? 'opacity-75' : 'opacity-40'}`} />
         
-        <Card className="w-full max-w-md relative bg-slate-900/90 backdrop-blur-xl border border-slate-700/50 shadow-2xl shadow-kreato-cyan/10">
+        <Card className={`w-full max-w-md relative backdrop-blur-xl shadow-2xl ${isDark ? 'bg-slate-900/90 border-slate-700/50 shadow-kreato-cyan/10' : 'bg-white/90 border-slate-200/80 shadow-kreato-cyan/5'}`}>
           {/* Corner Accents */}
           <div className="absolute top-0 left-0 w-8 h-8 border-t-2 border-l-2 border-kreato-cyan/70 rounded-tl-xl" />
           <div className="absolute top-0 right-0 w-8 h-8 border-t-2 border-r-2 border-kreato-cyan/70 rounded-tr-xl" />
@@ -140,20 +141,20 @@ const Login = () => {
             {/* Logo with Glow */}
             <div className={`flex justify-center transition-all duration-700 delay-300 ${mounted ? 'opacity-100 scale-100' : 'opacity-0 scale-75'}`}>
               <div className="relative group">
-                <div className="absolute inset-0 bg-kreato-cyan/30 rounded-full blur-xl group-hover:bg-kreato-cyan/50 transition-all duration-500" />
+                <div className={`absolute inset-0 rounded-full blur-xl transition-all duration-500 ${isDark ? 'bg-kreato-cyan/30 group-hover:bg-kreato-cyan/50' : 'bg-kreato-cyan/20 group-hover:bg-kreato-cyan/35'}`} />
                 <img 
                   src={kreatoLogo} 
                   alt="Kreato" 
-                  className="h-20 object-contain relative z-10 drop-shadow-[0_0_15px_rgba(6,182,212,0.5)] hover:drop-shadow-[0_0_25px_rgba(6,182,212,0.8)] transition-all duration-500" 
+                  className={`h-20 object-contain relative z-10 transition-all duration-500 ${isDark ? 'drop-shadow-[0_0_15px_rgba(6,182,212,0.5)] hover:drop-shadow-[0_0_25px_rgba(6,182,212,0.8)]' : 'drop-shadow-[0_0_10px_rgba(6,182,212,0.3)] hover:drop-shadow-[0_0_20px_rgba(6,182,212,0.5)]'}`} 
                 />
               </div>
             </div>
             
             <div className={`space-y-2 transition-all duration-700 delay-500 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-              <CardTitle className="text-2xl font-bold bg-gradient-to-r from-white via-kreato-cyan to-white bg-clip-text text-transparent">
+              <CardTitle className={`text-2xl font-bold bg-clip-text text-transparent ${isDark ? 'bg-gradient-to-r from-white via-kreato-cyan to-white' : 'bg-gradient-to-r from-slate-800 via-kreato-cyan to-slate-800'}`}>
                 {t('login.welcome')}
               </CardTitle>
-              <CardDescription className="text-slate-400 flex items-center justify-center gap-2">
+              <CardDescription className={`flex items-center justify-center gap-2 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                 <Zap size={14} className="text-kreato-cyan animate-pulse" />
                 {t('login.subtitle')}
                 <Zap size={14} className="text-kreato-orange animate-pulse" />
@@ -164,7 +165,7 @@ const Login = () => {
           <CardContent className={`transition-all duration-700 delay-700 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
             <form onSubmit={handleSubmit} className="space-y-5">
               <div className="space-y-2">
-                <Label htmlFor="usuario" className="text-slate-300 text-sm font-medium">
+                <Label htmlFor="usuario" className={`text-sm font-medium ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
                   Usuário
                 </Label>
                 <div className="relative group">
@@ -177,13 +178,13 @@ const Login = () => {
                     onChange={(e) => setUsuario(e.target.value)}
                     required
                     autoComplete="username"
-                    className="h-12 bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-500 focus:border-kreato-cyan/50 focus:ring-kreato-cyan/20 transition-all duration-300 relative"
+                    className={`h-12 transition-all duration-300 relative ${isDark ? 'bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-500 focus:border-kreato-cyan/50 focus:ring-kreato-cyan/20' : 'bg-slate-50/80 border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-kreato-cyan/50 focus:ring-kreato-cyan/20'}`}
                   />
                 </div>
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="senha" className="text-slate-300 text-sm font-medium">
+                <Label htmlFor="senha" className={`text-sm font-medium ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
                   {t('login.password')}
                 </Label>
                 <div className="relative group">
@@ -196,12 +197,12 @@ const Login = () => {
                     onChange={(e) => setSenha(e.target.value)}
                     required
                     autoComplete="current-password"
-                    className="h-12 bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-500 focus:border-kreato-cyan/50 focus:ring-kreato-cyan/20 pr-12 transition-all duration-300 relative"
+                    className={`h-12 pr-12 transition-all duration-300 relative ${isDark ? 'bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-500 focus:border-kreato-cyan/50 focus:ring-kreato-cyan/20' : 'bg-slate-50/80 border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-kreato-cyan/50 focus:ring-kreato-cyan/20'}`}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-kreato-cyan transition-colors duration-300"
+                    className={`absolute right-3 top-1/2 -translate-y-1/2 transition-colors duration-300 ${isDark ? 'text-slate-500 hover:text-kreato-cyan' : 'text-slate-400 hover:text-kreato-cyan'}`}
                   >
                     {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
@@ -241,35 +242,6 @@ const Login = () => {
           </CardContent>
         </Card>
       </div>
-
-      <style>{`
-        @keyframes pulse-slow {
-          0%, 100% { opacity: 0.3; transform: scale(1); }
-          50% { opacity: 0.6; transform: scale(1.1); }
-        }
-        @keyframes float-particle {
-          0%, 100% { transform: translateY(0) translateX(0); opacity: 0; }
-          10% { opacity: 1; }
-          90% { opacity: 1; }
-          100% { transform: translateY(-100px) translateX(20px); opacity: 0; }
-        }
-        @keyframes scan-line {
-          0% { top: 0; opacity: 0; }
-          10% { opacity: 1; }
-          90% { opacity: 1; }
-          100% { top: 100%; opacity: 0; }
-        }
-        @keyframes border-glow {
-          0%, 100% { opacity: 0.5; }
-          50% { opacity: 1; }
-        }
-        .animate-pulse-slow { animation: pulse-slow 4s ease-in-out infinite; }
-        .animate-float-particle { animation: float-particle 8s ease-in-out infinite; }
-        .animate-scan-line { animation: scan-line 3s ease-in-out infinite; }
-        .animate-border-glow { animation: border-glow 2s ease-in-out infinite; }
-        .animation-delay-2000 { animation-delay: 2s; }
-        .animation-delay-4000 { animation-delay: 4s; }
-      `}</style>
     </div>
   );
 };
