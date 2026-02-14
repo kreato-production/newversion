@@ -53,6 +53,7 @@ const emptyFormData: Omit<Pessoa, 'id' | 'dataCadastro' | 'usuarioCadastro'> = {
   telefone: '',
   email: '',
   classificacao: '',
+  classificacaoId: '',
   documento: '',
   endereco: '',
   cidade: '',
@@ -86,6 +87,7 @@ export const PessoaFormModal = ({
           telefone: data.telefone,
           email: data.email,
           classificacao: data.classificacao,
+          classificacaoId: data.classificacaoId || '',
           documento: data.documento,
           endereco: data.endereco,
           cidade: data.cidade,
@@ -184,15 +186,18 @@ export const PessoaFormModal = ({
                 <div className="space-y-2">
                   <Label htmlFor="classificacao">Classificação <span className="text-destructive">*</span></Label>
                   <Select
-                    value={formData.classificacao}
-                    onValueChange={(value) => setFormData({ ...formData, classificacao: value })}
+                    value={formData.classificacaoId || ''}
+                    onValueChange={(value) => {
+                      const selected = classificacoes.find(c => c.id === value);
+                      setFormData({ ...formData, classificacaoId: value, classificacao: selected?.nome || '' });
+                    }}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione a classificação" />
                     </SelectTrigger>
                     <SelectContent>
                       {classificacoes.map((c) => (
-                        <SelectItem key={c.id} value={c.nome}>
+                        <SelectItem key={c.id} value={c.id}>
                           {c.nome}
                         </SelectItem>
                       ))}
