@@ -1821,7 +1821,7 @@ const Mapas = () => {
       </div>
 
       {/* Barra de Botões entre título e tabuladores */}
-      <div className="flex items-center justify-end gap-2 py-3 px-4 mb-4 border-b border-border/50 bg-muted/30 rounded-lg">
+      <div className="flex items-center justify-start gap-2 py-3 px-4 mb-4 border-b border-border/50 bg-muted/30 rounded-lg">
         {renderNavigator()}
         <Button
           variant="outline"
