@@ -208,7 +208,7 @@ const PermissoesTab = ({ perfilId, perfilNome }: PermissoesTabProps) => {
   };
 
   const renderPermissionControls = (permission: PermissionItem) => {
-    const isModulo = permission.tipo === 'modulo';
+    const isSubmodulo = permission.tipo === 'submodulo1' || permission.tipo === 'submodulo2';
     const isCampo = permission.tipo === 'campo';
 
     return (
@@ -244,8 +244,8 @@ const PermissoesTab = ({ perfilId, perfilNome }: PermissoesTabProps) => {
           </button>
         </div>
 
-        {/* Incluir / Alterar / Excluir - apenas para módulos */}
-        {isModulo && (
+        {/* Incluir / Alterar / Excluir - apenas para sub-módulos */}
+        {isSubmodulo && (
           <div className="flex items-center gap-4 text-xs">
             <div className="flex items-center gap-1.5">
               <Switch
