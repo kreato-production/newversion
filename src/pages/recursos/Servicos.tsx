@@ -6,6 +6,7 @@ const Servicos = () => (
     description="Gerencie os serviços oferecidos"
     entityName="Serviço"
     storageKey="kreato_servicos"
+    permissionPath={['Recursos', 'Parametrizações', 'Serviços']}
   />
 );
 

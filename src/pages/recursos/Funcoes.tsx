@@ -6,6 +6,7 @@ const Funcoes = () => (
     description="Gerencie as funções disponíveis"
     entityName="Função"
     storageKey="kreato_funcoes"
+    permissionPath={['Recursos', 'Parametrizações', 'Funções']}
   />
 );
 

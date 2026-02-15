@@ -66,6 +66,7 @@ const mapDbToPessoa = (db: PessoaDB & { classificacoes_pessoa?: { nome: string }
 const Pessoas = () => {
   const { toast } = useToast();
   const { t } = useLanguage();
+  const { canAlterar } = usePermissions();
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Pessoa | null>(null);

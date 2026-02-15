@@ -9,6 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePermissions } from '@/hooks/usePermissions';
 
 interface Parametro {
   id: string;
@@ -52,12 +53,15 @@ interface ParametroListPageProps {
   description: string;
   entityName: string;
   storageKey: string;
+  /** Permission path: [modulo, subModulo1, subModulo2?] */
+  permissionPath?: [string, string, string?];
 }
 
-const ParametroListPage = ({ title, description, entityName, storageKey }: ParametroListPageProps) => {
+const ParametroListPage = ({ title, description, entityName, storageKey, permissionPath }: ParametroListPageProps) => {
   const { toast } = useToast();
   const { t } = useLanguage();
   const { user, session } = useAuth();
+  const { canAlterar } = usePermissions();
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<ParametroLegacy | null>(null);
@@ -298,6 +302,7 @@ const ParametroListPage = ({ title, description, entityName, storageKey }: Param
         onSave={handleSave}
         title={entityName}
         data={editingItem}
+        readOnly={!!editingItem && permissionPath ? !canAlterar(permissionPath[0], permissionPath[1], permissionPath[2] || '-') : false}
       />
     </div>
   );

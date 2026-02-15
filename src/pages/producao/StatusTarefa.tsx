@@ -37,6 +37,7 @@ import { toast } from 'sonner';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePermissions } from '@/hooks/usePermissions';
 
 interface StatusTarefaItem {
   id: string;
@@ -51,6 +52,7 @@ interface StatusTarefaItem {
 const StatusTarefa = () => {
   const { t } = useLanguage();
   const { user } = useAuth();
+  const { canAlterar } = usePermissions();
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [items, setItems] = useState<StatusTarefaItem[]>([]);
@@ -297,6 +299,7 @@ const StatusTarefa = () => {
                 value={formData.codigo || ''}
                 onChange={(e) => setFormData({ ...formData, codigo: e.target.value })}
                 required
+                disabled={!!editingItem && !canAlterar('Produção', 'Parametrizações', 'Status Tarefa')}
               />
             </div>
 
@@ -307,6 +310,7 @@ const StatusTarefa = () => {
                 value={formData.nome || ''}
                 onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
                 required
+                disabled={!!editingItem && !canAlterar('Produção', 'Parametrizações', 'Status Tarefa')}
               />
             </div>
 
@@ -319,12 +323,14 @@ const StatusTarefa = () => {
                   value={formData.cor || '#888888'}
                   onChange={(e) => setFormData({ ...formData, cor: e.target.value })}
                   className="w-16 h-10 p-1"
+                  disabled={!!editingItem && !canAlterar('Produção', 'Parametrizações', 'Status Tarefa')}
                 />
                 <Input
                   value={formData.cor || ''}
                   onChange={(e) => setFormData({ ...formData, cor: e.target.value })}
                   placeholder="#000000"
                   className="flex-1"
+                  disabled={!!editingItem && !canAlterar('Produção', 'Parametrizações', 'Status Tarefa')}
                 />
               </div>
             </div>
@@ -336,17 +342,20 @@ const StatusTarefa = () => {
                 value={formData.descricao || ''}
                 onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
                 rows={3}
+                disabled={!!editingItem && !canAlterar('Produção', 'Parametrizações', 'Status Tarefa')}
               />
             </div>
           </div>
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsModalOpen(false)}>
-              {t('common.cancel')}
+              {editingItem && !canAlterar('Produção', 'Parametrizações', 'Status Tarefa') ? t('common.close') : t('common.cancel')}
             </Button>
-            <Button onClick={handleSave} className="gradient-primary">
-              {t('common.save')}
-            </Button>
+            {!(editingItem && !canAlterar('Produção', 'Parametrizações', 'Status Tarefa')) && (
+              <Button onClick={handleSave} className="gradient-primary">
+                {t('common.save')}
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

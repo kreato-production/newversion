@@ -58,6 +58,7 @@ const mapDbToRecursoFisico = (
 const RecursosFisicos = () => {
   const { toast } = useToast();
   const { t } = useLanguage();
+  const { canAlterar } = usePermissions();
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isMapaOpen, setIsMapaOpen] = useState(false);
