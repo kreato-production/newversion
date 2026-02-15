@@ -6,6 +6,7 @@ const ClassificacaoPessoas = () => (
     description="Gerencie as classificações de pessoas (Jogador de Futebol, Atriz, Ator, etc.)"
     entityName="Classificação"
     storageKey="kreato_classificacao_pessoas"
+    permissionPath={['Recursos', 'Parametrizações', 'Classificação Pessoas']}
   />
 );
 

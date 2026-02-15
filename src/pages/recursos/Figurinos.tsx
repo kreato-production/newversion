@@ -10,6 +10,7 @@ import FigurinoFormModal from '@/components/recursos/FigurinoFormModal';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import type { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
+import { usePermissions } from '@/hooks/usePermissions';
 
 type FigurinoDB = Tables<'figurinos'>;
 
@@ -66,6 +67,7 @@ const Figurinos = () => {
   const [items, setItems] = useState<Figurino[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
+  const { canAlterar } = usePermissions();
 
   const fetchFigurinos = async () => {
     setIsLoading(true);
@@ -311,6 +313,7 @@ const Figurinos = () => {
         onClose={handleCloseModal}
         onSave={handleSave}
         data={editingData}
+        readOnly={!!editingData && !canAlterar('Recursos', 'Figurinos')}
       />
     </div>
   );

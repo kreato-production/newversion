@@ -9,6 +9,7 @@ import { StatusGravacaoFormModal } from '@/components/producao/StatusGravacaoFor
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import type { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
+import { usePermissions } from '@/hooks/usePermissions';
 
 type StatusGravacaoDB = Tables<'status_gravacao'>;
 
@@ -34,6 +35,7 @@ const mapDbToStatusGravacao = (db: StatusGravacaoDB): StatusGravacaoItem => ({
 
 const StatusGravacao = () => {
   const { toast } = useToast();
+  const { canAlterar } = usePermissions();
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<StatusGravacaoItem | null>(null);
@@ -233,6 +235,7 @@ const StatusGravacao = () => {
         }}
         onSave={handleSave}
         data={editingItem}
+        readOnly={!!editingItem && !canAlterar('Produção', 'Parametrizações', 'Status Gravação')}
       />
     </div>
   );

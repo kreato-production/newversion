@@ -6,6 +6,7 @@ const Cargos = () => (
     description="Gerencie os cargos dos recursos humanos"
     entityName="Cargo"
     storageKey="kreato_cargos"
+    permissionPath={['Recursos', 'Parametrizações', 'Cargos']}
   />
 );
 

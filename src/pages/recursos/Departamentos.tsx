@@ -9,6 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { supabase } from '@/integrations/supabase/client';
 import type { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
+import { usePermissions } from '@/hooks/usePermissions';
 
 type DepartamentoDB = Tables<'departamentos'>;
 
@@ -33,6 +34,7 @@ const mapDbToDepartamento = (db: DepartamentoDB): Departamento => ({
 const Departamentos = () => {
   const { toast } = useToast();
   const { t } = useLanguage();
+  const { canAlterar } = usePermissions();
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Departamento | null>(null);
@@ -223,6 +225,7 @@ const Departamentos = () => {
         }}
         onSave={(data) => handleSave(data as Departamento)}
         data={editingItem}
+        readOnly={!!editingItem && !canAlterar('Recursos', 'Departamentos')}
       />
     </div>
   );
