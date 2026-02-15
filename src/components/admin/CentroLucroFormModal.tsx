@@ -42,6 +42,7 @@ interface CentroLucroFormModalProps {
   onSave: (data: CentroLucro) => void;
   data?: CentroLucro | null;
   centrosLucro: CentroLucro[];
+  readOnly?: boolean;
 }
 
 interface UnidadeNegocio {

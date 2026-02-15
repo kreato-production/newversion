@@ -31,6 +31,7 @@ interface RecursoTecnicoFormModalProps {
   onClose: () => void;
   onSave: (data: RecursoTecnico) => void;
   data?: RecursoTecnico | null;
+  readOnly?: boolean;
 }
 
 export const RecursoTecnicoFormModal = ({
@@ -38,6 +39,7 @@ export const RecursoTecnicoFormModal = ({
   onClose,
   onSave,
   data,
+  readOnly = false,
 }: RecursoTecnicoFormModalProps) => {
   const { user, session } = useAuth();
   const [funcoes, setFuncoes] = useState<Funcao[]>([]);
@@ -151,11 +153,13 @@ export const RecursoTecnicoFormModal = ({
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>
-              Cancelar
+              {readOnly ? 'Fechar' : 'Cancelar'}
             </Button>
-            <Button type="submit" className="gradient-primary hover:opacity-90">
-              Salvar
-            </Button>
+            {!readOnly && (
+              <Button type="submit" className="gradient-primary hover:opacity-90">
+                Salvar
+              </Button>
+            )}
           </DialogFooter>
         </form>
       </DialogContent>

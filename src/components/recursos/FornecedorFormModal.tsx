@@ -37,6 +37,7 @@ interface FornecedorFormModalProps {
   onClose: () => void;
   onSave: (data: Fornecedor) => void;
   data?: Fornecedor | null;
+  readOnly?: boolean;
 }
 
 export const FornecedorFormModal = ({
@@ -44,6 +45,7 @@ export const FornecedorFormModal = ({
   onClose,
   onSave,
   data,
+  readOnly = false,
 }: FornecedorFormModalProps) => {
   const { user } = useAuth();
   const { t } = useLanguage();
@@ -223,11 +225,13 @@ export const FornecedorFormModal = ({
 
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={onClose}>
-                  {t('common.cancel')}
+                  {readOnly ? 'Fechar' : t('common.cancel')}
                 </Button>
-                <Button type="submit" className="gradient-primary hover:opacity-90">
-                  {t('common.save')}
-                </Button>
+                {!readOnly && (
+                  <Button type="submit" className="gradient-primary hover:opacity-90">
+                    {t('common.save')}
+                  </Button>
+                )}
               </DialogFooter>
             </form>
           </TabsContent>

@@ -31,6 +31,7 @@ interface PerfilFormModalProps {
   onClose: () => void;
   onSave: (data: PerfilFormData) => void;
   data?: PerfilFormData | null;
+  readOnly?: boolean;
 }
 
 const emptyFormData: PerfilFormData = {
@@ -44,6 +45,7 @@ const PerfilFormModal = ({
   onClose,
   onSave,
   data,
+  readOnly = false,
 }: PerfilFormModalProps) => {
   const { user } = useAuth();
   const { t } = useLanguage();
@@ -138,11 +140,13 @@ const PerfilFormModal = ({
               </div>
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={onClose}>
-                  {t('common.cancel')}
+                  {readOnly ? 'Fechar' : t('common.cancel')}
                 </Button>
-                <Button type="submit" className="gradient-primary hover:opacity-90">
-                  {t('common.save')}
-                </Button>
+                {!readOnly && (
+                  <Button type="submit" className="gradient-primary hover:opacity-90">
+                    {t('common.save')}
+                  </Button>
+                )}
               </DialogFooter>
             </form>
           </TabsContent>

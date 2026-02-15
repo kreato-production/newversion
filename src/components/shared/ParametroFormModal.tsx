@@ -29,6 +29,7 @@ interface ParametroFormModalProps {
   onSave: (data: ParametroFormData) => void;
   title: string;
   data?: ParametroFormData | null;
+  readOnly?: boolean;
 }
 
 const emptyFormData: ParametroFormData = {
@@ -43,6 +44,7 @@ export const ParametroFormModal = ({
   onSave,
   title,
   data,
+  readOnly = false,
 }: ParametroFormModalProps) => {
   const { user } = useAuth();
   const { t } = useLanguage();
@@ -109,11 +111,13 @@ export const ParametroFormModal = ({
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>
-              {t('common.cancel')}
+              {readOnly ? 'Fechar' : t('common.cancel')}
             </Button>
-            <Button type="submit" className="gradient-primary hover:opacity-90">
-              {t('common.save')}
-            </Button>
+            {!readOnly && (
+              <Button type="submit" className="gradient-primary hover:opacity-90">
+                {t('common.save')}
+              </Button>
+            )}
           </DialogFooter>
         </form>
       </DialogContent>

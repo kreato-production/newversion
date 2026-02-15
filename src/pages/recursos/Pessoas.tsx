@@ -11,6 +11,7 @@ import { SortableTable, Column } from '@/components/shared/SortableTable';
 import { supabase } from '@/integrations/supabase/client';
 import type { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { usePermissions } from '@/hooks/usePermissions';
 
 type PessoaDB = Tables<'pessoas'>;
 
@@ -290,6 +291,7 @@ const Pessoas = () => {
         }}
         onSave={handleSave}
         data={editingItem}
+        readOnly={!!editingItem && !canAlterar('Recursos', 'Pessoas')}
       />
     </div>
   );

@@ -24,9 +24,10 @@ interface FigurinoFormModalProps {
   onClose: () => void;
   onSave: (figurino: Figurino) => void;
   data?: Figurino | null;
+  readOnly?: boolean;
 }
 
-const FigurinoFormModal = ({ isOpen, onClose, onSave, data }: FigurinoFormModalProps) => {
+const FigurinoFormModal = ({ isOpen, onClose, onSave, data, readOnly = false }: FigurinoFormModalProps) => {
   const { user, session } = useAuth();
   const [tiposFigurino, setTiposFigurino] = useState<TipoFigurino[]>([]);
   const [materiais, setMateriais] = useState<MaterialItem[]>([]);
@@ -376,11 +377,13 @@ const FigurinoFormModal = ({ isOpen, onClose, onSave, data }: FigurinoFormModalP
 
           <div className="flex justify-end gap-2 pt-4">
             <Button type="button" variant="outline" onClick={onClose}>
-              Cancelar
+              {readOnly ? 'Fechar' : 'Cancelar'}
             </Button>
-            <Button type="submit">
-              {data ? 'Salvar' : 'Criar'}
-            </Button>
+            {!readOnly && (
+              <Button type="submit">
+                {data ? 'Salvar' : 'Criar'}
+              </Button>
+            )}
           </div>
         </form>
       </DialogContent>

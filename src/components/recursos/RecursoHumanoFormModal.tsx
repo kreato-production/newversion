@@ -59,6 +59,7 @@ interface RecursoHumanoFormModalProps {
   onClose: () => void;
   onSave: (data: RecursoHumano) => void;
   data?: RecursoHumano | null;
+  readOnly?: boolean;
 }
 
 export const RecursoHumanoFormModal = ({
@@ -66,6 +67,7 @@ export const RecursoHumanoFormModal = ({
   onClose,
   onSave,
   data,
+  readOnly = false,
 }: RecursoHumanoFormModalProps) => {
   const { user } = useAuth();
   const [departamentos, setDepartamentos] = useState<{ id: string; nome: string }[]>([]);
@@ -767,11 +769,13 @@ export const RecursoHumanoFormModal = ({
 
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={onClose}>
-                  Cancelar
+                  {readOnly ? 'Fechar' : 'Cancelar'}
                 </Button>
-                <Button type="submit" className="gradient-primary hover:opacity-90">
-                  Salvar
-                </Button>
+                {!readOnly && (
+                  <Button type="submit" className="gradient-primary hover:opacity-90">
+                    Salvar
+                  </Button>
+                )}
               </DialogFooter>
             </form>
           </TabsContent>

@@ -49,6 +49,7 @@ interface EquipeFormModalProps {
   onSave: (data: EquipeData) => void;
   data?: { id: string; codigo: string; descricao: string } | null;
   onRefresh?: () => void;
+  readOnly?: boolean;
 }
 
 const emptyFormData: EquipeData = {
@@ -62,6 +63,7 @@ export const EquipeFormModal = ({
   onSave,
   data,
   onRefresh,
+  readOnly = false,
 }: EquipeFormModalProps) => {
   const { t } = useLanguage();
   const { toast } = useToast();
@@ -359,11 +361,13 @@ export const EquipeFormModal = ({
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>
-              {t('common.cancel')}
+              {readOnly ? 'Fechar' : t('common.cancel')}
             </Button>
-            <Button type="submit" className="gradient-primary hover:opacity-90">
-              {t('common.save')}
-            </Button>
+            {!readOnly && (
+              <Button type="submit" className="gradient-primary hover:opacity-90">
+                {t('common.save')}
+              </Button>
+            )}
           </DialogFooter>
         </form>
       </DialogContent>

@@ -33,6 +33,7 @@ interface UsuarioFormModalProps {
   onClose: () => void;
   onSave: (data: Usuario) => void;
   data?: Usuario | null;
+  readOnly?: boolean;
 }
 
 export const UsuarioFormModal = ({
@@ -40,6 +41,7 @@ export const UsuarioFormModal = ({
   onClose,
   onSave,
   data,
+  readOnly = false,
 }: UsuarioFormModalProps) => {
   const { user, session } = useAuth();
   const [perfis, setPerfis] = useState<{ id: string; nome: string }[]>([]);
@@ -499,11 +501,13 @@ export const UsuarioFormModal = ({
 
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={onClose}>
-                  Cancelar
+                  {readOnly ? 'Fechar' : 'Cancelar'}
                 </Button>
-                <Button type="submit" className="gradient-primary hover:opacity-90">
-                  Salvar
-                </Button>
+                {!readOnly && (
+                  <Button type="submit" className="gradient-primary hover:opacity-90">
+                    Salvar
+                  </Button>
+                )}
               </DialogFooter>
             </form>
           </TabsContent>

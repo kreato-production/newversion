@@ -7,6 +7,7 @@ import { SortableTable, Column } from '@/components/shared/SortableTable';
 import { Edit, Trash2, UsersRound, Loader2, Plus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { usePermissions } from '@/hooks/usePermissions';
 import { supabase } from '@/integrations/supabase/client';
 
 interface Equipe {
@@ -20,6 +21,7 @@ interface Equipe {
 const Equipes = () => {
   const { toast } = useToast();
   const { t } = useLanguage();
+  const { canAlterar } = usePermissions();
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Equipe | null>(null);
@@ -205,6 +207,7 @@ const Equipes = () => {
         onSave={handleSave}
         data={editingItem}
         onRefresh={fetchEquipes}
+        readOnly={!!editingItem && !canAlterar('Recursos', 'Equipes')}
       />
     </div>
   );

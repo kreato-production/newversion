@@ -15,6 +15,7 @@ import { SortableTable, Column } from '@/components/shared/SortableTable';
 import { supabase } from '@/integrations/supabase/client';
 import type { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { usePermissions } from '@/hooks/usePermissions';
 
 type RecursoHumanoDB = Tables<'recursos_humanos'>;
 
@@ -102,6 +103,7 @@ const mapDbToRecursoHumano = (
 const RecursosHumanos = () => {
   const { toast } = useToast();
   const { t } = useLanguage();
+  const { canAlterar } = usePermissions();
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isMapaOpen, setIsMapaOpen] = useState(false);
@@ -467,6 +469,7 @@ const RecursosHumanos = () => {
         }}
         onSave={handleSave}
         data={editingItem}
+        readOnly={!!editingItem && !canAlterar('Recursos', 'Recursos Humanos')}
       />
 
       <MapaEscalasModal

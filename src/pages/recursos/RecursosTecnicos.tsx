@@ -9,6 +9,7 @@ import { SortableTable, Column } from '@/components/shared/SortableTable';
 import { supabase } from '@/integrations/supabase/client';
 import type { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { usePermissions } from '@/hooks/usePermissions';
 
 type RecursoTecnicoDB = Tables<'recursos_tecnicos'>;
 
@@ -37,6 +38,7 @@ const mapDbToRecursoTecnico = (
 const RecursosTecnicos = () => {
   const { toast } = useToast();
   const { t } = useLanguage();
+  const { canAlterar } = usePermissions();
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<RecursoTecnico | null>(null);
@@ -224,6 +226,7 @@ const RecursosTecnicos = () => {
         }}
         onSave={handleSave}
         data={editingItem}
+        readOnly={!!editingItem && !canAlterar('Recursos', 'Recursos Técnicos')}
       />
     </div>
   );

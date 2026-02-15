@@ -23,6 +23,7 @@ interface RecursoFisicoFormModalProps {
   onClose: () => void;
   onSave: (data: RecursoFisico) => void;
   data?: RecursoFisico | null;
+  readOnly?: boolean;
 }
 
 const DIAS_SEMANA = [
@@ -40,6 +41,7 @@ export const RecursoFisicoFormModal = ({
   onClose,
   onSave,
   data,
+  readOnly = false,
 }: RecursoFisicoFormModalProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -442,11 +444,13 @@ export const RecursoFisicoFormModal = ({
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>
-              Cancelar
+              {readOnly ? 'Fechar' : 'Cancelar'}
             </Button>
-            <Button type="submit" className="gradient-primary hover:opacity-90">
-              Salvar
-            </Button>
+            {!readOnly && (
+              <Button type="submit" className="gradient-primary hover:opacity-90">
+                Salvar
+              </Button>
+            )}
           </DialogFooter>
         </form>
       </DialogContent>
