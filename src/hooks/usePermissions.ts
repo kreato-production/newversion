@@ -125,9 +125,16 @@ export const usePermissions = (): UsePermissionsResult => {
   ): boolean => {
     if (!isVisible(modulo, subModulo1, subModulo2, campo)) return false;
     
-    // Sempre verifica no nível do módulo
-    const moduloPermission = findPermission(modulo, '-', '-', '-');
-    return moduloPermission?.incluir ?? true;
+    // Verifica no nível do sub-módulo mais específico disponível
+    if (subModulo2 !== '-') {
+      const perm = findPermission(modulo, subModulo1, subModulo2, '-');
+      if (perm) return perm.incluir ?? true;
+    }
+    if (subModulo1 !== '-') {
+      const perm = findPermission(modulo, subModulo1, '-', '-');
+      if (perm) return perm.incluir ?? true;
+    }
+    return true;
   }, [findPermission, isVisible]);
   
   const canAlterar = useCallback((
@@ -138,9 +145,15 @@ export const usePermissions = (): UsePermissionsResult => {
   ): boolean => {
     if (!isVisible(modulo, subModulo1, subModulo2, campo)) return false;
     
-    // Sempre verifica no nível do módulo
-    const moduloPermission = findPermission(modulo, '-', '-', '-');
-    return moduloPermission?.alterar ?? true;
+    if (subModulo2 !== '-') {
+      const perm = findPermission(modulo, subModulo1, subModulo2, '-');
+      if (perm) return perm.alterar ?? true;
+    }
+    if (subModulo1 !== '-') {
+      const perm = findPermission(modulo, subModulo1, '-', '-');
+      if (perm) return perm.alterar ?? true;
+    }
+    return true;
   }, [findPermission, isVisible]);
   
   const canExcluir = useCallback((
@@ -151,9 +164,15 @@ export const usePermissions = (): UsePermissionsResult => {
   ): boolean => {
     if (!isVisible(modulo, subModulo1, subModulo2, campo)) return false;
     
-    // Sempre verifica no nível do módulo
-    const moduloPermission = findPermission(modulo, '-', '-', '-');
-    return moduloPermission?.excluir ?? true;
+    if (subModulo2 !== '-') {
+      const perm = findPermission(modulo, subModulo1, subModulo2, '-');
+      if (perm) return perm.excluir ?? true;
+    }
+    if (subModulo1 !== '-') {
+      const perm = findPermission(modulo, subModulo1, '-', '-');
+      if (perm) return perm.excluir ?? true;
+    }
+    return true;
   }, [findPermission, isVisible]);
   
   const getFieldPermission = useCallback((
