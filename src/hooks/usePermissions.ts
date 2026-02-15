@@ -125,26 +125,9 @@ export const usePermissions = (): UsePermissionsResult => {
   ): boolean => {
     if (!isVisible(modulo, subModulo1, subModulo2, campo)) return false;
     
-    // Busca permissão do nível mais específico disponível
-    let permission: PermissionItem | null = null;
-    
-    if (campo !== '-') {
-      permission = findPermission(modulo, subModulo1, subModulo2, campo);
-    }
-    
-    if (!permission && subModulo2 !== '-') {
-      permission = findPermission(modulo, subModulo1, subModulo2, '-');
-    }
-    
-    if (!permission && subModulo1 !== '-') {
-      permission = findPermission(modulo, subModulo1, '-', '-');
-    }
-    
-    if (!permission) {
-      permission = findPermission(modulo, '-', '-', '-');
-    }
-    
-    return permission?.incluir ?? true;
+    // Sempre verifica no nível do módulo
+    const moduloPermission = findPermission(modulo, '-', '-', '-');
+    return moduloPermission?.incluir ?? true;
   }, [findPermission, isVisible]);
   
   const canAlterar = useCallback((
@@ -155,26 +138,9 @@ export const usePermissions = (): UsePermissionsResult => {
   ): boolean => {
     if (!isVisible(modulo, subModulo1, subModulo2, campo)) return false;
     
-    // Busca permissão do nível mais específico disponível
-    let permission: PermissionItem | null = null;
-    
-    if (campo !== '-') {
-      permission = findPermission(modulo, subModulo1, subModulo2, campo);
-    }
-    
-    if (!permission && subModulo2 !== '-') {
-      permission = findPermission(modulo, subModulo1, subModulo2, '-');
-    }
-    
-    if (!permission && subModulo1 !== '-') {
-      permission = findPermission(modulo, subModulo1, '-', '-');
-    }
-    
-    if (!permission) {
-      permission = findPermission(modulo, '-', '-', '-');
-    }
-    
-    return permission?.alterar ?? true;
+    // Sempre verifica no nível do módulo
+    const moduloPermission = findPermission(modulo, '-', '-', '-');
+    return moduloPermission?.alterar ?? true;
   }, [findPermission, isVisible]);
   
   const canExcluir = useCallback((
@@ -185,26 +151,9 @@ export const usePermissions = (): UsePermissionsResult => {
   ): boolean => {
     if (!isVisible(modulo, subModulo1, subModulo2, campo)) return false;
     
-    // Busca permissão do nível mais específico disponível
-    let permission: PermissionItem | null = null;
-    
-    if (campo !== '-') {
-      permission = findPermission(modulo, subModulo1, subModulo2, campo);
-    }
-    
-    if (!permission && subModulo2 !== '-') {
-      permission = findPermission(modulo, subModulo1, subModulo2, '-');
-    }
-    
-    if (!permission && subModulo1 !== '-') {
-      permission = findPermission(modulo, subModulo1, '-', '-');
-    }
-    
-    if (!permission) {
-      permission = findPermission(modulo, '-', '-', '-');
-    }
-    
-    return permission?.excluir ?? true;
+    // Sempre verifica no nível do módulo
+    const moduloPermission = findPermission(modulo, '-', '-', '-');
+    return moduloPermission?.excluir ?? true;
   }, [findPermission, isVisible]);
   
   const getFieldPermission = useCallback((

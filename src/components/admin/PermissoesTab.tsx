@@ -208,11 +208,12 @@ const PermissoesTab = ({ perfilId, perfilNome }: PermissoesTabProps) => {
   };
 
   const renderPermissionControls = (permission: PermissionItem) => {
-    const isModuloOrSubmodulo = permission.tipo !== 'campo';
+    const isModulo = permission.tipo === 'modulo';
+    const isCampo = permission.tipo === 'campo';
 
     return (
       <div className="flex items-center gap-4 ml-auto">
-        {/* Ação (Visible/Invisible) */}
+        {/* Ação (Visible/Invisible) - todos os níveis */}
         <div className="flex items-center gap-2">
           <button
             onClick={() =>
@@ -243,23 +244,9 @@ const PermissoesTab = ({ perfilId, perfilNome }: PermissoesTabProps) => {
           </button>
         </div>
 
-        {/* Controles de campo (apenas para campos) */}
-        {!isModuloOrSubmodulo && (
+        {/* Incluir / Alterar / Excluir - apenas para módulos */}
+        {isModulo && (
           <div className="flex items-center gap-4 text-xs">
-            <div className="flex items-center gap-1.5">
-              <Switch
-                id={`readonly_${permission.id}`}
-                checked={permission.somenteLeitura}
-                onCheckedChange={(checked) =>
-                  updatePermission(permission.id, 'somenteLeitura', checked)
-                }
-                className="h-4 w-7"
-              />
-              <Label htmlFor={`readonly_${permission.id}`} className="text-xs text-muted-foreground">
-                Só Leitura
-              </Label>
-            </div>
-
             <div className="flex items-center gap-1.5">
               <Switch
                 id={`incluir_${permission.id}`}
@@ -299,6 +286,25 @@ const PermissoesTab = ({ perfilId, perfilNome }: PermissoesTabProps) => {
               />
               <Label htmlFor={`excluir_${permission.id}`} className="text-xs text-muted-foreground">
                 Excluir
+              </Label>
+            </div>
+          </div>
+        )}
+
+        {/* Só Leitura - apenas para campos */}
+        {isCampo && (
+          <div className="flex items-center gap-4 text-xs">
+            <div className="flex items-center gap-1.5">
+              <Switch
+                id={`readonly_${permission.id}`}
+                checked={permission.somenteLeitura}
+                onCheckedChange={(checked) =>
+                  updatePermission(permission.id, 'somenteLeitura', checked)
+                }
+                className="h-4 w-7"
+              />
+              <Label htmlFor={`readonly_${permission.id}`} className="text-xs text-muted-foreground">
+                Só Leitura
               </Label>
             </div>
           </div>
@@ -404,10 +410,7 @@ const PermissoesTab = ({ perfilId, perfilNome }: PermissoesTabProps) => {
             <div className="flex-1">Módulo / Sub-módulo / Campo</div>
             <div className="flex items-center gap-4 ml-auto">
               <span className="w-20 text-center">Ação</span>
-              <span className="w-16 text-center">Só Leitura</span>
-              <span className="w-14 text-center">Incluir</span>
-              <span className="w-14 text-center">Alterar</span>
-              <span className="w-14 text-center">Excluir</span>
+              <span className="text-center">Incluir / Alterar / Excluir (Módulos) · Só Leitura (Campos)</span>
             </div>
           </div>
         </div>
