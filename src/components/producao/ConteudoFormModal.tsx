@@ -45,6 +45,7 @@ interface ConteudoFormModalProps {
   onClose: () => void;
   onSave: (data: Conteudo) => void;
   data?: Conteudo | null;
+  readOnly?: boolean;
 }
 
 export const ConteudoFormModal = ({
@@ -52,6 +53,7 @@ export const ConteudoFormModal = ({
   onClose,
   onSave,
   data,
+  readOnly = false,
 }: ConteudoFormModalProps) => {
   const { user } = useAuth();
   const { t } = useLanguage();
@@ -668,11 +670,13 @@ export const ConteudoFormModal = ({
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>
-              {t('common.cancel')}
+              {readOnly ? t('common.close') || 'Fechar' : t('common.cancel')}
             </Button>
-            <Button type="submit" className="gradient-primary hover:opacity-90">
-              {t('common.save')}
-            </Button>
+            {!readOnly && (
+              <Button type="submit" className="gradient-primary hover:opacity-90">
+                {t('common.save')}
+              </Button>
+            )}
           </DialogFooter>
         </form>
       </DialogContent>

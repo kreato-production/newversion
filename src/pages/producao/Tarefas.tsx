@@ -532,9 +532,9 @@ const Tarefas = () => {
                       key={tarefa.id} 
                       className={cn(
                         "hover:bg-muted/50",
-                        podeAlterar && "cursor-pointer"
+                        "cursor-pointer"
                       )}
-                      onClick={() => podeAlterar && handleEdit(tarefa)}
+                      onClick={() => handleEdit(tarefa)}
                     >
                     <TableCell className="font-medium">{tarefa.titulo}</TableCell>
                     <TableCell>{tarefa.gravacaoNome || '-'}</TableCell>
@@ -558,15 +558,13 @@ const Tarefas = () => {
                     <TableCell>{tarefa.dataFim ? formatDate(tarefa.dataFim) : '-'}</TableCell>
                     <TableCell>
                       <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                        {podeAlterar && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleEdit(tarefa)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                        )}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleEdit(tarefa)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>
