@@ -27,6 +27,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePermissions } from '@/hooks/usePermissions';
 import type { RecursoHumano, Anexo, Ausencia, Escala } from '@/pages/recursos/RecursosHumanos';
 import { Upload, X, User, FileText, Plus, Trash2, CalendarOff, AlertCircle, Clock } from 'lucide-react';
 import { toast } from 'sonner';
@@ -70,6 +71,7 @@ export const RecursoHumanoFormModal = ({
   readOnly = false,
 }: RecursoHumanoFormModalProps) => {
   const { user } = useAuth();
+  const { isVisible } = usePermissions();
   const [departamentos, setDepartamentos] = useState<{ id: string; nome: string }[]>([]);
   const [funcoes, setFuncoes] = useState<{ id: string; nome: string }[]>([]);
   const [funcoesDisponiveis, setFuncoesDisponiveis] = useState<{ id: string; nome: string }[]>([]);
@@ -469,15 +471,17 @@ export const RecursoHumanoFormModal = ({
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="dados">Dados Pessoais</TabsTrigger>
-            <TabsTrigger value="ausencias" className="flex items-center gap-2">
-              <CalendarOff className="w-4 h-4" />
-              Ausências
-              {ausencias.length > 0 && (
-                <span className="bg-primary text-primary-foreground text-xs px-1.5 py-0.5 rounded-full">
-                  {ausencias.length}
-                </span>
-              )}
-            </TabsTrigger>
+            {isVisible('Recursos', 'Recursos Humanos', '-', 'Tabulador "Ausências"') && (
+              <TabsTrigger value="ausencias" className="flex items-center gap-2">
+                <CalendarOff className="w-4 h-4" />
+                Ausências
+                {ausencias.length > 0 && (
+                  <span className="bg-primary text-primary-foreground text-xs px-1.5 py-0.5 rounded-full">
+                    {ausencias.length}
+                  </span>
+                )}
+              </TabsTrigger>
+            )}
             <TabsTrigger value="escalas" className="flex items-center gap-2">
               <Clock className="w-4 h-4" />
               Escalas
@@ -780,6 +784,7 @@ export const RecursoHumanoFormModal = ({
             </form>
           </TabsContent>
 
+          {isVisible('Recursos', 'Recursos Humanos', '-', 'Tabulador "Ausências"') && (
           <TabsContent value="ausencias" className="mt-4 space-y-4">
             {/* Formulário para adicionar ausência */}
             <div className="border rounded-lg p-4 bg-muted/20">
@@ -919,6 +924,7 @@ export const RecursoHumanoFormModal = ({
               </Button>
             </DialogFooter>
           </TabsContent>
+          )}
 
           <TabsContent value="escalas" className="mt-4 space-y-4">
             {/* Formulário para adicionar escala */}

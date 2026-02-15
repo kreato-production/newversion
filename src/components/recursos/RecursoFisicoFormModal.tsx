@@ -13,6 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePermissions } from '@/hooks/usePermissions';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Trash2, Calendar, Clock, AlertCircle, Package, Settings } from 'lucide-react';
 import { EstoqueTab, EstoqueItem } from './EstoqueTab';
@@ -44,6 +45,7 @@ export const RecursoFisicoFormModal = ({
   readOnly = false,
 }: RecursoFisicoFormModalProps) => {
   const { user } = useAuth();
+  const { isVisible } = usePermissions();
   const { toast } = useToast();
   const [formData, setFormData] = useState({
     codigoExterno: '',
@@ -250,10 +252,12 @@ export const RecursoFisicoFormModal = ({
                 <Settings className="w-4 h-4" />
                 Geral
               </TabsTrigger>
-              <TabsTrigger value="disponibilidade" className="flex items-center gap-2">
-                <Calendar className="w-4 h-4" />
-                Disponibilidade
-              </TabsTrigger>
+              {isVisible('Recursos', 'Recursos Físicos', '-', 'Tabulador "Disponibilidade"') && (
+                <TabsTrigger value="disponibilidade" className="flex items-center gap-2">
+                  <Calendar className="w-4 h-4" />
+                  Disponibilidade
+                </TabsTrigger>
+              )}
               <TabsTrigger value="estoque" className="flex items-center gap-2">
                 <Package className="w-4 h-4" />
                 Estoque
@@ -302,6 +306,7 @@ export const RecursoFisicoFormModal = ({
               </div>
             </TabsContent>
 
+            {isVisible('Recursos', 'Recursos Físicos', '-', 'Tabulador "Disponibilidade"') && (
             <TabsContent value="disponibilidade" className="space-y-4 mt-4">
               {/* Faixas de Disponibilidade */}
               <div className="space-y-4">
@@ -432,6 +437,7 @@ export const RecursoFisicoFormModal = ({
                 )}
               </div>
             </TabsContent>
+            )}
 
             <TabsContent value="estoque" className="mt-4">
               <EstoqueTab

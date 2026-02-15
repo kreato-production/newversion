@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { usePermissions } from '@/hooks/usePermissions';
 import {
   Select,
   SelectContent,
@@ -67,6 +68,7 @@ export const EquipeFormModal = ({
 }: EquipeFormModalProps) => {
   const { t } = useLanguage();
   const { toast } = useToast();
+  const { isVisible } = usePermissions();
   const [formData, setFormData] = useState<EquipeData>(emptyFormData);
   const [isAddingMembro, setIsAddingMembro] = useState(false);
   const [selectedRHId, setSelectedRHId] = useState('');
@@ -287,6 +289,8 @@ export const EquipeFormModal = ({
           {data && (
             <div className="pt-4 border-t">
               <Tabs defaultValue="membros" className="w-full">
+                {isVisible('Recursos', 'Equipes', '-', 'Tabulador "Membros"') && (
+                <>
                 <TabsList>
                   <TabsTrigger value="membros" className="gap-2">
                     <Users className="h-4 w-4" />
@@ -355,6 +359,8 @@ export const EquipeFormModal = ({
                     </div>
                   )}
                 </TabsContent>
+                </>
+                )}
               </Tabs>
             </div>
           )}
