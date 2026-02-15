@@ -11,6 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import type { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
 import type { EstoqueItem } from '@/components/recursos/EstoqueTab';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { usePermissions } from '@/hooks/usePermissions';
 
 type RecursoFisicoDB = Tables<'recursos_fisicos'>;
 
@@ -361,6 +362,7 @@ const RecursosFisicos = () => {
         }}
         onSave={handleSave}
         data={editingItem}
+        readOnly={!!editingItem && !canAlterar('Recursos', 'Recursos Físicos')}
       />
 
       <MapaRecursosFisicosModal

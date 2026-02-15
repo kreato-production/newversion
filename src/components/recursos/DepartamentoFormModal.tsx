@@ -53,6 +53,7 @@ interface DepartamentoFormModalProps {
   onClose: () => void;
   onSave: (data: Departamento) => void;
   data?: Departamento | null;
+  readOnly?: boolean;
 }
 
 const emptyFormData: Departamento = {
@@ -66,6 +67,7 @@ export const DepartamentoFormModal = ({
   onClose,
   onSave,
   data,
+  readOnly = false,
 }: DepartamentoFormModalProps) => {
   const { user } = useAuth();
   const { t } = useLanguage();
@@ -406,11 +408,13 @@ export const DepartamentoFormModal = ({
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>
-              {t('common.cancel')}
+              {readOnly ? 'Fechar' : t('common.cancel')}
             </Button>
-            <Button type="submit" className="gradient-primary hover:opacity-90">
-              {t('common.save')}
-            </Button>
+            {!readOnly && (
+              <Button type="submit" className="gradient-primary hover:opacity-90">
+                {t('common.save')}
+              </Button>
+            )}
           </DialogFooter>
         </form>
       </DialogContent>

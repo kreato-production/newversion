@@ -9,6 +9,7 @@ import { SortableTable, Column } from '@/components/shared/SortableTable';
 import { supabase } from '@/integrations/supabase/client';
 import type { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { usePermissions } from '@/hooks/usePermissions';
 
 type FornecedorDB = Tables<'fornecedores'>;
 
@@ -45,6 +46,7 @@ const mapDbToFornecedor = (
 const Fornecedores = () => {
   const { toast } = useToast();
   const { t } = useLanguage();
+  const { canAlterar } = usePermissions();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Fornecedor | null>(null);
   const [items, setItems] = useState<Fornecedor[]>([]);
@@ -235,6 +237,7 @@ const Fornecedores = () => {
         }}
         onSave={handleSave}
         data={editingItem}
+        readOnly={!!editingItem && !canAlterar('Recursos', 'Fornecedores')}
       />
     </div>
   );

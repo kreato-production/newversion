@@ -30,6 +30,7 @@ interface UnidadeNegocioFormModalProps {
   onClose: () => void;
   onSave: (data: UnidadeNegocio) => Promise<void>;
   data?: UnidadeNegocio | null;
+  readOnly?: boolean;
 }
 
 const emptyFormData = {
@@ -45,6 +46,7 @@ export const UnidadeNegocioFormModal = ({
   onClose,
   onSave,
   data,
+  readOnly = false,
 }: UnidadeNegocioFormModalProps) => {
   const { user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -271,18 +273,20 @@ export const UnidadeNegocioFormModal = ({
               </div>
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={onClose} disabled={isSaving}>
-                  Cancelar
+                  {readOnly ? 'Fechar' : 'Cancelar'}
                 </Button>
-                <Button type="submit" className="gradient-primary hover:opacity-90" disabled={isSaving}>
-                  {isSaving ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      {isUploading ? 'Enviando imagem...' : 'Salvando...'}
-                    </>
-                  ) : (
-                    'Salvar'
-                  )}
-                </Button>
+                {!readOnly && (
+                  <Button type="submit" className="gradient-primary hover:opacity-90" disabled={isSaving}>
+                    {isSaving ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        {isUploading ? 'Enviando imagem...' : 'Salvando...'}
+                      </>
+                    ) : (
+                      'Salvar'
+                    )}
+                  </Button>
+                )}
               </DialogFooter>
             </form>
           </TabsContent>

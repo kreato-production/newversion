@@ -20,6 +20,7 @@ interface StatusGravacaoFormModalProps {
   onClose: () => void;
   onSave: (data: StatusGravacaoItem) => void;
   data?: StatusGravacaoItem | null;
+  readOnly?: boolean;
 }
 
 const PRESET_COLORS = [
@@ -40,6 +41,7 @@ export const StatusGravacaoFormModal = ({
   onClose,
   onSave,
   data,
+  readOnly = false,
 }: StatusGravacaoFormModalProps) => {
   const { user } = useAuth();
   const [formData, setFormData] = useState({
@@ -168,11 +170,13 @@ export const StatusGravacaoFormModal = ({
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>
-              Cancelar
+              {readOnly ? 'Fechar' : 'Cancelar'}
             </Button>
-            <Button type="submit" className="gradient-primary hover:opacity-90">
-              Salvar
-            </Button>
+            {!readOnly && (
+              <Button type="submit" className="gradient-primary hover:opacity-90">
+                Salvar
+              </Button>
+            )}
           </DialogFooter>
         </form>
       </DialogContent>

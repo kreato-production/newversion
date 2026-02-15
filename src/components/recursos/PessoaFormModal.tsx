@@ -30,6 +30,7 @@ interface PessoaFormModalProps {
   onClose: () => void;
   onSave: (data: Pessoa) => void;
   data?: Pessoa | null;
+  readOnly?: boolean;
 }
 
 interface Classificacao {
@@ -69,6 +70,7 @@ export const PessoaFormModal = ({
   onClose,
   onSave,
   data,
+  readOnly = false,
 }: PessoaFormModalProps) => {
   const { user } = useAuth();
   const [formData, setFormData] = useState<Omit<Pessoa, 'id' | 'dataCadastro' | 'usuarioCadastro'>>(emptyFormData);
@@ -387,11 +389,13 @@ export const PessoaFormModal = ({
               {/* Actions */}
               <div className="flex justify-end gap-3">
                 <Button type="button" variant="outline" onClick={onClose}>
-                  Cancelar
+                  {readOnly ? 'Fechar' : 'Cancelar'}
                 </Button>
-                <Button type="submit">
-                  {data ? 'Salvar' : 'Cadastrar'}
-                </Button>
+                {!readOnly && (
+                  <Button type="submit">
+                    {data ? 'Salvar' : 'Cadastrar'}
+                  </Button>
+                )}
               </div>
             </form>
           </TabsContent>
