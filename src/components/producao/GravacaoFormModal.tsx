@@ -52,6 +52,7 @@ interface GravacaoFormModalProps {
   onClose: () => void;
   onSave: (data: Gravacao) => void;
   data?: Gravacao | null;
+  readOnly?: boolean;
 }
 
 const localeMap = {
@@ -65,6 +66,7 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
   onClose,
   onSave,
   data,
+  readOnly = false,
 }, ref) => {
   const { user, session } = useAuth();
   const { t, language, formatDate } = useLanguage();
@@ -541,11 +543,13 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
 
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={onClose}>
-                  {t('common.cancel')}
+                  {readOnly ? t('common.close') || 'Fechar' : t('common.cancel')}
                 </Button>
-                <Button type="submit" className="gradient-primary hover:opacity-90">
-                  {t('common.save')}
-                </Button>
+                {!readOnly && (
+                  <Button type="submit" className="gradient-primary hover:opacity-90">
+                    {t('common.save')}
+                  </Button>
+                )}
               </DialogFooter>
             </form>
           </TabsContent>

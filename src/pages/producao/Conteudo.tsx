@@ -245,19 +245,17 @@ const Conteudo = () => {
       sortable: false,
       render: (item) => (
         <div className="flex justify-end gap-1">
-          {podeAlterar && (
-            <Button
-              size="icon"
-              variant="ghost"
-              onClick={(e) => {
-                e.stopPropagation();
-                setEditingItem(item);
-                setIsModalOpen(true);
-              }}
-            >
-              <Edit className="w-4 h-4" />
-            </Button>
-          )}
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={(e) => {
+              e.stopPropagation();
+              setEditingItem(item);
+              setIsModalOpen(true);
+            }}
+          >
+            <Edit className="w-4 h-4" />
+          </Button>
           {podeExcluir && (
             <Button
               size="icon"
@@ -324,6 +322,7 @@ const Conteudo = () => {
         }}
         onSave={handleSave}
         data={editingItem}
+        readOnly={!!editingItem && !podeAlterar}
       />
     </div>
   );
