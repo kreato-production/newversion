@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { usePermissions } from '@/hooks/usePermissions';
 import {
   Select,
   SelectContent,
@@ -49,6 +50,7 @@ export const FornecedorFormModal = ({
 }: FornecedorFormModalProps) => {
   const { user } = useAuth();
   const { t } = useLanguage();
+  const { isVisible } = usePermissions();
   const [categorias, setCategorias] = useState<{ id: string; nome: string }[]>([]);
 
   const [formData, setFormData] = useState({
@@ -128,7 +130,9 @@ export const FornecedorFormModal = ({
         <Tabs defaultValue="dados" className="w-full">
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="dados">{t('field.generalData')}</TabsTrigger>
-            <TabsTrigger value="servicos" disabled={!data}>{t('field.services')}</TabsTrigger>
+            {isVisible('Recursos', 'Fornecedores', '-', 'Tabulador "Serviços"') && (
+              <TabsTrigger value="servicos" disabled={!data}>{t('field.services')}</TabsTrigger>
+            )}
             <TabsTrigger value="arquivos" disabled={!data}>{t('field.files')}</TabsTrigger>
           </TabsList>
 
@@ -236,9 +240,11 @@ export const FornecedorFormModal = ({
             </form>
           </TabsContent>
 
-          <TabsContent value="servicos">
-            {data && <ServicosTab fornecedorId={data.id} />}
-          </TabsContent>
+          {isVisible('Recursos', 'Fornecedores', '-', 'Tabulador "Serviços"') && (
+            <TabsContent value="servicos">
+              {data && <ServicosTab fornecedorId={data.id} />}
+            </TabsContent>
+          )}
 
           <TabsContent value="arquivos">
             {data && <FornecedorArquivosTab fornecedorId={data.id} />}

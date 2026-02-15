@@ -23,6 +23,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useToast } from '@/hooks/use-toast';
+import { usePermissions } from '@/hooks/usePermissions';
 import { type Conteudo, generateCodigoConteudo } from '@/pages/producao/Conteudo';
 import { type Gravacao } from '@/pages/producao/GravacaoList';
 import { Badge } from '@/components/ui/badge';
@@ -59,6 +60,7 @@ export const ConteudoFormModal = ({
   const { t } = useLanguage();
   const { toast } = useToast();
   const [isGenerating, setIsGenerating] = useState(false);
+  const { isVisible } = usePermissions();
   const { getAsterisk, validateRequired, showValidationError } = useFormFieldConfig('conteudo');
   const [formData, setFormData] = useState({
     codigoExterno: '',
@@ -586,84 +588,96 @@ export const ConteudoFormModal = ({
             <div className="pt-4 border-t">
               <Tabs defaultValue="gravacoes" className="w-full">
                 <TabsList className="grid w-full grid-cols-3">
-                  <TabsTrigger value="gravacoes">{t('field.recordings')}</TabsTrigger>
-                  <TabsTrigger value="elenco">{t('field.cast')}</TabsTrigger>
-                  <TabsTrigger value="custos">{t('field.costs')}</TabsTrigger>
+                  {isVisible('Produção', 'Conteúdo', '-', 'Tabulador "Gravações"') && (
+                    <TabsTrigger value="gravacoes">{t('field.recordings')}</TabsTrigger>
+                  )}
+                  {isVisible('Produção', 'Conteúdo', '-', 'Tabulador "Elenco"') && (
+                    <TabsTrigger value="elenco">{t('field.cast')}</TabsTrigger>
+                  )}
+                  {isVisible('Produção', 'Conteúdo', '-', 'Tabulador "Custos"') && (
+                    <TabsTrigger value="custos">{t('field.costs')}</TabsTrigger>
+                  )}
                 </TabsList>
                 
-                <TabsContent value="gravacoes" className="mt-4">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold">{t('content.contentRecordings')}</h3>
-                    <Button
-                      type="button"
-                      onClick={handleGenerateGravacoes}
-                      disabled={isGenerating}
-                      className="gradient-primary hover:opacity-90"
-                    >
-                      {isGenerating ? (
-                        <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          {t('common.generating')}
-                        </>
-                      ) : (
-                        <>
-                          <Wand2 className="w-4 h-4 mr-2" />
-                          {t('common.generate')}
-                        </>
-                      )}
-                    </Button>
-                  </div>
-
-                  {gravacoes.length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground border rounded-lg">
-                      <p>{t('field.noRecordings')}</p>
-                      <p className="text-sm mt-1">{t('field.clickGenerate')}</p>
+                {isVisible('Produção', 'Conteúdo', '-', 'Tabulador "Gravações"') && (
+                  <TabsContent value="gravacoes" className="mt-4">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-semibold">{t('content.contentRecordings')}</h3>
+                      <Button
+                        type="button"
+                        onClick={handleGenerateGravacoes}
+                        disabled={isGenerating}
+                        className="gradient-primary hover:opacity-90"
+                      >
+                        {isGenerating ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            {t('common.generating')}
+                          </>
+                        ) : (
+                          <>
+                            <Wand2 className="w-4 h-4 mr-2" />
+                            {t('common.generate')}
+                          </>
+                        )}
+                      </Button>
                     </div>
-                  ) : (
-                    <div className="border rounded-lg overflow-hidden max-h-[300px] overflow-y-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                             <TableHead className="w-32">{t('common.code')}</TableHead>
-                             <TableHead>{t('common.name')}</TableHead>
-                             <TableHead className="w-32">{t('common.status')}</TableHead>
-                             <TableHead className="w-32">{t('common.registrationDate')}</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {gravacoes.map((gravacao) => {
-                            const cor = getStatusColor(gravacao.status);
-                            return (
-                              <TableRow key={gravacao.id}>
-                                <TableCell className="font-mono text-sm font-medium text-primary">
-                                  {gravacao.codigo}
-                                </TableCell>
-                                <TableCell className="font-medium">{gravacao.nome}</TableCell>
-                                <TableCell>
-                                  <Badge 
-                                    style={cor ? { backgroundColor: cor } : undefined}
-                                    className={cor ? 'text-white' : 'bg-muted text-muted-foreground'}
-                                  >
-                                    {gravacao.status || t('field.noStatus')}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell>{gravacao.dataCadastro}</TableCell>
-                              </TableRow>
-                            );
-                          })}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  )}
-                </TabsContent>
 
-                <TabsContent value="elenco" className="mt-4">
-                  <ElencoTab entityId={data.id} storagePrefix="conteudo" />
-                </TabsContent>
+                    {gravacoes.length === 0 ? (
+                      <div className="text-center py-8 text-muted-foreground border rounded-lg">
+                        <p>{t('field.noRecordings')}</p>
+                        <p className="text-sm mt-1">{t('field.clickGenerate')}</p>
+                      </div>
+                    ) : (
+                      <div className="border rounded-lg overflow-hidden max-h-[300px] overflow-y-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                               <TableHead className="w-32">{t('common.code')}</TableHead>
+                               <TableHead>{t('common.name')}</TableHead>
+                               <TableHead className="w-32">{t('common.status')}</TableHead>
+                               <TableHead className="w-32">{t('common.registrationDate')}</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {gravacoes.map((gravacao) => {
+                              const cor = getStatusColor(gravacao.status);
+                              return (
+                                <TableRow key={gravacao.id}>
+                                  <TableCell className="font-mono text-sm font-medium text-primary">
+                                    {gravacao.codigo}
+                                  </TableCell>
+                                  <TableCell className="font-medium">{gravacao.nome}</TableCell>
+                                  <TableCell>
+                                    <Badge 
+                                      style={cor ? { backgroundColor: cor } : undefined}
+                                      className={cor ? 'text-white' : 'bg-muted text-muted-foreground'}
+                                    >
+                                      {gravacao.status || t('field.noStatus')}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell>{gravacao.dataCadastro}</TableCell>
+                                </TableRow>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    )}
+                  </TabsContent>
+                )}
+
+                {isVisible('Produção', 'Conteúdo', '-', 'Tabulador "Elenco"') && (
+                  <TabsContent value="elenco" className="mt-4">
+                    <ElencoTab entityId={data.id} storagePrefix="conteudo" />
+                  </TabsContent>
+                )}
                 
-                <TabsContent value="custos" className="mt-4">
-                  <ConteudoCustosTab conteudoId={data.id} conteudoNome={data.descricao} />
-                </TabsContent>
+                {isVisible('Produção', 'Conteúdo', '-', 'Tabulador "Custos"') && (
+                  <TabsContent value="custos" className="mt-4">
+                    <ConteudoCustosTab conteudoId={data.id} conteudoNome={data.descricao} />
+                  </TabsContent>
+                )}
               </Tabs>
             </div>
           )}
