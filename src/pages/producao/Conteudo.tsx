@@ -37,6 +37,8 @@ export interface Conteudo {
   sinopse: string;
   usuarioCadastro: string;
   dataCadastro: string;
+  tabelaPrecoId?: string;
+  tabelaPrecoNome?: string;
 }
 
 const mapDbToConteudo = (
@@ -45,6 +47,7 @@ const mapDbToConteudo = (
     unidades_negocio?: { nome: string } | null;
     tipos_gravacao?: { nome: string } | null;
     classificacoes?: { nome: string } | null;
+    tabelas_preco?: { nome: string } | null;
   }
 ): Conteudo & { orcamento?: number } => ({
   id: db.id,
@@ -64,6 +67,8 @@ const mapDbToConteudo = (
   usuarioCadastro: '',
   dataCadastro: db.created_at ? new Date(db.created_at).toLocaleDateString('pt-BR') : '',
   orcamento: db.orcamento || 0,
+  tabelaPrecoId: (db as any).tabela_preco_id || undefined,
+  tabelaPrecoNome: (db as any).tabelas_preco?.nome || '',
 });
 
 const Conteudo = () => {
@@ -91,7 +96,8 @@ const Conteudo = () => {
           centros_lucro:centro_lucro_id(nome),
           unidades_negocio:unidade_negocio_id(nome),
           tipos_gravacao:tipo_conteudo_id(nome),
-          classificacoes:classificacao_id(nome)
+          classificacoes:classificacao_id(nome),
+          tabelas_preco:tabela_preco_id(nome)
         `)
         .order('descricao');
 
@@ -133,6 +139,7 @@ const Conteudo = () => {
         ano_producao: data.anoProducao || null,
         sinopse: data.sinopse || null,
         orcamento: (data as any).orcamento || 0,
+        tabela_preco_id: data.tabelaPrecoId || null,
       };
 
       if (editingItem) {
