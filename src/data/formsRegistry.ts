@@ -177,6 +177,19 @@ export const formsRegistry: FormDefinition[] = [
     ],
   },
   {
+    id: 'tabelaPreco',
+    nome: 'Tabela de Preço',
+    modulo: 'Produção',
+    campos: [
+      { campo: 'codigoExterno', label: 'Código Externo' },
+      { campo: 'nome', label: 'Nome' },
+      { campo: 'status', label: 'Status' },
+      { campo: 'vigenciaInicio', label: 'Vigência De' },
+      { campo: 'vigenciaFim', label: 'Vigência Até' },
+      { campo: 'descricao', label: 'Descrição' },
+    ],
+  },
+  {
     id: 'centroLucro',
     nome: 'Centro de Lucro',
     modulo: 'Administração',

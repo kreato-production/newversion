@@ -70,6 +70,7 @@ const getMenuItems = (): MenuItemData[] => [
           { labelKey: 'menu.classification', icon: Settings, path: '/producao/classificacao', permission: { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Classificação' } },
           { labelKey: 'menu.recordingStatus', icon: Settings, path: '/producao/status', permission: { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Status de Gravação' } },
           { labelKey: 'menu.taskStatus', icon: Settings, path: '/producao/status-tarefa', permission: { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Status da Tarefa' } },
+          { labelKey: 'menu.priceTables', icon: Settings, path: '/producao/tabelas-preco', permission: { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Tabelas de Preços' } },
         ],
       },
     ],

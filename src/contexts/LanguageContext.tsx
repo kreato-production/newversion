@@ -162,6 +162,7 @@ const translations: Record<Language, Record<string, string>> = {
     'menu.recordingStatus': 'Status de Gravação',
     'menu.tasks': 'Tarefas',
     'menu.taskStatus': 'Status de Tarefa',
+    'menu.priceTables': 'Tabelas de Preços',
     'menu.positions': 'Cargos',
     'menu.departments': 'Departamentos',
     'menu.functions': 'Funções',
@@ -793,6 +794,7 @@ const translations: Record<Language, Record<string, string>> = {
     'menu.recordingStatus': 'Recording Status',
     'menu.tasks': 'Tasks',
     'menu.taskStatus': 'Task Status',
+    'menu.priceTables': 'Price Tables',
     'menu.positions': 'Positions',
     'menu.departments': 'Departments',
     'menu.functions': 'Functions',
@@ -1432,6 +1434,7 @@ const translations: Record<Language, Record<string, string>> = {
     'menu.teams': 'Equipos',
     'menu.tasks': 'Tareas',
     'menu.taskStatus': 'Estado de Tarea',
+    'menu.priceTables': 'Tablas de Precios',
     
     // Tasks
     'tasks.title': 'Tareas',
