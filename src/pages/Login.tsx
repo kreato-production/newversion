@@ -166,14 +166,14 @@ const Login = () => {
             <form onSubmit={handleSubmit} className="space-y-5">
               <div className="space-y-2">
                 <Label htmlFor="usuario" className={`text-sm font-medium ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
-                  Usuário
+                  {t('login.user')}
                 </Label>
                 <div className="relative group">
                   <div className="absolute -inset-[1px] bg-gradient-to-r from-kreato-cyan/0 via-kreato-cyan/50 to-kreato-cyan/0 rounded-md opacity-0 group-focus-within:opacity-100 transition-opacity duration-300 blur-sm" />
                   <Input
                     id="usuario"
                     type="text"
-                    placeholder="Digite seu usuário"
+                    placeholder={t('login.user.placeholder')}
                     value={usuario}
                     onChange={(e) => setUsuario(e.target.value)}
                     required
