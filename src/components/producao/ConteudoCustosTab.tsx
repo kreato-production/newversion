@@ -479,7 +479,7 @@ export const ConteudoCustosTab = ({ conteudoId, conteudoNome }: ConteudoCustosTa
                   colSpan={6}
                   className="text-center font-bold text-white border-r bg-kreato-blue"
                 >
-                  ESTIMADO POR GRAVAÇÃO
+                  ESTIMADO
                 </TableHead>
                 <TableHead
                   colSpan={4}
