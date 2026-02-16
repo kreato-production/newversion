@@ -8,6 +8,7 @@ import { Trash2, Star, Upload } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Figurino, FigurinoImagem } from '@/pages/recursos/Figurinos';
 import { supabase } from '@/integrations/supabase/client';
+import { useFormFieldConfig, FieldAsterisk } from '@/hooks/useFormFieldConfig';
 
 interface TipoFigurino {
   id: string;
@@ -29,6 +30,7 @@ interface FigurinoFormModalProps {
 
 const FigurinoFormModal = ({ isOpen, onClose, onSave, data, readOnly = false }: FigurinoFormModalProps) => {
   const { user, session } = useAuth();
+  const { getAsterisk } = useFormFieldConfig('figurino');
   const [tiposFigurino, setTiposFigurino] = useState<TipoFigurino[]>([]);
   const [materiais, setMateriais] = useState<MaterialItem[]>([]);
   
@@ -173,7 +175,7 @@ const FigurinoFormModal = ({ isOpen, onClose, onSave, data, readOnly = false }: 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="codigoExterno">Código Externo</Label>
+              <Label htmlFor="codigoExterno">Código Externo <FieldAsterisk type={getAsterisk('codigoExterno')} /></Label>
               <Input
                 id="codigoExterno"
                 value={formData.codigoExterno}
@@ -183,7 +185,7 @@ const FigurinoFormModal = ({ isOpen, onClose, onSave, data, readOnly = false }: 
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="codigoFigurino">Código do Figurino *</Label>
+              <Label htmlFor="codigoFigurino">Código do Figurino <FieldAsterisk type={getAsterisk('codigoFigurino')} /></Label>
               <Input
                 id="codigoFigurino"
                 value={formData.codigoFigurino}
@@ -195,7 +197,7 @@ const FigurinoFormModal = ({ isOpen, onClose, onSave, data, readOnly = false }: 
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="descricao">Descrição *</Label>
+            <Label htmlFor="descricao">Descrição <FieldAsterisk type={getAsterisk('descricao')} /></Label>
             <Input
               id="descricao"
               value={formData.descricao}
@@ -207,7 +209,7 @@ const FigurinoFormModal = ({ isOpen, onClose, onSave, data, readOnly = false }: 
 
           <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="tipoFigurino">Tipo de Figurino</Label>
+              <Label htmlFor="tipoFigurino">Tipo de Figurino <FieldAsterisk type={getAsterisk('tipoFigurino')} /></Label>
               <Select
                 value={formData.tipoFigurino}
                 onValueChange={(value) => handleChange('tipoFigurino', value)}
@@ -226,7 +228,7 @@ const FigurinoFormModal = ({ isOpen, onClose, onSave, data, readOnly = false }: 
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="material">Material</Label>
+              <Label htmlFor="material">Material <FieldAsterisk type={getAsterisk('material')} /></Label>
               <Select
                 value={formData.material}
                 onValueChange={(value) => handleChange('material', value)}
@@ -245,7 +247,7 @@ const FigurinoFormModal = ({ isOpen, onClose, onSave, data, readOnly = false }: 
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="tamanhoPeca">Tamanho da Peça</Label>
+              <Label htmlFor="tamanhoPeca">Tamanho da Peça <FieldAsterisk type={getAsterisk('tamanhoPeca')} /></Label>
               <Input
                 id="tamanhoPeca"
                 value={formData.tamanhoPeca}
@@ -257,7 +259,7 @@ const FigurinoFormModal = ({ isOpen, onClose, onSave, data, readOnly = false }: 
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="corPredominante">Cor Predominante</Label>
+              <Label htmlFor="corPredominante">Cor Predominante <FieldAsterisk type={getAsterisk('corPredominante')} /></Label>
               <div className="flex gap-2">
                 <Input
                   type="color"
@@ -276,7 +278,7 @@ const FigurinoFormModal = ({ isOpen, onClose, onSave, data, readOnly = false }: 
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="corSecundaria">Cor Secundária</Label>
+              <Label htmlFor="corSecundaria">Cor Secundária <FieldAsterisk type={getAsterisk('corSecundaria')} /></Label>
               <div className="flex gap-2">
                 <Input
                   type="color"

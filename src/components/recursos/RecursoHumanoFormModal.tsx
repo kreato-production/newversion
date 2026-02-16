@@ -35,6 +35,7 @@ import { differenceInDays, parseISO, isWithinInterval, format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Checkbox } from '@/components/ui/checkbox';
 import { supabase } from '@/integrations/supabase/client';
+import { useFormFieldConfig, FieldAsterisk } from '@/hooks/useFormFieldConfig';
 
 const DIAS_SEMANA = [
   { value: 0, label: 'Dom' },
@@ -72,6 +73,7 @@ export const RecursoHumanoFormModal = ({
 }: RecursoHumanoFormModalProps) => {
   const { user } = useAuth();
   const { isVisible } = usePermissions();
+  const { getAsterisk } = useFormFieldConfig('recursoHumano');
   const [departamentos, setDepartamentos] = useState<{ id: string; nome: string }[]>([]);
   const [funcoes, setFuncoes] = useState<{ id: string; nome: string }[]>([]);
   const [funcoesDisponiveis, setFuncoesDisponiveis] = useState<{ id: string; nome: string }[]>([]);
@@ -544,7 +546,7 @@ export const RecursoHumanoFormModal = ({
                 <div className="flex-1 space-y-4">
                   <div className="grid grid-cols-3 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="codigoExterno">Código Externo</Label>
+                      <Label htmlFor="codigoExterno">Código Externo <FieldAsterisk type={getAsterisk('codigoExterno')} /></Label>
                       <Input
                         id="codigoExterno"
                         value={formData.codigoExterno}
@@ -553,7 +555,7 @@ export const RecursoHumanoFormModal = ({
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="nome">Nome <span className="text-destructive">*</span></Label>
+                      <Label htmlFor="nome">Nome <FieldAsterisk type={getAsterisk('nome')} /></Label>
                       <Input
                         id="nome"
                         value={formData.nome}
@@ -563,7 +565,7 @@ export const RecursoHumanoFormModal = ({
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="sobrenome">Sobrenome <span className="text-destructive">*</span></Label>
+                      <Label htmlFor="sobrenome">Sobrenome <FieldAsterisk type={getAsterisk('sobrenome')} /></Label>
                       <Input
                         id="sobrenome"
                         value={formData.sobrenome}
@@ -576,7 +578,7 @@ export const RecursoHumanoFormModal = ({
 
                   <div className="grid grid-cols-3 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="email">E-mail <span className="text-destructive">*</span></Label>
+                      <Label htmlFor="email">E-mail <FieldAsterisk type={getAsterisk('email')} /></Label>
                       <Input
                         id="email"
                         type="email"
@@ -586,7 +588,7 @@ export const RecursoHumanoFormModal = ({
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="telefone">Telefone</Label>
+                      <Label htmlFor="telefone">Telefone <FieldAsterisk type={getAsterisk('telefone')} /></Label>
                       <Input
                         id="telefone"
                         value={formData.telefone}
@@ -594,7 +596,7 @@ export const RecursoHumanoFormModal = ({
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label>Sexo</Label>
+                      <Label>Sexo <FieldAsterisk type={getAsterisk('sexo')} /></Label>
                       <Select
                         value={formData.sexo}
                         onValueChange={(value) => setFormData({ ...formData, sexo: value })}
@@ -614,7 +616,7 @@ export const RecursoHumanoFormModal = ({
 
               <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="dataNascimento">Data de Nascimento</Label>
+                  <Label htmlFor="dataNascimento">Data de Nascimento <FieldAsterisk type={getAsterisk('dataNascimento')} /></Label>
                   <Input
                     id="dataNascimento"
                     type="date"
@@ -623,7 +625,7 @@ export const RecursoHumanoFormModal = ({
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="dataContratacao">Data de Contratação</Label>
+                  <Label htmlFor="dataContratacao">Data de Contratação <FieldAsterisk type={getAsterisk('dataContratacao')} /></Label>
                   <Input
                     id="dataContratacao"
                     type="date"
@@ -632,7 +634,7 @@ export const RecursoHumanoFormModal = ({
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="custoHora">Custo/Hora</Label>
+                  <Label htmlFor="custoHora">Custo/Hora <FieldAsterisk type={getAsterisk('custoHora')} /></Label>
                   <Input
                     id="custoHora"
                     type="number"
@@ -646,7 +648,7 @@ export const RecursoHumanoFormModal = ({
 
               <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label>Departamento</Label>
+                  <Label>Departamento <FieldAsterisk type={getAsterisk('departamento')} /></Label>
                   <Select
                     value={formData.departamentoId}
                     onValueChange={(value) => {
@@ -671,7 +673,7 @@ export const RecursoHumanoFormModal = ({
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Função</Label>
+                  <Label>Função <FieldAsterisk type={getAsterisk('funcao')} /></Label>
                   <Select
                     value={formData.funcaoId}
                     onValueChange={(value) => {
@@ -703,7 +705,7 @@ export const RecursoHumanoFormModal = ({
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Status</Label>
+                  <Label>Status <FieldAsterisk type={getAsterisk('status')} /></Label>
                   <Select
                     value={formData.status}
                     onValueChange={(value) => setFormData({ ...formData, status: value as 'Ativo' | 'Inativo' })}

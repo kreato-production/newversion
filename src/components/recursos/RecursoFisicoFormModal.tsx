@@ -18,6 +18,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Plus, Trash2, Calendar, Clock, AlertCircle, Package, Settings } from 'lucide-react';
 import { EstoqueTab, EstoqueItem } from './EstoqueTab';
 import type { RecursoFisico, FaixaDisponibilidade } from '@/pages/recursos/RecursosFisicos';
+import { useFormFieldConfig, FieldAsterisk } from '@/hooks/useFormFieldConfig';
 
 interface RecursoFisicoFormModalProps {
   isOpen: boolean;
@@ -47,6 +48,7 @@ export const RecursoFisicoFormModal = ({
   const { user } = useAuth();
   const { isVisible } = usePermissions();
   const { toast } = useToast();
+  const { getAsterisk } = useFormFieldConfig('recursoFisico');
   const [formData, setFormData] = useState({
     codigoExterno: '',
     nome: '',
@@ -273,7 +275,7 @@ export const RecursoFisicoFormModal = ({
               {/* Dados básicos */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="codigoExterno">Código Externo</Label>
+                  <Label htmlFor="codigoExterno">Código Externo <FieldAsterisk type={getAsterisk('codigoExterno')} /></Label>
                   <Input
                     id="codigoExterno"
                     value={formData.codigoExterno}
@@ -283,7 +285,7 @@ export const RecursoFisicoFormModal = ({
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="custoHora">Custo/Hora</Label>
+                  <Label htmlFor="custoHora">Custo/Hora <FieldAsterisk type={getAsterisk('custoHora')} /></Label>
                   <Input
                     id="custoHora"
                     type="number"
@@ -295,7 +297,7 @@ export const RecursoFisicoFormModal = ({
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="nome">Nome *</Label>
+                <Label htmlFor="nome">Nome <FieldAsterisk type={getAsterisk('nome')} /></Label>
                 <Input
                   id="nome"
                   value={formData.nome}

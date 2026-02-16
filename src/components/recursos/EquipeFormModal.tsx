@@ -24,6 +24,7 @@ import { useToast } from '@/hooks/use-toast';
 import { SortableTable, Column } from '@/components/shared/SortableTable';
 import { Plus, Trash2, Users, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { useFormFieldConfig, FieldAsterisk } from '@/hooks/useFormFieldConfig';
 
 interface EquipeData {
   id?: string;
@@ -69,6 +70,7 @@ export const EquipeFormModal = ({
   const { t } = useLanguage();
   const { toast } = useToast();
   const { isVisible } = usePermissions();
+  const { getAsterisk } = useFormFieldConfig('equipe');
   const [formData, setFormData] = useState<EquipeData>(emptyFormData);
   const [isAddingMembro, setIsAddingMembro] = useState(false);
   const [selectedRHId, setSelectedRHId] = useState('');
@@ -265,7 +267,7 @@ export const EquipeFormModal = ({
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="codigo">{t('common.code')} <span className="text-destructive">*</span></Label>
+              <Label htmlFor="codigo">{t('common.code')} <FieldAsterisk type={getAsterisk('codigo')} /></Label>
               <Input
                 id="codigo"
                 value={formData.codigo}
@@ -275,7 +277,7 @@ export const EquipeFormModal = ({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="descricao">{t('common.description')} <span className="text-destructive">*</span></Label>
+              <Label htmlFor="descricao">{t('common.description')} <FieldAsterisk type={getAsterisk('descricao')} /></Label>
               <Input
                 id="descricao"
                 value={formData.descricao}

@@ -88,6 +88,8 @@ export const RoteiroTab = ({ gravacaoId }: RoteiroTabProps) => {
   const [expandedCenas, setExpandedCenas] = useState<Set<string>>(new Set());
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [personagensPopoverOpen, setPersonagensPopoverOpen] = useState<Record<string, boolean>>({});
+  const [figurantesPopoverOpen, setFigurantesPopoverOpen] = useState<Record<string, boolean>>({});
 
   // Translated options based on language
   const PERIODOS = [
@@ -710,7 +712,7 @@ export const RoteiroTab = ({ gravacaoId }: RoteiroTabProps) => {
                     <div className="space-y-2">
                       <Label>{t('script.charactersInScene')} ({cena.personagens.length})</Label>
                       {elenco.length > 0 ? (
-                        <Popover>
+                        <Popover open={personagensPopoverOpen[cena.id] || false} onOpenChange={(open) => setPersonagensPopoverOpen(prev => ({ ...prev, [cena.id]: open }))}>
                           <PopoverTrigger asChild>
                             <Button variant="outline" className="w-full justify-start">
                               {cena.personagens.length > 0
@@ -775,7 +777,7 @@ export const RoteiroTab = ({ gravacaoId }: RoteiroTabProps) => {
                     <div className="space-y-2">
                       <Label>{t('script.extras')} ({cena.figurantes.length})</Label>
                       {figurantes.length > 0 ? (
-                        <Popover>
+                        <Popover open={figurantesPopoverOpen[cena.id] || false} onOpenChange={(open) => setFigurantesPopoverOpen(prev => ({ ...prev, [cena.id]: open }))}>
                           <PopoverTrigger asChild>
                             <Button variant="outline" className="w-full justify-start">
                               {cena.figurantes.length > 0

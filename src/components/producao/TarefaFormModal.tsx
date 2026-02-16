@@ -39,6 +39,7 @@ import { usePermissions } from '@/hooks/usePermissions';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
+import { useFormFieldConfig, FieldAsterisk } from '@/hooks/useFormFieldConfig';
 
 interface Tarefa {
   id: string;
@@ -103,6 +104,7 @@ export const TarefaFormModal = ({
   const { t, language } = useLanguage();
   const { session } = useAuth();
   const { isReadOnly, isVisible } = usePermissions();
+  const { getAsterisk } = useFormFieldConfig('tarefa');
   const [formData, setFormData] = useState<Partial<Tarefa>>({});
   const [recursosHumanos, setRecursosHumanos] = useState<RecursoHumano[]>([]);
   const initializedForRef = useRef<string | null>(null);
@@ -231,7 +233,7 @@ export const TarefaFormModal = ({
           {/* Title */}
           {showTitulo && (
             <div className="space-y-2">
-              <Label htmlFor="titulo">{t('tasks.taskTitle')} *</Label>
+              <Label htmlFor="titulo">{t('tasks.taskTitle')} <FieldAsterisk type={getAsterisk('titulo')} /></Label>
               <Input
                 id="titulo"
                 value={formData.titulo || ''}
@@ -247,7 +249,7 @@ export const TarefaFormModal = ({
           {/* Description */}
           {showDescricao && (
             <div className="space-y-2">
-              <Label htmlFor="descricao">{t('tasks.taskDescription')}</Label>
+              <Label htmlFor="descricao">{t('tasks.taskDescription')} <FieldAsterisk type={getAsterisk('descricao')} /></Label>
               <Textarea
                 id="descricao"
                 value={formData.descricao || ''}
@@ -264,7 +266,7 @@ export const TarefaFormModal = ({
           <div className="grid grid-cols-2 gap-4">
             {showGravacao && (
               <div className="space-y-2">
-                <Label>{t('tasks.recording')} *</Label>
+                <Label>{t('tasks.recording')} <FieldAsterisk type={getAsterisk('gravacaoId')} /></Label>
                 {isGravacaoReadOnly ? (
                   <Input
                     value={gravacoes.find(g => g.id === formData.gravacaoId)?.nome || '-'}
@@ -292,7 +294,7 @@ export const TarefaFormModal = ({
 
             {showStatus && (
               <div className="space-y-2">
-                <Label>{t('tasks.status')} *</Label>
+                <Label>{t('tasks.status')} <FieldAsterisk type={getAsterisk('statusId')} /></Label>
                 {isStatusReadOnly ? (
                   <Input
                     value={statusList.find(s => s.id === formData.statusId)?.nome || '-'}
@@ -331,7 +333,7 @@ export const TarefaFormModal = ({
           <div className="grid grid-cols-2 gap-4">
             {showResponsavel && (
               <div className="space-y-2">
-                <Label>{t('tasks.assignee')} *</Label>
+                <Label>{t('tasks.assignee')} <FieldAsterisk type={getAsterisk('recursoHumanoId')} /></Label>
                 {isResponsavelReadOnly ? (
                   <Input
                     value={
@@ -365,7 +367,7 @@ export const TarefaFormModal = ({
 
             {showPrioridade && (
               <div className="space-y-2">
-                <Label>{t('tasks.priority')}</Label>
+                <Label>{t('tasks.priority')} <FieldAsterisk type={getAsterisk('prioridade')} /></Label>
                 {isPrioridadeReadOnly ? (
                   <Input
                     value={formData.prioridade === 'alta' ? t('tasks.priorityHigh') : formData.prioridade === 'media' ? t('tasks.priorityMedium') : t('tasks.priorityLow')}
@@ -410,7 +412,7 @@ export const TarefaFormModal = ({
           <div className="grid grid-cols-2 gap-4">
             {showDataInicio && (
               <div className="space-y-2">
-                <Label>{t('tasks.startDate')}</Label>
+                <Label>{t('tasks.startDate')} <FieldAsterisk type={getAsterisk('dataInicio')} /></Label>
                 {isDataInicioReadOnly ? (
                   <Input
                     value={formData.dataInicio 
@@ -452,7 +454,7 @@ export const TarefaFormModal = ({
 
             {showDataLimite && (
               <div className="space-y-2">
-                <Label>{t('tasks.dueDate')}</Label>
+                <Label>{t('tasks.dueDate')} <FieldAsterisk type={getAsterisk('dataFim')} /></Label>
                 {isDataLimiteReadOnly ? (
                   <Input
                     value={formData.dataFim 
@@ -525,7 +527,7 @@ export const TarefaFormModal = ({
           {/* Notes */}
           {showObservacoes && (
             <div className="space-y-2">
-              <Label htmlFor="observacoes">{t('common.observations')}</Label>
+              <Label htmlFor="observacoes">{t('common.observations')} <FieldAsterisk type={getAsterisk('observacoes')} /></Label>
               <Textarea
                 id="observacoes"
                 value={formData.observacoes || ''}
