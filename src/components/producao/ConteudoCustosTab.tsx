@@ -37,6 +37,27 @@ interface GravacaoDetalhe {
   valorTotal: number;
 }
 
+interface DrillDownRow {
+  gravacaoId: string;
+  gravacaoNome: string;
+  gravacaoCodigo: string;
+  // Estimado por gravação (proporcional)
+  estQuantidade: number;
+  estHoras: number;
+  estValorUnitario: number;
+  estValorTotal: number;
+  estDescontoPercentual: number;
+  estValorComDesconto: number;
+  // Realizado por gravação
+  realQuantidade: number;
+  realHoras: number;
+  realValorUnitario: number;
+  realValorTotal: number;
+  // Resumo por gravação
+  saldo: number;
+  desvioPercentual: number;
+}
+
 interface RealizadoItem {
   recursoTecnicoId: string;
   recursoNome: string;
@@ -58,7 +79,9 @@ interface MatrizRow {
     descontoPercentual: number;
     valorComDesconto: number;
   } | null;
+  estimadoPorGravacao: EstimadoItem | null;
   realizado: RealizadoItem | null;
+  drillDown: DrillDownRow[];
   saldo: number;
   desvioPercentual: number;
   progressPercent: number;
@@ -81,6 +104,7 @@ export const ConteudoCustosTab = ({ conteudoId, conteudoNome }: ConteudoCustosTa
   const [realizados, setRealizados] = useState<RealizadoItem[]>([]);
   const [moeda, setMoeda] = useState<string>('BRL');
   const [numGravacoes, setNumGravacoes] = useState(0);
+  const [gravacoesList, setGravacoesList] = useState<{ id: string; nome: string; codigo: string }[]>([]);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
   const toggleRow = (rtId: string) => {
@@ -152,6 +176,7 @@ export const ConteudoCustosTab = ({ conteudoId, conteudoNome }: ConteudoCustosTa
       const gravacaoIds = gravacoes.map(g => g.id);
       const gravacaoMap = new Map(gravacoes.map(g => [g.id, { nome: g.nome, codigo: g.codigo }]));
       setNumGravacoes(gravacaoIds.length);
+      setGravacoesList(gravacoes);
 
       if (gravacaoIds.length === 0) {
         setRealizados([]);
@@ -323,17 +348,59 @@ export const ConteudoCustosTab = ({ conteudoId, conteudoNome }: ConteudoCustosTa
         ? Math.min(100, Math.round((realizadoTotal / estimadoTotal) * 100))
         : (realizadoTotal > 0 ? 100 : 0);
 
+      // Build drill-down rows for ALL gravações
+      const realDetalheMap = new Map<string, GravacaoDetalhe>();
+      if (real?.detalhes) {
+        real.detalhes.forEach(d => realDetalheMap.set(d.gravacaoId, d));
+      }
+
+      const drillDown: DrillDownRow[] = gravacoesList.map(grav => {
+        const realDetalhe = realDetalheMap.get(grav.id);
+        const estQtd = est?.quantidade || 0;
+        const estHoras = est?.quantidadeHoras || 0;
+        const estValorUnit = est?.valorHora || 0;
+        const estTotal = est?.valorTotal || 0;
+        const estDesc = est?.descontoPercentual || 0;
+        const estComDesc = est?.valorComDesconto || 0;
+
+        const realTotal = realDetalhe?.valorTotal || 0;
+        const gravSaldo = estTotal - realTotal;
+        const gravDesvio = realTotal > estTotal && estTotal > 0
+          ? Math.round(((realTotal - estTotal) / estTotal) * 100)
+          : 0;
+
+        return {
+          gravacaoId: grav.id,
+          gravacaoNome: grav.nome,
+          gravacaoCodigo: grav.codigo,
+          estQuantidade: estQtd,
+          estHoras,
+          estValorUnitario: estValorUnit,
+          estValorTotal: estTotal,
+          estDescontoPercentual: estDesc,
+          estValorComDesconto: estComDesc,
+          realQuantidade: realDetalhe?.quantidade || 0,
+          realHoras: realDetalhe?.totalHoras || 0,
+          realValorUnitario: realDetalhe?.valorUnitario || 0,
+          realValorTotal: realTotal,
+          saldo: gravSaldo,
+          desvioPercentual: gravDesvio,
+        };
+      });
+
       return {
         recursoNome: est?.recursoNome || real?.recursoNome || 'Desconhecido',
         recursoTecnicoId: rtId,
         estimadoAcumulado,
+        estimadoPorGravacao: est,
         realizado: real,
+        drillDown,
         saldo,
         desvioPercentual,
         progressPercent,
       };
     });
-  }, [estimados, realizados, numGravacoes]);
+  }, [estimados, realizados, numGravacoes, gravacoesList]);
 
   const totais = useMemo(() => {
     const estQtd = matrizRows.reduce((acc, r) => acc + (r.estimadoAcumulado?.quantidade || 0), 0);
@@ -579,19 +646,19 @@ export const ConteudoCustosTab = ({ conteudoId, conteudoNome }: ConteudoCustosTa
             <TableBody>
               {matrizRows.map((row) => {
                 const isExpanded = expandedRows.has(row.recursoTecnicoId);
-                const hasDetails = (row.realizado?.detalhes?.length || 0) > 0;
+                const hasDrillDown = row.drillDown.length > 0;
 
                 return (
                   <>
                     {/* Main row */}
                     <TableRow
                       key={row.recursoTecnicoId}
-                      className={hasDetails ? 'cursor-pointer hover:bg-muted/70' : ''}
-                      onClick={() => hasDetails && toggleRow(row.recursoTecnicoId)}
+                      className={hasDrillDown ? 'cursor-pointer hover:bg-muted/70' : ''}
+                      onClick={() => hasDrillDown && toggleRow(row.recursoTecnicoId)}
                     >
                       <TableCell className="font-medium border-r whitespace-nowrap">
                         <div className="flex items-center gap-1">
-                          {hasDetails && (
+                          {hasDrillDown && (
                             isExpanded
                               ? <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
                               : <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -627,26 +694,30 @@ export const ConteudoCustosTab = ({ conteudoId, conteudoNome }: ConteudoCustosTa
                     </TableRow>
 
                     {/* Drill-down detail rows */}
-                    {isExpanded && row.realizado?.detalhes.map((detalhe) => (
-                      <TableRow key={`${row.recursoTecnicoId}-${detalhe.gravacaoId}`} className="bg-muted/30">
+                    {isExpanded && row.drillDown.map((dd) => (
+                      <TableRow key={`${row.recursoTecnicoId}-${dd.gravacaoId}`} className="bg-muted/30">
                         <TableCell className="border-r pl-8 text-xs text-muted-foreground whitespace-nowrap">
-                          {detalhe.gravacaoCodigo} - {detalhe.gravacaoNome}
+                          {dd.gravacaoCodigo} - {dd.gravacaoNome}
                         </TableCell>
-                        {/* Empty estimado cells */}
-                        <TableCell className="border-r" />
-                        <TableCell className="border-r" />
-                        <TableCell className="border-r" />
-                        <TableCell className="border-r" />
-                        <TableCell className="border-r" />
-                        <TableCell className="border-r" />
+                        {/* Estimado proporcional por gravação */}
+                        <TableCell className="text-center border-r text-xs">{dd.estQuantidade}</TableCell>
+                        <TableCell className="text-center border-r text-xs">{dd.estHoras}</TableCell>
+                        <TableCell className="text-right border-r text-xs">{formatCurrency(dd.estValorUnitario)}</TableCell>
+                        <TableCell className="text-right border-r text-xs">{formatCurrency(dd.estValorTotal)}</TableCell>
+                        <TableCell className="text-center border-r text-xs">{dd.estDescontoPercentual}%</TableCell>
+                        <TableCell className="text-right border-r text-xs">{formatCurrency(dd.estValorComDesconto)}</TableCell>
                         {/* Realizado per gravação */}
-                        <TableCell className="text-center border-r text-xs">{detalhe.quantidade}</TableCell>
-                        <TableCell className="text-center border-r text-xs">{detalhe.totalHoras}</TableCell>
-                        <TableCell className="text-right border-r text-xs">{formatCurrency(detalhe.valorUnitario)}</TableCell>
-                        <TableCell className="text-right border-r text-xs">{formatCurrency(detalhe.valorTotal)}</TableCell>
-                        {/* Empty resumo cells */}
-                        <TableCell className="border-r" />
-                        <TableCell className="border-r" />
+                        <TableCell className="text-center border-r text-xs">{dd.realQuantidade}</TableCell>
+                        <TableCell className="text-center border-r text-xs">{dd.realHoras}</TableCell>
+                        <TableCell className="text-right border-r text-xs">{formatCurrency(dd.realValorUnitario)}</TableCell>
+                        <TableCell className="text-right border-r text-xs">{formatCurrency(dd.realValorTotal)}</TableCell>
+                        {/* Resumo per gravação */}
+                        <TableCell className={`text-right border-r text-xs ${dd.saldo < 0 ? 'text-destructive' : dd.saldo > 0 ? 'text-green-600' : ''}`}>
+                          {formatCurrency(dd.saldo)}
+                        </TableCell>
+                        <TableCell className={`text-center border-r text-xs ${dd.desvioPercentual > 0 ? 'text-destructive' : ''}`}>
+                          {dd.desvioPercentual}%
+                        </TableCell>
                         <TableCell />
                       </TableRow>
                     ))}
