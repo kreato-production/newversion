@@ -88,7 +88,6 @@ export const ConteudoFormModal = ({
   const [tabelasPreco, setTabelasPreco] = useState<{ id: string; nome: string; unidadeNegocioId: string | null }[]>([]);
   const [filteredTabelasPreco, setFilteredTabelasPreco] = useState<{ id: string; nome: string }[]>([]);
 
-  // Get the currency for the selected business unit
   const getSelectedCurrency = () => {
     if (!formData.unidadeNegocio) return null;
     const unidade = unidades.find(u => u.nome === formData.unidadeNegocio);
@@ -97,7 +96,6 @@ export const ConteudoFormModal = ({
 
   const selectedCurrency = getSelectedCurrency();
 
-  // Função para construir a hierarquia de centros de lucro
   const buildHierarchy = (items: typeof centrosLucro, parentId: string | null = null, level: number = 0): { id: string; nome: string; displayName: string; level: number }[] => {
     const result: { id: string; nome: string; displayName: string; level: number }[] = [];
     const children = items.filter(item => item.parentId === parentId);
@@ -118,30 +116,23 @@ export const ConteudoFormModal = ({
 
   const centrosLucroHierarquicos = buildHierarchy(filteredCentrosLucro);
 
-  // Efeito para filtrar centros de lucro quando a unidade de negócio muda
   useEffect(() => {
     if (!formData.unidadeNegocio) {
       setFilteredCentrosLucro([]);
       return;
     }
-
-    // Encontrar o ID da unidade selecionada
     const unidadeSelecionada = unidades.find(u => u.nome === formData.unidadeNegocio);
     if (!unidadeSelecionada) {
       setFilteredCentrosLucro([]);
       return;
     }
-
-    // Filtrar centros de lucro associados à unidade selecionada
     const centrosAssociados = centroLucroUnidades
       .filter(clu => clu.unidade_negocio_id === unidadeSelecionada.id)
       .map(clu => clu.centro_lucro_id);
-
     const centrosFiltrados = centrosLucro.filter(cl => centrosAssociados.includes(cl.id));
     setFilteredCentrosLucro(centrosFiltrados);
   }, [formData.unidadeNegocio, unidades, centroLucroUnidades, centrosLucro]);
 
-  // Filter price tables when business unit changes
   useEffect(() => {
     if (!formData.unidadeNegocio) {
       setFilteredTabelasPreco([]);
@@ -291,7 +282,6 @@ export const ConteudoFormModal = ({
       tabelaPrecoId: formData.tabelaPrecoId || undefined,
     };
     
-    // Add orcamento if set
     (conteudo as any).orcamento = parseFloat(formData.orcamento) || 0;
 
     onSave(conteudo);
@@ -334,20 +324,17 @@ export const ConteudoFormModal = ({
       const startEpisode = gravacoes.length + 1;
       const numGravacoesGeradas = quantidade - gravacoes.length;
       
-      // Calculate budget per recording (distribute equally)
       const orcamentoTotal = parseFloat(formData.orcamento) || 0;
       const orcamentoPorGravacao = orcamentoTotal > 0 && numGravacoesGeradas > 0 
-        ? orcamentoTotal / quantidade // Divide by total quantity (including existing)
+        ? orcamentoTotal / quantidade
         : 0;
       
-      // Fetch initial status for recordings
       const { data: statusInicial } = await supabase
         .from('status_gravacao')
         .select('id')
         .eq('is_inicial', true)
         .maybeSingle();
 
-      // Get IDs for the form values
       const unidadeSelecionada = unidades.find(u => u.nome === formData.unidadeNegocio);
       const centroSelecionado = centrosLucro.find(c => c.nome === formData.centroLucro);
       const classificacaoSelecionada = classificacoes.find(c => c.nome === formData.classificacao);
@@ -371,7 +358,6 @@ export const ConteudoFormModal = ({
           status_id: statusInicial?.id || null,
         };
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const { data: inserted, error } = await (supabase as any)
           .from('gravacoes')
           .insert(insertData)
@@ -398,7 +384,7 @@ export const ConteudoFormModal = ({
         }
       }
 
-      // Copy content resources (técnicos e físicos) to each new gravação
+      // Copy content resources to each new gravação
       if (novasGravacoes.length > 0 && data?.id) {
         try {
           const [rtRes, rfRes] = await Promise.all([
@@ -412,7 +398,6 @@ export const ConteudoFormModal = ({
           for (const gravacao of novasGravacoes) {
             const inserts: any[] = [];
 
-            // For each technical resource, create one anchor entry per quantity unit
             for (const rt of recursosTecnicos) {
               const qty = rt.quantidade || 1;
               for (let q = 0; q < qty; q++) {
@@ -425,7 +410,6 @@ export const ConteudoFormModal = ({
               }
             }
 
-            // For each physical resource, create one entry per quantity unit
             for (const rf of recursosFisicos) {
               const qty = rf.quantidade || 1;
               for (let q = 0; q < qty; q++) {
@@ -474,6 +458,18 @@ export const ConteudoFormModal = ({
     return status?.cor;
   };
 
+  // Count visible tabs to set grid cols
+  const visibleTabs: { value: string; label: string }[] = [
+    { value: 'dadosGerais', label: 'Dados Gerais' },
+  ];
+  if (data) {
+    if (isVisible('Produção', 'Conteúdo', '-', 'Tabulador "Gravações"')) visibleTabs.push({ value: 'gravacoes', label: t('field.recordings') });
+    if (isVisible('Produção', 'Conteúdo', '-', 'Tabulador "Elenco"')) visibleTabs.push({ value: 'elenco', label: t('field.cast') });
+    if (isVisible('Produção', 'Conteúdo', '-', 'Tabulador "Recursos Técnicos"')) visibleTabs.push({ value: 'recursosTecnicos', label: 'Recursos Técnicos' });
+    if (isVisible('Produção', 'Conteúdo', '-', 'Tabulador "Recursos Físicos"')) visibleTabs.push({ value: 'recursosFisicos', label: 'Recursos Físicos' });
+    if (isVisible('Produção', 'Conteúdo', '-', 'Tabulador "Custos"')) visibleTabs.push({ value: 'custos', label: t('field.costs') });
+  }
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="w-[1500px] max-w-[1500px] max-h-[80vh] overflow-y-auto">
@@ -485,332 +481,318 @@ export const ConteudoFormModal = ({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 mt-4">
-          <div className="grid grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="codigoExterno">{t('common.externalCode')} <FieldAsterisk type={getAsterisk('codigoExterno')} /></Label>
-              <Input
-                id="codigoExterno"
-                value={formData.codigoExterno}
-                onChange={(e) => setFormData({ ...formData, codigoExterno: e.target.value.slice(0, 10) })}
-                maxLength={10}
-                placeholder="Máx. 10 caracteres"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="descricao">{t('common.description')} <FieldAsterisk type={getAsterisk('descricao')} /></Label>
-              <Input
-                id="descricao"
-                value={formData.descricao}
-                onChange={(e) => setFormData({ ...formData, descricao: e.target.value.slice(0, 100) })}
-                maxLength={100}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="quantidadeEpisodios">{t('content.episodes')} <FieldAsterisk type={getAsterisk('quantidadeEpisodios')} /></Label>
-              <Input
-                id="quantidadeEpisodios"
-                type="number"
-                value={formData.quantidadeEpisodios}
-                onChange={(e) => {
-                  const val = e.target.value.slice(0, 5);
-                  if (/^\d*$/.test(val)) {
-                    setFormData({ ...formData, quantidadeEpisodios: val });
-                  }
-                }}
-                maxLength={5}
-                placeholder="Máx. 5 dígitos"
-              />
-            </div>
-          </div>
+          <Tabs defaultValue="dadosGerais" className="w-full">
+            <TabsList className={`grid w-full`} style={{ gridTemplateColumns: `repeat(${visibleTabs.length}, minmax(0, 1fr))` }}>
+              {visibleTabs.map((tab) => (
+                <TabsTrigger key={tab.value} value={tab.value}>{tab.label}</TabsTrigger>
+              ))}
+            </TabsList>
 
-          <div className="grid grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label>{t('recordings.businessUnit')} <FieldAsterisk type={getAsterisk('unidadeNegocio')} /></Label>
-              <Select
-                value={formData.unidadeNegocio}
-                onValueChange={(value) => {
-                  setFormData({ ...formData, unidadeNegocio: value, centroLucro: '', tabelaPrecoId: '' });
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder={t('common.select')} />
-                </SelectTrigger>
-                <SelectContent>
-                  {unidades.map((u) => (
-                    <SelectItem key={u.id} value={u.nome}>{u.nome}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>{t('recordings.profitCenter')} <FieldAsterisk type={getAsterisk('centroLucro')} /></Label>
-              <Select
-                value={formData.centroLucro}
-                onValueChange={(value) => setFormData({ ...formData, centroLucro: value })}
-                disabled={!formData.unidadeNegocio}
-              >
-                <SelectTrigger className={!formData.unidadeNegocio ? 'opacity-50 cursor-not-allowed' : ''}>
-                  <SelectValue placeholder={!formData.unidadeNegocio ? t('field.selectUnitFirst') : t('common.select')} />
-                </SelectTrigger>
-                <SelectContent>
-                  {centrosLucroHierarquicos.map((cl) => (
-                    <SelectItem key={cl.id} value={cl.nome}>
-                      <span className="font-mono whitespace-pre">{cl.displayName}</span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Tabela de Preço <FieldAsterisk type={getAsterisk('tabelaPrecoId')} /></Label>
-              <Select
-                value={formData.tabelaPrecoId}
-                onValueChange={(value) => setFormData({ ...formData, tabelaPrecoId: value })}
-                disabled={!formData.unidadeNegocio}
-              >
-                <SelectTrigger className={!formData.unidadeNegocio ? 'opacity-50 cursor-not-allowed' : ''}>
-                  <SelectValue placeholder={!formData.unidadeNegocio ? 'Selecione uma Unidade de Negócio primeiro' : t('common.select')} />
-                </SelectTrigger>
-                <SelectContent>
-                  {filteredTabelasPreco.map((tp) => (
-                    <SelectItem key={tp.id} value={tp.id}>{tp.nome}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+            <TabsContent value="dadosGerais" className="mt-4 space-y-4">
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="codigoExterno">{t('common.externalCode')} <FieldAsterisk type={getAsterisk('codigoExterno')} /></Label>
+                  <Input
+                    id="codigoExterno"
+                    value={formData.codigoExterno}
+                    onChange={(e) => setFormData({ ...formData, codigoExterno: e.target.value.slice(0, 10) })}
+                    maxLength={10}
+                    placeholder="Máx. 10 caracteres"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="descricao">{t('common.description')} <FieldAsterisk type={getAsterisk('descricao')} /></Label>
+                  <Input
+                    id="descricao"
+                    value={formData.descricao}
+                    onChange={(e) => setFormData({ ...formData, descricao: e.target.value.slice(0, 100) })}
+                    maxLength={100}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="quantidadeEpisodios">{t('content.episodes')} <FieldAsterisk type={getAsterisk('quantidadeEpisodios')} /></Label>
+                  <Input
+                    id="quantidadeEpisodios"
+                    type="number"
+                    value={formData.quantidadeEpisodios}
+                    onChange={(e) => {
+                      const val = e.target.value.slice(0, 5);
+                      if (/^\d*$/.test(val)) {
+                        setFormData({ ...formData, quantidadeEpisodios: val });
+                      }
+                    }}
+                    maxLength={5}
+                    placeholder="Máx. 5 dígitos"
+                  />
+                </div>
+              </div>
 
-          <div className="grid grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label>{t('content.contentType')} <FieldAsterisk type={getAsterisk('tipoConteudo')} /></Label>
-              <Select
-                value={formData.tipoConteudo}
-                onValueChange={(value) => setFormData({ ...formData, tipoConteudo: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder={t('common.select')} />
-                </SelectTrigger>
-                <SelectContent>
-                  {tipos.map((t) => (
-                    <SelectItem key={t.id} value={t.nome}>{t.nome}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>{t('content.classification')} <FieldAsterisk type={getAsterisk('classificacao')} /></Label>
-              <Select
-                value={formData.classificacao}
-                onValueChange={(value) => setFormData({ ...formData, classificacao: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder={t('common.select')} />
-                </SelectTrigger>
-                <SelectContent>
-                  {classificacoes.map((c) => (
-                    <SelectItem key={c.id} value={c.nome}>{c.nome}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="anoProducao">{t('content.productionYear')} <FieldAsterisk type={getAsterisk('anoProducao')} /></Label>
-              <Input
-                id="anoProducao"
-                value={formData.anoProducao}
-                onChange={(e) => {
-                  const val = e.target.value.slice(0, 4);
-                  if (/^\d*$/.test(val)) {
-                    setFormData({ ...formData, anoProducao: val });
-                  }
-                }}
-                maxLength={4}
-                placeholder="Ex: 2024"
-              />
-            </div>
-          </div>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label>{t('recordings.businessUnit')} <FieldAsterisk type={getAsterisk('unidadeNegocio')} /></Label>
+                  <Select
+                    value={formData.unidadeNegocio}
+                    onValueChange={(value) => {
+                      setFormData({ ...formData, unidadeNegocio: value, centroLucro: '', tabelaPrecoId: '' });
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={t('common.select')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {unidades.map((u) => (
+                        <SelectItem key={u.id} value={u.nome}>{u.nome}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>{t('recordings.profitCenter')} <FieldAsterisk type={getAsterisk('centroLucro')} /></Label>
+                  <Select
+                    value={formData.centroLucro}
+                    onValueChange={(value) => setFormData({ ...formData, centroLucro: value })}
+                    disabled={!formData.unidadeNegocio}
+                  >
+                    <SelectTrigger className={!formData.unidadeNegocio ? 'opacity-50 cursor-not-allowed' : ''}>
+                      <SelectValue placeholder={!formData.unidadeNegocio ? t('field.selectUnitFirst') : t('common.select')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {centrosLucroHierarquicos.map((cl) => (
+                        <SelectItem key={cl.id} value={cl.nome}>
+                          <span className="font-mono whitespace-pre">{cl.displayName}</span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Tabela de Preço <FieldAsterisk type={getAsterisk('tabelaPrecoId')} /></Label>
+                  <Select
+                    value={formData.tabelaPrecoId}
+                    onValueChange={(value) => setFormData({ ...formData, tabelaPrecoId: value })}
+                    disabled={!formData.unidadeNegocio}
+                  >
+                    <SelectTrigger className={!formData.unidadeNegocio ? 'opacity-50 cursor-not-allowed' : ''}>
+                      <SelectValue placeholder={!formData.unidadeNegocio ? 'Selecione uma Unidade de Negócio primeiro' : t('common.select')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {filteredTabelasPreco.map((tp) => (
+                        <SelectItem key={tp.id} value={tp.id}>{tp.nome}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="sinopse">{t('content.synopsis')} <FieldAsterisk type={getAsterisk('sinopse')} /></Label>
-              <Textarea
-                id="sinopse"
-                value={formData.sinopse}
-                onChange={(e) => setFormData({ ...formData, sinopse: e.target.value })}
-                rows={3}
-                placeholder="Descrição detalhada do conteúdo..."
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="orcamento">
-                {t('field.budget')} {selectedCurrency && `(${getCurrencyByCode(selectedCurrency)?.symbol || selectedCurrency})`} <FieldAsterisk type={getAsterisk('orcamento')} />
-              </Label>
-              <Input
-                id="orcamento"
-                type="number"
-                value={formData.orcamento}
-                onChange={(e) => setFormData({ ...formData, orcamento: e.target.value })}
-                disabled={!formData.unidadeNegocio}
-                className={!formData.unidadeNegocio ? 'opacity-50 cursor-not-allowed' : ''}
-                placeholder={!formData.unidadeNegocio ? t('field.selectUnitFirst') : t('field.budgetPlaceholder')}
-                step="0.01"
-                min="0"
-              />
-              {!formData.unidadeNegocio && (
-                <p className="text-xs text-muted-foreground">
-                  {t('field.selectUnitToEnable')}
-                </p>
-              )}
-            </div>
-          </div>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label>{t('content.contentType')} <FieldAsterisk type={getAsterisk('tipoConteudo')} /></Label>
+                  <Select
+                    value={formData.tipoConteudo}
+                    onValueChange={(value) => setFormData({ ...formData, tipoConteudo: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={t('common.select')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {tipos.map((t) => (
+                        <SelectItem key={t.id} value={t.nome}>{t.nome}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>{t('content.classification')} <FieldAsterisk type={getAsterisk('classificacao')} /></Label>
+                  <Select
+                    value={formData.classificacao}
+                    onValueChange={(value) => setFormData({ ...formData, classificacao: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={t('common.select')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {classificacoes.map((c) => (
+                        <SelectItem key={c.id} value={c.nome}>{c.nome}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="anoProducao">{t('content.productionYear')} <FieldAsterisk type={getAsterisk('anoProducao')} /></Label>
+                  <Input
+                    id="anoProducao"
+                    value={formData.anoProducao}
+                    onChange={(e) => {
+                      const val = e.target.value.slice(0, 4);
+                      if (/^\d*$/.test(val)) {
+                        setFormData({ ...formData, anoProducao: val });
+                      }
+                    }}
+                    maxLength={4}
+                    placeholder="Ex: 2024"
+                  />
+                </div>
+              </div>
 
-          <div className="grid grid-cols-2 gap-4 pt-4 border-t">
-            <div className="space-y-2">
-              <Label>{t('common.registrationUser')}</Label>
-              <Input
-                value={data?.usuarioCadastro || user?.nome || 'Admin'}
-                readOnly
-                className="bg-muted"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>{t('common.registrationDate')}</Label>
-              <Input
-                value={data?.dataCadastro || new Date().toLocaleDateString('pt-BR')}
-                readOnly
-                className="bg-muted"
-              />
-            </div>
-          </div>
-
-          {data && (
-            <div className="pt-4 border-t">
-              <Tabs defaultValue="gravacoes" className="w-full">
-                <TabsList className="grid w-full grid-cols-5">
-                  {isVisible('Produção', 'Conteúdo', '-', 'Tabulador "Gravações"') && (
-                    <TabsTrigger value="gravacoes">{t('field.recordings')}</TabsTrigger>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="sinopse">{t('content.synopsis')} <FieldAsterisk type={getAsterisk('sinopse')} /></Label>
+                  <Textarea
+                    id="sinopse"
+                    value={formData.sinopse}
+                    onChange={(e) => setFormData({ ...formData, sinopse: e.target.value })}
+                    rows={3}
+                    placeholder="Descrição detalhada do conteúdo..."
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="orcamento">
+                    {t('field.budget')} {selectedCurrency && `(${getCurrencyByCode(selectedCurrency)?.symbol || selectedCurrency})`} <FieldAsterisk type={getAsterisk('orcamento')} />
+                  </Label>
+                  <Input
+                    id="orcamento"
+                    type="number"
+                    value={formData.orcamento}
+                    onChange={(e) => setFormData({ ...formData, orcamento: e.target.value })}
+                    disabled={!formData.unidadeNegocio}
+                    className={!formData.unidadeNegocio ? 'opacity-50 cursor-not-allowed' : ''}
+                    placeholder={!formData.unidadeNegocio ? t('field.selectUnitFirst') : t('field.budgetPlaceholder')}
+                    step="0.01"
+                    min="0"
+                  />
+                  {!formData.unidadeNegocio && (
+                    <p className="text-xs text-muted-foreground">
+                      {t('field.selectUnitToEnable')}
+                    </p>
                   )}
-                  {isVisible('Produção', 'Conteúdo', '-', 'Tabulador "Elenco"') && (
-                    <TabsTrigger value="elenco">{t('field.cast')}</TabsTrigger>
-                  )}
-                  {isVisible('Produção', 'Conteúdo', '-', 'Tabulador "Recursos Técnicos"') && (
-                    <TabsTrigger value="recursosTecnicos">Recursos Técnicos</TabsTrigger>
-                  )}
-                  {isVisible('Produção', 'Conteúdo', '-', 'Tabulador "Recursos Físicos"') && (
-                    <TabsTrigger value="recursosFisicos">Recursos Físicos</TabsTrigger>
-                  )}
-                  {isVisible('Produção', 'Conteúdo', '-', 'Tabulador "Custos"') && (
-                    <TabsTrigger value="custos">{t('field.costs')}</TabsTrigger>
-                  )}
-                </TabsList>
-                
-                {isVisible('Produção', 'Conteúdo', '-', 'Tabulador "Gravações"') && (
-                  <TabsContent value="gravacoes" className="mt-4">
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-lg font-semibold">{t('content.contentRecordings')}</h3>
-                      <Button
-                        type="button"
-                        onClick={handleGenerateGravacoes}
-                        disabled={isGenerating}
-                        className="gradient-primary hover:opacity-90"
-                      >
-                        {isGenerating ? (
-                          <>
-                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            {t('common.generating')}
-                          </>
-                        ) : (
-                          <>
-                            <Wand2 className="w-4 h-4 mr-2" />
-                            {t('common.generate')}
-                          </>
-                        )}
-                      </Button>
-                    </div>
+                </div>
+              </div>
 
-                    {gravacoes.length === 0 ? (
-                      <div className="text-center py-8 text-muted-foreground border rounded-lg">
-                        <p>{t('field.noRecordings')}</p>
-                        <p className="text-sm mt-1">{t('field.clickGenerate')}</p>
-                      </div>
+              <div className="grid grid-cols-2 gap-4 pt-4 border-t">
+                <div className="space-y-2">
+                  <Label>{t('common.registrationUser')}</Label>
+                  <Input
+                    value={data?.usuarioCadastro || user?.nome || 'Admin'}
+                    readOnly
+                    className="bg-muted"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>{t('common.registrationDate')}</Label>
+                  <Input
+                    value={data?.dataCadastro || new Date().toLocaleDateString('pt-BR')}
+                    readOnly
+                    className="bg-muted"
+                  />
+                </div>
+              </div>
+            </TabsContent>
+
+            {data && isVisible('Produção', 'Conteúdo', '-', 'Tabulador "Gravações"') && (
+              <TabsContent value="gravacoes" className="mt-4">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold">{t('content.contentRecordings')}</h3>
+                  <Button
+                    type="button"
+                    onClick={handleGenerateGravacoes}
+                    disabled={isGenerating}
+                    className="gradient-primary hover:opacity-90"
+                  >
+                    {isGenerating ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        {t('common.generating')}
+                      </>
                     ) : (
-                      <div className="border rounded-lg overflow-hidden max-h-[300px] overflow-y-auto">
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                               <TableHead className="w-32">{t('common.code')}</TableHead>
-                               <TableHead>{t('common.name')}</TableHead>
-                               <TableHead className="w-32">{t('common.status')}</TableHead>
-                               <TableHead className="w-32">{t('common.registrationDate')}</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {gravacoes.map((gravacao) => {
-                              const cor = getStatusColor(gravacao.status);
-                              return (
-                                <TableRow key={gravacao.id}>
-                                  <TableCell className="font-mono text-sm font-medium text-primary">
-                                    {gravacao.codigo}
-                                  </TableCell>
-                                  <TableCell className="font-medium">{gravacao.nome}</TableCell>
-                                  <TableCell>
-                                    <Badge 
-                                      style={cor ? { backgroundColor: cor } : undefined}
-                                      className={cor ? 'text-white' : 'bg-muted text-muted-foreground'}
-                                    >
-                                      {gravacao.status || t('field.noStatus')}
-                                    </Badge>
-                                  </TableCell>
-                                  <TableCell>{gravacao.dataCadastro}</TableCell>
-                                </TableRow>
-                              );
-                            })}
-                          </TableBody>
-                        </Table>
-                      </div>
+                      <>
+                        <Wand2 className="w-4 h-4 mr-2" />
+                        {t('common.generate')}
+                      </>
                     )}
-                  </TabsContent>
-                )}
+                  </Button>
+                </div>
 
-                {isVisible('Produção', 'Conteúdo', '-', 'Tabulador "Elenco"') && (
-                  <TabsContent value="elenco" className="mt-4">
-                    <ElencoTab entityId={data.id} storagePrefix="conteudo" />
-                  </TabsContent>
+                {gravacoes.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground border rounded-lg">
+                    <p>{t('field.noRecordings')}</p>
+                    <p className="text-sm mt-1">{t('field.clickGenerate')}</p>
+                  </div>
+                ) : (
+                  <div className="border rounded-lg overflow-hidden max-h-[300px] overflow-y-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                           <TableHead className="w-32">{t('common.code')}</TableHead>
+                           <TableHead>{t('common.name')}</TableHead>
+                           <TableHead className="w-32">{t('common.status')}</TableHead>
+                           <TableHead className="w-32">{t('common.registrationDate')}</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {gravacoes.map((gravacao) => {
+                          const cor = getStatusColor(gravacao.status);
+                          return (
+                            <TableRow key={gravacao.id}>
+                              <TableCell className="font-mono text-sm font-medium text-primary">
+                                {gravacao.codigo}
+                              </TableCell>
+                              <TableCell className="font-medium">{gravacao.nome}</TableCell>
+                              <TableCell>
+                                <Badge 
+                                  style={cor ? { backgroundColor: cor } : undefined}
+                                  className={cor ? 'text-white' : 'bg-muted text-muted-foreground'}
+                                >
+                                  {gravacao.status || t('field.noStatus')}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>{gravacao.dataCadastro}</TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
                 )}
-                
-                {isVisible('Produção', 'Conteúdo', '-', 'Tabulador "Recursos Técnicos"') && (
-                  <TabsContent value="recursosTecnicos" className="mt-4">
-                    <ConteudoRecursosTab
-                      conteudoId={data.id}
-                      tabelaPrecoId={formData.tabelaPrecoId}
-                      moeda={selectedCurrency || 'BRL'}
-                      readOnly={readOnly}
-                      tipo="tecnico"
-                    />
-                  </TabsContent>
-                )}
+              </TabsContent>
+            )}
 
-                {isVisible('Produção', 'Conteúdo', '-', 'Tabulador "Recursos Físicos"') && (
-                  <TabsContent value="recursosFisicos" className="mt-4">
-                    <ConteudoRecursosTab
-                      conteudoId={data.id}
-                      tabelaPrecoId={formData.tabelaPrecoId}
-                      moeda={selectedCurrency || 'BRL'}
-                      readOnly={readOnly}
-                      tipo="fisico"
-                    />
-                  </TabsContent>
-                )}
+            {data && isVisible('Produção', 'Conteúdo', '-', 'Tabulador "Elenco"') && (
+              <TabsContent value="elenco" className="mt-4">
+                <ElencoTab entityId={data.id} storagePrefix="conteudo" />
+              </TabsContent>
+            )}
+            
+            {data && isVisible('Produção', 'Conteúdo', '-', 'Tabulador "Recursos Técnicos"') && (
+              <TabsContent value="recursosTecnicos" className="mt-4">
+                <ConteudoRecursosTab
+                  conteudoId={data.id}
+                  tabelaPrecoId={formData.tabelaPrecoId}
+                  moeda={selectedCurrency || 'BRL'}
+                  readOnly={readOnly}
+                  tipo="tecnico"
+                />
+              </TabsContent>
+            )}
 
-                {isVisible('Produção', 'Conteúdo', '-', 'Tabulador "Custos"') && (
-                  <TabsContent value="custos" className="mt-4">
-                    <ConteudoCustosTab conteudoId={data.id} conteudoNome={data.descricao} />
-                  </TabsContent>
-                )}
-              </Tabs>
-            </div>
-          )}
+            {data && isVisible('Produção', 'Conteúdo', '-', 'Tabulador "Recursos Físicos"') && (
+              <TabsContent value="recursosFisicos" className="mt-4">
+                <ConteudoRecursosTab
+                  conteudoId={data.id}
+                  tabelaPrecoId={formData.tabelaPrecoId}
+                  moeda={selectedCurrency || 'BRL'}
+                  readOnly={readOnly}
+                  tipo="fisico"
+                />
+              </TabsContent>
+            )}
+
+            {data && isVisible('Produção', 'Conteúdo', '-', 'Tabulador "Custos"') && (
+              <TabsContent value="custos" className="mt-4">
+                <ConteudoCustosTab conteudoId={data.id} conteudoNome={data.descricao} />
+              </TabsContent>
+            )}
+          </Tabs>
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>
