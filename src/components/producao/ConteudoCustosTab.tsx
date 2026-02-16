@@ -477,40 +477,37 @@ export const ConteudoCustosTab = ({ conteudoId, conteudoNome }: ConteudoCustosTa
                 </TableHead>
                 <TableHead
                   colSpan={6}
-                  className="text-center font-bold text-white border-r"
-                  style={{ backgroundColor: 'hsl(var(--chart-3))' }}
+                  className="text-center font-bold text-white border-r bg-kreato-blue"
                 >
                   ESTIMADO POR GRAVAÇÃO
                 </TableHead>
                 <TableHead
                   colSpan={4}
-                  className="text-center font-bold text-white border-r"
-                  style={{ backgroundColor: 'hsl(var(--chart-2))' }}
+                  className="text-center font-bold text-white border-r bg-kreato-cyan"
                 >
                   REALIZADO
                 </TableHead>
                 <TableHead
                   colSpan={2}
-                  className="text-center font-bold text-white"
-                  style={{ backgroundColor: 'hsl(var(--chart-4))' }}
+                  className="text-center font-bold text-white bg-kreato-orange"
                 >
                   RESUMO
                 </TableHead>
               </TableRow>
               {/* Sub-headers */}
               <TableRow>
-                <TableHead className="text-center text-xs border-r" style={{ backgroundColor: 'hsl(var(--chart-3) / 0.15)' }}>Quantidade</TableHead>
-                <TableHead className="text-center text-xs border-r" style={{ backgroundColor: 'hsl(var(--chart-3) / 0.15)' }}>Horas</TableHead>
-                <TableHead className="text-right text-xs border-r" style={{ backgroundColor: 'hsl(var(--chart-3) / 0.15)' }}>Valor Unitário</TableHead>
-                <TableHead className="text-right text-xs border-r" style={{ backgroundColor: 'hsl(var(--chart-3) / 0.15)' }}>Valor Total</TableHead>
-                <TableHead className="text-center text-xs border-r" style={{ backgroundColor: 'hsl(var(--chart-3) / 0.15)' }}>Desconto</TableHead>
-                <TableHead className="text-right text-xs border-r" style={{ backgroundColor: 'hsl(var(--chart-3) / 0.15)' }}>Vlr Total c/ Desc.</TableHead>
-                <TableHead className="text-center text-xs border-r" style={{ backgroundColor: 'hsl(var(--chart-2) / 0.15)' }}>Quantidade</TableHead>
-                <TableHead className="text-center text-xs border-r" style={{ backgroundColor: 'hsl(var(--chart-2) / 0.15)' }}>Horas</TableHead>
-                <TableHead className="text-right text-xs border-r" style={{ backgroundColor: 'hsl(var(--chart-2) / 0.15)' }}>Valor Unitário</TableHead>
-                <TableHead className="text-right text-xs border-r" style={{ backgroundColor: 'hsl(var(--chart-2) / 0.15)' }}>Valor Total</TableHead>
-                <TableHead className="text-right text-xs border-r" style={{ backgroundColor: 'hsl(var(--chart-4) / 0.15)' }}>Saldo</TableHead>
-                <TableHead className="text-center text-xs" style={{ backgroundColor: 'hsl(var(--chart-4) / 0.15)' }}>Desvio</TableHead>
+                <TableHead className="text-center text-xs border-r bg-kreato-blue/15">Quantidade</TableHead>
+                <TableHead className="text-center text-xs border-r bg-kreato-blue/15">Horas</TableHead>
+                <TableHead className="text-right text-xs border-r bg-kreato-blue/15">Valor Unitário</TableHead>
+                <TableHead className="text-right text-xs border-r bg-kreato-blue/15">Valor Total</TableHead>
+                <TableHead className="text-center text-xs border-r bg-kreato-blue/15">Desconto</TableHead>
+                <TableHead className="text-right text-xs border-r bg-kreato-blue/15">Vlr Total c/ Desc.</TableHead>
+                <TableHead className="text-center text-xs border-r bg-kreato-cyan/15">Quantidade</TableHead>
+                <TableHead className="text-center text-xs border-r bg-kreato-cyan/15">Horas</TableHead>
+                <TableHead className="text-right text-xs border-r bg-kreato-cyan/15">Valor Unitário</TableHead>
+                <TableHead className="text-right text-xs border-r bg-kreato-cyan/15">Valor Total</TableHead>
+                <TableHead className="text-right text-xs border-r bg-kreato-orange/15">Saldo</TableHead>
+                <TableHead className="text-center text-xs bg-kreato-orange/15">Desvio</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
