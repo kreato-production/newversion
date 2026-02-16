@@ -32,6 +32,9 @@ export const formsRegistry: FormDefinition[] = [
       { campo: 'tabelaPrecoId', label: 'Tabela de Preço' },
       { campo: 'recursosTecnicos', label: 'Recursos Técnicos' },
       { campo: 'recursosFisicos', label: 'Recursos Físicos' },
+      { campo: 'frequenciaDataInicio', label: 'Frequência - Data Início' },
+      { campo: 'frequenciaDataFim', label: 'Frequência - Data Fim' },
+      { campo: 'frequenciaDiasSemana', label: 'Frequência - Dias da Semana' },
     ],
   },
   {

@@ -39,6 +39,9 @@ export interface Conteudo {
   dataCadastro: string;
   tabelaPrecoId?: string;
   tabelaPrecoNome?: string;
+  frequenciaDataInicio?: string;
+  frequenciaDataFim?: string;
+  frequenciaDiasSemana?: number[];
 }
 
 const mapDbToConteudo = (
@@ -69,6 +72,9 @@ const mapDbToConteudo = (
   orcamento: db.orcamento || 0,
   tabelaPrecoId: (db as any).tabela_preco_id || undefined,
   tabelaPrecoNome: (db as any).tabelas_preco?.nome || '',
+  frequenciaDataInicio: (db as any).frequencia_data_inicio || undefined,
+  frequenciaDataFim: (db as any).frequencia_data_fim || undefined,
+  frequenciaDiasSemana: (db as any).frequencia_dias_semana || undefined,
 });
 
 const Conteudo = () => {
@@ -140,6 +146,9 @@ const Conteudo = () => {
         sinopse: data.sinopse || null,
         orcamento: (data as any).orcamento || 0,
         tabela_preco_id: data.tabelaPrecoId || null,
+        frequencia_data_inicio: data.frequenciaDataInicio || null,
+        frequencia_data_fim: data.frequenciaDataFim || null,
+        frequencia_dias_semana: data.frequenciaDiasSemana && data.frequenciaDiasSemana.length > 0 ? data.frequenciaDiasSemana : null,
       };
 
       if (editingItem) {

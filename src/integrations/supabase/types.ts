@@ -399,6 +399,9 @@ export type Database = {
           created_at: string | null
           created_by: string | null
           descricao: string
+          frequencia_data_fim: string | null
+          frequencia_data_inicio: string | null
+          frequencia_dias_semana: number[] | null
           id: string
           orcamento: number | null
           quantidade_episodios: number | null
@@ -416,6 +419,9 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           descricao: string
+          frequencia_data_fim?: string | null
+          frequencia_data_inicio?: string | null
+          frequencia_dias_semana?: number[] | null
           id?: string
           orcamento?: number | null
           quantidade_episodios?: number | null
@@ -433,6 +439,9 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           descricao?: string
+          frequencia_data_fim?: string | null
+          frequencia_data_inicio?: string | null
+          frequencia_dias_semana?: number[] | null
           id?: string
           orcamento?: number | null
           quantidade_episodios?: number | null
