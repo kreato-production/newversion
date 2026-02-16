@@ -1,5 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Loader2, Wand2 } from 'lucide-react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { Loader2, Wand2, CalendarIcon } from 'lucide-react';
+import { format, parseISO, addDays, getDay, differenceInDays } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import {
   Dialog,
   DialogContent,
@@ -42,6 +44,10 @@ import { ElencoTab } from './ElencoTab';
 import { supabase } from '@/integrations/supabase/client';
 import { getCurrencyByCode } from '@/lib/currencies';
 import { useFormFieldConfig, FieldAsterisk } from '@/hooks/useFormFieldConfig';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { cn } from '@/lib/utils';
 
 interface ConteudoFormModalProps {
   isOpen: boolean;
@@ -76,6 +82,9 @@ export const ConteudoFormModal = ({
     sinopse: '',
     orcamento: '',
     tabelaPrecoId: '',
+    frequenciaDataInicio: '',
+    frequenciaDataFim: '',
+    frequenciaDiasSemana: [] as number[],
   });
 
   const [centrosLucro, setCentrosLucro] = useState<{ id: string; nome: string; parentId: string | null; status: string }[]>([]);
@@ -194,6 +203,9 @@ export const ConteudoFormModal = ({
         sinopse: data.sinopse || '',
         orcamento: String((data as any).orcamento || ''),
         tabelaPrecoId: data.tabelaPrecoId || '',
+        frequenciaDataInicio: data.frequenciaDataInicio || '',
+        frequenciaDataFim: data.frequenciaDataFim || '',
+        frequenciaDiasSemana: data.frequenciaDiasSemana || [],
       });
       loadGravacoes(data.id);
     } else {
@@ -210,6 +222,9 @@ export const ConteudoFormModal = ({
         sinopse: '',
         orcamento: '',
         tabelaPrecoId: '',
+        frequenciaDataInicio: '',
+        frequenciaDataFim: '',
+        frequenciaDiasSemana: [],
       });
       setGravacoes([]);
     }
@@ -246,6 +261,44 @@ export const ConteudoFormModal = ({
     }
   };
 
+  // Calculate dates from weekly frequency
+  const calculateFrequencyDates = useCallback((startStr: string, endStr: string, days: number[]): string[] => {
+    if (!startStr || !endStr || days.length === 0) return [];
+    const start = parseISO(startStr);
+    const end = parseISO(endStr);
+    const dates: string[] = [];
+    const totalDays = differenceInDays(end, start);
+    for (let i = 0; i <= totalDays; i++) {
+      const current = addDays(start, i);
+      // getDay: 0=Sun, 1=Mon... same as our array convention
+      if (days.includes(getDay(current))) {
+        dates.push(format(current, 'yyyy-MM-dd'));
+      }
+    }
+    return dates;
+  }, []);
+
+  // Auto-calculate episodes when frequency changes
+  const frequencyDates = useMemo(() => {
+    return calculateFrequencyDates(formData.frequenciaDataInicio, formData.frequenciaDataFim, formData.frequenciaDiasSemana);
+  }, [formData.frequenciaDataInicio, formData.frequenciaDataFim, formData.frequenciaDiasSemana, calculateFrequencyDates]);
+
+  useEffect(() => {
+    if (frequencyDates.length > 0) {
+      setFormData(prev => ({ ...prev, quantidadeEpisodios: String(frequencyDates.length) }));
+    }
+  }, [frequencyDates]);
+
+  const DAY_LABELS = [
+    { value: 0, label: 'Dom' },
+    { value: 1, label: 'Seg' },
+    { value: 2, label: 'Ter' },
+    { value: 3, label: 'Qua' },
+    { value: 4, label: 'Qui' },
+    { value: 5, label: 'Sex' },
+    { value: 6, label: 'Sáb' },
+  ];
+
   const conteudoFieldLabels: Record<string, string> = {
     codigoExterno: 'Código Externo', descricao: 'Descrição', quantidadeEpisodios: 'Qtd. Episódios',
     unidadeNegocio: 'Unidade de Negócio', centroLucro: 'Centro de Lucro', tipoConteudo: 'Tipo de Conteúdo',
@@ -281,6 +334,9 @@ export const ConteudoFormModal = ({
       usuarioCadastro: data?.usuarioCadastro || user?.nome || 'Admin',
       dataCadastro: data?.dataCadastro || new Date().toLocaleDateString('pt-BR'),
       tabelaPrecoId: formData.tabelaPrecoId || undefined,
+      frequenciaDataInicio: formData.frequenciaDataInicio || undefined,
+      frequenciaDataFim: formData.frequenciaDataFim || undefined,
+      frequenciaDiasSemana: formData.frequenciaDiasSemana.length > 0 ? formData.frequenciaDiasSemana : undefined,
     };
     
     (conteudo as any).orcamento = parseFloat(formData.orcamento) || 0;
@@ -346,7 +402,13 @@ export const ConteudoFormModal = ({
       const classificacaoId = classificacaoSelecionada?.id || (data as any)?.classificacaoId || null;
       const tipoConteudoId = tipoSelecionado?.id || (data as any)?.tipoConteudoId || null;
 
+      // Calculate dates for each episode from frequency
+      const allFreqDates = calculateFrequencyDates(formData.frequenciaDataInicio, formData.frequenciaDataFim, formData.frequenciaDiasSemana);
+
       for (let i = startEpisode; i <= quantidade; i++) {
+        // Assign data_prevista from frequency dates (index i-1 for zero-based)
+        const dataPrevista = allFreqDates.length > 0 && (i - 1) < allFreqDates.length ? allFreqDates[i - 1] : null;
+        
         const insertData = {
           nome: `${formData.descricao} - Episódio ${i}`,
           unidade_negocio_id: unidadeNegocioId,
@@ -357,6 +419,7 @@ export const ConteudoFormModal = ({
           created_by: user?.id || null,
           orcamento: orcamentoPorGravacao,
           status_id: statusInicial?.id || null,
+          data_prevista: dataPrevista,
         };
 
         const { data: inserted, error } = await (supabase as any)
@@ -468,7 +531,7 @@ export const ConteudoFormModal = ({
     if (isVisible('Produção', 'Conteúdo', '-', 'Tabulador "Elenco"')) visibleTabs.push({ value: 'elenco', label: t('field.cast') });
     if (isVisible('Produção', 'Conteúdo', '-', 'Tabulador "Recursos Técnicos"')) visibleTabs.push({ value: 'recursosTecnicos', label: 'Recursos Técnicos' });
     if (isVisible('Produção', 'Conteúdo', '-', 'Tabulador "Recursos Físicos"')) visibleTabs.push({ value: 'recursosFisicos', label: 'Recursos Físicos' });
-    visibleTabs.push({ value: 'terceiros', label: 'Terceiros' });
+    if (isVisible('Produção', 'Conteúdo', '-', 'Tabulador "Terceiros"')) visibleTabs.push({ value: 'terceiros', label: 'Terceiros' });
     if (isVisible('Produção', 'Conteúdo', '-', 'Tabulador "Custos"')) visibleTabs.push({ value: 'custos', label: t('field.costs') });
   }
 
@@ -526,7 +589,12 @@ export const ConteudoFormModal = ({
                     }}
                     maxLength={5}
                     placeholder="Máx. 5 dígitos"
+                    readOnly={frequencyDates.length > 0}
+                    className={frequencyDates.length > 0 ? 'bg-muted' : ''}
                   />
+                  {frequencyDates.length > 0 && (
+                    <p className="text-xs text-muted-foreground">Calculado automaticamente pela frequência semanal</p>
+                  )}
                 </div>
               </div>
 
@@ -670,6 +738,86 @@ export const ConteudoFormModal = ({
                   )}
                 </div>
               </div>
+              {isVisible('Produção', 'Conteúdo', '-', 'Frequência Semanal') && (
+                <div className="space-y-3 pt-4 border-t">
+                  <Label className="text-sm font-semibold">Frequência Semanal</Label>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-xs">Data Início <FieldAsterisk type={getAsterisk('frequenciaDataInicio')} /></Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className={cn("w-full justify-start text-left font-normal h-8 text-xs", !formData.frequenciaDataInicio && "text-muted-foreground")}
+                          >
+                            <CalendarIcon className="mr-2 h-3 w-3" />
+                            {formData.frequenciaDataInicio ? format(parseISO(formData.frequenciaDataInicio), 'dd/MM/yyyy') : 'Selecione'}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={formData.frequenciaDataInicio ? parseISO(formData.frequenciaDataInicio) : undefined}
+                            onSelect={(date) => setFormData({ ...formData, frequenciaDataInicio: date ? format(date, 'yyyy-MM-dd') : '' })}
+                            initialFocus
+                            className="p-3 pointer-events-auto"
+                            locale={ptBR}
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs">Data Fim <FieldAsterisk type={getAsterisk('frequenciaDataFim')} /></Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className={cn("w-full justify-start text-left font-normal h-8 text-xs", !formData.frequenciaDataFim && "text-muted-foreground")}
+                          >
+                            <CalendarIcon className="mr-2 h-3 w-3" />
+                            {formData.frequenciaDataFim ? format(parseISO(formData.frequenciaDataFim), 'dd/MM/yyyy') : 'Selecione'}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={formData.frequenciaDataFim ? parseISO(formData.frequenciaDataFim) : undefined}
+                            onSelect={(date) => setFormData({ ...formData, frequenciaDataFim: date ? format(date, 'yyyy-MM-dd') : '' })}
+                            disabled={(date) => formData.frequenciaDataInicio ? date < parseISO(formData.frequenciaDataInicio) : false}
+                            initialFocus
+                            className="p-3 pointer-events-auto"
+                            locale={ptBR}
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs">Dias da Semana <FieldAsterisk type={getAsterisk('frequenciaDiasSemana')} /></Label>
+                      <div className="flex gap-2 flex-wrap pt-1">
+                        {DAY_LABELS.map((day) => (
+                          <label key={day.value} className="flex items-center gap-1 cursor-pointer">
+                            <Checkbox
+                              checked={formData.frequenciaDiasSemana.includes(day.value)}
+                              onCheckedChange={(checked) => {
+                                const newDays = checked
+                                  ? [...formData.frequenciaDiasSemana, day.value].sort()
+                                  : formData.frequenciaDiasSemana.filter(d => d !== day.value);
+                                setFormData({ ...formData, frequenciaDiasSemana: newDays });
+                              }}
+                            />
+                            <span className="text-xs">{day.label}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  {frequencyDates.length > 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      {frequencyDates.length} episódio(s) calculado(s) no período selecionado
+                    </p>
+                  )}
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-4 pt-4 border-t">
                 <div className="space-y-2">
@@ -724,10 +872,11 @@ export const ConteudoFormModal = ({
                   <div className="border rounded-lg overflow-hidden max-h-[300px] overflow-y-auto">
                     <Table>
                       <TableHeader>
-                        <TableRow>
+                         <TableRow>
                            <TableHead className="w-32">{t('common.code')}</TableHead>
                            <TableHead>{t('common.name')}</TableHead>
                            <TableHead className="w-32">{t('common.status')}</TableHead>
+                           <TableHead className="w-32">Data Prevista</TableHead>
                            <TableHead className="w-32">{t('common.registrationDate')}</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -747,6 +896,9 @@ export const ConteudoFormModal = ({
                                 >
                                   {gravacao.status || t('field.noStatus')}
                                 </Badge>
+                              </TableCell>
+                              <TableCell>
+                                {gravacao.dataPrevista ? format(parseISO(gravacao.dataPrevista), 'dd/MM/yyyy') : '-'}
                               </TableCell>
                               <TableCell>{gravacao.dataCadastro}</TableCell>
                             </TableRow>
@@ -789,7 +941,7 @@ export const ConteudoFormModal = ({
               </TabsContent>
             )}
 
-            {data && (
+            {data && isVisible('Produção', 'Conteúdo', '-', 'Tabulador "Terceiros"') && (
               <TabsContent value="terceiros" className="mt-4">
                 <ConteudoTerceirosTab
                   conteudoId={data.id}
