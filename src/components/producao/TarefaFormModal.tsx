@@ -66,6 +66,7 @@ interface StatusTarefa {
   codigo: string;
   nome: string;
   cor?: string;
+  is_inicial?: boolean;
 }
 
 interface Gravacao {
@@ -157,10 +158,13 @@ export const TarefaFormModal = ({
         recursoHumanoId: incomingRecursoHumanoId || '',
       });
     } else {
+      // Find the initial status (is_inicial = true), fallback to PEND, then first
+      const inicialStatus = statusList.find(s => (s as any).is_inicial === true);
+      const defaultStatus = inicialStatus || statusList.find(s => s.codigo === 'PEND') || statusList[0];
       setFormData({
         id: crypto.randomUUID(),
         prioridade: 'media',
-        statusId: statusList.find(s => s.codigo === 'PEND')?.id || statusList[0]?.id,
+        statusId: defaultStatus?.id,
         dataCriacao: new Date().toISOString(),
         dataAtualizacao: new Date().toISOString(),
         recursoHumanoId: '',

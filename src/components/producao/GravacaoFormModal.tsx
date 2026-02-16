@@ -150,7 +150,7 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
         supabase.from('centro_lucro_unidades').select('centro_lucro_id, unidade_negocio_id'),
         supabase.from('classificacoes').select('id, nome').order('nome'),
         supabase.from('tipos_gravacao').select('id, nome').order('nome'),
-        supabase.from('status_gravacao').select('id, nome').order('nome'),
+        supabase.from('status_gravacao').select('id, nome, is_inicial').order('nome'),
         supabase.from('conteudos').select('id, descricao').order('descricao'),
       ]);
 
@@ -226,6 +226,10 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
       // Gerar novo código para nova gravação
       const novoCodigo = generateCodigoGravacao();
       setCodigoGerado(novoCodigo);
+      
+      // Find initial status (is_inicial = true)
+      const inicialStatus = statusList.find((s: any) => s.is_inicial === true);
+      
       setFormData({
         codigoExterno: '',
         nome: '',
@@ -234,7 +238,7 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
         classificacao: '',
         tipoConteudo: '',
         descricao: '',
-        status: '',
+        status: inicialStatus?.nome || '',
         conteudoId: '',
         orcamento: '',
       });

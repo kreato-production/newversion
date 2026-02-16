@@ -76,6 +76,7 @@ export const StatusGravacaoFormModal = ({
     onSave({
       id: data?.id || crypto.randomUUID(),
       ...formData,
+      isInicial: data?.isInicial || false,
       dataCadastro: data?.dataCadastro || new Date().toLocaleDateString('pt-BR'),
       usuarioCadastro: data?.usuarioCadastro || user?.nome || 'Admin',
     });
