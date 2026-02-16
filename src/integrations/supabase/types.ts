@@ -1845,6 +1845,7 @@ export type Database = {
           created_by: string | null
           descricao: string | null
           id: string
+          is_inicial: boolean
           nome: string
           updated_at: string | null
         }
@@ -1855,6 +1856,7 @@ export type Database = {
           created_by?: string | null
           descricao?: string | null
           id?: string
+          is_inicial?: boolean
           nome: string
           updated_at?: string | null
         }
@@ -1865,6 +1867,7 @@ export type Database = {
           created_by?: string | null
           descricao?: string | null
           id?: string
+          is_inicial?: boolean
           nome?: string
           updated_at?: string | null
         }
@@ -1878,6 +1881,7 @@ export type Database = {
           created_by: string | null
           descricao: string | null
           id: string
+          is_inicial: boolean
           nome: string
           updated_at: string | null
         }
@@ -1888,6 +1892,7 @@ export type Database = {
           created_by?: string | null
           descricao?: string | null
           id?: string
+          is_inicial?: boolean
           nome: string
           updated_at?: string | null
         }
@@ -1898,6 +1903,7 @@ export type Database = {
           created_by?: string | null
           descricao?: string | null
           id?: string
+          is_inicial?: boolean
           nome?: string
           updated_at?: string | null
         }

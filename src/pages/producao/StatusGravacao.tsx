@@ -3,10 +3,11 @@ import { Button } from '@/components/ui/button';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
 import { ListActionBar } from '@/components/shared/ListActionBar';
 import { SortableTable, Column } from '@/components/shared/SortableTable';
-import { Edit, Trash2, Settings, Loader2, Plus } from 'lucide-react';
+import { Edit, Trash2, Settings, Loader2, Plus, Star } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { StatusGravacaoFormModal } from '@/components/producao/StatusGravacaoFormModal';
 import { Badge } from '@/components/ui/badge';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { supabase } from '@/integrations/supabase/client';
 import type { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -19,6 +20,7 @@ export interface StatusGravacaoItem {
   nome: string;
   descricao: string;
   cor: string;
+  isInicial: boolean;
   dataCadastro: string;
   usuarioCadastro: string;
 }
@@ -29,6 +31,7 @@ const mapDbToStatusGravacao = (db: StatusGravacaoDB): StatusGravacaoItem => ({
   nome: db.nome,
   descricao: db.descricao || '',
   cor: db.cor || '#888888',
+  isInicial: (db as any).is_inicial || false,
   dataCadastro: db.created_at ? new Date(db.created_at).toLocaleDateString('pt-BR') : '',
   usuarioCadastro: '',
 });
@@ -109,9 +112,20 @@ const StatusGravacao = () => {
     }
   };
 
-  const handleEdit = (item: StatusGravacaoItem) => {
-    setEditingItem(item);
-    setIsModalOpen(true);
+  const handleToggleInicial = async (id: string, value: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('status_gravacao')
+        .update({ is_inicial: value } as any)
+        .eq('id', id);
+
+      if (error) throw error;
+      toast({ title: 'Sucesso', description: value ? 'Status definido como inicial' : 'Status inicial removido' });
+      await fetchStatusGravacao();
+    } catch (error) {
+      console.error('Error toggling is_inicial:', error);
+      toast({ title: 'Erro', description: 'Erro ao atualizar', variant: 'destructive' });
+    }
   };
 
   const filteredItems = items.filter(
@@ -162,6 +176,31 @@ const StatusGravacao = () => {
       ),
     },
     {
+      key: 'isInicial' as any,
+      label: 'Inicial',
+      className: 'w-20 text-center',
+      sortable: false,
+      render: (item) => (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={(e) => { e.stopPropagation(); handleToggleInicial(item.id, !item.isInicial); }}
+              >
+                <Star className={`h-4 w-4 ${item.isInicial ? 'fill-yellow-400 text-yellow-400' : 'text-muted-foreground'}`} />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              {item.isInicial ? 'Status inicial ativo' : 'Definir como status inicial'}
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      ),
+    },
+    {
       key: 'dataCadastro',
       label: 'Data Cadastro',
       className: 'w-32',
@@ -173,7 +212,7 @@ const StatusGravacao = () => {
       sortable: false,
       render: (item) => (
         <div className="flex justify-end gap-1">
-          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => handleEdit(item)}>
+          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => { setEditingItem(item); setIsModalOpen(true); }}>
             <Edit className="w-3.5 h-3.5" />
           </Button>
           <Button

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
 import { ListActionBar } from '@/components/shared/ListActionBar';
-import { Settings, Edit, Trash2, Loader2, Plus } from 'lucide-react';
+import { Settings, Edit, Trash2, Loader2, Plus, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -33,6 +33,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { toast } from 'sonner';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -45,6 +46,7 @@ interface StatusTarefaItem {
   nome: string;
   cor: string | null;
   descricao: string | null;
+  is_inicial: boolean;
   created_at: string | null;
   created_by: string | null;
 }
@@ -174,6 +176,22 @@ const StatusTarefa = () => {
     }
   };
 
+  const handleToggleInicial = async (id: string, value: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('status_tarefa')
+        .update({ is_inicial: value })
+        .eq('id', id);
+
+      if (error) throw error;
+      toast.success(value ? 'Status definido como inicial' : 'Status inicial removido');
+      await fetchData();
+    } catch (err) {
+      console.error('Error toggling is_inicial:', err);
+      toast.error('Erro ao atualizar');
+    }
+  };
+
   const filteredItems = items.filter(item =>
     item.nome.toLowerCase().includes(search.toLowerCase()) ||
     item.codigo.toLowerCase().includes(search.toLowerCase())
@@ -215,7 +233,7 @@ const StatusTarefa = () => {
           actionLabel={t('common.add')}
         />
       ) : (
-        <DataCard>
+         <DataCard>
           <Table>
             <TableHeader>
               <TableRow>
@@ -223,6 +241,7 @@ const StatusTarefa = () => {
                 <TableHead>{t('common.name')}</TableHead>
                 <TableHead>{t('common.color')}</TableHead>
                 <TableHead>{t('common.description')}</TableHead>
+                <TableHead className="w-[80px] text-center">Inicial</TableHead>
                 <TableHead className="w-[100px]">{t('common.actions')}</TableHead>
               </TableRow>
             </TableHeader>
@@ -241,6 +260,25 @@ const StatusTarefa = () => {
                     </div>
                   </TableCell>
                   <TableCell>{item.descricao}</TableCell>
+                  <TableCell className="text-center">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={() => handleToggleInicial(item.id, !item.is_inicial)}
+                          >
+                            <Star className={`h-4 w-4 ${item.is_inicial ? 'fill-yellow-400 text-yellow-400' : 'text-muted-foreground'}`} />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          {item.is_inicial ? 'Status inicial ativo' : 'Definir como status inicial'}
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </TableCell>
                   <TableCell>
                     <div className="flex gap-1">
                       <Button

@@ -67,6 +67,7 @@ interface StatusTarefa {
   codigo: string;
   nome: string;
   cor?: string;
+  is_inicial?: boolean;
 }
 
 interface Gravacao {
@@ -171,6 +172,7 @@ const Tarefas = () => {
         codigo: s.codigo,
         nome: s.nome,
         cor: s.cor || undefined,
+        is_inicial: (s as any).is_inicial || false,
       }));
       setStatusList(mappedStatus);
 
