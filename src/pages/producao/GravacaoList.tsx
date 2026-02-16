@@ -187,11 +187,23 @@ const GravacaoList = () => {
         toast({ title: t('common.success'), description: t('recordings.edit') + '!' });
       } else {
         // Insert new record - código será gerado pelo trigger no DB
+        // If no status was selected, use the initial status
+        let finalStatusId = recordData.status_id;
+        if (!finalStatusId) {
+          const { data: statusInicial } = await supabase
+            .from('status_gravacao')
+            .select('id')
+            .eq('is_inicial', true)
+            .maybeSingle();
+          finalStatusId = statusInicial?.id || null;
+        }
+
         const { error } = await supabase
           .from('gravacoes')
           .insert({
             ...recordData,
-            codigo: data.codigo, // Código temporário, será substituído pelo trigger se existir
+            status_id: finalStatusId,
+            codigo: data.codigo,
           });
 
         if (error) throw error;

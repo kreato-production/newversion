@@ -340,15 +340,19 @@ export const ConteudoFormModal = ({
         ? orcamentoTotal / quantidade // Divide by total quantity (including existing)
         : 0;
       
+      // Fetch initial status for recordings
+      const { data: statusInicial } = await supabase
+        .from('status_gravacao')
+        .select('id')
+        .eq('is_inicial', true)
+        .maybeSingle();
+
       // Get IDs for the form values
-      // First, try to use existing IDs from the data prop (when editing an existing content)
-      // Otherwise, look up by name
       const unidadeSelecionada = unidades.find(u => u.nome === formData.unidadeNegocio);
       const centroSelecionado = centrosLucro.find(c => c.nome === formData.centroLucro);
       const classificacaoSelecionada = classificacoes.find(c => c.nome === formData.classificacao);
       const tipoSelecionado = tipos.find(t => t.nome === formData.tipoConteudo);
 
-      // Use the found IDs, or fall back to the data prop IDs if available
       const unidadeNegocioId = unidadeSelecionada?.id || (data as any)?.unidadeNegocioId || null;
       const centroLucroId = centroSelecionado?.id || (data as any)?.centroLucroId || null;
       const classificacaoId = classificacaoSelecionada?.id || (data as any)?.classificacaoId || null;
@@ -364,6 +368,7 @@ export const ConteudoFormModal = ({
           conteudo_id: data.id,
           created_by: user?.id || null,
           orcamento: orcamentoPorGravacao,
+          status_id: statusInicial?.id || null,
         };
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
