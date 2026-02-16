@@ -36,6 +36,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { ConteudoCustosTab } from './ConteudoCustosTab';
+import { ConteudoRecursosTab } from './ConteudoRecursosTab';
 import { ElencoTab } from './ElencoTab';
 import { supabase } from '@/integrations/supabase/client';
 import { getCurrencyByCode } from '@/lib/currencies';
@@ -631,12 +632,18 @@ export const ConteudoFormModal = ({
           {data && (
             <div className="pt-4 border-t">
               <Tabs defaultValue="gravacoes" className="w-full">
-                <TabsList className="grid w-full grid-cols-3">
+                <TabsList className="grid w-full grid-cols-5">
                   {isVisible('Produção', 'Conteúdo', '-', 'Tabulador "Gravações"') && (
                     <TabsTrigger value="gravacoes">{t('field.recordings')}</TabsTrigger>
                   )}
                   {isVisible('Produção', 'Conteúdo', '-', 'Tabulador "Elenco"') && (
                     <TabsTrigger value="elenco">{t('field.cast')}</TabsTrigger>
+                  )}
+                  {isVisible('Produção', 'Conteúdo', '-', 'Tabulador "Recursos Técnicos"') && (
+                    <TabsTrigger value="recursosTecnicos">Recursos Técnicos</TabsTrigger>
+                  )}
+                  {isVisible('Produção', 'Conteúdo', '-', 'Tabulador "Recursos Físicos"') && (
+                    <TabsTrigger value="recursosFisicos">Recursos Físicos</TabsTrigger>
                   )}
                   {isVisible('Produção', 'Conteúdo', '-', 'Tabulador "Custos"') && (
                     <TabsTrigger value="custos">{t('field.costs')}</TabsTrigger>
@@ -717,6 +724,30 @@ export const ConteudoFormModal = ({
                   </TabsContent>
                 )}
                 
+                {isVisible('Produção', 'Conteúdo', '-', 'Tabulador "Recursos Técnicos"') && (
+                  <TabsContent value="recursosTecnicos" className="mt-4">
+                    <ConteudoRecursosTab
+                      conteudoId={data.id}
+                      tabelaPrecoId={formData.tabelaPrecoId}
+                      moeda={selectedCurrency || 'BRL'}
+                      readOnly={readOnly}
+                      tipo="tecnico"
+                    />
+                  </TabsContent>
+                )}
+
+                {isVisible('Produção', 'Conteúdo', '-', 'Tabulador "Recursos Físicos"') && (
+                  <TabsContent value="recursosFisicos" className="mt-4">
+                    <ConteudoRecursosTab
+                      conteudoId={data.id}
+                      tabelaPrecoId={formData.tabelaPrecoId}
+                      moeda={selectedCurrency || 'BRL'}
+                      readOnly={readOnly}
+                      tipo="fisico"
+                    />
+                  </TabsContent>
+                )}
+
                 {isVisible('Produção', 'Conteúdo', '-', 'Tabulador "Custos"') && (
                   <TabsContent value="custos" className="mt-4">
                     <ConteudoCustosTab conteudoId={data.id} conteudoNome={data.descricao} />

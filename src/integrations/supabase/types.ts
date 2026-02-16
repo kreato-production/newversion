@@ -214,6 +214,134 @@ export type Database = {
         }
         Relationships: []
       }
+      conteudo_recursos_fisicos: {
+        Row: {
+          conteudo_id: string
+          created_at: string | null
+          created_by: string | null
+          desconto_percentual: number
+          id: string
+          quantidade_horas: number
+          recurso_fisico_id: string
+          tabela_preco_id: string
+          valor_com_desconto: number
+          valor_hora: number
+          valor_total: number
+        }
+        Insert: {
+          conteudo_id: string
+          created_at?: string | null
+          created_by?: string | null
+          desconto_percentual?: number
+          id?: string
+          quantidade_horas?: number
+          recurso_fisico_id: string
+          tabela_preco_id: string
+          valor_com_desconto?: number
+          valor_hora?: number
+          valor_total?: number
+        }
+        Update: {
+          conteudo_id?: string
+          created_at?: string | null
+          created_by?: string | null
+          desconto_percentual?: number
+          id?: string
+          quantidade_horas?: number
+          recurso_fisico_id?: string
+          tabela_preco_id?: string
+          valor_com_desconto?: number
+          valor_hora?: number
+          valor_total?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conteudo_recursos_fisicos_conteudo_id_fkey"
+            columns: ["conteudo_id"]
+            isOneToOne: false
+            referencedRelation: "conteudos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conteudo_recursos_fisicos_recurso_fisico_id_fkey"
+            columns: ["recurso_fisico_id"]
+            isOneToOne: false
+            referencedRelation: "recursos_fisicos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conteudo_recursos_fisicos_tabela_preco_id_fkey"
+            columns: ["tabela_preco_id"]
+            isOneToOne: false
+            referencedRelation: "tabelas_preco"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conteudo_recursos_tecnicos: {
+        Row: {
+          conteudo_id: string
+          created_at: string | null
+          created_by: string | null
+          desconto_percentual: number
+          id: string
+          quantidade_horas: number
+          recurso_tecnico_id: string
+          tabela_preco_id: string
+          valor_com_desconto: number
+          valor_hora: number
+          valor_total: number
+        }
+        Insert: {
+          conteudo_id: string
+          created_at?: string | null
+          created_by?: string | null
+          desconto_percentual?: number
+          id?: string
+          quantidade_horas?: number
+          recurso_tecnico_id: string
+          tabela_preco_id: string
+          valor_com_desconto?: number
+          valor_hora?: number
+          valor_total?: number
+        }
+        Update: {
+          conteudo_id?: string
+          created_at?: string | null
+          created_by?: string | null
+          desconto_percentual?: number
+          id?: string
+          quantidade_horas?: number
+          recurso_tecnico_id?: string
+          tabela_preco_id?: string
+          valor_com_desconto?: number
+          valor_hora?: number
+          valor_total?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conteudo_recursos_tecnicos_conteudo_id_fkey"
+            columns: ["conteudo_id"]
+            isOneToOne: false
+            referencedRelation: "conteudos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conteudo_recursos_tecnicos_recurso_tecnico_id_fkey"
+            columns: ["recurso_tecnico_id"]
+            isOneToOne: false
+            referencedRelation: "recursos_tecnicos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conteudo_recursos_tecnicos_tabela_preco_id_fkey"
+            columns: ["tabela_preco_id"]
+            isOneToOne: false
+            referencedRelation: "tabelas_preco"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       conteudos: {
         Row: {
           ano_producao: string | null
