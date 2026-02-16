@@ -442,7 +442,7 @@ export const ConteudoFormModal = ({
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>{t('nav.businessUnits')} <FieldAsterisk type={getAsterisk('unidadeNegocio')} /></Label>
+              <Label>{t('recordings.businessUnit')} <FieldAsterisk type={getAsterisk('unidadeNegocio')} /></Label>
               <Select
                 value={formData.unidadeNegocio}
                 onValueChange={(value) => {
@@ -461,7 +461,7 @@ export const ConteudoFormModal = ({
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>{t('nav.profitCenters')} <FieldAsterisk type={getAsterisk('centroLucro')} /></Label>
+              <Label>{t('recordings.profitCenter')} <FieldAsterisk type={getAsterisk('centroLucro')} /></Label>
               <Select
                 value={formData.centroLucro}
                 onValueChange={(value) => setFormData({ ...formData, centroLucro: value })}
