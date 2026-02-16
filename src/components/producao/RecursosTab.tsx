@@ -694,8 +694,8 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
     const { data: statusData } = await supabase
       .from('status_tarefa')
       .select('id')
-      .eq('codigo', 'PEND')
-      .single();
+      .eq('is_inicial', true)
+      .maybeSingle();
 
     // Check if task already exists
     const { data: existingTask } = await supabase
