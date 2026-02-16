@@ -123,15 +123,22 @@ const Conteudo = () => {
 
   const handleSave = async (data: Conteudo) => {
     try {
-      const { data: unidadesData } = await supabase.from('unidades_negocio').select('id, nome');
-      const { data: centrosData } = await supabase.from('centros_lucro').select('id, nome');
-      const { data: tiposData } = await supabase.from('tipos_gravacao').select('id, nome');
-      const { data: classificacoesData } = await supabase.from('classificacoes').select('id, nome');
+      const [
+        { data: unidadesData },
+        { data: centrosData },
+        { data: tiposData },
+        { data: classificacoesData },
+      ] = await Promise.all([
+        supabase.from('unidades_negocio').select('id, nome'),
+        supabase.from('centros_lucro').select('id, nome'),
+        supabase.from('tipos_gravacao').select('id, nome'),
+        supabase.from('classificacoes').select('id, nome'),
+      ]);
 
-      const unidadeId = unidadesData?.find(u => u.nome === data.unidadeNegocio)?.id || data.unidadeNegocioId || null;
-      const centroId = centrosData?.find(c => c.nome === data.centroLucro)?.id || data.centroLucroId || null;
-      const tipoId = tiposData?.find(t => t.nome === data.tipoConteudo)?.id || data.tipoConteudoId || null;
-      const classificacaoId = classificacoesData?.find(c => c.nome === data.classificacao)?.id || data.classificacaoId || null;
+      const unidadeId = (data.unidadeNegocio ? unidadesData?.find(u => u.nome === data.unidadeNegocio)?.id : null) || data.unidadeNegocioId || null;
+      const centroId = (data.centroLucro ? centrosData?.find(c => c.nome === data.centroLucro)?.id : null) || data.centroLucroId || null;
+      const tipoId = (data.tipoConteudo ? tiposData?.find(t => t.nome === data.tipoConteudo)?.id : null) || data.tipoConteudoId || null;
+      const classificacaoId = (data.classificacao ? classificacoesData?.find(c => c.nome === data.classificacao)?.id : null) || data.classificacaoId || null;
 
       const dbData: any = {
         id: data.id || undefined,
