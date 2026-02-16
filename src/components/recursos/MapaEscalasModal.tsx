@@ -38,6 +38,8 @@ import {
   endOfWeek,
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { getDateLocale, getDayAbbreviations } from '@/lib/dateLocale';
+import { useLanguage } from '@/contexts/LanguageContext';
 import type { RecursoHumano, Escala} from '@/pages/recursos/RecursosHumanos';
 
 interface MapaEscalasModalProps {
@@ -50,7 +52,7 @@ interface MapaEscalasModalProps {
 type ViewMode = 'semana' | 'mes' | 'periodo';
 type StatusType = 'FG' | 'AU' | 'DI';
 
-const DIAS_SEMANA_ABREV = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+// Day abbreviations moved to dynamic via getDayAbbreviations
 
 export const MapaEscalasModal = ({
   isOpen,
@@ -62,6 +64,9 @@ export const MapaEscalasModal = ({
   const [currentDate, setCurrentDate] = useState(new Date());
   const [periodoInicio, setPeriodoInicio] = useState('');
   const [periodoFim, setPeriodoFim] = useState('');
+  const { language } = useLanguage();
+  const dateLocale = getDateLocale(language);
+  const DIAS_SEMANA_ABREV = getDayAbbreviations(language);
 
   // Agrupar recursos por departamento
   const recursosPorDepartamento = useMemo(() => {
@@ -86,8 +91,8 @@ export const MapaEscalasModal = ({
   // Calcular dias a exibir baseado no modo de visualização
   const diasExibidos = useMemo(() => {
     if (viewMode === 'semana') {
-      const inicio = startOfWeek(currentDate, { locale: ptBR });
-      const fim = endOfWeek(currentDate, { locale: ptBR });
+      const inicio = startOfWeek(currentDate, { locale: dateLocale });
+      const fim = endOfWeek(currentDate, { locale: dateLocale });
       return eachDayOfInterval({ start: inicio, end: fim });
     } else if (viewMode === 'mes') {
       const inicio = startOfMonth(currentDate);
@@ -197,11 +202,11 @@ export const MapaEscalasModal = ({
 
   const getTituloNavegacao = () => {
     if (viewMode === 'semana') {
-      const inicio = startOfWeek(currentDate, { locale: ptBR });
-      const fim = endOfWeek(currentDate, { locale: ptBR });
-      return `${format(inicio, 'dd/MM', { locale: ptBR })} - ${format(fim, 'dd/MM/yyyy', { locale: ptBR })}`;
+      const inicio = startOfWeek(currentDate, { locale: dateLocale });
+      const fim = endOfWeek(currentDate, { locale: dateLocale });
+      return `${format(inicio, 'dd/MM', { locale: dateLocale })} - ${format(fim, 'dd/MM/yyyy', { locale: dateLocale })}`;
     } else if (viewMode === 'mes') {
-      return format(currentDate, 'MMMM yyyy', { locale: ptBR });
+      return format(currentDate, 'MMMM yyyy', { locale: dateLocale });
     } else if (periodoInicio && periodoFim) {
       return `${format(parseISO(periodoInicio), 'dd/MM/yyyy')} - ${format(parseISO(periodoFim), 'dd/MM/yyyy')}`;
     }
@@ -444,7 +449,7 @@ export const MapaEscalasModal = ({
                                       {recurso.nome} {recurso.sobrenome}
                                     </p>
                                     <p className="text-xs">
-                                      {format(dia, 'EEEE, dd/MM/yyyy', { locale: ptBR })}
+                                      {format(dia, 'EEEE, dd/MM/yyyy', { locale: dateLocale })}
                                     </p>
                                     <p className="text-xs">
                                       Status: <span className="font-medium">{config.title}</span>

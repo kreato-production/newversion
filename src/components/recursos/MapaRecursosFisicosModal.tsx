@@ -35,6 +35,8 @@ import {
   addDays,
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { getDateLocale, getDayAbbreviations } from '@/lib/dateLocale';
+import { useLanguage } from '@/contexts/LanguageContext';
 import type { RecursoFisico, FaixaDisponibilidade } from '@/pages/recursos/RecursosFisicos';
 import { useWeatherForecast } from '@/hooks/useWeatherForecast';
 import { useRecursoFisicoDisponibilidade } from '@/hooks/useRecursoFisicoDisponibilidade';
@@ -65,7 +67,7 @@ interface MapaRecursosFisicosModalProps {
 type ViewMode = 'semana' | 'mes' | 'periodo';
 type StatusType = 'DI' | 'IN'; // Disponível ou Indisponível
 
-const DIAS_SEMANA_ABREV = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+// Day abbreviations moved to dynamic via getDayAbbreviations
 
 export const MapaRecursosFisicosModal = ({
   isOpen,
@@ -76,6 +78,9 @@ export const MapaRecursosFisicosModal = ({
   const [currentDate, setCurrentDate] = useState(new Date());
   const [periodoInicio, setPeriodoInicio] = useState('');
   const [periodoFim, setPeriodoFim] = useState('');
+  const { language } = useLanguage();
+  const dateLocale = getDateLocale(language);
+  const DIAS_SEMANA_ABREV = getDayAbbreviations(language);
   
   const { weather, loading: weatherLoading, getWeatherForDate } = useWeatherForecast(16);
   const { getFaixasDisponiveis, formatarMinutos } = useRecursoFisicoDisponibilidade();
@@ -91,8 +96,8 @@ export const MapaRecursosFisicosModal = ({
   // Calcular dias a exibir baseado no modo de visualização
   const diasExibidos = useMemo(() => {
     if (viewMode === 'semana') {
-      const inicio = startOfWeek(currentDate, { locale: ptBR });
-      const fim = endOfWeek(currentDate, { locale: ptBR });
+      const inicio = startOfWeek(currentDate, { locale: dateLocale });
+      const fim = endOfWeek(currentDate, { locale: dateLocale });
       return eachDayOfInterval({ start: inicio, end: fim });
     } else if (viewMode === 'mes') {
       const inicio = startOfMonth(currentDate);
@@ -296,11 +301,11 @@ export const MapaRecursosFisicosModal = ({
 
   const getTituloNavegacao = () => {
     if (viewMode === 'semana') {
-      const inicio = startOfWeek(currentDate, { locale: ptBR });
-      const fim = endOfWeek(currentDate, { locale: ptBR });
-      return `${format(inicio, 'dd/MM', { locale: ptBR })} - ${format(fim, 'dd/MM/yyyy', { locale: ptBR })}`;
+      const inicio = startOfWeek(currentDate, { locale: dateLocale });
+      const fim = endOfWeek(currentDate, { locale: dateLocale });
+      return `${format(inicio, 'dd/MM', { locale: dateLocale })} - ${format(fim, 'dd/MM/yyyy', { locale: dateLocale })}`;
     } else if (viewMode === 'mes') {
-      return format(currentDate, 'MMMM yyyy', { locale: ptBR });
+      return format(currentDate, 'MMMM yyyy', { locale: dateLocale });
     } else if (periodoInicio && periodoFim) {
       return `${format(parseISO(periodoInicio), 'dd/MM/yyyy')} - ${format(parseISO(periodoFim), 'dd/MM/yyyy')}`;
     }
@@ -445,7 +450,7 @@ export const MapaRecursosFisicosModal = ({
                       <TooltipContent>
                         <div className="text-center">
                           <div className="font-medium">
-                            {format(dia, "EEEE, dd 'de' MMMM", { locale: ptBR })}
+                            {format(dia, "EEEE, dd 'de' MMMM", { locale: dateLocale })}
                           </div>
                           {weatherData && (
                             <div className="mt-1 text-xs">
