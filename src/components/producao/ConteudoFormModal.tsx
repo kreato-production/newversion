@@ -393,6 +393,60 @@ export const ConteudoFormModal = ({
         }
       }
 
+      // Copy content resources (técnicos e físicos) to each new gravação
+      if (novasGravacoes.length > 0 && data?.id) {
+        try {
+          const [rtRes, rfRes] = await Promise.all([
+            (supabase as any).from('conteudo_recursos_tecnicos').select('recurso_tecnico_id, quantidade').eq('conteudo_id', data.id),
+            (supabase as any).from('conteudo_recursos_fisicos').select('recurso_fisico_id, quantidade').eq('conteudo_id', data.id),
+          ]);
+
+          const recursosTecnicos = rtRes.data || [];
+          const recursosFisicos = rfRes.data || [];
+
+          for (const gravacao of novasGravacoes) {
+            const inserts: any[] = [];
+
+            // For each technical resource, create one anchor entry per quantity unit
+            for (const rt of recursosTecnicos) {
+              const qty = rt.quantidade || 1;
+              for (let q = 0; q < qty; q++) {
+                inserts.push({
+                  gravacao_id: gravacao.id,
+                  recurso_tecnico_id: rt.recurso_tecnico_id,
+                  recurso_humano_id: null,
+                  recurso_fisico_id: null,
+                });
+              }
+            }
+
+            // For each physical resource, create one entry per quantity unit
+            for (const rf of recursosFisicos) {
+              const qty = rf.quantidade || 1;
+              for (let q = 0; q < qty; q++) {
+                inserts.push({
+                  gravacao_id: gravacao.id,
+                  recurso_fisico_id: rf.recurso_fisico_id,
+                  recurso_tecnico_id: null,
+                  recurso_humano_id: null,
+                });
+              }
+            }
+
+            if (inserts.length > 0) {
+              const { error: resError } = await (supabase as any)
+                .from('gravacao_recursos')
+                .insert(inserts);
+              if (resError) {
+                console.error('Error copying resources to gravacao:', resError);
+              }
+            }
+          }
+        } catch (resErr) {
+          console.error('Error copying content resources to gravacoes:', resErr);
+        }
+      }
+
       setGravacoes([...gravacoes, ...novasGravacoes]);
       toast({
         title: t('common.success'),
