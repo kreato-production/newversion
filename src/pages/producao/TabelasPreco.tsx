@@ -20,6 +20,9 @@ export interface TabelaPrecoItem {
   descricao: string;
   dataCadastro: string;
   usuarioCadastro: string;
+  unidadeNegocioId: string;
+  unidadeNegocioNome: string;
+  moeda: string;
 }
 
 const TabelasPreco = () => {
@@ -36,7 +39,7 @@ const TabelasPreco = () => {
     try {
       const { data, error } = await supabase
         .from('tabelas_preco' as any)
-        .select('*')
+        .select('*, unidades_negocio:unidade_negocio_id(id, nome, moeda)')
         .order('nome');
 
       if (error) throw error;
@@ -50,6 +53,9 @@ const TabelasPreco = () => {
         descricao: db.descricao || '',
         dataCadastro: db.created_at ? new Date(db.created_at).toLocaleDateString('pt-BR') : '',
         usuarioCadastro: '',
+        unidadeNegocioId: db.unidade_negocio_id || '',
+        unidadeNegocioNome: db.unidades_negocio?.nome || '',
+        moeda: db.unidades_negocio?.moeda || 'BRL',
       })));
     } catch (error) {
       console.error('Error fetching tabelas_preco:', error);
@@ -94,6 +100,11 @@ const TabelasPreco = () => {
       render: (item) => <span className="font-mono text-sm">{item.codigoExterno || '-'}</span>,
     },
     { key: 'nome', label: 'Nome' },
+    {
+      key: 'unidadeNegocioNome',
+      label: 'Unidade de Negócio',
+      render: (item) => item.unidadeNegocioNome || '-',
+    },
     {
       key: 'status',
       label: 'Status',

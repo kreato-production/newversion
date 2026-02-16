@@ -183,6 +183,7 @@ export const formsRegistry: FormDefinition[] = [
     campos: [
       { campo: 'codigoExterno', label: 'Código Externo' },
       { campo: 'nome', label: 'Nome' },
+      { campo: 'unidadeNegocio', label: 'Unidade de Negócio' },
       { campo: 'status', label: 'Status' },
       { campo: 'vigenciaInicio', label: 'Vigência De' },
       { campo: 'vigenciaFim', label: 'Vigência Até' },
