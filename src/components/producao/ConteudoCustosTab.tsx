@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Calculator, Loader2, Film } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
+import { Calculator, Loader2, ChevronRight, ChevronDown } from 'lucide-react';
 import { ExportDropdown } from '@/components/shared/ExportDropdown';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -26,6 +27,16 @@ interface EstimadoItem {
   valorComDesconto: number;
 }
 
+interface GravacaoDetalhe {
+  gravacaoId: string;
+  gravacaoNome: string;
+  gravacaoCodigo: string;
+  quantidade: number;
+  totalHoras: number;
+  valorUnitario: number;
+  valorTotal: number;
+}
+
 interface RealizadoItem {
   recursoTecnicoId: string;
   recursoNome: string;
@@ -33,14 +44,24 @@ interface RealizadoItem {
   totalHoras: number;
   valorUnitarioMedio: number;
   valorTotal: number;
+  detalhes: GravacaoDetalhe[];
 }
 
 interface MatrizRow {
   recursoNome: string;
-  estimado: EstimadoItem | null;
+  recursoTecnicoId: string;
+  estimadoAcumulado: {
+    quantidade: number;
+    horas: number;
+    valorUnitario: number;
+    valorTotal: number;
+    descontoPercentual: number;
+    valorComDesconto: number;
+  } | null;
   realizado: RealizadoItem | null;
   saldo: number;
   desvioPercentual: number;
+  progressPercent: number;
 }
 
 const calcularHorasEntreTempo = (inicio: string, fim: string): number => {
@@ -60,6 +81,16 @@ export const ConteudoCustosTab = ({ conteudoId, conteudoNome }: ConteudoCustosTa
   const [realizados, setRealizados] = useState<RealizadoItem[]>([]);
   const [moeda, setMoeda] = useState<string>('BRL');
   const [numGravacoes, setNumGravacoes] = useState(0);
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+
+  const toggleRow = (rtId: string) => {
+    setExpandedRows(prev => {
+      const next = new Set(prev);
+      if (next.has(rtId)) next.delete(rtId);
+      else next.add(rtId);
+      return next;
+    });
+  };
 
   const formatCurrency = useCallback((value: number) => {
     return formatCurrencyUtil(value, moeda);
@@ -114,10 +145,12 @@ export const ConteudoCustosTab = ({ conteudoId, conteudoNome }: ConteudoCustosTa
       // Fetch all gravações for this content
       const { data: gravacoesData } = await supabase
         .from('gravacoes')
-        .select('id')
+        .select('id, nome, codigo')
         .eq('conteudo_id', conteudoId);
 
-      const gravacaoIds = (gravacoesData || []).map(g => g.id);
+      const gravacoes = gravacoesData || [];
+      const gravacaoIds = gravacoes.map(g => g.id);
+      const gravacaoMap = new Map(gravacoes.map(g => [g.id, { nome: g.nome, codigo: g.codigo }]));
       setNumGravacoes(gravacaoIds.length);
 
       if (gravacaoIds.length === 0) {
@@ -143,30 +176,33 @@ export const ConteudoCustosTab = ({ conteudoId, conteudoNome }: ConteudoCustosTa
 
       const allAlocs = alocsData || [];
 
-      // Group by recurso_tecnico_id and aggregate realized values
-      // Only consider allocations that have both recurso_tecnico_id AND recurso_humano_id (actual RH assignment)
+      // Group by recurso_tecnico_id, then by gravacao_id for drill-down
       const realizadoMap = new Map<string, {
         nome: string;
-        totalQuantidade: number;
-        totalHoras: number;
-        totalCusto: number;
-        totalCustoHora: number;
-        countCustoHora: number;
+        porGravacao: Map<string, {
+          quantidade: number;
+          totalHoras: number;
+          totalCusto: number;
+          totalCustoHora: number;
+          countCustoHora: number;
+        }>;
       }>();
-
-      // Also track anchor records (recurso_tecnico_id without recurso_humano_id) per gravação
-      const anchorsByGravacao = new Map<string, Map<string, number>>(); // gravacao_id -> rt_id -> count
 
       allAlocs.forEach(aloc => {
         if (!aloc.recurso_tecnico_id) return;
 
         const rtId = aloc.recurso_tecnico_id;
         const rtNome = aloc.recursos_tecnicos?.nome || rtNameMap.get(rtId) || 'Desconhecido';
+        const gravId = aloc.gravacao_id;
 
         if (!realizadoMap.has(rtId)) {
-          realizadoMap.set(rtId, {
-            nome: rtNome,
-            totalQuantidade: 0,
+          realizadoMap.set(rtId, { nome: rtNome, porGravacao: new Map() });
+        }
+
+        const rtEntry = realizadoMap.get(rtId)!;
+        if (!rtEntry.porGravacao.has(gravId)) {
+          rtEntry.porGravacao.set(gravId, {
+            quantidade: 0,
             totalHoras: 0,
             totalCusto: 0,
             totalCustoHora: 0,
@@ -174,55 +210,65 @@ export const ConteudoCustosTab = ({ conteudoId, conteudoNome }: ConteudoCustosTa
           });
         }
 
-        // Anchor record (RT only, no RH) - counts as quantity per gravação
-        if (!aloc.recurso_humano_id) {
-          if (!anchorsByGravacao.has(aloc.gravacao_id)) {
-            anchorsByGravacao.set(aloc.gravacao_id, new Map());
-          }
-          const gravAnchors = anchorsByGravacao.get(aloc.gravacao_id)!;
-          gravAnchors.set(rtId, (gravAnchors.get(rtId) || 0) + 1);
-        }
+        const gravEntry = rtEntry.porGravacao.get(gravId)!;
 
-        // RH assignment to RT - has actual hours and costs
         if (aloc.recurso_humano_id && aloc.recursos_humanos) {
           const rh = aloc.recursos_humanos;
           const horas = calcularHorasEntreTempo(aloc.hora_inicio || '', aloc.hora_fim || '');
           const custoHora = rh.custo_hora || 0;
 
-          const entry = realizadoMap.get(rtId)!;
-          entry.totalQuantidade += 1;
-          entry.totalHoras += horas;
-          entry.totalCusto += horas * custoHora;
+          gravEntry.quantidade += 1;
+          gravEntry.totalHoras += horas;
+          gravEntry.totalCusto += horas * custoHora;
           if (custoHora > 0) {
-            entry.totalCustoHora += custoHora;
-            entry.countCustoHora += 1;
+            gravEntry.totalCustoHora += custoHora;
+            gravEntry.countCustoHora += 1;
           }
+        } else if (!aloc.recurso_humano_id) {
+          // Anchor record - count as quantity if no RH assigned yet
+          gravEntry.quantidade = Math.max(gravEntry.quantidade, 1);
         }
       });
 
-      // If no RH assignments yet, use anchor counts for quantity
-      realizadoMap.forEach((entry, rtId) => {
-        if (entry.totalQuantidade === 0) {
-          // Count total anchors across all gravações
-          let totalAnchors = 0;
-          anchorsByGravacao.forEach((gravAnchors) => {
-            totalAnchors += gravAnchors.get(rtId) || 0;
+      const realizadoItems: RealizadoItem[] = Array.from(realizadoMap.entries()).map(([rtId, rtEntry]) => {
+        let totalQtd = 0;
+        let totalHoras = 0;
+        let totalCusto = 0;
+        let totalCustoHoraSum = 0;
+        let countCustoHora = 0;
+        const detalhes: GravacaoDetalhe[] = [];
+
+        rtEntry.porGravacao.forEach((gEntry, gravId) => {
+          const gravInfo = gravacaoMap.get(gravId);
+          const avgCustoHora = gEntry.countCustoHora > 0 ? gEntry.totalCustoHora / gEntry.countCustoHora : 0;
+
+          totalQtd += gEntry.quantidade;
+          totalHoras += gEntry.totalHoras;
+          totalCusto += gEntry.totalCusto;
+          totalCustoHoraSum += gEntry.totalCustoHora;
+          countCustoHora += gEntry.countCustoHora;
+
+          detalhes.push({
+            gravacaoId: gravId,
+            gravacaoNome: gravInfo?.nome || 'Gravação',
+            gravacaoCodigo: gravInfo?.codigo || '',
+            quantidade: gEntry.quantidade,
+            totalHoras: Math.round(gEntry.totalHoras * 10) / 10,
+            valorUnitario: Math.round(avgCustoHora * 100) / 100,
+            valorTotal: Math.round(gEntry.totalCusto * 100) / 100,
           });
-          // Average per gravação
-          entry.totalQuantidade = gravacaoIds.length > 0 ? Math.round(totalAnchors / gravacaoIds.length) : 0;
-        }
-      });
+        });
 
-      const realizadoItems: RealizadoItem[] = Array.from(realizadoMap.entries()).map(([rtId, entry]) => {
-        const avgCustoHora = entry.countCustoHora > 0 ? entry.totalCustoHora / entry.countCustoHora : 0;
+        const avgCustoHoraGlobal = countCustoHora > 0 ? totalCustoHoraSum / countCustoHora : 0;
 
         return {
           recursoTecnicoId: rtId,
-          recursoNome: entry.nome,
-          quantidade: entry.totalQuantidade,
-          totalHoras: Math.round(entry.totalHoras * 10) / 10,
-          valorUnitarioMedio: Math.round(avgCustoHora * 100) / 100,
-          valorTotal: Math.round(entry.totalCusto * 100) / 100,
+          recursoNome: rtEntry.nome,
+          quantidade: totalQtd,
+          totalHoras: Math.round(totalHoras * 10) / 10,
+          valorUnitarioMedio: Math.round(avgCustoHoraGlobal * 100) / 100,
+          valorTotal: Math.round(totalCusto * 100) / 100,
+          detalhes,
         };
       });
 
@@ -256,32 +302,44 @@ export const ConteudoCustosTab = ({ conteudoId, conteudoNome }: ConteudoCustosTa
     return Array.from(allRtIds).map(rtId => {
       const est = estimadoMap.get(rtId) || null;
       const real = realizadoMap.get(rtId) || null;
-      const estimadoTotal = est?.valorTotal || 0;
+
+      // Accumulated estimated = per-recording values × numGravacoes
+      const estimadoAcumulado = est ? {
+        quantidade: est.quantidade * numGravacoes,
+        horas: est.quantidadeHoras * numGravacoes,
+        valorUnitario: est.valorHora,
+        valorTotal: est.valorTotal * numGravacoes,
+        descontoPercentual: est.descontoPercentual,
+        valorComDesconto: est.valorComDesconto * numGravacoes,
+      } : null;
+
+      const estimadoTotal = estimadoAcumulado?.valorTotal || 0;
       const realizadoTotal = real?.valorTotal || 0;
       const saldo = estimadoTotal - realizadoTotal;
-      // Desvio only when realizado exceeds estimado
       const desvioPercentual = realizadoTotal > estimadoTotal && estimadoTotal > 0
         ? Math.round(((realizadoTotal - estimadoTotal) / estimadoTotal) * 100)
         : 0;
+      const progressPercent = estimadoTotal > 0
+        ? Math.min(100, Math.round((realizadoTotal / estimadoTotal) * 100))
+        : (realizadoTotal > 0 ? 100 : 0);
 
       return {
         recursoNome: est?.recursoNome || real?.recursoNome || 'Desconhecido',
-        estimado: est,
+        recursoTecnicoId: rtId,
+        estimadoAcumulado,
         realizado: real,
         saldo,
         desvioPercentual,
+        progressPercent,
       };
     });
-  }, [estimados, realizados]);
+  }, [estimados, realizados, numGravacoes]);
 
   const totais = useMemo(() => {
-    const estQtd = estimados.reduce((acc, e) => acc + e.quantidade, 0);
-    const estHoras = estimados.reduce((acc, e) => acc + e.quantidadeHoras, 0);
-    const estValorTotal = estimados.reduce((acc, e) => acc + e.valorTotal, 0);
-    const estDescontoMedio = estValorTotal > 0
-      ? estimados.reduce((acc, e) => acc + (e.descontoPercentual * e.valorTotal / estValorTotal), 0)
-      : 0;
-    const estValorComDesc = estimados.reduce((acc, e) => acc + e.valorComDesconto, 0);
+    const estQtd = matrizRows.reduce((acc, r) => acc + (r.estimadoAcumulado?.quantidade || 0), 0);
+    const estHoras = matrizRows.reduce((acc, r) => acc + (r.estimadoAcumulado?.horas || 0), 0);
+    const estValorTotal = matrizRows.reduce((acc, r) => acc + (r.estimadoAcumulado?.valorTotal || 0), 0);
+    const estValorComDesc = matrizRows.reduce((acc, r) => acc + (r.estimadoAcumulado?.valorComDesconto || 0), 0);
 
     const realQtd = realizados.reduce((acc, r) => acc + r.quantidade, 0);
     const realHoras = realizados.reduce((acc, r) => acc + r.totalHoras, 0);
@@ -291,20 +349,22 @@ export const ConteudoCustosTab = ({ conteudoId, conteudoNome }: ConteudoCustosTa
     const desvio = realValorTotal > estValorTotal && estValorTotal > 0
       ? Math.round(((realValorTotal - estValorTotal) / estValorTotal) * 100)
       : 0;
+    const progressPercent = estValorTotal > 0
+      ? Math.min(100, Math.round((realValorTotal / estValorTotal) * 100))
+      : (realValorTotal > 0 ? 100 : 0);
 
     return {
-      estQtd, estHoras, estValorTotal, estDescontoMedio, estValorComDesc,
+      estQtd, estHoras, estValorTotal, estValorComDesc,
       realQtd, realHoras, realValorTotal,
-      saldo, desvio,
+      saldo, desvio, progressPercent,
     };
-  }, [estimados, realizados]);
+  }, [matrizRows, realizados]);
 
   const handleExportPDF = () => {
     const doc = new jsPDF({ orientation: 'landscape' });
     const titulo = conteudoNome || 'Conteúdo';
     const dataExport = new Date().toLocaleDateString('pt-BR');
 
-    // Header
     doc.setFillColor(26, 54, 93);
     doc.rect(0, 0, 297, 30, 'F');
     doc.setTextColor(255, 255, 255);
@@ -313,34 +373,35 @@ export const ConteudoCustosTab = ({ conteudoId, conteudoNome }: ConteudoCustosTa
     doc.text('Matriz Comparativa de Custos', 14, 13);
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
-    doc.text(`Conteúdo: ${titulo} | Data: ${dataExport}`, 14, 22);
+    doc.text(`Conteúdo: ${titulo} | Data: ${dataExport} | Gravações: ${numGravacoes}`, 14, 22);
 
     const headers = [
       [
         { content: 'Recurso Técnico', rowSpan: 2 },
-        { content: 'ESTIMADO POR GRAVAÇÃO', colSpan: 6 },
+        { content: 'ESTIMADO (Acumulado)', colSpan: 6 },
         { content: 'REALIZADO', colSpan: 4 },
-        { content: 'RESUMO', colSpan: 2 },
+        { content: 'RESUMO', colSpan: 3 },
       ],
       ['Qtd', 'Horas', 'Vlr Unitário', 'Vlr Total', 'Desc.', 'Vlr c/ Desc.',
        'Qtd', 'Horas', 'Vlr Unitário', 'Vlr Total',
-       'Saldo', 'Desvio'],
+       'Saldo', 'Desvio', 'Progresso'],
     ];
 
     const body = matrizRows.map(row => [
       row.recursoNome,
-      row.estimado?.quantidade || '',
-      row.estimado?.quantidadeHoras || '',
-      row.estimado ? formatCurrency(row.estimado.valorHora) : '',
-      row.estimado ? formatCurrency(row.estimado.valorTotal) : '',
-      row.estimado ? `${row.estimado.descontoPercentual}%` : '',
-      row.estimado ? formatCurrency(row.estimado.valorComDesconto) : '',
+      row.estimadoAcumulado?.quantidade || '',
+      row.estimadoAcumulado?.horas || '',
+      row.estimadoAcumulado ? formatCurrency(row.estimadoAcumulado.valorUnitario) : '',
+      row.estimadoAcumulado ? formatCurrency(row.estimadoAcumulado.valorTotal) : '',
+      row.estimadoAcumulado ? `${row.estimadoAcumulado.descontoPercentual}%` : '',
+      row.estimadoAcumulado ? formatCurrency(row.estimadoAcumulado.valorComDesconto) : '',
       row.realizado?.quantidade || '',
       row.realizado?.totalHoras || '',
       row.realizado ? formatCurrency(row.realizado.valorUnitarioMedio) : '',
       row.realizado ? formatCurrency(row.realizado.valorTotal) : '',
       formatCurrency(row.saldo),
       `${row.desvioPercentual}%`,
+      `${row.progressPercent}%`,
     ]);
 
     body.push([
@@ -357,6 +418,7 @@ export const ConteudoCustosTab = ({ conteudoId, conteudoNome }: ConteudoCustosTa
       formatCurrency(totais.realValorTotal),
       formatCurrency(totais.saldo),
       `${totais.desvio}%`,
+      `${totais.progressPercent}%`,
     ]);
 
     autoTable(doc, {
@@ -385,40 +447,41 @@ export const ConteudoCustosTab = ({ conteudoId, conteudoNome }: ConteudoCustosTa
 
     const data = [
       ['MATRIZ COMPARATIVA DE CUSTOS'],
-      [`Conteúdo: ${titulo}`, `Data: ${dataExport}`],
+      [`Conteúdo: ${titulo}`, `Data: ${dataExport}`, `Gravações: ${numGravacoes}`],
       [],
       [
         'Recurso Técnico',
         'Est. Qtd', 'Est. Horas', 'Est. Vlr Unitário', 'Est. Vlr Total', 'Est. Desconto', 'Est. Vlr c/ Desc.',
         'Real. Qtd', 'Real. Horas', 'Real. Vlr Unitário', 'Real. Vlr Total',
-        'Saldo', 'Desvio',
+        'Saldo', 'Desvio', 'Progresso',
       ],
       ...matrizRows.map(row => [
         row.recursoNome,
-        row.estimado?.quantidade || 0,
-        row.estimado?.quantidadeHoras || 0,
-        row.estimado?.valorHora || 0,
-        row.estimado?.valorTotal || 0,
-        row.estimado ? `${row.estimado.descontoPercentual}%` : '0%',
-        row.estimado?.valorComDesconto || 0,
+        row.estimadoAcumulado?.quantidade || 0,
+        row.estimadoAcumulado?.horas || 0,
+        row.estimadoAcumulado?.valorUnitario || 0,
+        row.estimadoAcumulado?.valorTotal || 0,
+        row.estimadoAcumulado ? `${row.estimadoAcumulado.descontoPercentual}%` : '0%',
+        row.estimadoAcumulado?.valorComDesconto || 0,
         row.realizado?.quantidade || 0,
         row.realizado?.totalHoras || 0,
         row.realizado?.valorUnitarioMedio || 0,
         row.realizado?.valorTotal || 0,
         row.saldo,
         `${row.desvioPercentual}%`,
+        `${row.progressPercent}%`,
       ]),
       [
         'Total',
         totais.estQtd, totais.estHoras, '', totais.estValorTotal, '', '',
         totais.realQtd, totais.realHoras, '', totais.realValorTotal,
-        totais.saldo, `${totais.desvio}%`,
+        totais.saldo, `${totais.desvio}%`, `${totais.progressPercent}%`,
       ],
     ];
 
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.aoa_to_sheet(data);
-    ws['!cols'] = Array(13).fill({ wch: 14 });
+    ws['!cols'] = Array(14).fill({ wch: 14 });
     ws['!cols'][0] = { wch: 22 };
     XLSX.utils.book_append_sheet(wb, ws, 'Matriz Custos');
     XLSX.writeFile(wb, `matriz-custos-${titulo.toLowerCase().replace(/\s+/g, '-')}-${dataExport.replace(/\//g, '-')}.xlsx`);
@@ -447,6 +510,8 @@ export const ConteudoCustosTab = ({ conteudoId, conteudoNome }: ConteudoCustosTa
     );
   }
 
+  const totalColumns = 14; // RT name + 6 est + 4 real + 3 resumo
+
   return (
     <div className="space-y-4 py-4">
       {/* Header */}
@@ -458,7 +523,7 @@ export const ConteudoCustosTab = ({ conteudoId, conteudoNome }: ConteudoCustosTa
           <div>
             <h3 className="text-lg font-semibold">Matriz Comparativa de Custos</h3>
             <p className="text-sm text-muted-foreground">
-              {numGravacoes} gravação(ões) • {matrizRows.length} recurso(s) técnico(s)
+              {numGravacoes} gravação(ões) • {matrizRows.length} recurso(s) técnico(s) • Valores acumulados
             </p>
           </div>
         </div>
@@ -488,7 +553,7 @@ export const ConteudoCustosTab = ({ conteudoId, conteudoNome }: ConteudoCustosTa
                   REALIZADO
                 </TableHead>
                 <TableHead
-                  colSpan={2}
+                  colSpan={3}
                   className="text-center font-bold text-white bg-kreato-orange"
                 >
                   RESUMO
@@ -507,34 +572,87 @@ export const ConteudoCustosTab = ({ conteudoId, conteudoNome }: ConteudoCustosTa
                 <TableHead className="text-right text-xs border-r bg-kreato-cyan/15">Valor Unitário</TableHead>
                 <TableHead className="text-right text-xs border-r bg-kreato-cyan/15">Valor Total</TableHead>
                 <TableHead className="text-right text-xs border-r bg-kreato-orange/15">Saldo</TableHead>
-                <TableHead className="text-center text-xs bg-kreato-orange/15">Desvio</TableHead>
+                <TableHead className="text-center text-xs border-r bg-kreato-orange/15">Desvio</TableHead>
+                <TableHead className="text-center text-xs bg-kreato-orange/15 min-w-[100px]">Progresso</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {matrizRows.map((row, idx) => (
-                <TableRow key={idx}>
-                  <TableCell className="font-medium border-r whitespace-nowrap">{row.recursoNome}</TableCell>
-                  {/* Estimado */}
-                  <TableCell className="text-center border-r">{row.estimado?.quantidade ?? '-'}</TableCell>
-                  <TableCell className="text-center border-r">{row.estimado?.quantidadeHoras ?? '-'}</TableCell>
-                  <TableCell className="text-right border-r">{row.estimado ? formatCurrency(row.estimado.valorHora) : '-'}</TableCell>
-                  <TableCell className="text-right border-r">{row.estimado ? formatCurrency(row.estimado.valorTotal) : '-'}</TableCell>
-                  <TableCell className="text-center border-r">{row.estimado ? `${row.estimado.descontoPercentual}%` : '-'}</TableCell>
-                  <TableCell className="text-right border-r">{row.estimado ? formatCurrency(row.estimado.valorComDesconto) : '-'}</TableCell>
-                  {/* Realizado */}
-                  <TableCell className="text-center border-r">{row.realizado?.quantidade ?? '-'}</TableCell>
-                  <TableCell className="text-center border-r">{row.realizado?.totalHoras ?? '-'}</TableCell>
-                  <TableCell className="text-right border-r">{row.realizado ? formatCurrency(row.realizado.valorUnitarioMedio) : '-'}</TableCell>
-                  <TableCell className="text-right border-r">{row.realizado ? formatCurrency(row.realizado.valorTotal) : '-'}</TableCell>
-                  {/* Resumo */}
-                  <TableCell className={`text-right border-r font-medium ${row.saldo < 0 ? 'text-destructive' : row.saldo > 0 ? 'text-green-600' : ''}`}>
-                    {formatCurrency(row.saldo)}
-                  </TableCell>
-                  <TableCell className={`text-center font-medium ${row.desvioPercentual < 0 ? 'text-destructive' : ''}`}>
-                    {row.desvioPercentual}%
-                  </TableCell>
-                </TableRow>
-              ))}
+              {matrizRows.map((row) => {
+                const isExpanded = expandedRows.has(row.recursoTecnicoId);
+                const hasDetails = (row.realizado?.detalhes?.length || 0) > 0;
+
+                return (
+                  <>
+                    {/* Main row */}
+                    <TableRow
+                      key={row.recursoTecnicoId}
+                      className={hasDetails ? 'cursor-pointer hover:bg-muted/70' : ''}
+                      onClick={() => hasDetails && toggleRow(row.recursoTecnicoId)}
+                    >
+                      <TableCell className="font-medium border-r whitespace-nowrap">
+                        <div className="flex items-center gap-1">
+                          {hasDetails && (
+                            isExpanded
+                              ? <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+                              : <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                          )}
+                          {row.recursoNome}
+                        </div>
+                      </TableCell>
+                      {/* Estimado Acumulado */}
+                      <TableCell className="text-center border-r">{row.estimadoAcumulado?.quantidade ?? '-'}</TableCell>
+                      <TableCell className="text-center border-r">{row.estimadoAcumulado?.horas ?? '-'}</TableCell>
+                      <TableCell className="text-right border-r">{row.estimadoAcumulado ? formatCurrency(row.estimadoAcumulado.valorUnitario) : '-'}</TableCell>
+                      <TableCell className="text-right border-r">{row.estimadoAcumulado ? formatCurrency(row.estimadoAcumulado.valorTotal) : '-'}</TableCell>
+                      <TableCell className="text-center border-r">{row.estimadoAcumulado ? `${row.estimadoAcumulado.descontoPercentual}%` : '-'}</TableCell>
+                      <TableCell className="text-right border-r">{row.estimadoAcumulado ? formatCurrency(row.estimadoAcumulado.valorComDesconto) : '-'}</TableCell>
+                      {/* Realizado */}
+                      <TableCell className="text-center border-r">{row.realizado?.quantidade ?? '-'}</TableCell>
+                      <TableCell className="text-center border-r">{row.realizado?.totalHoras ?? '-'}</TableCell>
+                      <TableCell className="text-right border-r">{row.realizado ? formatCurrency(row.realizado.valorUnitarioMedio) : '-'}</TableCell>
+                      <TableCell className="text-right border-r">{row.realizado ? formatCurrency(row.realizado.valorTotal) : '-'}</TableCell>
+                      {/* Resumo */}
+                      <TableCell className={`text-right border-r font-medium ${row.saldo < 0 ? 'text-destructive' : row.saldo > 0 ? 'text-green-600' : ''}`}>
+                        {formatCurrency(row.saldo)}
+                      </TableCell>
+                      <TableCell className={`text-center border-r font-medium ${row.desvioPercentual > 0 ? 'text-destructive' : ''}`}>
+                        {row.desvioPercentual}%
+                      </TableCell>
+                      <TableCell className="px-2">
+                        <div className="flex items-center gap-1">
+                          <Progress value={row.progressPercent} className="h-2 flex-1" />
+                          <span className="text-[10px] text-muted-foreground w-8 text-right">{row.progressPercent}%</span>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+
+                    {/* Drill-down detail rows */}
+                    {isExpanded && row.realizado?.detalhes.map((detalhe) => (
+                      <TableRow key={`${row.recursoTecnicoId}-${detalhe.gravacaoId}`} className="bg-muted/30">
+                        <TableCell className="border-r pl-8 text-xs text-muted-foreground whitespace-nowrap">
+                          {detalhe.gravacaoCodigo} - {detalhe.gravacaoNome}
+                        </TableCell>
+                        {/* Empty estimado cells */}
+                        <TableCell className="border-r" />
+                        <TableCell className="border-r" />
+                        <TableCell className="border-r" />
+                        <TableCell className="border-r" />
+                        <TableCell className="border-r" />
+                        <TableCell className="border-r" />
+                        {/* Realizado per gravação */}
+                        <TableCell className="text-center border-r text-xs">{detalhe.quantidade}</TableCell>
+                        <TableCell className="text-center border-r text-xs">{detalhe.totalHoras}</TableCell>
+                        <TableCell className="text-right border-r text-xs">{formatCurrency(detalhe.valorUnitario)}</TableCell>
+                        <TableCell className="text-right border-r text-xs">{formatCurrency(detalhe.valorTotal)}</TableCell>
+                        {/* Empty resumo cells */}
+                        <TableCell className="border-r" />
+                        <TableCell className="border-r" />
+                        <TableCell />
+                      </TableRow>
+                    ))}
+                  </>
+                );
+              })}
 
               {/* Totals row */}
               <TableRow className="bg-muted/50 font-bold border-t-2">
@@ -544,7 +662,7 @@ export const ConteudoCustosTab = ({ conteudoId, conteudoNome }: ConteudoCustosTa
                 <TableCell className="text-right border-r"></TableCell>
                 <TableCell className="text-right border-r">{formatCurrency(totais.estValorTotal)}</TableCell>
                 <TableCell className="text-center border-r"></TableCell>
-                <TableCell className="text-right border-r"></TableCell>
+                <TableCell className="text-right border-r">{formatCurrency(totais.estValorComDesc)}</TableCell>
                 <TableCell className="text-center border-r">{totais.realQtd}</TableCell>
                 <TableCell className="text-center border-r">{totais.realHoras}</TableCell>
                 <TableCell className="text-right border-r"></TableCell>
@@ -552,8 +670,14 @@ export const ConteudoCustosTab = ({ conteudoId, conteudoNome }: ConteudoCustosTa
                 <TableCell className={`text-right border-r font-bold ${totais.saldo < 0 ? 'text-destructive' : totais.saldo > 0 ? 'text-green-600' : ''}`}>
                   {formatCurrency(totais.saldo)}
                 </TableCell>
-                <TableCell className={`text-center font-bold ${totais.desvio < 0 ? 'text-destructive' : ''}`}>
+                <TableCell className={`text-center border-r font-bold ${totais.desvio > 0 ? 'text-destructive' : ''}`}>
                   {totais.desvio}%
+                </TableCell>
+                <TableCell className="px-2">
+                  <div className="flex items-center gap-1">
+                    <Progress value={totais.progressPercent} className="h-2 flex-1" />
+                    <span className="text-[10px] text-muted-foreground w-8 text-right">{totais.progressPercent}%</span>
+                  </div>
                 </TableCell>
               </TableRow>
             </TableBody>
