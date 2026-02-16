@@ -20,6 +20,7 @@ import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import type { RecursoTecnico } from '@/pages/recursos/RecursosTecnicos';
+import { useFormFieldConfig, FieldAsterisk } from '@/hooks/useFormFieldConfig';
 
 interface Funcao {
   id: string;
@@ -42,6 +43,7 @@ export const RecursoTecnicoFormModal = ({
   readOnly = false,
 }: RecursoTecnicoFormModalProps) => {
   const { user, session } = useAuth();
+  const { getAsterisk } = useFormFieldConfig('recursoTecnico');
   const [funcoes, setFuncoes] = useState<Funcao[]>([]);
   const [formData, setFormData] = useState({
     codigoExterno: data?.codigoExterno || '',
@@ -104,7 +106,7 @@ export const RecursoTecnicoFormModal = ({
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="codigoExterno">Código Externo</Label>
+            <Label htmlFor="codigoExterno">Código Externo <FieldAsterisk type={getAsterisk('codigoExterno')} /></Label>
             <Input
               id="codigoExterno"
               value={formData.codigoExterno}
@@ -114,7 +116,7 @@ export const RecursoTecnicoFormModal = ({
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="nome">Nome *</Label>
+            <Label htmlFor="nome">Nome <FieldAsterisk type={getAsterisk('nome')} /></Label>
             <Input
               id="nome"
               value={formData.nome}
@@ -124,7 +126,7 @@ export const RecursoTecnicoFormModal = ({
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="funcaoOperador">Função do Operador</Label>
+            <Label htmlFor="funcaoOperador">Função do Operador <FieldAsterisk type={getAsterisk('funcaoOperador')} /></Label>
             <Select
               value={formData.funcaoOperadorId}
               onValueChange={(value) => {
