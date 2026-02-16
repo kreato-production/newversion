@@ -73,6 +73,7 @@ export const ConteudoFormModal = ({
     anoProducao: '',
     sinopse: '',
     orcamento: '',
+    tabelaPrecoId: '',
   });
 
   const [centrosLucro, setCentrosLucro] = useState<{ id: string; nome: string; parentId: string | null; status: string }[]>([]);
@@ -83,6 +84,8 @@ export const ConteudoFormModal = ({
   const [gravacoes, setGravacoes] = useState<Gravacao[]>([]);
   const [statusList, setStatusList] = useState<{ id: string; nome: string; cor: string }[]>([]);
   const [centroLucroUnidades, setCentroLucroUnidades] = useState<{ centro_lucro_id: string; unidade_negocio_id: string }[]>([]);
+  const [tabelasPreco, setTabelasPreco] = useState<{ id: string; nome: string; unidadeNegocioId: string | null }[]>([]);
+  const [filteredTabelasPreco, setFilteredTabelasPreco] = useState<{ id: string; nome: string }[]>([]);
 
   // Get the currency for the selected business unit
   const getSelectedCurrency = () => {
@@ -137,15 +140,31 @@ export const ConteudoFormModal = ({
     setFilteredCentrosLucro(centrosFiltrados);
   }, [formData.unidadeNegocio, unidades, centroLucroUnidades, centrosLucro]);
 
+  // Filter price tables when business unit changes
+  useEffect(() => {
+    if (!formData.unidadeNegocio) {
+      setFilteredTabelasPreco([]);
+      return;
+    }
+    const unidadeSelecionada = unidades.find(u => u.nome === formData.unidadeNegocio);
+    if (!unidadeSelecionada) {
+      setFilteredTabelasPreco([]);
+      return;
+    }
+    const filtered = tabelasPreco.filter(tp => tp.unidadeNegocioId === unidadeSelecionada.id);
+    setFilteredTabelasPreco(filtered);
+  }, [formData.unidadeNegocio, unidades, tabelasPreco]);
+
   const loadOptions = useCallback(async () => {
     try {
-      const [centrosRes, statusRes, unidadesRes, tiposRes, classificacoesRes, centroLucroUnidadesRes] = await Promise.all([
+      const [centrosRes, statusRes, unidadesRes, tiposRes, classificacoesRes, centroLucroUnidadesRes, tabelasPrecoRes] = await Promise.all([
         supabase.from('centros_lucro').select('id, nome, parent_id, status').eq('status', 'Ativo').order('nome'),
         supabase.from('status_gravacao').select('id, nome, cor').order('nome'),
         supabase.from('unidades_negocio').select('id, nome, moeda').order('nome'),
         supabase.from('tipos_gravacao').select('id, nome').order('nome'),
         supabase.from('classificacoes').select('id, nome').order('nome'),
         supabase.from('centro_lucro_unidades').select('centro_lucro_id, unidade_negocio_id'),
+        (supabase as any).from('tabelas_preco').select('id, nome, unidade_negocio_id').eq('status', 'Ativo').order('nome'),
       ]);
 
       setCentrosLucro((centrosRes.data || []).map(c => ({ id: c.id, nome: c.nome, parentId: c.parent_id, status: c.status || 'Ativo' })));
@@ -154,6 +173,7 @@ export const ConteudoFormModal = ({
       setTipos(tiposRes.data || []);
       setClassificacoes(classificacoesRes.data || []);
       setCentroLucroUnidades(centroLucroUnidadesRes.data || []);
+      setTabelasPreco((tabelasPrecoRes.data || []).map((tp: any) => ({ id: tp.id, nome: tp.nome, unidadeNegocioId: tp.unidade_negocio_id })));
     } catch (err) {
       console.error('Error loading options:', err);
     }
@@ -180,6 +200,7 @@ export const ConteudoFormModal = ({
         anoProducao: data.anoProducao || '',
         sinopse: data.sinopse || '',
         orcamento: String((data as any).orcamento || ''),
+        tabelaPrecoId: data.tabelaPrecoId || '',
       });
       loadGravacoes(data.id);
     } else {
@@ -195,6 +216,7 @@ export const ConteudoFormModal = ({
         anoProducao: '',
         sinopse: '',
         orcamento: '',
+        tabelaPrecoId: '',
       });
       setGravacoes([]);
     }
@@ -235,6 +257,7 @@ export const ConteudoFormModal = ({
     codigoExterno: 'Código Externo', descricao: 'Descrição', quantidadeEpisodios: 'Qtd. Episódios',
     unidadeNegocio: 'Unidade de Negócio', centroLucro: 'Centro de Lucro', tipoConteudo: 'Tipo de Conteúdo',
     classificacao: 'Classificação', anoProducao: 'Ano de Produção', sinopse: 'Sinopse', orcamento: 'Orçamento',
+    tabelaPrecoId: 'Tabela de Preço',
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -264,6 +287,7 @@ export const ConteudoFormModal = ({
       sinopse: formData.sinopse,
       usuarioCadastro: data?.usuarioCadastro || user?.nome || 'Admin',
       dataCadastro: data?.dataCadastro || new Date().toLocaleDateString('pt-BR'),
+      tabelaPrecoId: formData.tabelaPrecoId || undefined,
     };
     
     // Add orcamento if set
@@ -446,8 +470,8 @@ export const ConteudoFormModal = ({
               <Select
                 value={formData.unidadeNegocio}
                 onValueChange={(value) => {
-                  // Limpar centro de lucro ao mudar unidade de negócio
-                  setFormData({ ...formData, unidadeNegocio: value, centroLucro: '' });
+                  // Limpar centro de lucro e tabela de preço ao mudar unidade de negócio
+                  setFormData({ ...formData, unidadeNegocio: value, centroLucro: '', tabelaPrecoId: '' });
                 }}
               >
                 <SelectTrigger>
@@ -460,6 +484,9 @@ export const ConteudoFormModal = ({
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>{t('recordings.profitCenter')} <FieldAsterisk type={getAsterisk('centroLucro')} /></Label>
               <Select
@@ -475,6 +502,23 @@ export const ConteudoFormModal = ({
                     <SelectItem key={cl.id} value={cl.nome}>
                       <span className="font-mono whitespace-pre">{cl.displayName}</span>
                     </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Tabela de Preço <FieldAsterisk type={getAsterisk('tabelaPrecoId')} /></Label>
+              <Select
+                value={formData.tabelaPrecoId}
+                onValueChange={(value) => setFormData({ ...formData, tabelaPrecoId: value })}
+                disabled={!formData.unidadeNegocio}
+              >
+                <SelectTrigger className={!formData.unidadeNegocio ? 'opacity-50 cursor-not-allowed' : ''}>
+                  <SelectValue placeholder={!formData.unidadeNegocio ? 'Selecione uma Unidade de Negócio primeiro' : t('common.select')} />
+                </SelectTrigger>
+                <SelectContent>
+                  {filteredTabelasPreco.map((tp) => (
+                    <SelectItem key={tp.id} value={tp.id}>{tp.nome}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>

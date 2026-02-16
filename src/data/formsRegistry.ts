@@ -29,6 +29,7 @@ export const formsRegistry: FormDefinition[] = [
       { campo: 'anoProducao', label: 'Ano de Produção' },
       { campo: 'sinopse', label: 'Sinopse' },
       { campo: 'orcamento', label: 'Orçamento' },
+      { campo: 'tabelaPrecoId', label: 'Tabela de Preço' },
     ],
   },
   {

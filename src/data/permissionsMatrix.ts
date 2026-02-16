@@ -51,6 +51,7 @@ export const basePermissionsMatrix: Omit<PermissionItem, 'id'>[] = [
   { modulo: 'Produção', subModulo1: 'Conteúdo', subModulo2: '-', campo: 'Tabulador "Gravações"', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
   { modulo: 'Produção', subModulo1: 'Conteúdo', subModulo2: '-', campo: 'Tabulador "Elenco"', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
   { modulo: 'Produção', subModulo1: 'Conteúdo', subModulo2: '-', campo: 'Tabulador "Custos"', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Produção', subModulo1: 'Conteúdo', subModulo2: '-', campo: 'Tabela de Preço', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
   
   // Produção > Gravação
   { modulo: 'Produção', subModulo1: 'Gravação', subModulo2: '-', campo: '-', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'submodulo1' },

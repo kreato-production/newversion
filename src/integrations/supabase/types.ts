@@ -227,6 +227,7 @@ export type Database = {
           orcamento: number | null
           quantidade_episodios: number | null
           sinopse: string | null
+          tabela_preco_id: string | null
           tipo_conteudo_id: string | null
           unidade_negocio_id: string | null
           updated_at: string | null
@@ -243,6 +244,7 @@ export type Database = {
           orcamento?: number | null
           quantidade_episodios?: number | null
           sinopse?: string | null
+          tabela_preco_id?: string | null
           tipo_conteudo_id?: string | null
           unidade_negocio_id?: string | null
           updated_at?: string | null
@@ -259,6 +261,7 @@ export type Database = {
           orcamento?: number | null
           quantidade_episodios?: number | null
           sinopse?: string | null
+          tabela_preco_id?: string | null
           tipo_conteudo_id?: string | null
           unidade_negocio_id?: string | null
           updated_at?: string | null
@@ -276,6 +279,13 @@ export type Database = {
             columns: ["classificacao_id"]
             isOneToOne: false
             referencedRelation: "classificacoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conteudos_tabela_preco_id_fkey"
+            columns: ["tabela_preco_id"]
+            isOneToOne: false
+            referencedRelation: "tabelas_preco"
             referencedColumns: ["id"]
           },
           {
