@@ -79,6 +79,16 @@ export const PessoaFormModal = ({
 
   useEffect(() => {
     if (isOpen) {
+      // Load classificações first, then set form data to ensure Select displays correctly
+      const fetchClassificacoes = async () => {
+        const { data: cats } = await supabase
+          .from('classificacoes_pessoa')
+          .select('id, nome')
+          .order('nome');
+        setClassificacoes(cats || []);
+      };
+      fetchClassificacoes();
+
       if (data) {
         setFormData({
           codigoExterno: data.codigoExterno,
@@ -103,16 +113,6 @@ export const PessoaFormModal = ({
       } else {
         setFormData({ ...emptyFormData });
       }
-
-      // Load classificações from Supabase
-      const fetchClassificacoes = async () => {
-        const { data: cats } = await supabase
-          .from('classificacoes_pessoa')
-          .select('id, nome')
-          .order('nome');
-        setClassificacoes(cats || []);
-      };
-      fetchClassificacoes();
     }
   }, [isOpen, data]);
 
@@ -134,7 +134,7 @@ export const PessoaFormModal = ({
     cidade: 'Cidade', estado: 'Estado', cep: 'CEP', observacoes: 'Observações', status: 'Status',
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     const missing = validateRequired(formData as any, fieldLabels);
@@ -150,7 +150,7 @@ export const PessoaFormModal = ({
       usuarioCadastro: data?.usuarioCadastro || user?.nome || 'Sistema',
     };
 
-    onSave(pessoaData);
+    await onSave(pessoaData);
     onClose();
   };
 
