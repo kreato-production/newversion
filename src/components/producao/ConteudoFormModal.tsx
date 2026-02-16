@@ -476,7 +476,7 @@ export const ConteudoFormModal = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-[1200px] max-w-[1200px] max-h-[80vh] overflow-y-auto">
+      <DialogContent className="w-[1500px] max-w-[1500px] max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{data ? t('content.edit') : t('content.new')}</DialogTitle>
           <DialogDescription>
