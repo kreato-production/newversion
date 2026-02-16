@@ -30,6 +30,8 @@ export const formsRegistry: FormDefinition[] = [
       { campo: 'sinopse', label: 'Sinopse' },
       { campo: 'orcamento', label: 'Orçamento' },
       { campo: 'tabelaPrecoId', label: 'Tabela de Preço' },
+      { campo: 'recursosTecnicos', label: 'Recursos Técnicos' },
+      { campo: 'recursosFisicos', label: 'Recursos Físicos' },
     ],
   },
   {
