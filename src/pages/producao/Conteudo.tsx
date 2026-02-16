@@ -231,7 +231,7 @@ const Conteudo = () => {
     },
     {
       key: 'centroLucro',
-      label: t('nav.profitCenters'),
+      label: t('menu.profitCenters'),
       render: (item) => item.centroLucro || '-',
     },
     {
