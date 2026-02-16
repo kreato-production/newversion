@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { useFormFieldConfig, FieldAsterisk } from '@/hooks/useFormFieldConfig';
 import { TabelaPrecoRecursosTecnicosTab } from '@/components/producao/TabelaPrecoRecursosTecnicosTab';
 import { TabelaPrecoRecursosFisicosTab } from '@/components/producao/TabelaPrecoRecursosFisicosTab';
 import type { TabelaPrecoItem } from '@/pages/producao/TabelasPreco';
@@ -32,6 +33,7 @@ interface TabelaPrecoFormModalProps {
 export const TabelaPrecoFormModal = ({ isOpen, onClose, onSave, data, readOnly = false }: TabelaPrecoFormModalProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { getAsterisk, isRequired, validateRequired, showValidationError } = useFormFieldConfig('tabelaPreco');
   const [savedId, setSavedId] = useState<string | null>(null);
   const [unidades, setUnidades] = useState<UnidadeNegocioOption[]>([]);
   const [formData, setFormData] = useState({
@@ -72,8 +74,32 @@ export const TabelaPrecoFormModal = ({ isOpen, onClose, onSave, data, readOnly =
 
   const selectedMoeda = unidades.find(u => u.id === formData.unidadeNegocioId)?.moeda || 'BRL';
 
+  const fieldLabels: Record<string, string> = {
+    codigoExterno: 'Código Externo',
+    nome: 'Nome',
+    unidadeNegocio: 'Unidade de Negócio',
+    status: 'Status',
+    vigenciaInicio: 'Vigência De',
+    vigenciaFim: 'Vigência Até',
+    descricao: 'Descrição',
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const validationData: Record<string, any> = {
+      codigoExterno: formData.codigoExterno,
+      nome: formData.nome,
+      unidadeNegocio: formData.unidadeNegocioId,
+      status: formData.status,
+      vigenciaInicio: formData.vigenciaInicio,
+      vigenciaFim: formData.vigenciaFim,
+      descricao: formData.descricao,
+    };
+    const missing = validateRequired(validationData, fieldLabels);
+    if (missing.length > 0) {
+      showValidationError(missing);
+      return;
+    }
     try {
       const dbData: any = {
         codigo_externo: formData.codigoExterno || null,
@@ -117,18 +143,18 @@ export const TabelaPrecoFormModal = ({ isOpen, onClose, onSave, data, readOnly =
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="codigoExterno">Código Externo</Label>
+              <Label htmlFor="codigoExterno">Código Externo <FieldAsterisk type={getAsterisk('codigoExterno')} /></Label>
               <Input id="codigoExterno" value={formData.codigoExterno} onChange={(e) => setFormData({ ...formData, codigoExterno: e.target.value })} maxLength={10} placeholder="Máx. 10 caracteres" disabled={readOnly} />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="nome">Nome <span className="text-destructive">*</span></Label>
+              <Label htmlFor="nome">Nome <FieldAsterisk type={getAsterisk('nome')} /></Label>
               <Input id="nome" value={formData.nome} onChange={(e) => setFormData({ ...formData, nome: e.target.value })} maxLength={100} required disabled={readOnly} />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="unidadeNegocio">Unidade de Negócio</Label>
+              <Label htmlFor="unidadeNegocio">Unidade de Negócio <FieldAsterisk type={getAsterisk('unidadeNegocio')} /></Label>
               <Select value={formData.unidadeNegocioId} onValueChange={(v) => setFormData({ ...formData, unidadeNegocioId: v })} disabled={readOnly}>
                 <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
                 <SelectContent>
@@ -137,7 +163,7 @@ export const TabelaPrecoFormModal = ({ isOpen, onClose, onSave, data, readOnly =
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="status">Status</Label>
+              <Label htmlFor="status">Status <FieldAsterisk type={getAsterisk('status')} /></Label>
               <Select value={formData.status} onValueChange={(v) => setFormData({ ...formData, status: v })} disabled={readOnly}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -150,17 +176,17 @@ export const TabelaPrecoFormModal = ({ isOpen, onClose, onSave, data, readOnly =
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="vigenciaInicio">Vigência De</Label>
+              <Label htmlFor="vigenciaInicio">Vigência De <FieldAsterisk type={getAsterisk('vigenciaInicio')} /></Label>
               <Input id="vigenciaInicio" type="date" value={formData.vigenciaInicio} onChange={(e) => setFormData({ ...formData, vigenciaInicio: e.target.value })} disabled={readOnly} />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="vigenciaFim">Vigência Até</Label>
+              <Label htmlFor="vigenciaFim">Vigência Até <FieldAsterisk type={getAsterisk('vigenciaFim')} /></Label>
               <Input id="vigenciaFim" type="date" value={formData.vigenciaFim} onChange={(e) => setFormData({ ...formData, vigenciaFim: e.target.value })} disabled={readOnly} />
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="descricao">Descrição</Label>
+            <Label htmlFor="descricao">Descrição <FieldAsterisk type={getAsterisk('descricao')} /></Label>
             <Textarea id="descricao" value={formData.descricao} onChange={(e) => setFormData({ ...formData, descricao: e.target.value })} rows={3} placeholder="Descrição da tabela de preço..." disabled={readOnly} />
           </div>
 
