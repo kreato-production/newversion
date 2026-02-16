@@ -1909,6 +1909,123 @@ export type Database = {
         }
         Relationships: []
       }
+      tabela_preco_recursos_fisicos: {
+        Row: {
+          created_at: string | null
+          id: string
+          recurso_fisico_id: string
+          tabela_preco_id: string
+          valor_hora: number
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          recurso_fisico_id: string
+          tabela_preco_id: string
+          valor_hora?: number
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          recurso_fisico_id?: string
+          tabela_preco_id?: string
+          valor_hora?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tabela_preco_recursos_fisicos_recurso_fisico_id_fkey"
+            columns: ["recurso_fisico_id"]
+            isOneToOne: false
+            referencedRelation: "recursos_fisicos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tabela_preco_recursos_fisicos_tabela_preco_id_fkey"
+            columns: ["tabela_preco_id"]
+            isOneToOne: false
+            referencedRelation: "tabelas_preco"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tabela_preco_recursos_tecnicos: {
+        Row: {
+          created_at: string | null
+          id: string
+          recurso_tecnico_id: string
+          tabela_preco_id: string
+          valor_hora: number
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          recurso_tecnico_id: string
+          tabela_preco_id: string
+          valor_hora?: number
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          recurso_tecnico_id?: string
+          tabela_preco_id?: string
+          valor_hora?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tabela_preco_recursos_tecnicos_recurso_tecnico_id_fkey"
+            columns: ["recurso_tecnico_id"]
+            isOneToOne: false
+            referencedRelation: "recursos_tecnicos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tabela_preco_recursos_tecnicos_tabela_preco_id_fkey"
+            columns: ["tabela_preco_id"]
+            isOneToOne: false
+            referencedRelation: "tabelas_preco"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tabelas_preco: {
+        Row: {
+          codigo_externo: string | null
+          created_at: string | null
+          created_by: string | null
+          descricao: string | null
+          id: string
+          nome: string
+          status: string
+          updated_at: string | null
+          vigencia_fim: string | null
+          vigencia_inicio: string | null
+        }
+        Insert: {
+          codigo_externo?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          descricao?: string | null
+          id?: string
+          nome: string
+          status?: string
+          updated_at?: string | null
+          vigencia_fim?: string | null
+          vigencia_inicio?: string | null
+        }
+        Update: {
+          codigo_externo?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          descricao?: string | null
+          id?: string
+          nome?: string
+          status?: string
+          updated_at?: string | null
+          vigencia_fim?: string | null
+          vigencia_inicio?: string | null
+        }
+        Relationships: []
+      }
       tarefas: {
         Row: {
           created_at: string | null

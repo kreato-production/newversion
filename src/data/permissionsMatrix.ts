@@ -113,6 +113,15 @@ export const basePermissionsMatrix: Omit<PermissionItem, 'id'>[] = [
   { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Status da Tarefa', campo: 'Cor', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
   { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Status da Tarefa', campo: 'Descrição', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
   
+  { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Tabelas de Preços', campo: '-', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'submodulo2' },
+  { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Tabelas de Preços', campo: 'Código Externo', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Tabelas de Preços', campo: 'Nome', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Tabelas de Preços', campo: 'Status', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Tabelas de Preços', campo: 'Vigência', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Tabelas de Preços', campo: 'Descrição', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Tabelas de Preços', campo: 'Tabulador "Recursos Técnicos"', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Tabelas de Preços', campo: 'Tabulador "Recursos Físicos"', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  
   // Recursos
   { modulo: 'Recursos', subModulo1: '-', subModulo2: '-', campo: '-', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'modulo' },
   
