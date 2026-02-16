@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Table,
   TableBody,
@@ -10,12 +10,19 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Plus, Trash2, Loader2 } from 'lucide-react';
+import { Trash2, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
-interface Servico {
+interface ServicoParametro {
   id: string;
+  nome: string;
+  descricao: string | null;
+}
+
+interface FornecedorServico {
+  id: string;
+  servico_id: string;
   nome: string;
   descricao: string | null;
   valor: number | null;
@@ -27,22 +34,28 @@ interface ServicosTabProps {
 
 export const ServicosTab = ({ fornecedorId }: ServicosTabProps) => {
   const { toast } = useToast();
-  const [servicos, setServicos] = useState<Servico[]>([]);
+  const [servicosDisponiveis, setServicosDisponiveis] = useState<ServicoParametro[]>([]);
+  const [fornecedorServicos, setFornecedorServicos] = useState<FornecedorServico[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isAdding, setIsAdding] = useState(false);
-  const [novoServico, setNovoServico] = useState({ nome: '', descricao: '', valor: '' });
+  const [valoresEditados, setValoresEditados] = useState<Record<string, string>>({});
 
-  const fetchServicos = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('fornecedor_servicos')
-        .select('id, nome, descricao, valor')
-        .eq('fornecedor_id', fornecedorId)
-        .order('nome');
+      const [servicosRes, fornServRes] = await Promise.all([
+        supabase.from('servicos').select('id, nome, descricao').order('nome'),
+        supabase
+          .from('fornecedor_servicos')
+          .select('id, servico_id, nome, descricao, valor')
+          .eq('fornecedor_id', fornecedorId)
+          .order('nome'),
+      ]);
 
-      if (error) throw error;
-      setServicos(data || []);
+      if (servicosRes.error) throw servicosRes.error;
+      if (fornServRes.error) throw fornServRes.error;
+
+      setServicosDisponiveis(servicosRes.data || []);
+      setFornecedorServicos(fornServRes.data || []);
     } catch (err) {
       console.error('Erro ao carregar serviços:', err);
       toast({ title: 'Erro', description: 'Erro ao carregar serviços.', variant: 'destructive' });
@@ -52,61 +65,91 @@ export const ServicosTab = ({ fornecedorId }: ServicosTabProps) => {
   }, [fornecedorId, toast]);
 
   useEffect(() => {
-    fetchServicos();
-  }, [fetchServicos]);
+    fetchData();
+  }, [fetchData]);
 
-  const handleAdd = async () => {
-    if (!novoServico.nome.trim()) {
-      toast({ title: 'Atenção', description: 'Nome do serviço é obrigatório.', variant: 'destructive' });
-      return;
-    }
+  const isServicoSelecionado = (servicoId: string) => {
+    return fornecedorServicos.some((fs) => fs.servico_id === servicoId);
+  };
 
-    try {
-      const { data: insertedData, error } = await supabase
-        .from('fornecedor_servicos')
-        .insert({
-          fornecedor_id: fornecedorId,
-          nome: novoServico.nome.trim(),
-          descricao: novoServico.descricao.trim() || null,
-          valor: novoServico.valor ? parseFloat(novoServico.valor) : null,
-        })
-        .select()
-        .single();
+  const getFornecedorServico = (servicoId: string) => {
+    return fornecedorServicos.find((fs) => fs.servico_id === servicoId);
+  };
 
-      if (error) throw error;
+  const handleToggleServico = async (servico: ServicoParametro, checked: boolean) => {
+    if (checked) {
+      try {
+        const { data, error } = await supabase
+          .from('fornecedor_servicos')
+          .insert({
+            fornecedor_id: fornecedorId,
+            servico_id: servico.id,
+            nome: servico.nome,
+            descricao: servico.descricao,
+            valor: null,
+          })
+          .select()
+          .single();
 
-      setServicos([...servicos, insertedData]);
-      setNovoServico({ nome: '', descricao: '', valor: '' });
-      setIsAdding(false);
-      toast({ title: 'Sucesso', description: 'Serviço adicionado com sucesso!' });
-    } catch (err) {
-      console.error('Erro ao adicionar serviço:', err);
-      toast({ title: 'Erro', description: 'Erro ao adicionar serviço.', variant: 'destructive' });
+        if (error) throw error;
+        setFornecedorServicos((prev) => [...prev, data]);
+        toast({ title: 'Sucesso', description: `Serviço "${servico.nome}" adicionado.` });
+      } catch (err) {
+        console.error('Erro ao adicionar serviço:', err);
+        toast({ title: 'Erro', description: 'Erro ao adicionar serviço.', variant: 'destructive' });
+      }
+    } else {
+      const fs = getFornecedorServico(servico.id);
+      if (!fs) return;
+
+      try {
+        const { error } = await supabase
+          .from('fornecedor_servicos')
+          .delete()
+          .eq('id', fs.id);
+
+        if (error) throw error;
+        setFornecedorServicos((prev) => prev.filter((s) => s.id !== fs.id));
+        toast({ title: 'Removido', description: `Serviço "${servico.nome}" removido.` });
+      } catch (err) {
+        console.error('Erro ao remover serviço:', err);
+        toast({ title: 'Erro', description: 'Erro ao remover serviço.', variant: 'destructive' });
+      }
     }
   };
 
-  const handleRemove = async (id: string) => {
-    if (!confirm('Tem certeza que deseja remover este serviço?')) return;
+  const handleValorChange = (servicoId: string, valor: string) => {
+    setValoresEditados((prev) => ({ ...prev, [servicoId]: valor }));
+  };
+
+  const handleValorBlur = async (servicoId: string) => {
+    const fs = getFornecedorServico(servicoId);
+    if (!fs) return;
+
+    const novoValor = valoresEditados[servicoId];
+    if (novoValor === undefined) return;
+
+    const valorNumerico = novoValor ? parseFloat(novoValor) : null;
 
     try {
       const { error } = await supabase
         .from('fornecedor_servicos')
-        .delete()
-        .eq('id', id);
+        .update({ valor: valorNumerico })
+        .eq('id', fs.id);
 
       if (error) throw error;
-
-      setServicos(servicos.filter((s) => s.id !== id));
-      toast({ title: 'Removido', description: 'Serviço removido com sucesso!' });
+      setFornecedorServicos((prev) =>
+        prev.map((s) => (s.id === fs.id ? { ...s, valor: valorNumerico } : s))
+      );
+      setValoresEditados((prev) => {
+        const copy = { ...prev };
+        delete copy[servicoId];
+        return copy;
+      });
     } catch (err) {
-      console.error('Erro ao remover serviço:', err);
-      toast({ title: 'Erro', description: 'Erro ao remover serviço.', variant: 'destructive' });
+      console.error('Erro ao atualizar valor:', err);
+      toast({ title: 'Erro', description: 'Erro ao atualizar valor.', variant: 'destructive' });
     }
-  };
-
-  const formatCurrency = (value: number | null) => {
-    if (value === null) return '-';
-    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
   };
 
   if (isLoading) {
@@ -119,96 +162,65 @@ export const ServicosTab = ({ fornecedorId }: ServicosTabProps) => {
 
   return (
     <div className="space-y-4 mt-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold">Serviços do Fornecedor</h3>
-        <Button onClick={() => setIsAdding(true)} disabled={isAdding} size="sm">
-          <Plus className="w-4 h-4 mr-2" />
-          Adicionar Serviço
-        </Button>
-      </div>
+      <h3 className="text-lg font-semibold">Serviços do Fornecedor</h3>
 
-      {isAdding && (
-        <div className="p-4 border rounded-lg bg-muted/30 space-y-3">
-          <div className="grid grid-cols-3 gap-3">
-            <div className="space-y-1">
-              <Label>Nome do Serviço *</Label>
-              <Input
-                value={novoServico.nome}
-                onChange={(e) => setNovoServico({ ...novoServico, nome: e.target.value })}
-                placeholder="Ex: Transporte de Equipamentos"
-              />
-            </div>
-            <div className="space-y-1">
-              <Label>Descrição</Label>
-              <Input
-                value={novoServico.descricao}
-                onChange={(e) => setNovoServico({ ...novoServico, descricao: e.target.value })}
-                placeholder="Descrição opcional"
-              />
-            </div>
-            <div className="space-y-1">
-              <Label>Valor (R$)</Label>
-              <Input
-                type="number"
-                step="0.01"
-                value={novoServico.valor}
-                onChange={(e) => setNovoServico({ ...novoServico, valor: e.target.value })}
-                placeholder="0,00"
-              />
-            </div>
-          </div>
-          <div className="flex gap-2">
-            <Button onClick={handleAdd} size="sm">
-              Salvar
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setIsAdding(false);
-                setNovoServico({ nome: '', descricao: '', valor: '' });
-              }}
-            >
-              Cancelar
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {servicos.length > 0 ? (
+      {servicosDisponiveis.length > 0 ? (
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-12"></TableHead>
               <TableHead>Serviço</TableHead>
               <TableHead>Descrição</TableHead>
-              <TableHead className="text-right">Valor</TableHead>
-              <TableHead className="w-16"></TableHead>
+              <TableHead className="text-right w-40">Valor</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {servicos.map((servico) => (
-              <TableRow key={servico.id}>
-                <TableCell className="font-medium">{servico.nome}</TableCell>
-                <TableCell className="text-muted-foreground">{servico.descricao || '-'}</TableCell>
-                <TableCell className="text-right">{formatCurrency(servico.valor)}</TableCell>
-                <TableCell>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={() => handleRemove(servico.id)}
-                    className="h-8 w-8 text-destructive hover:text-destructive"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
+            {servicosDisponiveis.map((servico) => {
+              const selecionado = isServicoSelecionado(servico.id);
+              const fs = getFornecedorServico(servico.id);
+              const valorDisplay =
+                valoresEditados[servico.id] !== undefined
+                  ? valoresEditados[servico.id]
+                  : fs?.valor?.toString() ?? '';
+
+              return (
+                <TableRow key={servico.id}>
+                  <TableCell>
+                    <Checkbox
+                      checked={selecionado}
+                      onCheckedChange={(checked) =>
+                        handleToggleServico(servico, checked as boolean)
+                      }
+                    />
+                  </TableCell>
+                  <TableCell className="font-medium">{servico.nome}</TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {servico.descricao || '-'}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {selecionado ? (
+                      <Input
+                        type="number"
+                        step="0.01"
+                        className="w-32 ml-auto text-right"
+                        value={valorDisplay}
+                        onChange={(e) => handleValorChange(servico.id, e.target.value)}
+                        onBlur={() => handleValorBlur(servico.id)}
+                        placeholder="0.00"
+                      />
+                    ) : (
+                      <span className="text-muted-foreground">-</span>
+                    )}
+                  </TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       ) : (
         <div className="text-center py-8 text-muted-foreground">
-          <p>Nenhum serviço cadastrado.</p>
-          <p className="text-sm">Adicione serviços oferecidos por este fornecedor.</p>
+          <p>Nenhum serviço cadastrado no sistema.</p>
+          <p className="text-sm">Cadastre serviços em Recursos &gt; Parametrizações &gt; Serviços.</p>
         </div>
       )}
     </div>
