@@ -15,6 +15,12 @@ import { TabelaPrecoRecursosTecnicosTab } from '@/components/producao/TabelaPrec
 import { TabelaPrecoRecursosFisicosTab } from '@/components/producao/TabelaPrecoRecursosFisicosTab';
 import type { TabelaPrecoItem } from '@/pages/producao/TabelasPreco';
 
+interface UnidadeNegocioOption {
+  id: string;
+  nome: string;
+  moeda: string;
+}
+
 interface TabelaPrecoFormModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -27,6 +33,7 @@ export const TabelaPrecoFormModal = ({ isOpen, onClose, onSave, data, readOnly =
   const { user } = useAuth();
   const { toast } = useToast();
   const [savedId, setSavedId] = useState<string | null>(null);
+  const [unidades, setUnidades] = useState<UnidadeNegocioOption[]>([]);
   const [formData, setFormData] = useState({
     codigoExterno: '',
     nome: '',
@@ -34,10 +41,12 @@ export const TabelaPrecoFormModal = ({ isOpen, onClose, onSave, data, readOnly =
     vigenciaInicio: '',
     vigenciaFim: '',
     descricao: '',
+    unidadeNegocioId: '',
   });
 
   useEffect(() => {
     if (isOpen) {
+      fetchUnidades();
       if (data) {
         setFormData({
           codigoExterno: data.codigoExterno || '',
@@ -46,14 +55,22 @@ export const TabelaPrecoFormModal = ({ isOpen, onClose, onSave, data, readOnly =
           vigenciaInicio: data.vigenciaInicio || '',
           vigenciaFim: data.vigenciaFim || '',
           descricao: data.descricao || '',
+          unidadeNegocioId: data.unidadeNegocioId || '',
         });
         setSavedId(data.id);
       } else {
-        setFormData({ codigoExterno: '', nome: '', status: 'Ativo', vigenciaInicio: '', vigenciaFim: '', descricao: '' });
+        setFormData({ codigoExterno: '', nome: '', status: 'Ativo', vigenciaInicio: '', vigenciaFim: '', descricao: '', unidadeNegocioId: '' });
         setSavedId(null);
       }
     }
   }, [data, isOpen]);
+
+  const fetchUnidades = async () => {
+    const { data: un } = await supabase.from('unidades_negocio').select('id, nome, moeda').order('nome');
+    setUnidades((un || []).map((u: any) => ({ id: u.id, nome: u.nome, moeda: u.moeda || 'BRL' })));
+  };
+
+  const selectedMoeda = unidades.find(u => u.id === formData.unidadeNegocioId)?.moeda || 'BRL';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,6 +82,7 @@ export const TabelaPrecoFormModal = ({ isOpen, onClose, onSave, data, readOnly =
         vigencia_inicio: formData.vigenciaInicio || null,
         vigencia_fim: formData.vigenciaFim || null,
         descricao: formData.descricao || null,
+        unidade_negocio_id: formData.unidadeNegocioId || null,
       };
 
       if (data) {
@@ -108,7 +126,16 @@ export const TabelaPrecoFormModal = ({ isOpen, onClose, onSave, data, readOnly =
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="unidadeNegocio">Unidade de Negócio</Label>
+              <Select value={formData.unidadeNegocioId} onValueChange={(v) => setFormData({ ...formData, unidadeNegocioId: v })} disabled={readOnly}>
+                <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                <SelectContent>
+                  {unidades.map(u => <SelectItem key={u.id} value={u.id}>{u.nome}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="space-y-2">
               <Label htmlFor="status">Status</Label>
               <Select value={formData.status} onValueChange={(v) => setFormData({ ...formData, status: v })} disabled={readOnly}>
@@ -119,6 +146,9 @@ export const TabelaPrecoFormModal = ({ isOpen, onClose, onSave, data, readOnly =
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="vigenciaInicio">Vigência De</Label>
               <Input id="vigenciaInicio" type="date" value={formData.vigenciaInicio} onChange={(e) => setFormData({ ...formData, vigenciaInicio: e.target.value })} disabled={readOnly} />
@@ -148,10 +178,10 @@ export const TabelaPrecoFormModal = ({ isOpen, onClose, onSave, data, readOnly =
                 <TabsTrigger value="recursosFisicos">Recursos Físicos</TabsTrigger>
               </TabsList>
               <TabsContent value="recursosTecnicos">
-                <TabelaPrecoRecursosTecnicosTab tabelaPrecoId={currentId} readOnly={readOnly} />
+                <TabelaPrecoRecursosTecnicosTab tabelaPrecoId={currentId} readOnly={readOnly} moeda={selectedMoeda} />
               </TabsContent>
               <TabsContent value="recursosFisicos">
-                <TabelaPrecoRecursosFisicosTab tabelaPrecoId={currentId} readOnly={readOnly} />
+                <TabelaPrecoRecursosFisicosTab tabelaPrecoId={currentId} readOnly={readOnly} moeda={selectedMoeda} />
               </TabsContent>
             </Tabs>
           )}

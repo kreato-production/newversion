@@ -6,10 +6,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Plus, Trash2, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { formatCurrency } from '@/lib/currencies';
 
 interface Props {
   tabelaPrecoId: string;
   readOnly?: boolean;
+  moeda?: string;
 }
 
 interface RecursoFisicoOption {
@@ -24,7 +26,7 @@ interface TabelaPrecoRF {
   recursoNome?: string;
 }
 
-export const TabelaPrecoRecursosFisicosTab = ({ tabelaPrecoId, readOnly }: Props) => {
+export const TabelaPrecoRecursosFisicosTab = ({ tabelaPrecoId, readOnly, moeda = 'BRL' }: Props) => {
   const { toast } = useToast();
   const [items, setItems] = useState<TabelaPrecoRF[]>([]);
   const [recursos, setRecursos] = useState<RecursoFisicoOption[]>([]);
@@ -122,7 +124,7 @@ export const TabelaPrecoRecursosFisicosTab = ({ tabelaPrecoId, readOnly }: Props
             {items.map(item => (
               <TableRow key={item.id}>
                 <TableCell>{item.recursoNome}</TableCell>
-                <TableCell>{Number(item.valor_hora).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
+                <TableCell>{formatCurrency(Number(item.valor_hora), moeda)}</TableCell>
                 {!readOnly && (
                   <TableCell>
                     <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => handleDelete(item.id)}>

@@ -1996,6 +1996,7 @@ export type Database = {
           id: string
           nome: string
           status: string
+          unidade_negocio_id: string | null
           updated_at: string | null
           vigencia_fim: string | null
           vigencia_inicio: string | null
@@ -2008,6 +2009,7 @@ export type Database = {
           id?: string
           nome: string
           status?: string
+          unidade_negocio_id?: string | null
           updated_at?: string | null
           vigencia_fim?: string | null
           vigencia_inicio?: string | null
@@ -2020,11 +2022,20 @@ export type Database = {
           id?: string
           nome?: string
           status?: string
+          unidade_negocio_id?: string | null
           updated_at?: string | null
           vigencia_fim?: string | null
           vigencia_inicio?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "tabelas_preco_unidade_negocio_id_fkey"
+            columns: ["unidade_negocio_id"]
+            isOneToOne: false
+            referencedRelation: "unidades_negocio"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       tarefas: {
         Row: {
