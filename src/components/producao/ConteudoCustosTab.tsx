@@ -56,6 +56,7 @@ interface DrillDownRow {
   // Resumo por gravação
   saldo: number;
   desvioPercentual: number;
+  progressPercent: number;
 }
 
 interface RealizadoItem {
@@ -369,6 +370,10 @@ export const ConteudoCustosTab = ({ conteudoId, conteudoNome }: ConteudoCustosTa
           ? Math.round(((realTotal - estTotal) / estTotal) * 100)
           : 0;
 
+        const gravProgress = estTotal > 0
+          ? Math.min(100, Math.round((realTotal / estTotal) * 100))
+          : (realTotal > 0 ? 100 : 0);
+
         return {
           gravacaoId: grav.id,
           gravacaoNome: grav.nome,
@@ -385,6 +390,7 @@ export const ConteudoCustosTab = ({ conteudoId, conteudoNome }: ConteudoCustosTa
           realValorTotal: realTotal,
           saldo: gravSaldo,
           desvioPercentual: gravDesvio,
+          progressPercent: gravProgress,
         };
       });
 
@@ -718,7 +724,12 @@ export const ConteudoCustosTab = ({ conteudoId, conteudoNome }: ConteudoCustosTa
                         <TableCell className={`text-center border-r text-xs ${dd.desvioPercentual > 0 ? 'text-destructive' : ''}`}>
                           {dd.desvioPercentual}%
                         </TableCell>
-                        <TableCell />
+                        <TableCell className="px-2">
+                          <div className="flex items-center gap-1">
+                            <Progress value={dd.progressPercent} className="h-2 flex-1" />
+                            <span className="text-[10px] text-muted-foreground w-8 text-right">{dd.progressPercent}%</span>
+                          </div>
+                        </TableCell>
                       </TableRow>
                     ))}
                   </>
