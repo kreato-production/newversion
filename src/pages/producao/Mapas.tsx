@@ -13,6 +13,7 @@ import { Progress } from '@/components/ui/progress';
 import { Calendar, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Filter, MapPin, Users, CalendarDays, CalendarRange, FileDown, Loader2, Clock, Film, User, DollarSign, Building2, Briefcase, Wrench, MapPinIcon } from 'lucide-react';
 import { format, addDays, startOfWeek, addWeeks, subWeeks, startOfMonth, endOfMonth, addMonths, subMonths, eachDayOfInterval, getDay, parseISO, getMonth, getYear, isSameDay, isWithinInterval } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { getDateLocale, getDayAbbreviations } from '@/lib/dateLocale';
 import jsPDF from 'jspdf';
 import { useWeatherForecast } from '@/hooks/useWeatherForecast';
 import { useRecursoFisicoDisponibilidade } from '@/hooks/useRecursoFisicoDisponibilidade';
@@ -102,7 +103,8 @@ interface UnidadeNegocio {
 }
 
 const Mapas = () => {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const dateLocale = getDateLocale(language);
   const [viewMode, setViewMode] = useState<'week' | 'month'>('week');
   const [currentWeekStart, setCurrentWeekStart] = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }));
   const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(new Date()));
@@ -1094,7 +1096,7 @@ const Mapas = () => {
       const periodo =
         viewMode === 'week'
           ? `${format(currentWeekStart, 'dd/MM/yyyy')} - ${format(addDays(currentWeekStart, 6), 'dd/MM/yyyy')}`
-          : format(currentMonth, "MMMM 'de' yyyy", { locale: ptBR });
+          : format(currentMonth, "MMMM 'de' yyyy", { locale: dateLocale });
 
       // Criar PDF em paisagem
       const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
@@ -1167,7 +1169,7 @@ const Mapas = () => {
             const x = margin + firstColWidth + i * colWidth;
             doc.line(x, currentY, x, currentY + headerHeight);
             const dayLabel = viewMode === 'week' 
-              ? format(day, 'EEE dd/MM', { locale: ptBR })
+              ? format(day, 'EEE dd/MM', { locale: dateLocale })
               : format(day, 'dd/MM');
             doc.text(dayLabel, x + colWidth / 2, currentY + 7, { align: 'center' });
           });
@@ -1193,7 +1195,7 @@ const Mapas = () => {
                 const x = margin + firstColWidth + i * colWidth;
                 doc.line(x, currentY, x, currentY + headerHeight);
                 const dayLabel = viewMode === 'week' 
-                  ? format(day, 'EEE dd/MM', { locale: ptBR })
+                  ? format(day, 'EEE dd/MM', { locale: dateLocale })
                   : format(day, 'dd/MM');
                 doc.text(dayLabel, x + colWidth / 2, currentY + 7, { align: 'center' });
               });
@@ -1352,11 +1354,11 @@ const Mapas = () => {
         <span className="text-sm font-medium">
           {viewMode === 'week' ? (
             <>
-              {format(currentWeekStart, "dd 'de' MMMM", { locale: ptBR })} -{' '}
-              {format(addDays(currentWeekStart, 6), "dd 'de' MMMM", { locale: ptBR })}
+              {format(currentWeekStart, "dd 'de' MMMM", { locale: dateLocale })} -{' '}
+              {format(addDays(currentWeekStart, 6), "dd 'de' MMMM", { locale: dateLocale })}
             </>
           ) : (
-            format(currentMonth, "MMMM 'de' yyyy", { locale: ptBR })
+            format(currentMonth, "MMMM 'de' yyyy", { locale: dateLocale })
           )}
         </span>
       </div>
@@ -1392,7 +1394,7 @@ const Mapas = () => {
                       <TooltipTrigger asChild>
                         <div className="flex flex-col items-center">
                           <span className="text-xs text-muted-foreground">
-                            {viewMode === 'week' ? format(day, 'EEEE', { locale: ptBR }) : format(day, 'EEE', { locale: ptBR })}
+                            {viewMode === 'week' ? format(day, 'EEEE', { locale: dateLocale }) : format(day, 'EEE', { locale: dateLocale })}
                           </span>
                           <span className="font-semibold">{format(day, 'dd/MM')}</span>
                           {showWeather && weatherData && (
@@ -1408,7 +1410,7 @@ const Mapas = () => {
                       <TooltipContent>
                         <div className="text-center">
                           <div className="font-medium">
-                            {format(day, "EEEE, dd 'de' MMMM", { locale: ptBR })}
+                            {format(day, "EEEE, dd 'de' MMMM", { locale: dateLocale })}
                           </div>
                           {showWeather && weatherData && (
                             <div className="mt-1 text-xs">
@@ -1526,7 +1528,7 @@ const Mapas = () => {
                                     </div>
                                     <div className="flex items-center gap-2">
                                       <Calendar className="h-4 w-4 text-muted-foreground" />
-                                      <p className="text-sm">{format(day, "EEEE, dd 'de' MMMM", { locale: ptBR })}</p>
+                                      <p className="text-sm">{format(day, "EEEE, dd 'de' MMMM", { locale: dateLocale })}</p>
                                     </div>
                                     <div className="flex items-center gap-2">
                                       <Clock className="h-4 w-4 text-muted-foreground" />
@@ -1650,7 +1652,7 @@ const Mapas = () => {
                         >
                           <div className="flex flex-col">
                             <span className="text-xs text-muted-foreground">
-                              {viewMode === 'week' ? format(day, 'EEEE', { locale: ptBR }) : format(day, 'EEE', { locale: ptBR })}
+                              {viewMode === 'week' ? format(day, 'EEEE', { locale: dateLocale }) : format(day, 'EEE', { locale: dateLocale })}
                             </span>
                             <span className="font-semibold">{format(day, 'dd/MM')}</span>
                           </div>
@@ -1732,7 +1734,7 @@ const Mapas = () => {
                                           </div>
                                           <div className="flex items-center gap-2">
                                             <Calendar className="h-4 w-4 text-muted-foreground" />
-                                            <p className="text-sm">{format(day, "EEEE, dd 'de' MMMM", { locale: ptBR })}</p>
+                                            <p className="text-sm">{format(day, "EEEE, dd 'de' MMMM", { locale: dateLocale })}</p>
                                           </div>
                                           <div className="flex items-center gap-2">
                                             <Clock className="h-4 w-4 text-muted-foreground" />

@@ -32,6 +32,8 @@ import {
   endOfWeek,
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { getDateLocale, getDayAbbreviations } from '@/lib/dateLocale';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { supabase } from '@/integrations/supabase/client';
 import type { RecursoHumano } from '@/pages/recursos/RecursosHumanos';
 
@@ -43,7 +45,7 @@ interface MapaOciosidadeModalProps {
 
 type ViewMode = 'semana' | 'mes' | 'periodo';
 
-const DIAS_SEMANA_ABREV = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+// Day abbreviations moved to dynamic via getDayAbbreviations
 
 // Color scale: Red (high idle) → Orange → Yellow → Green (low/no idle)
 // percentage = idle percentage (0-100)
@@ -78,6 +80,9 @@ export const MapaOciosidadeModal = ({
   const [currentDate, setCurrentDate] = useState(new Date());
   const [periodoInicio, setPeriodoInicio] = useState('');
   const [periodoFim, setPeriodoFim] = useState('');
+  const { language } = useLanguage();
+  const dateLocale = getDateLocale(language);
+  const DIAS_SEMANA_ABREV = getDayAbbreviations(language);
 
   // Allocation data from DB
   const [ocupacoes, setOcupacoes] = useState<Record<string, Record<string, number>>>({});
@@ -168,8 +173,8 @@ export const MapaOciosidadeModal = ({
   // Calculate display days
   const diasExibidos = useMemo(() => {
     if (viewMode === 'semana') {
-      const inicio = startOfWeek(currentDate, { locale: ptBR });
-      const fim = endOfWeek(currentDate, { locale: ptBR });
+      const inicio = startOfWeek(currentDate, { locale: dateLocale });
+      const fim = endOfWeek(currentDate, { locale: dateLocale });
       return eachDayOfInterval({ start: inicio, end: fim });
     } else if (viewMode === 'mes') {
       const inicio = startOfMonth(currentDate);
@@ -245,11 +250,11 @@ export const MapaOciosidadeModal = ({
 
   const getTituloNavegacao = () => {
     if (viewMode === 'semana') {
-      const inicio = startOfWeek(currentDate, { locale: ptBR });
-      const fim = endOfWeek(currentDate, { locale: ptBR });
-      return `${format(inicio, 'dd/MM', { locale: ptBR })} - ${format(fim, 'dd/MM/yyyy', { locale: ptBR })}`;
+      const inicio = startOfWeek(currentDate, { locale: dateLocale });
+      const fim = endOfWeek(currentDate, { locale: dateLocale });
+      return `${format(inicio, 'dd/MM', { locale: dateLocale })} - ${format(fim, 'dd/MM/yyyy', { locale: dateLocale })}`;
     } else if (viewMode === 'mes') {
-      return format(currentDate, 'MMMM yyyy', { locale: ptBR });
+      return format(currentDate, 'MMMM yyyy', { locale: dateLocale });
     } else if (periodoInicio && periodoFim) {
       return `${format(parseISO(periodoInicio), 'dd/MM/yyyy')} - ${format(parseISO(periodoFim), 'dd/MM/yyyy')}`;
     }
@@ -445,7 +450,7 @@ export const MapaOciosidadeModal = ({
                                 <TooltipContent side="top" className="max-w-[220px]">
                                   <div className="text-xs space-y-1">
                                     <div className="font-semibold">{recurso.nome} {recurso.sobrenome}</div>
-                                    <div className="text-muted-foreground">{format(dia, 'dd/MM/yyyy (EEEE)', { locale: ptBR })}</div>
+                                    <div className="text-muted-foreground">{format(dia, 'dd/MM/yyyy (EEEE)', { locale: dateLocale })}</div>
                                     <div className="border-t pt-1 mt-1 space-y-0.5">
                                       <div className="font-medium">Escalas:</div>
                                       {faixas.map((f, i) => (
