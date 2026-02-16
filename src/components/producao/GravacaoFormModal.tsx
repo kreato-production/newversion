@@ -246,6 +246,20 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
     }
   }, [data, isOpen]);
 
+  // Auto-assign initial status for new recordings once statusList is loaded
+  useEffect(() => {
+    if (!isOpen || data || statusList.length === 0) return;
+    // Only set if status is still empty (not yet assigned)
+    setFormData(prev => {
+      if (prev.status) return prev;
+      const inicialStatus = statusList.find((s: any) => s.is_inicial === true);
+      if (inicialStatus) {
+        return { ...prev, status: inicialStatus.nome };
+      }
+      return prev;
+    });
+  }, [isOpen, data, statusList]);
+
   // Garante que o status atual esteja na lista para o Select renderizar corretamente
   useEffect(() => {
     if (!isOpen || !incomingStatus) return;
