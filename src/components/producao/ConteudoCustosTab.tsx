@@ -107,6 +107,9 @@ export const ConteudoCustosTab = ({ conteudoId, conteudoNome }: ConteudoCustosTa
   const [numGravacoes, setNumGravacoes] = useState(0);
   const [gravacoesList, setGravacoesList] = useState<{ id: string; nome: string; codigo: string }[]>([]);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  // Terceiros data
+  const [terceirosEstimados, setTerceirosEstimados] = useState<{ servicoId: string; servicoNome: string; valorPrevisto: number }[]>([]);
+  const [terceirosRealizados, setTerceirosRealizados] = useState<{ servicoNome: string; valorTotal: number; porGravacao: { gravacaoId: string; valor: number }[] }[]>([]);
 
   const toggleRow = (rtId: string) => {
     setExpandedRows(prev => {
@@ -299,6 +302,42 @@ export const ConteudoCustosTab = ({ conteudoId, conteudoNome }: ConteudoCustosTa
       });
 
       setRealizados(realizadoItems);
+
+      // Fetch terceiros estimados (from conteudo_terceiros)
+      const { data: ctData } = await (supabase as any)
+        .from('conteudo_terceiros')
+        .select('servico_id, valor_previsto, servicos:servico_id(nome)')
+        .eq('conteudo_id', conteudoId);
+
+      const tercEstimados = (ctData || []).map((ct: any) => ({
+        servicoId: ct.servico_id,
+        servicoNome: ct.servicos?.nome || 'Serviço',
+        valorPrevisto: Number(ct.valor_previsto) || 0,
+      }));
+      setTerceirosEstimados(tercEstimados);
+
+      // Fetch terceiros realizados (from gravacao_terceiros across all gravações)
+      if (gravacaoIds.length > 0) {
+        const { data: gtData } = await supabase
+          .from('gravacao_terceiros')
+          .select('gravacao_id, fornecedor_id, servico_id, valor, fornecedor_servicos:servico_id(id, nome)')
+          .in('gravacao_id', gravacaoIds);
+
+        // Group realized terceiros by service name (from fornecedor_servicos)
+        const tercRealMap = new Map<string, { servicoNome: string; valorTotal: number; porGravacao: { gravacaoId: string; valor: number }[] }>();
+        (gtData || []).forEach((gt: any) => {
+          const sNome = gt.fornecedor_servicos?.nome || 'Serviço';
+          if (!tercRealMap.has(sNome)) {
+            tercRealMap.set(sNome, { servicoNome: sNome, valorTotal: 0, porGravacao: [] });
+          }
+          const entry = tercRealMap.get(sNome)!;
+          entry.valorTotal += Number(gt.valor) || 0;
+          entry.porGravacao.push({ gravacaoId: gt.gravacao_id, valor: Number(gt.valor) || 0 });
+        });
+        setTerceirosRealizados(Array.from(tercRealMap.values()));
+      } else {
+        setTerceirosRealizados([]);
+      }
     } catch (err) {
       console.error('Erro ao carregar dados de custos:', err);
     } finally {
@@ -408,15 +447,23 @@ export const ConteudoCustosTab = ({ conteudoId, conteudoNome }: ConteudoCustosTa
     });
   }, [estimados, realizados, numGravacoes, gravacoesList]);
 
+  const terceirosEstTotal = useMemo(() => {
+    return terceirosEstimados.reduce((acc, t) => acc + t.valorPrevisto, 0);
+  }, [terceirosEstimados]);
+
+  const terceirosRealTotal = useMemo(() => {
+    return terceirosRealizados.reduce((acc, t) => acc + t.valorTotal, 0);
+  }, [terceirosRealizados]);
+
   const totais = useMemo(() => {
     const estQtd = matrizRows.reduce((acc, r) => acc + (r.estimadoAcumulado?.quantidade || 0), 0);
     const estHoras = matrizRows.reduce((acc, r) => acc + (r.estimadoAcumulado?.horas || 0), 0);
-    const estValorTotal = matrizRows.reduce((acc, r) => acc + (r.estimadoAcumulado?.valorTotal || 0), 0);
+    const estValorTotal = matrizRows.reduce((acc, r) => acc + (r.estimadoAcumulado?.valorTotal || 0), 0) + terceirosEstTotal;
     const estValorComDesc = matrizRows.reduce((acc, r) => acc + (r.estimadoAcumulado?.valorComDesconto || 0), 0);
 
     const realQtd = realizados.reduce((acc, r) => acc + r.quantidade, 0);
     const realHoras = realizados.reduce((acc, r) => acc + r.totalHoras, 0);
-    const realValorTotal = realizados.reduce((acc, r) => acc + r.valorTotal, 0);
+    const realValorTotal = realizados.reduce((acc, r) => acc + r.valorTotal, 0) + terceirosRealTotal;
 
     const saldo = estValorTotal - realValorTotal;
     const desvio = realValorTotal > estValorTotal && estValorTotal > 0
@@ -431,7 +478,7 @@ export const ConteudoCustosTab = ({ conteudoId, conteudoNome }: ConteudoCustosTa
       realQtd, realHoras, realValorTotal,
       saldo, desvio, progressPercent,
     };
-  }, [matrizRows, realizados]);
+  }, [matrizRows, realizados, terceirosEstTotal, terceirosRealTotal]);
 
   const handleExportPDF = () => {
     const doc = new jsPDF({ orientation: 'landscape' });
@@ -569,7 +616,7 @@ export const ConteudoCustosTab = ({ conteudoId, conteudoNome }: ConteudoCustosTa
     );
   }
 
-  if (estimados.length === 0 && realizados.length === 0) {
+  if (estimados.length === 0 && realizados.length === 0 && terceirosEstimados.length === 0 && terceirosRealizados.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center">
         <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
@@ -596,7 +643,7 @@ export const ConteudoCustosTab = ({ conteudoId, conteudoNome }: ConteudoCustosTa
           <div>
             <h3 className="text-lg font-semibold">Matriz Comparativa de Custos</h3>
             <p className="text-sm text-muted-foreground">
-              {numGravacoes} gravação(ões) • {matrizRows.length} recurso(s) técnico(s) • Valores acumulados
+              {numGravacoes} gravação(ões) • {matrizRows.length} recurso(s) técnico(s){terceirosEstimados.length > 0 ? ` • ${terceirosEstimados.length} terceiro(s)` : ''} • Valores acumulados
             </p>
           </div>
         </div>
@@ -733,6 +780,76 @@ export const ConteudoCustosTab = ({ conteudoId, conteudoNome }: ConteudoCustosTa
                       </TableRow>
                     ))}
                   </>
+                );
+              })}
+
+              {/* Terceiros rows */}
+              {terceirosEstimados.map((te) => {
+                const realMatch = terceirosRealizados.find(tr => tr.servicoNome === te.servicoNome);
+                const estVal = te.valorPrevisto;
+                const realVal = realMatch?.valorTotal || 0;
+                const saldo = estVal - realVal;
+                const desvio = realVal > estVal && estVal > 0 ? Math.round(((realVal - estVal) / estVal) * 100) : 0;
+                const progress = estVal > 0 ? Math.min(100, Math.round((realVal / estVal) * 100)) : (realVal > 0 ? 100 : 0);
+
+                return (
+                  <TableRow key={`terceiro-${te.servicoId}`} className="bg-amber-50/30">
+                    <TableCell className="font-medium border-r whitespace-nowrap">
+                      🏢 {te.servicoNome} (Terceiro)
+                    </TableCell>
+                    <TableCell className="text-center border-r">-</TableCell>
+                    <TableCell className="text-center border-r">-</TableCell>
+                    <TableCell className="text-right border-r">-</TableCell>
+                    <TableCell className="text-right border-r">{formatCurrency(estVal)}</TableCell>
+                    <TableCell className="text-center border-r">-</TableCell>
+                    <TableCell className="text-right border-r">-</TableCell>
+                    <TableCell className="text-center border-r">-</TableCell>
+                    <TableCell className="text-center border-r">-</TableCell>
+                    <TableCell className="text-right border-r">-</TableCell>
+                    <TableCell className="text-right border-r">{formatCurrency(realVal)}</TableCell>
+                    <TableCell className={`text-right border-r font-medium ${saldo < 0 ? 'text-destructive' : saldo > 0 ? 'text-green-600' : ''}`}>
+                      {formatCurrency(saldo)}
+                    </TableCell>
+                    <TableCell className={`text-center border-r font-medium ${desvio > 0 ? 'text-destructive' : ''}`}>
+                      {desvio}%
+                    </TableCell>
+                    <TableCell className="px-2">
+                      <div className="flex items-center gap-1">
+                        <Progress value={progress} className="h-2 flex-1" />
+                        <span className="text-[10px] text-muted-foreground w-8 text-right">{progress}%</span>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+              {/* Terceiros realizados without estimado */}
+              {terceirosRealizados.filter(tr => !terceirosEstimados.some(te => te.servicoNome === tr.servicoNome)).map((tr) => {
+                return (
+                  <TableRow key={`terceiro-real-${tr.servicoNome}`} className="bg-amber-50/30">
+                    <TableCell className="font-medium border-r whitespace-nowrap">
+                      🏢 {tr.servicoNome} (Terceiro)
+                    </TableCell>
+                    <TableCell className="text-center border-r">-</TableCell>
+                    <TableCell className="text-center border-r">-</TableCell>
+                    <TableCell className="text-right border-r">-</TableCell>
+                    <TableCell className="text-right border-r">-</TableCell>
+                    <TableCell className="text-center border-r">-</TableCell>
+                    <TableCell className="text-right border-r">-</TableCell>
+                    <TableCell className="text-center border-r">-</TableCell>
+                    <TableCell className="text-center border-r">-</TableCell>
+                    <TableCell className="text-right border-r">-</TableCell>
+                    <TableCell className="text-right border-r">{formatCurrency(tr.valorTotal)}</TableCell>
+                    <TableCell className="text-right border-r font-medium text-destructive">
+                      {formatCurrency(-tr.valorTotal)}
+                    </TableCell>
+                    <TableCell className="text-center border-r font-medium">0%</TableCell>
+                    <TableCell className="px-2">
+                      <div className="flex items-center gap-1">
+                        <Progress value={100} className="h-2 flex-1" />
+                        <span className="text-[10px] text-muted-foreground w-8 text-right">100%</span>
+                      </div>
+                    </TableCell>
+                  </TableRow>
                 );
               })}
 

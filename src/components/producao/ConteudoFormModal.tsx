@@ -37,6 +37,7 @@ import {
 } from '@/components/ui/table';
 import { ConteudoCustosTab } from './ConteudoCustosTab';
 import { ConteudoRecursosTab } from './ConteudoRecursosTab';
+import { ConteudoTerceirosTab } from './ConteudoTerceirosTab';
 import { ElencoTab } from './ElencoTab';
 import { supabase } from '@/integrations/supabase/client';
 import { getCurrencyByCode } from '@/lib/currencies';
@@ -467,6 +468,7 @@ export const ConteudoFormModal = ({
     if (isVisible('Produção', 'Conteúdo', '-', 'Tabulador "Elenco"')) visibleTabs.push({ value: 'elenco', label: t('field.cast') });
     if (isVisible('Produção', 'Conteúdo', '-', 'Tabulador "Recursos Técnicos"')) visibleTabs.push({ value: 'recursosTecnicos', label: 'Recursos Técnicos' });
     if (isVisible('Produção', 'Conteúdo', '-', 'Tabulador "Recursos Físicos"')) visibleTabs.push({ value: 'recursosFisicos', label: 'Recursos Físicos' });
+    visibleTabs.push({ value: 'terceiros', label: 'Terceiros' });
     if (isVisible('Produção', 'Conteúdo', '-', 'Tabulador "Custos"')) visibleTabs.push({ value: 'custos', label: t('field.costs') });
   }
 
@@ -783,6 +785,16 @@ export const ConteudoFormModal = ({
                   moeda={selectedCurrency || 'BRL'}
                   readOnly={readOnly}
                   tipo="fisico"
+                />
+              </TabsContent>
+            )}
+
+            {data && (
+              <TabsContent value="terceiros" className="mt-4">
+                <ConteudoTerceirosTab
+                  conteudoId={data.id}
+                  moeda={selectedCurrency || 'BRL'}
+                  readOnly={readOnly}
                 />
               </TabsContent>
             )}

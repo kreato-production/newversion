@@ -348,6 +348,48 @@ export type Database = {
           },
         ]
       }
+      conteudo_terceiros: {
+        Row: {
+          conteudo_id: string
+          created_at: string | null
+          created_by: string | null
+          id: string
+          servico_id: string
+          valor_previsto: number
+        }
+        Insert: {
+          conteudo_id: string
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          servico_id: string
+          valor_previsto?: number
+        }
+        Update: {
+          conteudo_id?: string
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          servico_id?: string
+          valor_previsto?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conteudo_terceiros_conteudo_id_fkey"
+            columns: ["conteudo_id"]
+            isOneToOne: false
+            referencedRelation: "conteudos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conteudo_terceiros_servico_id_fkey"
+            columns: ["servico_id"]
+            isOneToOne: false
+            referencedRelation: "servicos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       conteudos: {
         Row: {
           ano_producao: string | null
