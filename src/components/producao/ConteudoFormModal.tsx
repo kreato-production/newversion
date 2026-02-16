@@ -524,13 +524,12 @@ export const ConteudoFormModal = ({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label>{t('recordings.businessUnit')} <FieldAsterisk type={getAsterisk('unidadeNegocio')} /></Label>
               <Select
                 value={formData.unidadeNegocio}
                 onValueChange={(value) => {
-                  // Limpar centro de lucro e tabela de preço ao mudar unidade de negócio
                   setFormData({ ...formData, unidadeNegocio: value, centroLucro: '', tabelaPrecoId: '' });
                 }}
               >
@@ -544,9 +543,6 @@ export const ConteudoFormModal = ({
                 </SelectContent>
               </Select>
             </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>{t('recordings.profitCenter')} <FieldAsterisk type={getAsterisk('centroLucro')} /></Label>
               <Select
