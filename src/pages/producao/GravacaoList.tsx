@@ -209,6 +209,66 @@ const GravacaoList = () => {
         if (error) throw error;
         toast({ title: t('common.success'), description: t('recordings.new') + '!' });
       }
+
+      // Sync resources from content when data_prevista is set and gravação has a conteúdo
+      const conteudoId = recordData.conteudo_id;
+      const hasDataPrevista = !!recordData.data_prevista;
+      if (conteudoId && hasDataPrevista) {
+        try {
+          // Fetch content resources
+          const [rtRes, rfRes, existingRes] = await Promise.all([
+            (supabase as any).from('conteudo_recursos_tecnicos').select('recurso_tecnico_id, quantidade').eq('conteudo_id', conteudoId),
+            (supabase as any).from('conteudo_recursos_fisicos').select('recurso_fisico_id, quantidade').eq('conteudo_id', conteudoId),
+            (supabase as any).from('gravacao_recursos').select('id, recurso_tecnico_id, recurso_fisico_id, recurso_humano_id').eq('gravacao_id', data.id),
+          ]);
+
+          const recursosTecnicos = rtRes.data || [];
+          const recursosFisicos = rfRes.data || [];
+          const existingRecursos = existingRes.data || [];
+
+          const inserts: any[] = [];
+
+          // For each content technical resource, check how many anchor entries (recurso_humano_id is null) already exist
+          for (const rt of recursosTecnicos) {
+            const qty = rt.quantidade || 1;
+            const existingCount = existingRecursos.filter(
+              (e: any) => e.recurso_tecnico_id === rt.recurso_tecnico_id && e.recurso_humano_id === null
+            ).length;
+            const missing = qty - existingCount;
+            for (let i = 0; i < missing; i++) {
+              inserts.push({
+                gravacao_id: data.id,
+                recurso_tecnico_id: rt.recurso_tecnico_id,
+                recurso_humano_id: null,
+                recurso_fisico_id: null,
+              });
+            }
+          }
+
+          // For each content physical resource, check how many entries already exist
+          for (const rf of recursosFisicos) {
+            const qty = rf.quantidade || 1;
+            const existingCount = existingRecursos.filter(
+              (e: any) => e.recurso_fisico_id === rf.recurso_fisico_id && e.recurso_tecnico_id === null
+            ).length;
+            const missing = qty - existingCount;
+            for (let i = 0; i < missing; i++) {
+              inserts.push({
+                gravacao_id: data.id,
+                recurso_fisico_id: rf.recurso_fisico_id,
+                recurso_tecnico_id: null,
+                recurso_humano_id: null,
+              });
+            }
+          }
+
+          if (inserts.length > 0) {
+            await (supabase as any).from('gravacao_recursos').insert(inserts);
+          }
+        } catch (syncErr) {
+          console.error('Error syncing content resources to gravacao:', syncErr);
+        }
+      }
       
       await fetchData();
       setEditingItem(null);
