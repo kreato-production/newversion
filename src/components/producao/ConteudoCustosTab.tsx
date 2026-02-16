@@ -17,7 +17,7 @@ interface ConteudoCustosTabProps {
 }
 
 interface EstimadoItem {
-  recursoTecnicoId: string;
+  recursoId: string;
   recursoNome: string;
   quantidade: number;
   quantidadeHoras: number;
@@ -41,26 +41,23 @@ interface DrillDownRow {
   gravacaoId: string;
   gravacaoNome: string;
   gravacaoCodigo: string;
-  // Estimado por gravação (proporcional)
   estQuantidade: number;
   estHoras: number;
   estValorUnitario: number;
   estValorTotal: number;
   estDescontoPercentual: number;
   estValorComDesconto: number;
-  // Realizado por gravação
   realQuantidade: number;
   realHoras: number;
   realValorUnitario: number;
   realValorTotal: number;
-  // Resumo por gravação
   saldo: number;
   desvioPercentual: number;
   progressPercent: number;
 }
 
 interface RealizadoItem {
-  recursoTecnicoId: string;
+  recursoId: string;
   recursoNome: string;
   quantidade: number;
   totalHoras: number;
@@ -71,7 +68,8 @@ interface RealizadoItem {
 
 interface MatrizRow {
   recursoNome: string;
-  recursoTecnicoId: string;
+  recursoId: string;
+  tipo: 'tecnico' | 'fisico';
   estimadoAcumulado: {
     quantidade: number;
     horas: number;
@@ -80,7 +78,7 @@ interface MatrizRow {
     descontoPercentual: number;
     valorComDesconto: number;
   } | null;
-  estimadoPorGravacao: EstimadoItem | null;
+  estimadoBase: EstimadoItem | null;
   realizado: RealizadoItem | null;
   drillDown: DrillDownRow[];
   saldo: number;
@@ -101,21 +99,22 @@ const calcularHorasEntreTempo = (inicio: string, fim: string): number => {
 export const ConteudoCustosTab = ({ conteudoId, conteudoNome }: ConteudoCustosTabProps) => {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
-  const [estimados, setEstimados] = useState<EstimadoItem[]>([]);
-  const [realizados, setRealizados] = useState<RealizadoItem[]>([]);
+  const [rtEstimados, setRtEstimados] = useState<EstimadoItem[]>([]);
+  const [rtRealizados, setRtRealizados] = useState<RealizadoItem[]>([]);
+  const [rfEstimados, setRfEstimados] = useState<EstimadoItem[]>([]);
+  const [rfRealizados, setRfRealizados] = useState<RealizadoItem[]>([]);
   const [moeda, setMoeda] = useState<string>('BRL');
   const [numGravacoes, setNumGravacoes] = useState(0);
   const [gravacoesList, setGravacoesList] = useState<{ id: string; nome: string; codigo: string }[]>([]);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
-  // Terceiros data
   const [terceirosEstimados, setTerceirosEstimados] = useState<{ servicoId: string; servicoNome: string; valorPrevisto: number }[]>([]);
   const [terceirosRealizados, setTerceirosRealizados] = useState<{ servicoNome: string; valorTotal: number; porGravacao: { gravacaoId: string; valor: number }[] }[]>([]);
 
-  const toggleRow = (rtId: string) => {
+  const toggleRow = (id: string) => {
     setExpandedRows(prev => {
       const next = new Set(prev);
-      if (next.has(rtId)) next.delete(rtId);
-      else next.add(rtId);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
   };
@@ -143,23 +142,21 @@ export const ConteudoCustosTab = ({ conteudoId, conteudoNome }: ConteudoCustosTa
         if (unidadeData?.moeda) setMoeda(unidadeData.moeda);
       }
 
-      // Fetch planned resources (conteudo_recursos_tecnicos)
-      const { data: planejadosData } = await supabase
+      // === RECURSOS TÉCNICOS ESTIMADO ===
+      const { data: rtPlanejados } = await supabase
         .from('conteudo_recursos_tecnicos')
         .select('*')
         .eq('conteudo_id', conteudoId);
 
-      // Fetch RT names
-      const rtIds = (planejadosData || []).map(p => p.recurso_tecnico_id);
+      const rtIds = (rtPlanejados || []).map(p => p.recurso_tecnico_id);
       const { data: rtNamesData } = await supabase
         .from('recursos_tecnicos')
         .select('id, nome')
         .in('id', rtIds.length > 0 ? rtIds : ['__none__']);
-
       const rtNameMap = new Map((rtNamesData || []).map(r => [r.id, r.nome]));
 
-      const estimadoItems: EstimadoItem[] = (planejadosData || []).map(p => ({
-        recursoTecnicoId: p.recurso_tecnico_id,
+      const rtEstItems: EstimadoItem[] = (rtPlanejados || []).map(p => ({
+        recursoId: p.recurso_tecnico_id,
         recursoNome: rtNameMap.get(p.recurso_tecnico_id) || 'Desconhecido',
         quantidade: p.quantidade,
         quantidadeHoras: Number(p.quantidade_horas),
@@ -168,9 +165,35 @@ export const ConteudoCustosTab = ({ conteudoId, conteudoNome }: ConteudoCustosTa
         descontoPercentual: Number(p.desconto_percentual),
         valorComDesconto: Number(p.valor_com_desconto),
       }));
-      setEstimados(estimadoItems);
+      setRtEstimados(rtEstItems);
 
-      // Fetch all gravações for this content
+      // === RECURSOS FÍSICOS ESTIMADO ===
+      const { data: rfPlanejados } = await supabase
+        .from('conteudo_recursos_fisicos')
+        .select('*')
+        .eq('conteudo_id', conteudoId);
+
+      const rfIds = (rfPlanejados || []).map(p => p.recurso_fisico_id);
+      const { data: rfNamesData } = await supabase
+        .from('recursos_fisicos')
+        .select('id, nome, custo_hora')
+        .in('id', rfIds.length > 0 ? rfIds : ['__none__']);
+      const rfNameMap = new Map((rfNamesData || []).map(r => [r.id, r.nome]));
+      const rfCustoMap = new Map((rfNamesData || []).map(r => [r.id, r.custo_hora || 0]));
+
+      const rfEstItems: EstimadoItem[] = (rfPlanejados || []).map(p => ({
+        recursoId: p.recurso_fisico_id,
+        recursoNome: rfNameMap.get(p.recurso_fisico_id) || 'Desconhecido',
+        quantidade: p.quantidade,
+        quantidadeHoras: Number(p.quantidade_horas),
+        valorHora: Number(p.valor_hora),
+        valorTotal: Number(p.valor_total),
+        descontoPercentual: Number(p.desconto_percentual),
+        valorComDesconto: Number(p.valor_com_desconto),
+      }));
+      setRfEstimados(rfEstItems);
+
+      // === GRAVAÇÕES ===
       const { data: gravacoesData } = await supabase
         .from('gravacoes')
         .select('id, nome, codigo')
@@ -183,147 +206,167 @@ export const ConteudoCustosTab = ({ conteudoId, conteudoNome }: ConteudoCustosTa
       setGravacoesList(gravacoes);
 
       if (gravacaoIds.length === 0) {
-        setRealizados([]);
+        setRtRealizados([]);
+        setRfRealizados([]);
+        setTerceirosRealizados([]);
         setIsLoading(false);
+
+        // Still fetch terceiros estimados
+        const { data: ctData } = await (supabase as any)
+          .from('conteudo_terceiros')
+          .select('servico_id, valor_previsto, servicos:servico_id(nome)')
+          .eq('conteudo_id', conteudoId);
+        setTerceirosEstimados((ctData || []).map((ct: any) => ({
+          servicoId: ct.servico_id,
+          servicoNome: ct.servicos?.nome || 'Serviço',
+          valorPrevisto: Number(ct.valor_previsto) || 0,
+        })));
         return;
       }
 
-      // Fetch all resource allocations across all recordings
+      // === RECURSOS TÉCNICOS REALIZADO ===
       const { data: alocsData } = await supabase
         .from('gravacao_recursos')
         .select(`
-          id,
-          gravacao_id,
-          hora_inicio,
-          hora_fim,
-          recurso_humano_id,
-          recurso_tecnico_id,
+          id, gravacao_id, hora_inicio, hora_fim,
+          recurso_humano_id, recurso_tecnico_id, recurso_fisico_id,
           recursos_humanos:recurso_humano_id(id, nome, sobrenome, custo_hora),
-          recursos_tecnicos:recurso_tecnico_id(id, nome)
+          recursos_tecnicos:recurso_tecnico_id(id, nome),
+          recursos_fisicos:recurso_fisico_id(id, nome, custo_hora)
         `)
         .in('gravacao_id', gravacaoIds);
 
       const allAlocs = alocsData || [];
 
-      // Group by recurso_tecnico_id, then by gravacao_id for drill-down
-      const realizadoMap = new Map<string, {
+      // RT realized
+      const rtRealMap = new Map<string, {
         nome: string;
-        porGravacao: Map<string, {
-          quantidade: number;
-          totalHoras: number;
-          totalCusto: number;
-          totalCustoHora: number;
-          countCustoHora: number;
-        }>;
+        porGravacao: Map<string, { quantidade: number; totalHoras: number; totalCusto: number; totalCustoHora: number; countCustoHora: number }>;
+      }>();
+
+      // RF realized
+      const rfRealMap = new Map<string, {
+        nome: string;
+        porGravacao: Map<string, { quantidade: number; totalHoras: number; totalCusto: number; totalCustoHora: number; countCustoHora: number }>;
       }>();
 
       allAlocs.forEach(aloc => {
-        if (!aloc.recurso_tecnico_id) return;
-
-        const rtId = aloc.recurso_tecnico_id;
-        const rtNome = aloc.recursos_tecnicos?.nome || rtNameMap.get(rtId) || 'Desconhecido';
         const gravId = aloc.gravacao_id;
 
-        if (!realizadoMap.has(rtId)) {
-          realizadoMap.set(rtId, { nome: rtNome, porGravacao: new Map() });
+        // Process RT allocations (entries with recurso_tecnico_id)
+        if (aloc.recurso_tecnico_id) {
+          const rtId = aloc.recurso_tecnico_id;
+          const rtNome = aloc.recursos_tecnicos?.nome || rtNameMap.get(rtId) || 'Desconhecido';
+
+          if (!rtRealMap.has(rtId)) {
+            rtRealMap.set(rtId, { nome: rtNome, porGravacao: new Map() });
+          }
+          const rtEntry = rtRealMap.get(rtId)!;
+          if (!rtEntry.porGravacao.has(gravId)) {
+            rtEntry.porGravacao.set(gravId, { quantidade: 0, totalHoras: 0, totalCusto: 0, totalCustoHora: 0, countCustoHora: 0 });
+          }
+          const gravEntry = rtEntry.porGravacao.get(gravId)!;
+
+          if (aloc.recurso_humano_id && aloc.recursos_humanos) {
+            const rh = aloc.recursos_humanos;
+            const horas = calcularHorasEntreTempo(aloc.hora_inicio || '', aloc.hora_fim || '');
+            const custoHora = rh.custo_hora || 0;
+            gravEntry.quantidade += 1;
+            gravEntry.totalHoras += horas;
+            gravEntry.totalCusto += horas * custoHora;
+            if (custoHora > 0) {
+              gravEntry.totalCustoHora += custoHora;
+              gravEntry.countCustoHora += 1;
+            }
+          } else if (!aloc.recurso_humano_id) {
+            gravEntry.quantidade = Math.max(gravEntry.quantidade, 1);
+          }
         }
 
-        const rtEntry = realizadoMap.get(rtId)!;
-        if (!rtEntry.porGravacao.has(gravId)) {
-          rtEntry.porGravacao.set(gravId, {
-            quantidade: 0,
-            totalHoras: 0,
-            totalCusto: 0,
-            totalCustoHora: 0,
-            countCustoHora: 0,
-          });
-        }
+        // Process RF allocations (entries with recurso_fisico_id, no recurso_tecnico_id)
+        if (aloc.recurso_fisico_id && !aloc.recurso_tecnico_id) {
+          const rfId = aloc.recurso_fisico_id;
+          const rfNome = aloc.recursos_fisicos?.nome || rfNameMap.get(rfId) || 'Desconhecido';
+          const rfCusto = aloc.recursos_fisicos?.custo_hora || rfCustoMap.get(rfId) || 0;
 
-        const gravEntry = rtEntry.porGravacao.get(gravId)!;
+          if (!rfRealMap.has(rfId)) {
+            rfRealMap.set(rfId, { nome: rfNome, porGravacao: new Map() });
+          }
+          const rfEntry = rfRealMap.get(rfId)!;
+          if (!rfEntry.porGravacao.has(gravId)) {
+            rfEntry.porGravacao.set(gravId, { quantidade: 0, totalHoras: 0, totalCusto: 0, totalCustoHora: 0, countCustoHora: 0 });
+          }
+          const gravEntry = rfEntry.porGravacao.get(gravId)!;
 
-        if (aloc.recurso_humano_id && aloc.recursos_humanos) {
-          const rh = aloc.recursos_humanos;
           const horas = calcularHorasEntreTempo(aloc.hora_inicio || '', aloc.hora_fim || '');
-          const custoHora = rh.custo_hora || 0;
-
           gravEntry.quantidade += 1;
           gravEntry.totalHoras += horas;
-          gravEntry.totalCusto += horas * custoHora;
-          if (custoHora > 0) {
-            gravEntry.totalCustoHora += custoHora;
+          gravEntry.totalCusto += horas * rfCusto;
+          if (rfCusto > 0) {
+            gravEntry.totalCustoHora += rfCusto;
             gravEntry.countCustoHora += 1;
           }
-        } else if (!aloc.recurso_humano_id) {
-          // Anchor record - count as quantity if no RH assigned yet
-          gravEntry.quantidade = Math.max(gravEntry.quantidade, 1);
         }
       });
 
-      const realizadoItems: RealizadoItem[] = Array.from(realizadoMap.entries()).map(([rtId, rtEntry]) => {
-        let totalQtd = 0;
-        let totalHoras = 0;
-        let totalCusto = 0;
-        let totalCustoHoraSum = 0;
-        let countCustoHora = 0;
-        const detalhes: GravacaoDetalhe[] = [];
+      const buildRealizadoItems = (realMap: Map<string, any>): RealizadoItem[] => {
+        return Array.from(realMap.entries()).map(([id, entry]) => {
+          let totalQtd = 0, totalHoras = 0, totalCusto = 0, totalCustoHoraSum = 0, countCustoHora = 0;
+          const detalhes: GravacaoDetalhe[] = [];
 
-        rtEntry.porGravacao.forEach((gEntry, gravId) => {
-          const gravInfo = gravacaoMap.get(gravId);
-          const avgCustoHora = gEntry.countCustoHora > 0 ? gEntry.totalCustoHora / gEntry.countCustoHora : 0;
-
-          totalQtd += gEntry.quantidade;
-          totalHoras += gEntry.totalHoras;
-          totalCusto += gEntry.totalCusto;
-          totalCustoHoraSum += gEntry.totalCustoHora;
-          countCustoHora += gEntry.countCustoHora;
-
-          detalhes.push({
-            gravacaoId: gravId,
-            gravacaoNome: gravInfo?.nome || 'Gravação',
-            gravacaoCodigo: gravInfo?.codigo || '',
-            quantidade: gEntry.quantidade,
-            totalHoras: Math.round(gEntry.totalHoras * 10) / 10,
-            valorUnitario: Math.round(avgCustoHora * 100) / 100,
-            valorTotal: Math.round(gEntry.totalCusto * 100) / 100,
+          entry.porGravacao.forEach((gEntry: any, gravId: string) => {
+            const gravInfo = gravacaoMap.get(gravId);
+            const avgCustoHora = gEntry.countCustoHora > 0 ? gEntry.totalCustoHora / gEntry.countCustoHora : 0;
+            totalQtd += gEntry.quantidade;
+            totalHoras += gEntry.totalHoras;
+            totalCusto += gEntry.totalCusto;
+            totalCustoHoraSum += gEntry.totalCustoHora;
+            countCustoHora += gEntry.countCustoHora;
+            detalhes.push({
+              gravacaoId: gravId,
+              gravacaoNome: gravInfo?.nome || 'Gravação',
+              gravacaoCodigo: gravInfo?.codigo || '',
+              quantidade: gEntry.quantidade,
+              totalHoras: Math.round(gEntry.totalHoras * 10) / 10,
+              valorUnitario: Math.round(avgCustoHora * 100) / 100,
+              valorTotal: Math.round(gEntry.totalCusto * 100) / 100,
+            });
           });
+
+          const avgCustoHoraGlobal = countCustoHora > 0 ? totalCustoHoraSum / countCustoHora : 0;
+          return {
+            recursoId: id,
+            recursoNome: entry.nome,
+            quantidade: totalQtd,
+            totalHoras: Math.round(totalHoras * 10) / 10,
+            valorUnitarioMedio: Math.round(avgCustoHoraGlobal * 100) / 100,
+            valorTotal: Math.round(totalCusto * 100) / 100,
+            detalhes,
+          };
         });
+      };
 
-        const avgCustoHoraGlobal = countCustoHora > 0 ? totalCustoHoraSum / countCustoHora : 0;
+      setRtRealizados(buildRealizadoItems(rtRealMap));
+      setRfRealizados(buildRealizadoItems(rfRealMap));
 
-        return {
-          recursoTecnicoId: rtId,
-          recursoNome: rtEntry.nome,
-          quantidade: totalQtd,
-          totalHoras: Math.round(totalHoras * 10) / 10,
-          valorUnitarioMedio: Math.round(avgCustoHoraGlobal * 100) / 100,
-          valorTotal: Math.round(totalCusto * 100) / 100,
-          detalhes,
-        };
-      });
-
-      setRealizados(realizadoItems);
-
-      // Fetch terceiros estimados (from conteudo_terceiros)
+      // === TERCEIROS ===
       const { data: ctData } = await (supabase as any)
         .from('conteudo_terceiros')
         .select('servico_id, valor_previsto, servicos:servico_id(nome)')
         .eq('conteudo_id', conteudoId);
 
-      const tercEstimados = (ctData || []).map((ct: any) => ({
+      setTerceirosEstimados((ctData || []).map((ct: any) => ({
         servicoId: ct.servico_id,
         servicoNome: ct.servicos?.nome || 'Serviço',
         valorPrevisto: Number(ct.valor_previsto) || 0,
-      }));
-      setTerceirosEstimados(tercEstimados);
+      })));
 
-      // Fetch terceiros realizados (from gravacao_terceiros across all gravações)
       if (gravacaoIds.length > 0) {
         const { data: gtData } = await supabase
           .from('gravacao_terceiros')
           .select('gravacao_id, fornecedor_id, servico_id, valor, fornecedor_servicos:servico_id(id, nome)')
           .in('gravacao_id', gravacaoIds);
 
-        // Group realized terceiros by service name (from fornecedor_servicos)
         const tercRealMap = new Map<string, { servicoNome: string; valorTotal: number; porGravacao: { gravacaoId: string; valor: number }[] }>();
         (gtData || []).forEach((gt: any) => {
           const sNome = gt.fornecedor_servicos?.nome || 'Serviço';
@@ -349,136 +392,106 @@ export const ConteudoCustosTab = ({ conteudoId, conteudoNome }: ConteudoCustosTa
     fetchData();
   }, [fetchData]);
 
-  const matrizRows = useMemo((): MatrizRow[] => {
-    const allRtIds = new Set<string>();
-    const estimadoMap = new Map<string, EstimadoItem>();
-    const realizadoMap = new Map<string, RealizadoItem>();
+  const buildMatrizRows = useCallback(
+    (
+      estimados: EstimadoItem[],
+      realizados: RealizadoItem[],
+      tipo: 'tecnico' | 'fisico',
+    ): MatrizRow[] => {
+      const allIds = new Set<string>();
+      const estimadoMap = new Map<string, EstimadoItem>();
+      const realizadoMap = new Map<string, RealizadoItem>();
+      const mult = Math.max(1, numGravacoes);
 
-    estimados.forEach(e => {
-      allRtIds.add(e.recursoTecnicoId);
-      estimadoMap.set(e.recursoTecnicoId, e);
-    });
+      estimados.forEach(e => { allIds.add(e.recursoId); estimadoMap.set(e.recursoId, e); });
+      realizados.forEach(r => { allIds.add(r.recursoId); realizadoMap.set(r.recursoId, r); });
 
-    realizados.forEach(r => {
-      allRtIds.add(r.recursoTecnicoId);
-      realizadoMap.set(r.recursoTecnicoId, r);
-    });
+      return Array.from(allIds).map(id => {
+        const est = estimadoMap.get(id) || null;
+        const real = realizadoMap.get(id) || null;
 
-    return Array.from(allRtIds).map(rtId => {
-      const est = estimadoMap.get(rtId) || null;
-      const real = realizadoMap.get(rtId) || null;
+        const estimadoAcumulado = est ? {
+          quantidade: est.quantidade * mult,
+          horas: est.quantidadeHoras * mult,
+          valorUnitario: est.valorHora,
+          valorTotal: est.valorTotal * mult,
+          descontoPercentual: est.descontoPercentual,
+          valorComDesconto: est.valorComDesconto * mult,
+        } : null;
 
-      // Accumulated estimated = per-recording values × numGravacoes
-      const estimadoAcumulado = est ? {
-        quantidade: est.quantidade * numGravacoes,
-        horas: est.quantidadeHoras * numGravacoes,
-        valorUnitario: est.valorHora,
-        valorTotal: est.valorTotal * numGravacoes,
-        descontoPercentual: est.descontoPercentual,
-        valorComDesconto: est.valorComDesconto * numGravacoes,
-      } : null;
+        const estimadoTotal = estimadoAcumulado?.valorComDesconto || estimadoAcumulado?.valorTotal || 0;
+        const realizadoTotal = real?.valorTotal || 0;
+        const saldo = estimadoTotal - realizadoTotal;
+        const desvioPercentual = realizadoTotal > estimadoTotal && estimadoTotal > 0
+          ? Math.round(((realizadoTotal - estimadoTotal) / estimadoTotal) * 100) : 0;
+        const progressPercent = estimadoTotal > 0
+          ? Math.min(100, Math.round((realizadoTotal / estimadoTotal) * 100))
+          : (realizadoTotal > 0 ? 100 : 0);
 
-      const estimadoTotal = estimadoAcumulado?.valorTotal || 0;
-      const realizadoTotal = real?.valorTotal || 0;
-      const saldo = estimadoTotal - realizadoTotal;
-      const desvioPercentual = realizadoTotal > estimadoTotal && estimadoTotal > 0
-        ? Math.round(((realizadoTotal - estimadoTotal) / estimadoTotal) * 100)
-        : 0;
-      const progressPercent = estimadoTotal > 0
-        ? Math.min(100, Math.round((realizadoTotal / estimadoTotal) * 100))
-        : (realizadoTotal > 0 ? 100 : 0);
+        const realDetalheMap = new Map<string, GravacaoDetalhe>();
+        if (real?.detalhes) real.detalhes.forEach(d => realDetalheMap.set(d.gravacaoId, d));
 
-      // Build drill-down rows for ALL gravações
-      const realDetalheMap = new Map<string, GravacaoDetalhe>();
-      if (real?.detalhes) {
-        real.detalhes.forEach(d => realDetalheMap.set(d.gravacaoId, d));
-      }
+        const drillDown: DrillDownRow[] = gravacoesList.map(grav => {
+          const realDetalhe = realDetalheMap.get(grav.id);
+          const estQtd = est?.quantidade || 0;
+          const estHoras = est?.quantidadeHoras || 0;
+          const estValorUnit = est?.valorHora || 0;
+          const estTotal = est?.valorTotal || 0;
+          const estDesc = est?.descontoPercentual || 0;
+          const estComDesc = est?.valorComDesconto || 0;
+          const realTotal = realDetalhe?.valorTotal || 0;
+          const gravSaldo = estComDesc - realTotal;
+          const gravDesvio = realTotal > estComDesc && estComDesc > 0
+            ? Math.round(((realTotal - estComDesc) / estComDesc) * 100) : 0;
+          const gravProgress = estComDesc > 0
+            ? Math.min(100, Math.round((realTotal / estComDesc) * 100))
+            : (realTotal > 0 ? 100 : 0);
 
-      const drillDown: DrillDownRow[] = gravacoesList.map(grav => {
-        const realDetalhe = realDetalheMap.get(grav.id);
-        const estQtd = est?.quantidade || 0;
-        const estHoras = est?.quantidadeHoras || 0;
-        const estValorUnit = est?.valorHora || 0;
-        const estTotal = est?.valorTotal || 0;
-        const estDesc = est?.descontoPercentual || 0;
-        const estComDesc = est?.valorComDesconto || 0;
-
-        const realTotal = realDetalhe?.valorTotal || 0;
-        const gravSaldo = estTotal - realTotal;
-        const gravDesvio = realTotal > estTotal && estTotal > 0
-          ? Math.round(((realTotal - estTotal) / estTotal) * 100)
-          : 0;
-
-        const gravProgress = estTotal > 0
-          ? Math.min(100, Math.round((realTotal / estTotal) * 100))
-          : (realTotal > 0 ? 100 : 0);
+          return {
+            gravacaoId: grav.id, gravacaoNome: grav.nome, gravacaoCodigo: grav.codigo,
+            estQuantidade: estQtd, estHoras, estValorUnitario: estValorUnit,
+            estValorTotal: estTotal, estDescontoPercentual: estDesc, estValorComDesconto: estComDesc,
+            realQuantidade: realDetalhe?.quantidade || 0, realHoras: realDetalhe?.totalHoras || 0,
+            realValorUnitario: realDetalhe?.valorUnitario || 0, realValorTotal: realTotal,
+            saldo: gravSaldo, desvioPercentual: gravDesvio, progressPercent: gravProgress,
+          };
+        });
 
         return {
-          gravacaoId: grav.id,
-          gravacaoNome: grav.nome,
-          gravacaoCodigo: grav.codigo,
-          estQuantidade: estQtd,
-          estHoras,
-          estValorUnitario: estValorUnit,
-          estValorTotal: estTotal,
-          estDescontoPercentual: estDesc,
-          estValorComDesconto: estComDesc,
-          realQuantidade: realDetalhe?.quantidade || 0,
-          realHoras: realDetalhe?.totalHoras || 0,
-          realValorUnitario: realDetalhe?.valorUnitario || 0,
-          realValorTotal: realTotal,
-          saldo: gravSaldo,
-          desvioPercentual: gravDesvio,
-          progressPercent: gravProgress,
+          recursoNome: est?.recursoNome || real?.recursoNome || 'Desconhecido',
+          recursoId: id, tipo, estimadoAcumulado, estimadoBase: est, realizado: real,
+          drillDown, saldo, desvioPercentual, progressPercent,
         };
       });
+    }, [numGravacoes, gravacoesList]);
 
-      return {
-        recursoNome: est?.recursoNome || real?.recursoNome || 'Desconhecido',
-        recursoTecnicoId: rtId,
-        estimadoAcumulado,
-        estimadoPorGravacao: est,
-        realizado: real,
-        drillDown,
-        saldo,
-        desvioPercentual,
-        progressPercent,
-      };
-    });
-  }, [estimados, realizados, numGravacoes, gravacoesList]);
+  const rtMatrizRows = useMemo(() => buildMatrizRows(rtEstimados, rtRealizados, 'tecnico'), [buildMatrizRows, rtEstimados, rtRealizados]);
+  const rfMatrizRows = useMemo(() => buildMatrizRows(rfEstimados, rfRealizados, 'fisico'), [buildMatrizRows, rfEstimados, rfRealizados]);
 
-  const terceirosEstTotal = useMemo(() => {
-    return terceirosEstimados.reduce((acc, t) => acc + t.valorPrevisto, 0);
-  }, [terceirosEstimados]);
-
-  const terceirosRealTotal = useMemo(() => {
-    return terceirosRealizados.reduce((acc, t) => acc + t.valorTotal, 0);
-  }, [terceirosRealizados]);
+  const terceirosEstTotal = useMemo(() => terceirosEstimados.reduce((acc, t) => acc + t.valorPrevisto, 0), [terceirosEstimados]);
+  const terceirosRealTotal = useMemo(() => terceirosRealizados.reduce((acc, t) => acc + t.valorTotal, 0), [terceirosRealizados]);
 
   const totais = useMemo(() => {
-    const estQtd = matrizRows.reduce((acc, r) => acc + (r.estimadoAcumulado?.quantidade || 0), 0);
-    const estHoras = matrizRows.reduce((acc, r) => acc + (r.estimadoAcumulado?.horas || 0), 0);
-    const estValorTotal = matrizRows.reduce((acc, r) => acc + (r.estimadoAcumulado?.valorTotal || 0), 0) + terceirosEstTotal;
-    const estValorComDesc = matrizRows.reduce((acc, r) => acc + (r.estimadoAcumulado?.valorComDesconto || 0), 0);
+    const allRows = [...rtMatrizRows, ...rfMatrizRows];
+    const estQtd = allRows.reduce((acc, r) => acc + (r.estimadoAcumulado?.quantidade || 0), 0);
+    const estHoras = allRows.reduce((acc, r) => acc + (r.estimadoAcumulado?.horas || 0), 0);
+    const estValorTotal = allRows.reduce((acc, r) => acc + (r.estimadoAcumulado?.valorTotal || 0), 0) + terceirosEstTotal;
+    const estValorComDesc = allRows.reduce((acc, r) => acc + (r.estimadoAcumulado?.valorComDesconto || 0), 0) + terceirosEstTotal;
 
-    const realQtd = realizados.reduce((acc, r) => acc + r.quantidade, 0);
-    const realHoras = realizados.reduce((acc, r) => acc + r.totalHoras, 0);
-    const realValorTotal = realizados.reduce((acc, r) => acc + r.valorTotal, 0) + terceirosRealTotal;
+    const allRealizados = [...rtRealizados, ...rfRealizados];
+    const realQtd = allRealizados.reduce((acc, r) => acc + r.quantidade, 0);
+    const realHoras = allRealizados.reduce((acc, r) => acc + r.totalHoras, 0);
+    const realValorTotal = allRealizados.reduce((acc, r) => acc + r.valorTotal, 0) + terceirosRealTotal;
 
-    const saldo = estValorTotal - realValorTotal;
-    const desvio = realValorTotal > estValorTotal && estValorTotal > 0
-      ? Math.round(((realValorTotal - estValorTotal) / estValorTotal) * 100)
-      : 0;
-    const progressPercent = estValorTotal > 0
-      ? Math.min(100, Math.round((realValorTotal / estValorTotal) * 100))
+    const saldo = estValorComDesc - realValorTotal;
+    const desvio = realValorTotal > estValorComDesc && estValorComDesc > 0
+      ? Math.round(((realValorTotal - estValorComDesc) / estValorComDesc) * 100) : 0;
+    const progressPercent = estValorComDesc > 0
+      ? Math.min(100, Math.round((realValorTotal / estValorComDesc) * 100))
       : (realValorTotal > 0 ? 100 : 0);
 
-    return {
-      estQtd, estHoras, estValorTotal, estValorComDesc,
-      realQtd, realHoras, realValorTotal,
-      saldo, desvio, progressPercent,
-    };
-  }, [matrizRows, realizados, terceirosEstTotal, terceirosRealTotal]);
+    return { estQtd, estHoras, estValorTotal, estValorComDesc, realQtd, realHoras, realValorTotal, saldo, desvio, progressPercent };
+  }, [rtMatrizRows, rfMatrizRows, rtRealizados, rfRealizados, terceirosEstTotal, terceirosRealTotal]);
 
   const handleExportPDF = () => {
     const doc = new jsPDF({ orientation: 'landscape' });
@@ -497,7 +510,7 @@ export const ConteudoCustosTab = ({ conteudoId, conteudoNome }: ConteudoCustosTa
 
     const headers = [
       [
-        { content: 'Recurso Técnico', rowSpan: 2 },
+        { content: 'Recurso', rowSpan: 2 },
         { content: 'ESTIMADO (Acumulado)', colSpan: 6 },
         { content: 'REALIZADO', colSpan: 4 },
         { content: 'RESUMO', colSpan: 3 },
@@ -507,7 +520,8 @@ export const ConteudoCustosTab = ({ conteudoId, conteudoNome }: ConteudoCustosTa
        'Saldo', 'Desvio', 'Progresso'],
     ];
 
-    const body = matrizRows.map(row => [
+    const allRows = [...rtMatrizRows, ...rfMatrizRows];
+    const body = allRows.map(row => [
       row.recursoNome,
       row.estimadoAcumulado?.quantidade || '',
       row.estimadoAcumulado?.horas || '',
@@ -526,29 +540,17 @@ export const ConteudoCustosTab = ({ conteudoId, conteudoNome }: ConteudoCustosTa
 
     body.push([
       'Total',
-      totais.estQtd.toString(),
-      totais.estHoras.toString(),
-      '',
-      formatCurrency(totais.estValorTotal),
-      '',
-      '',
-      totais.realQtd.toString(),
-      totais.realHoras.toString(),
-      '',
+      totais.estQtd.toString(), totais.estHoras.toString(), '',
+      formatCurrency(totais.estValorTotal), '', '',
+      totais.realQtd.toString(), totais.realHoras.toString(), '',
       formatCurrency(totais.realValorTotal),
-      formatCurrency(totais.saldo),
-      `${totais.desvio}%`,
-      `${totais.progressPercent}%`,
+      formatCurrency(totais.saldo), `${totais.desvio}%`, `${totais.progressPercent}%`,
     ]);
 
     autoTable(doc, {
-      startY: 38,
-      head: headers,
-      body,
+      startY: 38, head: headers, body,
       headStyles: { fillColor: [26, 54, 93], textColor: [255, 255, 255], fontSize: 7, halign: 'center' },
-      bodyStyles: { fontSize: 7 },
-      margin: { left: 10 },
-      theme: 'grid',
+      bodyStyles: { fontSize: 7 }, margin: { left: 10 }, theme: 'grid',
       didParseCell: (data) => {
         if (data.row.index === body.length - 1 && data.row.section === 'body') {
           data.cell.styles.fontStyle = 'bold';
@@ -564,32 +566,27 @@ export const ConteudoCustosTab = ({ conteudoId, conteudoNome }: ConteudoCustosTa
   const handleExportExcel = () => {
     const titulo = conteudoNome || 'Conteúdo';
     const dataExport = new Date().toLocaleDateString('pt-BR');
+    const allRows = [...rtMatrizRows, ...rfMatrizRows];
 
     const data = [
       ['MATRIZ COMPARATIVA DE CUSTOS'],
       [`Conteúdo: ${titulo}`, `Data: ${dataExport}`, `Gravações: ${numGravacoes}`],
       [],
       [
-        'Recurso Técnico',
+        'Recurso',
         'Est. Qtd', 'Est. Horas', 'Est. Vlr Unitário', 'Est. Vlr Total', 'Est. Desconto', 'Est. Vlr c/ Desc.',
         'Real. Qtd', 'Real. Horas', 'Real. Vlr Unitário', 'Real. Vlr Total',
         'Saldo', 'Desvio', 'Progresso',
       ],
-      ...matrizRows.map(row => [
+      ...allRows.map(row => [
         row.recursoNome,
-        row.estimadoAcumulado?.quantidade || 0,
-        row.estimadoAcumulado?.horas || 0,
-        row.estimadoAcumulado?.valorUnitario || 0,
-        row.estimadoAcumulado?.valorTotal || 0,
+        row.estimadoAcumulado?.quantidade || 0, row.estimadoAcumulado?.horas || 0,
+        row.estimadoAcumulado?.valorUnitario || 0, row.estimadoAcumulado?.valorTotal || 0,
         row.estimadoAcumulado ? `${row.estimadoAcumulado.descontoPercentual}%` : '0%',
         row.estimadoAcumulado?.valorComDesconto || 0,
-        row.realizado?.quantidade || 0,
-        row.realizado?.totalHoras || 0,
-        row.realizado?.valorUnitarioMedio || 0,
-        row.realizado?.valorTotal || 0,
-        row.saldo,
-        `${row.desvioPercentual}%`,
-        `${row.progressPercent}%`,
+        row.realizado?.quantidade || 0, row.realizado?.totalHoras || 0,
+        row.realizado?.valorUnitarioMedio || 0, row.realizado?.valorTotal || 0,
+        row.saldo, `${row.desvioPercentual}%`, `${row.progressPercent}%`,
       ]),
       [
         'Total',
@@ -616,25 +613,138 @@ export const ConteudoCustosTab = ({ conteudoId, conteudoNome }: ConteudoCustosTa
     );
   }
 
-  if (estimados.length === 0 && realizados.length === 0 && terceirosEstimados.length === 0 && terceirosRealizados.length === 0) {
+  const hasData = rtEstimados.length > 0 || rtRealizados.length > 0 || rfEstimados.length > 0 || rfRealizados.length > 0 || terceirosEstimados.length > 0 || terceirosRealizados.length > 0;
+
+  if (!hasData) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center">
         <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
           <Calculator className="w-8 h-8 text-muted-foreground" />
         </div>
-        <h3 className="text-lg font-semibold text-foreground mb-1">Nenhum recurso técnico associado</h3>
+        <h3 className="text-lg font-semibold text-foreground mb-1">Nenhum recurso associado</h3>
         <p className="text-sm text-muted-foreground max-w-sm">
-          Associe recursos técnicos ao conteúdo e aloque recursos humanos nas gravações para visualizar a matriz comparativa.
+          Associe recursos técnicos, físicos ou terceiros ao conteúdo para visualizar a matriz comparativa.
         </p>
       </div>
     );
   }
 
-  const totalColumns = 14; // RT name + 6 est + 4 real + 3 resumo
+  const totalColumns = 14;
+
+  const renderGroupRows = (rows: MatrizRow[], groupLabel: string) => {
+    if (rows.length === 0) return null;
+    return (
+      <>
+        {/* Group header */}
+        <TableRow className="bg-muted/60">
+          <TableCell colSpan={totalColumns} className="font-semibold text-xs text-foreground py-1.5 uppercase tracking-wide">
+            {groupLabel}
+          </TableCell>
+        </TableRow>
+        {rows.map((row) => {
+          const key = `${row.tipo}-${row.recursoId}`;
+          const isExpanded = expandedRows.has(key);
+          const hasDrillDown = row.drillDown.length > 0;
+
+          return (
+            <>
+              <TableRow
+                key={key}
+                className={hasDrillDown ? 'cursor-pointer hover:bg-muted/70' : ''}
+                onClick={() => hasDrillDown && toggleRow(key)}
+              >
+                <TableCell className="font-medium border-r whitespace-nowrap">
+                  <div className="flex items-center gap-1">
+                    {hasDrillDown && (
+                      isExpanded
+                        ? <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+                        : <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                    )}
+                    {row.recursoNome}
+                  </div>
+                </TableCell>
+                <TableCell className="text-center border-r">{row.estimadoAcumulado?.quantidade ?? '-'}</TableCell>
+                <TableCell className="text-center border-r">{row.estimadoAcumulado?.horas ?? '-'}</TableCell>
+                <TableCell className="text-right border-r">{row.estimadoAcumulado ? formatCurrency(row.estimadoAcumulado.valorUnitario) : '-'}</TableCell>
+                <TableCell className="text-right border-r">{row.estimadoAcumulado ? formatCurrency(row.estimadoAcumulado.valorTotal) : '-'}</TableCell>
+                <TableCell className="text-center border-r">{row.estimadoAcumulado ? `${row.estimadoAcumulado.descontoPercentual}%` : '-'}</TableCell>
+                <TableCell className="text-right border-r">{row.estimadoAcumulado ? formatCurrency(row.estimadoAcumulado.valorComDesconto) : '-'}</TableCell>
+                <TableCell className="text-center border-r">{row.realizado?.quantidade ?? '-'}</TableCell>
+                <TableCell className="text-center border-r">{row.realizado?.totalHoras ?? '-'}</TableCell>
+                <TableCell className="text-right border-r">{row.realizado ? formatCurrency(row.realizado.valorUnitarioMedio) : '-'}</TableCell>
+                <TableCell className="text-right border-r">{row.realizado ? formatCurrency(row.realizado.valorTotal) : '-'}</TableCell>
+                <TableCell className={`text-right border-r font-medium ${row.saldo < 0 ? 'text-destructive' : row.saldo > 0 ? 'text-green-600' : ''}`}>
+                  {formatCurrency(row.saldo)}
+                </TableCell>
+                <TableCell className={`text-center border-r font-medium ${row.desvioPercentual > 0 ? 'text-destructive' : ''}`}>
+                  {row.desvioPercentual}%
+                </TableCell>
+                <TableCell className="px-2">
+                  <div className="flex items-center gap-1">
+                    <Progress value={row.progressPercent} className="h-2 flex-1" />
+                    <span className="text-[10px] text-muted-foreground w-8 text-right">{row.progressPercent}%</span>
+                  </div>
+                </TableCell>
+              </TableRow>
+
+              {isExpanded && row.drillDown.map((dd) => (
+                <TableRow key={`${key}-${dd.gravacaoId}`} className="bg-muted/30">
+                  <TableCell className="border-r pl-8 text-xs text-muted-foreground whitespace-nowrap">
+                    {dd.gravacaoCodigo} - {dd.gravacaoNome}
+                  </TableCell>
+                  <TableCell className="text-center border-r text-xs">{dd.estQuantidade}</TableCell>
+                  <TableCell className="text-center border-r text-xs">{dd.estHoras}</TableCell>
+                  <TableCell className="text-right border-r text-xs">{formatCurrency(dd.estValorUnitario)}</TableCell>
+                  <TableCell className="text-right border-r text-xs">{formatCurrency(dd.estValorTotal)}</TableCell>
+                  <TableCell className="text-center border-r text-xs">{dd.estDescontoPercentual}%</TableCell>
+                  <TableCell className="text-right border-r text-xs">{formatCurrency(dd.estValorComDesconto)}</TableCell>
+                  <TableCell className="text-center border-r text-xs">{dd.realQuantidade}</TableCell>
+                  <TableCell className="text-center border-r text-xs">{dd.realHoras}</TableCell>
+                  <TableCell className="text-right border-r text-xs">{formatCurrency(dd.realValorUnitario)}</TableCell>
+                  <TableCell className="text-right border-r text-xs">{formatCurrency(dd.realValorTotal)}</TableCell>
+                  <TableCell className={`text-right border-r text-xs ${dd.saldo < 0 ? 'text-destructive' : dd.saldo > 0 ? 'text-green-600' : ''}`}>
+                    {formatCurrency(dd.saldo)}
+                  </TableCell>
+                  <TableCell className={`text-center border-r text-xs ${dd.desvioPercentual > 0 ? 'text-destructive' : ''}`}>
+                    {dd.desvioPercentual}%
+                  </TableCell>
+                  <TableCell className="px-2">
+                    <div className="flex items-center gap-1">
+                      <Progress value={dd.progressPercent} className="h-2 flex-1" />
+                      <span className="text-[10px] text-muted-foreground w-8 text-right">{dd.progressPercent}%</span>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </>
+          );
+        })}
+      </>
+    );
+  };
+
+  const allTerceiros = [
+    ...terceirosEstimados.map(te => {
+      const realMatch = terceirosRealizados.find(tr => tr.servicoNome === te.servicoNome);
+      const estVal = te.valorPrevisto;
+      const realVal = realMatch?.valorTotal || 0;
+      const saldo = estVal - realVal;
+      const desvio = realVal > estVal && estVal > 0 ? Math.round(((realVal - estVal) / estVal) * 100) : 0;
+      const progress = estVal > 0 ? Math.min(100, Math.round((realVal / estVal) * 100)) : (realVal > 0 ? 100 : 0);
+      return { key: `terc-est-${te.servicoId}`, nome: te.servicoNome, estVal, realVal, saldo, desvio, progress };
+    }),
+    ...terceirosRealizados
+      .filter(tr => !terceirosEstimados.some(te => te.servicoNome === tr.servicoNome))
+      .map(tr => ({
+        key: `terc-real-${tr.servicoNome}`, nome: tr.servicoNome,
+        estVal: 0, realVal: tr.valorTotal, saldo: -tr.valorTotal, desvio: 0, progress: 100,
+      })),
+  ];
+
+  const hasTerceiros = allTerceiros.length > 0;
 
   return (
     <div className="space-y-4 py-4">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
@@ -643,43 +753,31 @@ export const ConteudoCustosTab = ({ conteudoId, conteudoNome }: ConteudoCustosTa
           <div>
             <h3 className="text-lg font-semibold">Matriz Comparativa de Custos</h3>
             <p className="text-sm text-muted-foreground">
-              {numGravacoes} gravação(ões) • {matrizRows.length} recurso(s) técnico(s){terceirosEstimados.length > 0 ? ` • ${terceirosEstimados.length} terceiro(s)` : ''} • Valores acumulados
+              {numGravacoes} gravação(ões) • {rtMatrizRows.length} recurso(s) técnico(s) • {rfMatrizRows.length} recurso(s) físico(s){terceirosEstimados.length > 0 ? ` • ${terceirosEstimados.length} terceiro(s)` : ''} • Valores acumulados
             </p>
           </div>
         </div>
         <ExportDropdown onExportPDF={handleExportPDF} onExportExcel={handleExportExcel} />
       </div>
 
-      {/* Matrix Table */}
       <Card>
         <CardContent className="pt-4 px-2 overflow-x-auto">
           <Table>
             <TableHeader>
-              {/* Group headers */}
               <TableRow className="border-b-0">
                 <TableHead rowSpan={2} className="align-bottom border-r font-semibold text-foreground">
-                  Recurso Técnico
+                  Recurso
                 </TableHead>
-                <TableHead
-                  colSpan={6}
-                  className="text-center font-bold text-white border-r bg-kreato-blue"
-                >
+                <TableHead colSpan={6} className="text-center font-bold text-white border-r bg-kreato-blue">
                   ESTIMADO
                 </TableHead>
-                <TableHead
-                  colSpan={4}
-                  className="text-center font-bold text-white border-r bg-kreato-cyan"
-                >
+                <TableHead colSpan={4} className="text-center font-bold text-white border-r bg-kreato-cyan">
                   REALIZADO
                 </TableHead>
-                <TableHead
-                  colSpan={3}
-                  className="text-center font-bold text-white bg-kreato-orange"
-                >
+                <TableHead colSpan={3} className="text-center font-bold text-white bg-kreato-orange">
                   RESUMO
                 </TableHead>
               </TableRow>
-              {/* Sub-headers */}
               <TableRow>
                 <TableHead className="text-center text-xs border-r bg-kreato-blue/15">Quantidade</TableHead>
                 <TableHead className="text-center text-xs border-r bg-kreato-blue/15">Horas</TableHead>
@@ -697,163 +795,53 @@ export const ConteudoCustosTab = ({ conteudoId, conteudoNome }: ConteudoCustosTa
               </TableRow>
             </TableHeader>
             <TableBody>
-              {matrizRows.map((row) => {
-                const isExpanded = expandedRows.has(row.recursoTecnicoId);
-                const hasDrillDown = row.drillDown.length > 0;
+              {/* Recursos Técnicos */}
+              {renderGroupRows(rtMatrizRows, 'Recursos Técnicos')}
 
-                return (
-                  <>
-                    {/* Main row */}
-                    <TableRow
-                      key={row.recursoTecnicoId}
-                      className={hasDrillDown ? 'cursor-pointer hover:bg-muted/70' : ''}
-                      onClick={() => hasDrillDown && toggleRow(row.recursoTecnicoId)}
-                    >
+              {/* Recursos Físicos */}
+              {renderGroupRows(rfMatrizRows, 'Recursos Físicos')}
+
+              {/* Terceiros */}
+              {hasTerceiros && (
+                <>
+                  <TableRow className="bg-muted/60">
+                    <TableCell colSpan={totalColumns} className="font-semibold text-xs text-foreground py-1.5 uppercase tracking-wide">
+                      Terceiros
+                    </TableCell>
+                  </TableRow>
+                  {allTerceiros.map((t) => (
+                    <TableRow key={t.key} className="bg-amber-50/30">
                       <TableCell className="font-medium border-r whitespace-nowrap">
-                        <div className="flex items-center gap-1">
-                          {hasDrillDown && (
-                            isExpanded
-                              ? <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
-                              : <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
-                          )}
-                          {row.recursoNome}
-                        </div>
+                        🏢 {t.nome}
                       </TableCell>
-                      {/* Estimado Acumulado */}
-                      <TableCell className="text-center border-r">{row.estimadoAcumulado?.quantidade ?? '-'}</TableCell>
-                      <TableCell className="text-center border-r">{row.estimadoAcumulado?.horas ?? '-'}</TableCell>
-                      <TableCell className="text-right border-r">{row.estimadoAcumulado ? formatCurrency(row.estimadoAcumulado.valorUnitario) : '-'}</TableCell>
-                      <TableCell className="text-right border-r">{row.estimadoAcumulado ? formatCurrency(row.estimadoAcumulado.valorTotal) : '-'}</TableCell>
-                      <TableCell className="text-center border-r">{row.estimadoAcumulado ? `${row.estimadoAcumulado.descontoPercentual}%` : '-'}</TableCell>
-                      <TableCell className="text-right border-r">{row.estimadoAcumulado ? formatCurrency(row.estimadoAcumulado.valorComDesconto) : '-'}</TableCell>
-                      {/* Realizado */}
-                      <TableCell className="text-center border-r">{row.realizado?.quantidade ?? '-'}</TableCell>
-                      <TableCell className="text-center border-r">{row.realizado?.totalHoras ?? '-'}</TableCell>
-                      <TableCell className="text-right border-r">{row.realizado ? formatCurrency(row.realizado.valorUnitarioMedio) : '-'}</TableCell>
-                      <TableCell className="text-right border-r">{row.realizado ? formatCurrency(row.realizado.valorTotal) : '-'}</TableCell>
-                      {/* Resumo */}
-                      <TableCell className={`text-right border-r font-medium ${row.saldo < 0 ? 'text-destructive' : row.saldo > 0 ? 'text-green-600' : ''}`}>
-                        {formatCurrency(row.saldo)}
+                      <TableCell className="text-center border-r">-</TableCell>
+                      <TableCell className="text-center border-r">-</TableCell>
+                      <TableCell className="text-right border-r">-</TableCell>
+                      <TableCell className="text-right border-r">{formatCurrency(t.estVal)}</TableCell>
+                      <TableCell className="text-center border-r">-</TableCell>
+                      <TableCell className="text-right border-r">-</TableCell>
+                      <TableCell className="text-center border-r">-</TableCell>
+                      <TableCell className="text-center border-r">-</TableCell>
+                      <TableCell className="text-right border-r">-</TableCell>
+                      <TableCell className="text-right border-r">{formatCurrency(t.realVal)}</TableCell>
+                      <TableCell className={`text-right border-r font-medium ${t.saldo < 0 ? 'text-destructive' : t.saldo > 0 ? 'text-green-600' : ''}`}>
+                        {formatCurrency(t.saldo)}
                       </TableCell>
-                      <TableCell className={`text-center border-r font-medium ${row.desvioPercentual > 0 ? 'text-destructive' : ''}`}>
-                        {row.desvioPercentual}%
+                      <TableCell className={`text-center border-r font-medium ${t.desvio > 0 ? 'text-destructive' : ''}`}>
+                        {t.desvio}%
                       </TableCell>
                       <TableCell className="px-2">
                         <div className="flex items-center gap-1">
-                          <Progress value={row.progressPercent} className="h-2 flex-1" />
-                          <span className="text-[10px] text-muted-foreground w-8 text-right">{row.progressPercent}%</span>
+                          <Progress value={t.progress} className="h-2 flex-1" />
+                          <span className="text-[10px] text-muted-foreground w-8 text-right">{t.progress}%</span>
                         </div>
                       </TableCell>
                     </TableRow>
+                  ))}
+                </>
+              )}
 
-                    {/* Drill-down detail rows */}
-                    {isExpanded && row.drillDown.map((dd) => (
-                      <TableRow key={`${row.recursoTecnicoId}-${dd.gravacaoId}`} className="bg-muted/30">
-                        <TableCell className="border-r pl-8 text-xs text-muted-foreground whitespace-nowrap">
-                          {dd.gravacaoCodigo} - {dd.gravacaoNome}
-                        </TableCell>
-                        {/* Estimado proporcional por gravação */}
-                        <TableCell className="text-center border-r text-xs">{dd.estQuantidade}</TableCell>
-                        <TableCell className="text-center border-r text-xs">{dd.estHoras}</TableCell>
-                        <TableCell className="text-right border-r text-xs">{formatCurrency(dd.estValorUnitario)}</TableCell>
-                        <TableCell className="text-right border-r text-xs">{formatCurrency(dd.estValorTotal)}</TableCell>
-                        <TableCell className="text-center border-r text-xs">{dd.estDescontoPercentual}%</TableCell>
-                        <TableCell className="text-right border-r text-xs">{formatCurrency(dd.estValorComDesconto)}</TableCell>
-                        {/* Realizado per gravação */}
-                        <TableCell className="text-center border-r text-xs">{dd.realQuantidade}</TableCell>
-                        <TableCell className="text-center border-r text-xs">{dd.realHoras}</TableCell>
-                        <TableCell className="text-right border-r text-xs">{formatCurrency(dd.realValorUnitario)}</TableCell>
-                        <TableCell className="text-right border-r text-xs">{formatCurrency(dd.realValorTotal)}</TableCell>
-                        {/* Resumo per gravação */}
-                        <TableCell className={`text-right border-r text-xs ${dd.saldo < 0 ? 'text-destructive' : dd.saldo > 0 ? 'text-green-600' : ''}`}>
-                          {formatCurrency(dd.saldo)}
-                        </TableCell>
-                        <TableCell className={`text-center border-r text-xs ${dd.desvioPercentual > 0 ? 'text-destructive' : ''}`}>
-                          {dd.desvioPercentual}%
-                        </TableCell>
-                        <TableCell className="px-2">
-                          <div className="flex items-center gap-1">
-                            <Progress value={dd.progressPercent} className="h-2 flex-1" />
-                            <span className="text-[10px] text-muted-foreground w-8 text-right">{dd.progressPercent}%</span>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </>
-                );
-              })}
-
-              {/* Terceiros rows */}
-              {terceirosEstimados.map((te) => {
-                const realMatch = terceirosRealizados.find(tr => tr.servicoNome === te.servicoNome);
-                const estVal = te.valorPrevisto;
-                const realVal = realMatch?.valorTotal || 0;
-                const saldo = estVal - realVal;
-                const desvio = realVal > estVal && estVal > 0 ? Math.round(((realVal - estVal) / estVal) * 100) : 0;
-                const progress = estVal > 0 ? Math.min(100, Math.round((realVal / estVal) * 100)) : (realVal > 0 ? 100 : 0);
-
-                return (
-                  <TableRow key={`terceiro-${te.servicoId}`} className="bg-amber-50/30">
-                    <TableCell className="font-medium border-r whitespace-nowrap">
-                      🏢 {te.servicoNome} (Terceiro)
-                    </TableCell>
-                    <TableCell className="text-center border-r">-</TableCell>
-                    <TableCell className="text-center border-r">-</TableCell>
-                    <TableCell className="text-right border-r">-</TableCell>
-                    <TableCell className="text-right border-r">{formatCurrency(estVal)}</TableCell>
-                    <TableCell className="text-center border-r">-</TableCell>
-                    <TableCell className="text-right border-r">-</TableCell>
-                    <TableCell className="text-center border-r">-</TableCell>
-                    <TableCell className="text-center border-r">-</TableCell>
-                    <TableCell className="text-right border-r">-</TableCell>
-                    <TableCell className="text-right border-r">{formatCurrency(realVal)}</TableCell>
-                    <TableCell className={`text-right border-r font-medium ${saldo < 0 ? 'text-destructive' : saldo > 0 ? 'text-green-600' : ''}`}>
-                      {formatCurrency(saldo)}
-                    </TableCell>
-                    <TableCell className={`text-center border-r font-medium ${desvio > 0 ? 'text-destructive' : ''}`}>
-                      {desvio}%
-                    </TableCell>
-                    <TableCell className="px-2">
-                      <div className="flex items-center gap-1">
-                        <Progress value={progress} className="h-2 flex-1" />
-                        <span className="text-[10px] text-muted-foreground w-8 text-right">{progress}%</span>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-              {/* Terceiros realizados without estimado */}
-              {terceirosRealizados.filter(tr => !terceirosEstimados.some(te => te.servicoNome === tr.servicoNome)).map((tr) => {
-                return (
-                  <TableRow key={`terceiro-real-${tr.servicoNome}`} className="bg-amber-50/30">
-                    <TableCell className="font-medium border-r whitespace-nowrap">
-                      🏢 {tr.servicoNome} (Terceiro)
-                    </TableCell>
-                    <TableCell className="text-center border-r">-</TableCell>
-                    <TableCell className="text-center border-r">-</TableCell>
-                    <TableCell className="text-right border-r">-</TableCell>
-                    <TableCell className="text-right border-r">-</TableCell>
-                    <TableCell className="text-center border-r">-</TableCell>
-                    <TableCell className="text-right border-r">-</TableCell>
-                    <TableCell className="text-center border-r">-</TableCell>
-                    <TableCell className="text-center border-r">-</TableCell>
-                    <TableCell className="text-right border-r">-</TableCell>
-                    <TableCell className="text-right border-r">{formatCurrency(tr.valorTotal)}</TableCell>
-                    <TableCell className="text-right border-r font-medium text-destructive">
-                      {formatCurrency(-tr.valorTotal)}
-                    </TableCell>
-                    <TableCell className="text-center border-r font-medium">0%</TableCell>
-                    <TableCell className="px-2">
-                      <div className="flex items-center gap-1">
-                        <Progress value={100} className="h-2 flex-1" />
-                        <span className="text-[10px] text-muted-foreground w-8 text-right">100%</span>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-
-              {/* Totals row */}
+              {/* Total */}
               <TableRow className="bg-muted/50 font-bold border-t-2">
                 <TableCell className="border-r font-bold">Total</TableCell>
                 <TableCell className="text-center border-r">{totais.estQtd}</TableCell>
