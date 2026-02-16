@@ -221,6 +221,7 @@ export type Database = {
           created_by: string | null
           desconto_percentual: number
           id: string
+          quantidade: number
           quantidade_horas: number
           recurso_fisico_id: string
           tabela_preco_id: string
@@ -234,6 +235,7 @@ export type Database = {
           created_by?: string | null
           desconto_percentual?: number
           id?: string
+          quantidade?: number
           quantidade_horas?: number
           recurso_fisico_id: string
           tabela_preco_id: string
@@ -247,6 +249,7 @@ export type Database = {
           created_by?: string | null
           desconto_percentual?: number
           id?: string
+          quantidade?: number
           quantidade_horas?: number
           recurso_fisico_id?: string
           tabela_preco_id?: string
@@ -285,6 +288,7 @@ export type Database = {
           created_by: string | null
           desconto_percentual: number
           id: string
+          quantidade: number
           quantidade_horas: number
           recurso_tecnico_id: string
           tabela_preco_id: string
@@ -298,6 +302,7 @@ export type Database = {
           created_by?: string | null
           desconto_percentual?: number
           id?: string
+          quantidade?: number
           quantidade_horas?: number
           recurso_tecnico_id: string
           tabela_preco_id: string
@@ -311,6 +316,7 @@ export type Database = {
           created_by?: string | null
           desconto_percentual?: number
           id?: string
+          quantidade?: number
           quantidade_horas?: number
           recurso_tecnico_id?: string
           tabela_preco_id?: string
