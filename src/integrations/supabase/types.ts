@@ -791,6 +791,7 @@ export type Database = {
           fornecedor_id: string
           id: string
           nome: string
+          servico_id: string | null
           valor: number | null
         }
         Insert: {
@@ -799,6 +800,7 @@ export type Database = {
           fornecedor_id: string
           id?: string
           nome: string
+          servico_id?: string | null
           valor?: number | null
         }
         Update: {
@@ -807,6 +809,7 @@ export type Database = {
           fornecedor_id?: string
           id?: string
           nome?: string
+          servico_id?: string | null
           valor?: number | null
         }
         Relationships: [
@@ -815,6 +818,13 @@ export type Database = {
             columns: ["fornecedor_id"]
             isOneToOne: false
             referencedRelation: "fornecedores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fornecedor_servicos_servico_id_fkey"
+            columns: ["servico_id"]
+            isOneToOne: false
+            referencedRelation: "servicos"
             referencedColumns: ["id"]
           },
         ]
