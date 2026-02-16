@@ -214,18 +214,15 @@ export const ConteudoCustosTab = ({ conteudoId, conteudoNome }: ConteudoCustosTa
       });
 
       const realizadoItems: RealizadoItem[] = Array.from(realizadoMap.entries()).map(([rtId, entry]) => {
-        const avgQtdPerGravacao = gravacaoIds.length > 0 ? entry.totalQuantidade / gravacaoIds.length : 0;
-        const avgHorasPerUnidade = entry.totalQuantidade > 0 ? entry.totalHoras / entry.totalQuantidade : 0;
         const avgCustoHora = entry.countCustoHora > 0 ? entry.totalCustoHora / entry.countCustoHora : 0;
-        const valorTotalPerGravacao = gravacaoIds.length > 0 ? entry.totalCusto / gravacaoIds.length : 0;
 
         return {
           recursoTecnicoId: rtId,
           recursoNome: entry.nome,
-          quantidade: Math.round(avgQtdPerGravacao),
-          totalHoras: Math.round(avgHorasPerUnidade * 10) / 10,
+          quantidade: entry.totalQuantidade,
+          totalHoras: Math.round(entry.totalHoras * 10) / 10,
           valorUnitarioMedio: Math.round(avgCustoHora * 100) / 100,
-          valorTotal: Math.round(valorTotalPerGravacao * 100) / 100,
+          valorTotal: Math.round(entry.totalCusto * 100) / 100,
         };
       });
 
@@ -262,8 +259,9 @@ export const ConteudoCustosTab = ({ conteudoId, conteudoNome }: ConteudoCustosTa
       const estimadoTotal = est?.valorTotal || 0;
       const realizadoTotal = real?.valorTotal || 0;
       const saldo = estimadoTotal - realizadoTotal;
-      const desvioPercentual = estimadoTotal > 0
-        ? Math.round(((estimadoTotal - realizadoTotal) / estimadoTotal) * 100)
+      // Desvio only when realizado exceeds estimado
+      const desvioPercentual = realizadoTotal > estimadoTotal && estimadoTotal > 0
+        ? Math.round(((realizadoTotal - estimadoTotal) / estimadoTotal) * 100)
         : 0;
 
       return {
@@ -290,7 +288,9 @@ export const ConteudoCustosTab = ({ conteudoId, conteudoNome }: ConteudoCustosTa
     const realValorTotal = realizados.reduce((acc, r) => acc + r.valorTotal, 0);
 
     const saldo = estValorTotal - realValorTotal;
-    const desvio = estValorTotal > 0 ? Math.round(((estValorTotal - realValorTotal) / estValorTotal) * 100) : 0;
+    const desvio = realValorTotal > estValorTotal && estValorTotal > 0
+      ? Math.round(((realValorTotal - estValorTotal) / estValorTotal) * 100)
+      : 0;
 
     return {
       estQtd, estHoras, estValorTotal, estDescontoMedio, estValorComDesc,
@@ -499,18 +499,18 @@ export const ConteudoCustosTab = ({ conteudoId, conteudoNome }: ConteudoCustosTa
               </TableRow>
               {/* Sub-headers */}
               <TableRow>
-                <TableHead className="text-center text-xs border-r bg-muted/30">Quantidade</TableHead>
-                <TableHead className="text-center text-xs border-r bg-muted/30">Horas</TableHead>
-                <TableHead className="text-right text-xs border-r bg-muted/30">Valor Unitário</TableHead>
-                <TableHead className="text-right text-xs border-r bg-muted/30">Valor Total</TableHead>
-                <TableHead className="text-center text-xs border-r bg-muted/30">Desconto</TableHead>
-                <TableHead className="text-right text-xs border-r bg-muted/30">Vlr Total c/ Desc.</TableHead>
-                <TableHead className="text-center text-xs border-r bg-muted/30">Quantidade</TableHead>
-                <TableHead className="text-center text-xs border-r bg-muted/30">Horas</TableHead>
-                <TableHead className="text-right text-xs border-r bg-muted/30">Valor Unitário</TableHead>
-                <TableHead className="text-right text-xs border-r bg-muted/30">Valor Total</TableHead>
-                <TableHead className="text-right text-xs border-r bg-muted/30">Saldo</TableHead>
-                <TableHead className="text-center text-xs bg-muted/30">Desvio</TableHead>
+                <TableHead className="text-center text-xs border-r" style={{ backgroundColor: 'hsl(var(--chart-3) / 0.15)' }}>Quantidade</TableHead>
+                <TableHead className="text-center text-xs border-r" style={{ backgroundColor: 'hsl(var(--chart-3) / 0.15)' }}>Horas</TableHead>
+                <TableHead className="text-right text-xs border-r" style={{ backgroundColor: 'hsl(var(--chart-3) / 0.15)' }}>Valor Unitário</TableHead>
+                <TableHead className="text-right text-xs border-r" style={{ backgroundColor: 'hsl(var(--chart-3) / 0.15)' }}>Valor Total</TableHead>
+                <TableHead className="text-center text-xs border-r" style={{ backgroundColor: 'hsl(var(--chart-3) / 0.15)' }}>Desconto</TableHead>
+                <TableHead className="text-right text-xs border-r" style={{ backgroundColor: 'hsl(var(--chart-3) / 0.15)' }}>Vlr Total c/ Desc.</TableHead>
+                <TableHead className="text-center text-xs border-r" style={{ backgroundColor: 'hsl(var(--chart-2) / 0.15)' }}>Quantidade</TableHead>
+                <TableHead className="text-center text-xs border-r" style={{ backgroundColor: 'hsl(var(--chart-2) / 0.15)' }}>Horas</TableHead>
+                <TableHead className="text-right text-xs border-r" style={{ backgroundColor: 'hsl(var(--chart-2) / 0.15)' }}>Valor Unitário</TableHead>
+                <TableHead className="text-right text-xs border-r" style={{ backgroundColor: 'hsl(var(--chart-2) / 0.15)' }}>Valor Total</TableHead>
+                <TableHead className="text-right text-xs border-r" style={{ backgroundColor: 'hsl(var(--chart-4) / 0.15)' }}>Saldo</TableHead>
+                <TableHead className="text-center text-xs" style={{ backgroundColor: 'hsl(var(--chart-4) / 0.15)' }}>Desvio</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
