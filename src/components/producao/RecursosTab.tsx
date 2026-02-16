@@ -295,9 +295,9 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
           }
           recurso = resourceMap.get(resourceKey);
 
-          // Marcar alocação na data_prevista
-          if (recurso && dataPrevista) {
-            recurso.alocacoes[dataPrevista] = 1;
+          // Marcar alocação na data_prevista - incrementar para cada registro âncora
+          if (recurso && dataPrevista && isTecnicoSomente) {
+            recurso.alocacoes[dataPrevista] = (recurso.alocacoes[dataPrevista] || 0) + 1;
           }
 
           // Se é alocação de RH em recurso técnico
@@ -339,7 +339,7 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
           
           // Marcar alocação na data_prevista e guardar horários
           if (recurso && dataPrevista) {
-            recurso.alocacoes[dataPrevista] = 1;
+            recurso.alocacoes[dataPrevista] = (recurso.alocacoes[dataPrevista] || 0) + 1;
             
             if (aloc.hora_inicio && aloc.hora_fim) {
               recurso.horarios[dataPrevista] = {
