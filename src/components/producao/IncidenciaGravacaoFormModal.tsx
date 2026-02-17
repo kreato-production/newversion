@@ -27,9 +27,10 @@ interface Props {
   onSave: () => Promise<void> | void;
   data?: any;
   readOnly?: boolean;
+  defaultGravacaoId?: string;
 }
 
-export const IncidenciaGravacaoFormModal = ({ isOpen, onClose, onSave, data, readOnly = false }: Props) => {
+export const IncidenciaGravacaoFormModal = ({ isOpen, onClose, onSave, data, readOnly = false, defaultGravacaoId }: Props) => {
   const { user } = useAuth();
   const { t } = useLanguage();
   const { toast } = useToast();
@@ -108,7 +109,7 @@ export const IncidenciaGravacaoFormModal = ({ isOpen, onClose, onSave, data, rea
       });
     } else {
       setForm({
-        codigo_externo: '', titulo: '', gravacao_id: '', recurso_fisico_id: '',
+        codigo_externo: '', titulo: '', gravacao_id: defaultGravacaoId || '', recurso_fisico_id: '',
         severidade_id: '', impacto_id: '', categoria_id: '', classificacao_id: '',
         data_incidencia: '', horario_incidencia: '', tempo_incidencia: '',
         descricao: '', causa_provavel: '',
@@ -254,7 +255,7 @@ export const IncidenciaGravacaoFormModal = ({ isOpen, onClose, onSave, data, rea
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>{t('incident.recording')}</Label>
-                <Select value={form.gravacao_id} onValueChange={(v) => setForm({ ...form, gravacao_id: v })} disabled={readOnly}>
+                <Select value={form.gravacao_id} onValueChange={(v) => setForm({ ...form, gravacao_id: v })} disabled={readOnly || !!defaultGravacaoId}>
                   <SelectTrigger><SelectValue placeholder={t('common.select')} /></SelectTrigger>
                   <SelectContent>
                     {gravacoes.map((g: any) => (

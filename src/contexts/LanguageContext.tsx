@@ -226,6 +226,7 @@ const translations: Record<Language, Record<string, string>> = {
     'incident.tabGeneral': 'Dados Gerais',
     'incident.tabAttachments': 'Anexos',
     'incident.noAttachments': 'Nenhum anexo cadastrado',
+    'incident.noIncidents': 'Nenhuma incidência cadastrada para esta gravação.',
     'incident.selectCategoryFirst': 'Selecione a categoria primeiro',
     
     // Tasks
@@ -944,6 +945,7 @@ const translations: Record<Language, Record<string, string>> = {
     'incident.tabGeneral': 'General Data',
     'incident.tabAttachments': 'Attachments',
     'incident.noAttachments': 'No attachments registered',
+    'incident.noIncidents': 'No incidents registered for this recording.',
     'incident.selectCategoryFirst': 'Select the category first',
     
     // Tasks
@@ -1662,6 +1664,7 @@ const translations: Record<Language, Record<string, string>> = {
     'incident.tabGeneral': 'Datos Generales',
     'incident.tabAttachments': 'Anexos',
     'incident.noAttachments': 'No hay anexos registrados',
+    'incident.noIncidents': 'No hay incidencias registradas para esta grabación.',
     'incident.selectCategoryFirst': 'Seleccione la categoría primero',
     
     // Tasks

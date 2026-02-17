@@ -41,6 +41,7 @@ import { ElencoTab } from './ElencoTab';
 import { RoteiroTab } from './RoteiroTab';
 import { GravacaoTarefasTab } from './GravacaoTarefasTab';
 import { GravacaoReportGenerator } from './GravacaoReportGenerator';
+import { GravacaoIncidenciasTab } from './GravacaoIncidenciasTab';
 import { cn } from '@/lib/utils';
 import { DialogActionBar } from '@/components/shared/DialogActionBar';
 import { supabase } from '@/integrations/supabase/client';
@@ -354,6 +355,9 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
               <TabsTrigger value="custos" disabled={!data} className="flex-1">{t('recordings.costs')}</TabsTrigger>
             )}
             <TabsTrigger value="tarefas" disabled={!data} className="flex-1">Tarefas</TabsTrigger>
+            {isVisible('Produção', 'Gravação', '-', 'Tabulador "Incidências"') && (
+              <TabsTrigger value="incidencias" disabled={!data} className="flex-1">{t('incident.pageTitle')}</TabsTrigger>
+            )}
           </TabsList>
 
           <TabsContent value="dados">
@@ -621,6 +625,12 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
           <TabsContent value="tarefas">
             {data && <GravacaoTarefasTab gravacaoId={data.id} />}
           </TabsContent>
+
+          {isVisible('Produção', 'Gravação', '-', 'Tabulador "Incidências"') && (
+            <TabsContent value="incidencias">
+              {data && <GravacaoIncidenciasTab gravacaoId={data.id} />}
+            </TabsContent>
+          )}
         </Tabs>
       </DialogContent>
     </Dialog>
