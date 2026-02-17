@@ -3,7 +3,8 @@ import { Button } from '@/components/ui/button';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
 import { ListActionBar } from '@/components/shared/ListActionBar';
 import { SortableTable, Column } from '@/components/shared/SortableTable';
-import { Edit, Trash2, Settings, Loader2, Plus } from 'lucide-react';
+import { Edit, Trash2, Settings, Loader2 } from 'lucide-react';
+import { NewButton } from '@/components/shared/NewButton';
 import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -149,11 +150,9 @@ const CategoriasIncidencia = () => {
     <div>
       <PageHeader title={t('incidentCategory.pageTitle')} description={t('incidentCategory.pageDescription')} />
       <ListActionBar>
+        <NewButton tooltip={`${t('common.new')} ${t('incidentCategory.entity')}`} onClick={() => { setEditingItem(null); setIsModalOpen(true); }} />
+        <div className="flex-1" />
         <SearchBar value={search} onChange={setSearch} placeholder={t('common.search')} />
-        <Button onClick={() => { setEditingItem(null); setIsModalOpen(true); }}>
-          <Plus className="w-4 h-4 mr-1" />
-          {`${t('common.new')} ${t('incidentCategory.entity')}`}
-        </Button>
       </ListActionBar>
       <DataCard>
         {filteredItems.length === 0 ? (

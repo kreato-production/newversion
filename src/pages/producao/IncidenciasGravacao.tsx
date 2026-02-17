@@ -7,7 +7,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
 import { ListActionBar } from '@/components/shared/ListActionBar';
 import { SortableTable, Column } from '@/components/shared/SortableTable';
-import { Edit, Trash2, AlertTriangle, Loader2, Plus, Filter, BarChart3, X } from 'lucide-react';
+import { Edit, Trash2, AlertTriangle, Loader2, Filter, BarChart3, X } from 'lucide-react';
+import { NewButton } from '@/components/shared/NewButton';
 import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -242,6 +243,8 @@ const IncidenciasGravacao = () => {
     <div>
       <PageHeader title={t('incident.pageTitle')} description={t('incident.pageDescription')} />
       <ListActionBar>
+        <NewButton tooltip={`${t('common.new')} ${t('incident.entity')}`} onClick={() => { setEditingItem(null); setIsModalOpen(true); }} />
+        <div className="flex-1" />
         <SearchBar value={search} onChange={setSearch} placeholder={t('common.search')} />
 
         <Popover open={isFilterOpen} onOpenChange={setIsFilterOpen}>
@@ -349,10 +352,6 @@ const IncidenciasGravacao = () => {
           {t('incident.chart')}
         </Button>
 
-        <Button onClick={() => { setEditingItem(null); setIsModalOpen(true); }}>
-          <Plus className="w-4 h-4 mr-1" />
-          {`${t('common.new')} ${t('incident.entity')}`}
-        </Button>
       </ListActionBar>
       <DataCard>
         {filteredItems.length === 0 ? (

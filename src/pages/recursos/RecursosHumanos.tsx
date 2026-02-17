@@ -3,7 +3,8 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
 import { ListActionBar } from '@/components/shared/ListActionBar';
-import { Edit, Trash2, Users, UserX, Calendar, Loader2, Plus, Clock } from 'lucide-react';
+import { Edit, Trash2, Users, UserX, Calendar, Loader2, Clock } from 'lucide-react';
+import { NewButton } from '@/components/shared/NewButton';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { RecursoHumanoFormModal } from '@/components/recursos/RecursoHumanoFormModal';
@@ -413,6 +414,8 @@ const RecursosHumanos = () => {
       />
 
       <ListActionBar>
+        <NewButton tooltip={t('field.newCollaborator')} onClick={() => { setEditingItem(null); setIsModalOpen(true); }} />
+        <div className="flex-1" />
         <SearchBar value={search} onChange={setSearch} />
         <Button
           variant="outline"
@@ -431,10 +434,6 @@ const RecursosHumanos = () => {
         >
           <Clock className="w-4 h-4" />
           Mapa de Ociosidade
-        </Button>
-        <Button onClick={() => { setEditingItem(null); setIsModalOpen(true); }}>
-          <Plus className="w-4 h-4 mr-1" />
-          {t('field.newCollaborator')}
         </Button>
       </ListActionBar>
 

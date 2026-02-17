@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
 import { ListActionBar } from '@/components/shared/ListActionBar';
-import { Edit, Trash2, Video, Loader2, Plus } from 'lucide-react';
+import { Edit, Trash2, Video, Loader2 } from 'lucide-react';
+import { NewButton } from '@/components/shared/NewButton';
 import { useToast } from '@/hooks/use-toast';
 import { GravacaoFormModal } from '@/components/producao/GravacaoFormModal';
 import { Badge } from '@/components/ui/badge';
@@ -416,13 +417,11 @@ const GravacaoList = () => {
       />
 
       <ListActionBar>
-        <SearchBar value={search} onChange={setSearch} placeholder={t('common.search')} />
         {podeIncluir && (
-          <Button onClick={() => { setEditingItem(null); setIsModalOpen(true); }}>
-            <Plus className="w-4 h-4 mr-1" />
-            {t('recordings.new')}
-          </Button>
+          <NewButton tooltip={t('recordings.new')} onClick={() => { setEditingItem(null); setIsModalOpen(true); }} />
         )}
+        <div className="flex-1" />
+        <SearchBar value={search} onChange={setSearch} placeholder={t('common.search')} />
       </ListActionBar>
 
       <DataCard>

@@ -4,7 +4,8 @@ import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared
 import { ListActionBar } from '@/components/shared/ListActionBar';
 import { EquipeFormModal } from '@/components/recursos/EquipeFormModal';
 import { SortableTable, Column } from '@/components/shared/SortableTable';
-import { Edit, Trash2, UsersRound, Loader2, Plus } from 'lucide-react';
+import { Edit, Trash2, UsersRound, Loader2 } from 'lucide-react';
+import { NewButton } from '@/components/shared/NewButton';
 import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -168,11 +169,9 @@ const Equipes = () => {
       />
 
       <ListActionBar>
+        <NewButton tooltip={t('teams.new')} onClick={() => { setEditingItem(null); setIsModalOpen(true); }} />
+        <div className="flex-1" />
         <SearchBar value={search} onChange={setSearch} placeholder={t('common.search')} />
-        <Button onClick={() => { setEditingItem(null); setIsModalOpen(true); }}>
-          <Plus className="w-4 h-4 mr-1" />
-          {t('teams.new')}
-        </Button>
       </ListActionBar>
 
       <DataCard>

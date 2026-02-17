@@ -3,7 +3,8 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
 import { ListActionBar } from '@/components/shared/ListActionBar';
-import { Edit, Trash2, Users, Loader2, Plus } from 'lucide-react';
+import { Edit, Trash2, Users, Loader2 } from 'lucide-react';
+import { NewButton } from '@/components/shared/NewButton';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { PessoaFormModal } from '@/components/recursos/PessoaFormModal';
@@ -254,11 +255,9 @@ const Pessoas = () => {
       />
 
       <ListActionBar>
+        <NewButton tooltip={t('field.newPerson')} onClick={() => { setEditingItem(null); setIsModalOpen(true); }} />
+        <div className="flex-1" />
         <SearchBar value={search} onChange={setSearch} />
-        <Button onClick={() => { setEditingItem(null); setIsModalOpen(true); }}>
-          <Plus className="w-4 h-4 mr-1" />
-          {t('field.newPerson')}
-        </Button>
       </ListActionBar>
 
       <DataCard>
