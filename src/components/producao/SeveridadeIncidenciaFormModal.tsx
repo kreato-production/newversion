@@ -19,14 +19,14 @@ interface SeveridadeIncidenciaFormModalProps {
 export const SeveridadeIncidenciaFormModal = ({ isOpen, onClose, onSave, data, readOnly }: SeveridadeIncidenciaFormModalProps) => {
   const { t } = useLanguage();
   const { user } = useAuth();
-  const [form, setForm] = useState({ titulo: '', descricao: '', codigo_externo: '' });
+  const [form, setForm] = useState({ titulo: '', descricao: '', codigo_externo: '', cor: '#888888' });
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (data) {
-      setForm({ titulo: data.titulo || '', descricao: data.descricao || '', codigo_externo: data.codigo_externo || '' });
+      setForm({ titulo: data.titulo || '', descricao: data.descricao || '', codigo_externo: data.codigo_externo || '', cor: data.cor || '#888888' });
     } else {
-      setForm({ titulo: '', descricao: '', codigo_externo: '' });
+      setForm({ titulo: '', descricao: '', codigo_externo: '', cor: '#888888' });
     }
   }, [data, isOpen]);
 
@@ -59,9 +59,24 @@ export const SeveridadeIncidenciaFormModal = ({ isOpen, onClose, onSave, data, r
               <Input value={form.titulo} onChange={(e) => setForm({ ...form, titulo: e.target.value })} disabled={readOnly} />
             </div>
           </div>
-          <div>
-            <Label>{t('common.description')}</Label>
-            <Textarea rows={3} value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} disabled={readOnly} />
+          <div className="grid grid-cols-[1fr_auto] gap-4">
+            <div>
+              <Label>{t('common.description')}</Label>
+              <Textarea rows={3} value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} disabled={readOnly} />
+            </div>
+            <div>
+              <Label>{t('common.color')}</Label>
+              <div className="flex items-center gap-2 mt-1">
+                <input
+                  type="color"
+                  value={form.cor}
+                  onChange={(e) => setForm({ ...form, cor: e.target.value })}
+                  disabled={readOnly}
+                  className="w-10 h-10 rounded border cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                />
+                <Input value={form.cor} onChange={(e) => setForm({ ...form, cor: e.target.value })} disabled={readOnly} className="w-24 font-mono text-xs" maxLength={7} />
+              </div>
+            </div>
           </div>
           <div>
             <Label>{t('incidentSeverity.user')}</Label>

@@ -1,0 +1,1 @@
+ALTER TABLE public.severidades_incidencia ADD COLUMN cor varchar(7) DEFAULT '#888888';
