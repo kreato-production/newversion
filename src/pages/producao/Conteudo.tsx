@@ -433,9 +433,9 @@ const Conteudo = () => {
               <TooltipTrigger asChild>
                 <Button
                   size="icon"
-                  variant="outline"
                   onClick={handleClone}
                   disabled={selectedIds.size === 0 || isCloning}
+                  className="bg-primary text-primary-foreground hover:bg-primary/90"
                 >
                   {isCloning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Copy className="w-4 h-4" />}
                 </Button>
