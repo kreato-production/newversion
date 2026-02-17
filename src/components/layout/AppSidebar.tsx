@@ -72,6 +72,7 @@ const getMenuItems = (): MenuItemData[] => [
           { labelKey: 'menu.taskStatus', icon: Settings, path: '/producao/status-tarefa', permission: { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Status da Tarefa' } },
           { labelKey: 'menu.priceTables', icon: Settings, path: '/producao/tabelas-preco', permission: { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Tabelas de Preços' } },
           { labelKey: 'menu.incidentCategories', icon: Settings, path: '/producao/categorias-incidencia', permission: { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Categorias de Incidência' } },
+          { labelKey: 'menu.incidentSeverities', icon: Settings, path: '/producao/severidades-incidencia', permission: { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Severidades de Incidência' } },
         ],
       },
     ],

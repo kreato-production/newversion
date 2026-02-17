@@ -2113,6 +2113,36 @@ export type Database = {
         }
         Relationships: []
       }
+      severidades_incidencia: {
+        Row: {
+          codigo_externo: string | null
+          created_at: string | null
+          created_by: string | null
+          descricao: string | null
+          id: string
+          titulo: string
+          updated_at: string | null
+        }
+        Insert: {
+          codigo_externo?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          descricao?: string | null
+          id?: string
+          titulo: string
+          updated_at?: string | null
+        }
+        Update: {
+          codigo_externo?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          descricao?: string | null
+          id?: string
+          titulo?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       status_gravacao: {
         Row: {
           codigo_externo: string | null
