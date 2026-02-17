@@ -145,7 +145,11 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
 
     try {
       const [unidadesRes, centrosRes, centroLucroUnidadesRes, classificacoesRes, tiposRes, statusRes, conteudosRes] = await Promise.all([
-        supabase.from('unidades_negocio').select('id, nome, moeda').order('nome'),
+        (() => {
+          let q = supabase.from('unidades_negocio').select('id, nome, moeda');
+          if (user?.unidadeIds && user.unidadeIds.length > 0) q = q.in('id', user.unidadeIds);
+          return q.order('nome');
+        })(),
         supabase.from('centros_lucro').select('id, nome, parent_id, status').eq('status', 'Ativo').order('nome'),
         supabase.from('centro_lucro_unidades').select('centro_lucro_id, unidade_negocio_id'),
         supabase.from('classificacoes').select('id, nome').order('nome'),

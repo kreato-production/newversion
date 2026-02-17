@@ -162,7 +162,11 @@ export const ConteudoFormModal = ({
       const [centrosRes, statusRes, unidadesRes, tiposRes, classificacoesRes, centroLucroUnidadesRes, tabelasPrecoRes] = await Promise.all([
         supabase.from('centros_lucro').select('id, nome, parent_id, status').eq('status', 'Ativo').order('nome'),
         supabase.from('status_gravacao').select('id, nome, cor').order('nome'),
-        supabase.from('unidades_negocio').select('id, nome, moeda').order('nome'),
+        (() => {
+          let q = supabase.from('unidades_negocio').select('id, nome, moeda');
+          if (user?.unidadeIds && user.unidadeIds.length > 0) q = q.in('id', user.unidadeIds);
+          return q.order('nome');
+        })(),
         supabase.from('tipos_gravacao').select('id, nome').order('nome'),
         supabase.from('classificacoes').select('id, nome').order('nome'),
         supabase.from('centro_lucro_unidades').select('centro_lucro_id, unidade_negocio_id'),
