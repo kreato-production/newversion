@@ -73,6 +73,7 @@ const getMenuItems = (): MenuItemData[] => [
           { labelKey: 'menu.priceTables', icon: Settings, path: '/producao/tabelas-preco', permission: { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Tabelas de Preços' } },
           { labelKey: 'menu.incidentCategories', icon: Settings, path: '/producao/categorias-incidencia', permission: { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Categorias de Incidência' } },
           { labelKey: 'menu.incidentSeverities', icon: Settings, path: '/producao/severidades-incidencia', permission: { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Severidades de Incidência' } },
+          { labelKey: 'menu.incidentImpacts', icon: Settings, path: '/producao/impactos-incidencia', permission: { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Impactos de Incidência' } },
         ],
       },
     ],

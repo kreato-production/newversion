@@ -173,6 +173,7 @@ const translations: Record<Language, Record<string, string>> = {
     'menu.teams': 'Equipes',
     'menu.incidentCategories': 'Categorias de Incidência',
     'menu.incidentSeverities': 'Severidades de Incidência',
+    'menu.incidentImpacts': 'Impactos de Incidência',
     
     // Incident Categories
     'incidentCategory.pageTitle': 'Categorias de Incidência',
@@ -195,6 +196,15 @@ const translations: Record<Language, Record<string, string>> = {
     'incidentSeverity.titleRequired': 'O título é obrigatório',
     'incidentSeverity.formDescription': 'Preencha os dados da severidade de incidência',
     'incidentSeverity.user': 'Usuário',
+    
+    // Incident Impacts
+    'incidentImpact.pageTitle': 'Impactos de Incidência',
+    'incidentImpact.pageDescription': 'Gerencie os impactos de incidência de gravação',
+    'incidentImpact.entity': 'Impacto de Incidência',
+    'incidentImpact.title': 'Título',
+    'incidentImpact.titleRequired': 'O título é obrigatório',
+    'incidentImpact.formDescription': 'Preencha os dados do impacto de incidência',
+    'incidentImpact.user': 'Usuário',
     
     // Tasks
     'tasks.title': 'Tarefas',
@@ -859,6 +869,7 @@ const translations: Record<Language, Record<string, string>> = {
     'menu.teams': 'Teams',
     'menu.incidentCategories': 'Incident Categories',
     'menu.incidentSeverities': 'Incident Severities',
+    'menu.incidentImpacts': 'Incident Impacts',
     
     // Incident Categories
     'incidentCategory.pageTitle': 'Incident Categories',
@@ -881,6 +892,15 @@ const translations: Record<Language, Record<string, string>> = {
     'incidentSeverity.titleRequired': 'Title is required',
     'incidentSeverity.formDescription': 'Fill in the incident severity details',
     'incidentSeverity.user': 'User',
+    
+    // Incident Impacts
+    'incidentImpact.pageTitle': 'Incident Impacts',
+    'incidentImpact.pageDescription': 'Manage recording incident impacts',
+    'incidentImpact.entity': 'Incident Impact',
+    'incidentImpact.title': 'Title',
+    'incidentImpact.titleRequired': 'Title is required',
+    'incidentImpact.formDescription': 'Fill in the incident impact details',
+    'incidentImpact.user': 'User',
     
     // Tasks
     'tasks.title': 'Tasks',
@@ -1545,6 +1565,7 @@ const translations: Record<Language, Record<string, string>> = {
     'menu.priceTables': 'Tablas de Precios',
     'menu.incidentCategories': 'Categorías de Incidencia',
     'menu.incidentSeverities': 'Severidades de Incidencia',
+    'menu.incidentImpacts': 'Impactos de Incidencia',
     
     // Incident Categories
     'incidentCategory.pageTitle': 'Categorías de Incidencia',
@@ -1567,6 +1588,15 @@ const translations: Record<Language, Record<string, string>> = {
     'incidentSeverity.titleRequired': 'El título es obligatorio',
     'incidentSeverity.formDescription': 'Complete los datos de la severidad de incidencia',
     'incidentSeverity.user': 'Usuario',
+    
+    // Incident Impacts
+    'incidentImpact.pageTitle': 'Impactos de Incidencia',
+    'incidentImpact.pageDescription': 'Gestione los impactos de incidencia de grabación',
+    'incidentImpact.entity': 'Impacto de Incidencia',
+    'incidentImpact.title': 'Título',
+    'incidentImpact.titleRequired': 'El título es obligatorio',
+    'incidentImpact.formDescription': 'Complete los datos del impacto de incidencia',
+    'incidentImpact.user': 'Usuario',
     
     // Tasks
     'tasks.title': 'Tareas',

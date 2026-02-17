@@ -15,6 +15,7 @@ import TiposGravacao from "@/pages/producao/TiposGravacao";
 import Classificacao from "@/pages/producao/Classificacao";
 import CategoriasIncidencia from "@/pages/producao/CategoriasIncidencia";
 import SeveridadesIncidencia from "@/pages/producao/SeveridadesIncidencia";
+import ImpactosIncidencia from "@/pages/producao/ImpactosIncidencia";
 import StatusGravacao from "@/pages/producao/StatusGravacao";
 import Tarefas from "@/pages/producao/Tarefas";
 import StatusTarefa from "@/pages/producao/StatusTarefa";
@@ -65,6 +66,7 @@ const App = () => (
                 <Route path="/producao/classificacao" element={<Classificacao />} />
                 <Route path="/producao/categorias-incidencia" element={<CategoriasIncidencia />} />
                 <Route path="/producao/severidades-incidencia" element={<SeveridadesIncidencia />} />
+                <Route path="/producao/impactos-incidencia" element={<ImpactosIncidencia />} />
                 <Route path="/producao/status" element={<StatusGravacao />} />
                 <Route path="/producao/tarefas" element={<Tarefas />} />
                 <Route path="/producao/status-tarefa" element={<StatusTarefa />} />
