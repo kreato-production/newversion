@@ -244,6 +244,29 @@ export const ConteudoFormModal = ({
 
       if (error) throw error;
 
+      // Auto-fix: assign initial status to recordings missing one
+      const semStatus = (gData || []).filter((g: any) => !g.status_id);
+      if (semStatus.length > 0) {
+        const { data: statusInicial } = await supabase
+          .from('status_gravacao')
+          .select('id, nome, cor')
+          .eq('is_inicial', true)
+          .maybeSingle();
+        
+        if (statusInicial) {
+          await Promise.all(
+            semStatus.map((g: any) =>
+              supabase.from('gravacoes').update({ status_id: statusInicial.id }).eq('id', g.id)
+            )
+          );
+          // Update local data with the assigned status
+          for (const g of semStatus) {
+            g.status_id = statusInicial.id;
+            g.status_gravacao = { id: statusInicial.id, nome: statusInicial.nome, cor: statusInicial.cor };
+          }
+        }
+      }
+
       const mapped: Gravacao[] = (gData || []).map((g: any) => ({
         id: g.id,
         codigo: g.codigo,
@@ -394,11 +417,30 @@ export const ConteudoFormModal = ({
         ? orcamentoTotal / quantidade
         : 0;
       
+      // Fetch initial status - try is_inicial first, fallback to first status
+      let statusInicialId: string | null = null;
       const { data: statusInicial } = await supabase
         .from('status_gravacao')
         .select('id')
         .eq('is_inicial', true)
         .maybeSingle();
+      
+      if (statusInicial?.id) {
+        statusInicialId = statusInicial.id;
+      } else {
+        // Fallback: get first status ordered by name
+        const { data: fallbackStatus } = await supabase
+          .from('status_gravacao')
+          .select('id')
+          .order('nome')
+          .limit(1)
+          .maybeSingle();
+        statusInicialId = fallbackStatus?.id || null;
+      }
+      
+      if (!statusInicialId) {
+        console.error('Nenhum status de gravação encontrado no sistema');
+      }
 
       const unidadeSelecionada = unidades.find(u => u.nome === formData.unidadeNegocio);
       const centroSelecionado = centrosLucro.find(c => c.nome === formData.centroLucro);
@@ -426,7 +468,7 @@ export const ConteudoFormModal = ({
           conteudo_id: data.id,
           created_by: user?.id || null,
           orcamento: orcamentoPorGravacao,
-          status_id: statusInicial?.id || null,
+          status_id: statusInicialId,
           data_prevista: dataPrevista,
         };
 
