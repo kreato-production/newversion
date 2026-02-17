@@ -12,6 +12,7 @@ export interface User {
   foto?: string;
   tipoAcesso?: string;
   recursoHumanoId?: string;
+  unidadeIds?: string[];
 }
 
 interface AuthContextType {
@@ -40,22 +41,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // Fetch user profile from database
   const fetchUserProfile = async (userId: string): Promise<{ profile: User | null; status: string | null }> => {
     try {
-      const { data: profile, error } = await supabase
-        .from('profiles')
-        .select(`
-          id,
-          nome,
-          email,
-          usuario,
-          foto_url,
-          perfil_id,
-          status,
-          tipo_acesso,
-          recurso_humano_id,
-          perfis_acesso:perfil_id (nome)
-        `)
-        .eq('id', userId)
-        .maybeSingle();
+      const [{ data: profile, error }, { data: unidadesData }] = await Promise.all([
+        supabase
+          .from('profiles')
+          .select(`
+            id,
+            nome,
+            email,
+            usuario,
+            foto_url,
+            perfil_id,
+            status,
+            tipo_acesso,
+            recurso_humano_id,
+            perfis_acesso:perfil_id (nome)
+          `)
+          .eq('id', userId)
+          .maybeSingle(),
+        supabase
+          .from('usuario_unidades')
+          .select('unidade_id')
+          .eq('usuario_id', userId),
+      ]);
 
       if (error) {
         console.error('Error fetching profile:', error);
@@ -67,6 +74,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return { profile: null, status: null };
       }
 
+      const unidadeIds = (unidadesData || []).map((u: any) => u.unidade_id);
+
       return {
         profile: {
           id: profile.id,
@@ -77,6 +86,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           foto: profile.foto_url || undefined,
           tipoAcesso: (profile as any).tipo_acesso || 'Operacional',
           recursoHumanoId: (profile as any).recurso_humano_id || undefined,
+          unidadeIds,
         },
         status: profile.status || 'Ativo',
       };

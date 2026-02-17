@@ -89,7 +89,7 @@ const GravacaoList = () => {
 
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('gravacoes')
         .select(`
           *,
@@ -100,6 +100,13 @@ const GravacaoList = () => {
           status_gravacao:status_id(nome, cor)
         `)
         .order('created_at', { ascending: false });
+
+      // Filter by user's allowed unidades de negócio
+      if (user?.unidadeIds && user.unidadeIds.length > 0) {
+        query = query.in('unidade_negocio_id', user.unidadeIds);
+      }
+
+      const { data, error } = await query;
 
       if (error) {
         throw error;
@@ -116,7 +123,7 @@ const GravacaoList = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [session, toast]);
+  }, [session, user?.unidadeIds, toast]);
 
   useEffect(() => {
     fetchData();
