@@ -128,6 +128,12 @@ export const basePermissionsMatrix: Omit<PermissionItem, 'id'>[] = [
   { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Tabelas de Preços', campo: 'Tabulador "Recursos Técnicos"', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
   { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Tabelas de Preços', campo: 'Tabulador "Recursos Físicos"', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
   
+  { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Categorias de Incidência', campo: '-', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'submodulo2' },
+  { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Categorias de Incidência', campo: 'Código Externo', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Categorias de Incidência', campo: 'Título', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Categorias de Incidência', campo: 'Descrição', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Categorias de Incidência', campo: 'Tabulador "Classificações"', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  
   // Recursos
   { modulo: 'Recursos', subModulo1: '-', subModulo2: '-', campo: '-', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'modulo' },
   

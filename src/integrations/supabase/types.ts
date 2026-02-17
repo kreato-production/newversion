@@ -74,6 +74,36 @@ export type Database = {
         }
         Relationships: []
       }
+      categorias_incidencia: {
+        Row: {
+          codigo_externo: string | null
+          created_at: string | null
+          created_by: string | null
+          descricao: string | null
+          id: string
+          titulo: string
+          updated_at: string | null
+        }
+        Insert: {
+          codigo_externo?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          descricao?: string | null
+          id?: string
+          titulo: string
+          updated_at?: string | null
+        }
+        Update: {
+          codigo_externo?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          descricao?: string | null
+          id?: string
+          titulo?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       centro_lucro_unidades: {
         Row: {
           centro_lucro_id: string
@@ -183,6 +213,47 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      classificacoes_incidencia: {
+        Row: {
+          categoria_incidencia_id: string
+          codigo_externo: string | null
+          created_at: string | null
+          created_by: string | null
+          descricao: string | null
+          id: string
+          titulo: string
+          updated_at: string | null
+        }
+        Insert: {
+          categoria_incidencia_id: string
+          codigo_externo?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          descricao?: string | null
+          id?: string
+          titulo: string
+          updated_at?: string | null
+        }
+        Update: {
+          categoria_incidencia_id?: string
+          codigo_externo?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          descricao?: string | null
+          id?: string
+          titulo?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "classificacoes_incidencia_categoria_incidencia_id_fkey"
+            columns: ["categoria_incidencia_id"]
+            isOneToOne: false
+            referencedRelation: "categorias_incidencia"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       classificacoes_pessoa: {
         Row: {
