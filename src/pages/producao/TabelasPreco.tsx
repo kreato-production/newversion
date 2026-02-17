@@ -3,7 +3,8 @@ import { Button } from '@/components/ui/button';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
 import { ListActionBar } from '@/components/shared/ListActionBar';
 import { SortableTable, Column } from '@/components/shared/SortableTable';
-import { Edit, Trash2, Settings, Loader2, Plus } from 'lucide-react';
+import { Edit, Trash2, Settings, Loader2 } from 'lucide-react';
+import { NewButton } from '@/components/shared/NewButton';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
@@ -165,10 +166,9 @@ const TabelasPreco = () => {
     <div>
       <PageHeader title="Tabelas de Preços" description="Gerencie tabelas de preços para recursos técnicos e físicos" />
       <ListActionBar>
+        <NewButton tooltip="Nova Tabela" onClick={() => { setEditingItem(null); setIsModalOpen(true); }} />
+        <div className="flex-1" />
         <SearchBar value={search} onChange={setSearch} />
-        <Button onClick={() => { setEditingItem(null); setIsModalOpen(true); }}>
-          <Plus className="w-4 h-4 mr-1" /> Nova Tabela
-        </Button>
       </ListActionBar>
       <DataCard>
         {isLoading ? (

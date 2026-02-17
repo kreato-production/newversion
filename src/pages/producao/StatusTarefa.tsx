@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
 import { ListActionBar } from '@/components/shared/ListActionBar';
-import { Settings, Edit, Trash2, Loader2, Plus, Star } from 'lucide-react';
+import { Settings, Edit, Trash2, Loader2, Star } from 'lucide-react';
+import { NewButton } from '@/components/shared/NewButton';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -213,15 +214,13 @@ const StatusTarefa = () => {
       />
 
       <ListActionBar>
+        <NewButton tooltip={t('common.new')} onClick={() => handleOpenModal()} />
+        <div className="flex-1" />
         <SearchBar
           value={search}
           onChange={setSearch}
           placeholder={t('common.search')}
         />
-        <Button onClick={() => handleOpenModal()}>
-          <Plus className="w-4 h-4 mr-1" />
-          {t('common.new')}
-        </Button>
       </ListActionBar>
 
       {filteredItems.length === 0 ? (

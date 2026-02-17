@@ -2,7 +2,8 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
 import { ListActionBar } from '@/components/shared/ListActionBar';
-import { Edit, Trash2, Landmark, ChevronRight, ChevronDown, FolderTree, Loader2, Plus } from 'lucide-react';
+import { Edit, Trash2, Landmark, ChevronRight, ChevronDown, FolderTree, Loader2 } from 'lucide-react';
+import { NewButton } from '@/components/shared/NewButton';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { CentroLucroFormModal, CentroLucro } from '@/components/admin/CentroLucroFormModal';
@@ -253,11 +254,9 @@ const CentrosLucro = () => {
       />
 
       <ListActionBar>
+        <NewButton tooltip="Novo Centro de Lucro" onClick={() => { setEditingItem(null); setIsModalOpen(true); }} />
+        <div className="flex-1" />
         <SearchBar value={search} onChange={setSearch} />
-        <Button onClick={() => { setEditingItem(null); setIsModalOpen(true); }}>
-          <Plus className="w-4 h-4 mr-1" />
-          Novo Centro de Lucro
-        </Button>
       </ListActionBar>
 
       <DataCard>

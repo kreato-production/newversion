@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Plus, Search, CheckCircle2, Clock, AlertCircle, ArrowUpDown, ArrowUp, ArrowDown, Edit, Loader2 } from 'lucide-react';
+import { Search, CheckCircle2, Clock, AlertCircle, ArrowUpDown, ArrowUp, ArrowDown, Edit, Loader2 } from 'lucide-react';
+import { NewButton } from '@/components/shared/NewButton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -476,7 +477,11 @@ const Tarefas = () => {
 
         {/* Filters in ListActionBar */}
         <ListActionBar>
-          <div className="relative flex-1 min-w-[200px]">
+          {podeIncluir && (
+            <NewButton tooltip={t('tasks.new')} onClick={() => { setEditingTarefa(null); setIsModalOpen(true); }} />
+          )}
+          <div className="flex-1" />
+          <div className="relative min-w-[200px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder={t('common.search')}
@@ -507,12 +512,6 @@ const Tarefas = () => {
               ))}
             </SelectContent>
           </Select>
-          {podeIncluir && (
-            <Button onClick={() => { setEditingTarefa(null); setIsModalOpen(true); }}>
-              <Plus className="w-4 h-4 mr-1" />
-              {t('tasks.new')}
-            </Button>
-          )}
         </ListActionBar>
 
         {/* Tasks Table */}
@@ -525,7 +524,6 @@ const Tarefas = () => {
             <p className="text-muted-foreground mb-4">{t('tasks.empty')}</p>
             {podeIncluir && (
               <Button variant="outline" onClick={() => { setEditingTarefa(null); setIsModalOpen(true); }}>
-                <Plus className="h-4 w-4 mr-2" />
                 {t('tasks.addFirst')}
               </Button>
             )}

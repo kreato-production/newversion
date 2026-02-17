@@ -3,7 +3,8 @@ import { Button } from '@/components/ui/button';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
 import { ListActionBar } from '@/components/shared/ListActionBar';
 import { SortableTable, Column } from '@/components/shared/SortableTable';
-import { Edit, Trash2, Settings, Copy, FileText, Loader2, Plus } from 'lucide-react';
+import { Edit, Trash2, Settings, Copy, FileText, Loader2 } from 'lucide-react';
+import { NewButton } from '@/components/shared/NewButton';
 import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
 import PerfilFormModal from '@/components/admin/PerfilFormModal';
@@ -390,11 +391,9 @@ const PerfisAcesso = () => {
       />
 
       <ListActionBar>
+        <NewButton tooltip={`${t('common.new')} Perfil`} onClick={() => { setEditingItem(null); setIsModalOpen(true); }} />
+        <div className="flex-1" />
         <SearchBar value={search} onChange={setSearch} placeholder={t('common.search')} />
-        <Button onClick={() => { setEditingItem(null); setIsModalOpen(true); }}>
-          <Plus className="w-4 h-4 mr-1" />
-          {`${t('common.new')} Perfil`}
-        </Button>
       </ListActionBar>
 
       <DataCard>

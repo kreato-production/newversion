@@ -2,9 +2,10 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
 import { ListActionBar } from '@/components/shared/ListActionBar';
-import { Edit, Trash2, Film, Loader2, Plus, Copy } from 'lucide-react';
+import { Edit, Trash2, Film, Loader2, Copy } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
+import { NewButton } from '@/components/shared/NewButton';
 import { useToast } from '@/hooks/use-toast';
 import { ConteudoFormModal } from '@/components/producao/ConteudoFormModal';
 import { SortableTable, Column } from '@/components/shared/SortableTable';
@@ -424,6 +425,9 @@ const Conteudo = () => {
       
       <ListActionBar>
         {podeIncluir && (
+          <NewButton tooltip={t('content.new')} onClick={() => { setEditingItem(null); setIsModalOpen(true); }} />
+        )}
+        {podeIncluir && (
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -442,12 +446,6 @@ const Conteudo = () => {
         )}
         <div className="flex-1" />
         <SearchBar value={search} onChange={setSearch} />
-        {podeIncluir && (
-          <Button onClick={() => { setEditingItem(null); setIsModalOpen(true); }}>
-            <Plus className="w-4 h-4 mr-1" />
-            {t('content.new')}
-          </Button>
-        )}
       </ListActionBar>
 
       <DataCard>

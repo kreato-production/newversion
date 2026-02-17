@@ -3,7 +3,8 @@ import { Button } from '@/components/ui/button';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
 import { ListActionBar } from '@/components/shared/ListActionBar';
 import { SortableTable, Column } from '@/components/shared/SortableTable';
-import { Edit, Trash2, Settings, Loader2, Plus, Star } from 'lucide-react';
+import { Edit, Trash2, Settings, Loader2, Star } from 'lucide-react';
+import { NewButton } from '@/components/shared/NewButton';
 import { useToast } from '@/hooks/use-toast';
 import { StatusGravacaoFormModal } from '@/components/producao/StatusGravacaoFormModal';
 import { Badge } from '@/components/ui/badge';
@@ -236,11 +237,9 @@ const StatusGravacao = () => {
       />
 
       <ListActionBar>
+        <NewButton tooltip="Novo Status" onClick={() => { setEditingItem(null); setIsModalOpen(true); }} />
+        <div className="flex-1" />
         <SearchBar value={search} onChange={setSearch} />
-        <Button onClick={() => { setEditingItem(null); setIsModalOpen(true); }}>
-          <Plus className="w-4 h-4 mr-1" />
-          Novo Status
-        </Button>
       </ListActionBar>
 
       <DataCard>

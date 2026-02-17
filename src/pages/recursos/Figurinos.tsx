@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Search, Edit, Trash2, Image as ImageIcon, Loader2, Plus } from 'lucide-react';
+import { Search, Edit, Trash2, Image as ImageIcon, Loader2 } from 'lucide-react';
+import { NewButton } from '@/components/shared/NewButton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -274,6 +275,8 @@ const Figurinos = () => {
       />
 
       <ListActionBar>
+        <NewButton tooltip="Novo Figurino" onClick={() => setIsModalOpen(true)} />
+        <div className="flex-1" />
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -283,10 +286,6 @@ const Figurinos = () => {
             className="pl-9 w-64"
           />
         </div>
-        <Button onClick={() => setIsModalOpen(true)}>
-          <Plus className="w-4 h-4 mr-1" />
-          Novo Figurino
-        </Button>
       </ListActionBar>
 
       {isLoading ? (
