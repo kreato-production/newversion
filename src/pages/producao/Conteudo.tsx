@@ -2,7 +2,9 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
 import { ListActionBar } from '@/components/shared/ListActionBar';
-import { Edit, Trash2, Film, Loader2, Plus } from 'lucide-react';
+import { Edit, Trash2, Film, Loader2, Plus, Copy } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
 import { ConteudoFormModal } from '@/components/producao/ConteudoFormModal';
 import { SortableTable, Column } from '@/components/shared/SortableTable';
@@ -93,6 +95,8 @@ const Conteudo = () => {
   const [editingItem, setEditingItem] = useState<Conteudo | null>(null);
   const [items, setItems] = useState<Conteudo[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isCloning, setIsCloning] = useState(false);
 
   const fetchConteudos = async () => {
     setIsLoading(true);
@@ -129,6 +133,98 @@ const Conteudo = () => {
   useEffect(() => {
     fetchConteudos();
   }, []);
+
+  const toggleSelection = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleClone = async () => {
+    if (selectedIds.size === 0) {
+      toast({ title: t('common.warning') || 'Aviso', description: 'Selecione ao menos um registro para clonar.', variant: 'destructive' });
+      return;
+    }
+
+    setIsCloning(true);
+    try {
+      for (const sourceId of selectedIds) {
+        // 1. Fetch original conteudo
+        const { data: original, error: fetchErr } = await supabase
+          .from('conteudos')
+          .select('*')
+          .eq('id', sourceId)
+          .single();
+        if (fetchErr || !original) throw fetchErr || new Error('Not found');
+
+        // 2. Insert clone
+        const { id, created_at, updated_at, ...rest } = original;
+        const cloneData = {
+          ...rest,
+          descricao: `Clone de : ${original.descricao}`,
+          codigo_externo: generateCodigoConteudo(),
+        };
+
+        const { data: newConteudo, error: insertErr } = await supabase
+          .from('conteudos')
+          .insert(cloneData)
+          .select()
+          .single();
+        if (insertErr || !newConteudo) throw insertErr;
+
+        // 3. Clone recursos físicos
+        const { data: recursosFisicos } = await supabase
+          .from('conteudo_recursos_fisicos')
+          .select('*')
+          .eq('conteudo_id', sourceId);
+        if (recursosFisicos && recursosFisicos.length > 0) {
+          const clonedRF = recursosFisicos.map(({ id, created_at, conteudo_id, ...r }) => ({
+            ...r,
+            conteudo_id: newConteudo.id,
+          }));
+          await supabase.from('conteudo_recursos_fisicos').insert(clonedRF);
+        }
+
+        // 4. Clone recursos técnicos
+        const { data: recursosTecnicos } = await supabase
+          .from('conteudo_recursos_tecnicos')
+          .select('*')
+          .eq('conteudo_id', sourceId);
+        if (recursosTecnicos && recursosTecnicos.length > 0) {
+          const clonedRT = recursosTecnicos.map(({ id, created_at, conteudo_id, ...r }) => ({
+            ...r,
+            conteudo_id: newConteudo.id,
+          }));
+          await supabase.from('conteudo_recursos_tecnicos').insert(clonedRT);
+        }
+
+        // 5. Clone terceiros
+        const { data: terceiros } = await supabase
+          .from('conteudo_terceiros')
+          .select('*')
+          .eq('conteudo_id', sourceId);
+        if (terceiros && terceiros.length > 0) {
+          const clonedT = terceiros.map(({ id, created_at, conteudo_id, ...r }) => ({
+            ...r,
+            conteudo_id: newConteudo.id,
+          }));
+          await supabase.from('conteudo_terceiros').insert(clonedT);
+        }
+      }
+
+      toast({ title: t('common.success'), description: `${selectedIds.size} registro(s) clonado(s) com sucesso.` });
+      setSelectedIds(new Set());
+      await fetchConteudos();
+    } catch (error) {
+      console.error('Error cloning conteudo:', error);
+      toast({ title: t('common.error'), description: 'Erro ao clonar registro.', variant: 'destructive' });
+    } finally {
+      setIsCloning(false);
+    }
+  };
 
   const handleSave = async (data: Conteudo) => {
     try {
@@ -242,6 +338,19 @@ const Conteudo = () => {
 
   const columns: Column<Conteudo>[] = [
     {
+      key: 'select',
+      label: '',
+      className: 'w-10',
+      sortable: false,
+      render: (item) => (
+        <Checkbox
+          checked={selectedIds.has(item.id)}
+          onCheckedChange={() => toggleSelection(item.id)}
+          onClick={(e) => e.stopPropagation()}
+        />
+      ),
+    },
+    {
       key: 'descricao',
       label: t('common.description'),
       render: (item) => <span className="font-medium">{item.descricao}</span>,
@@ -315,6 +424,23 @@ const Conteudo = () => {
       
       <ListActionBar>
         <SearchBar value={search} onChange={setSearch} />
+        {podeIncluir && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="icon"
+                  variant="outline"
+                  onClick={handleClone}
+                  disabled={selectedIds.size === 0 || isCloning}
+                >
+                  {isCloning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Copy className="w-4 h-4" />}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Clone</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
         {podeIncluir && (
           <Button onClick={() => { setEditingItem(null); setIsModalOpen(true); }}>
             <Plus className="w-4 h-4 mr-1" />
