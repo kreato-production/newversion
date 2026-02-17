@@ -171,6 +171,20 @@ const translations: Record<Language, Record<string, string>> = {
     'menu.costumeType': 'Tipo Figurino',
     'menu.material': 'Material',
     'menu.teams': 'Equipes',
+    'menu.incidentCategories': 'Categorias de Incidência',
+    
+    // Incident Categories
+    'incidentCategory.pageTitle': 'Categorias de Incidência',
+    'incidentCategory.pageDescription': 'Gerencie as categorias de incidência de gravação',
+    'incidentCategory.entity': 'Categoria de Incidência',
+    'incidentCategory.title': 'Título',
+    'incidentCategory.titleRequired': 'O título é obrigatório',
+    'incidentCategory.formDescription': 'Preencha os dados da categoria de incidência',
+    'incidentCategory.tabGeneral': 'Dados Gerais',
+    'incidentCategory.tabClassifications': 'Classificações',
+    'incidentCategory.classification': 'Classificação',
+    'incidentCategory.noClassifications': 'Nenhuma classificação cadastrada',
+    'incidentCategory.user': 'Usuário',
     
     // Tasks
     'tasks.title': 'Tarefas',
@@ -833,6 +847,20 @@ const translations: Record<Language, Record<string, string>> = {
     'menu.costumeType': 'Costume Type',
     'menu.material': 'Material',
     'menu.teams': 'Teams',
+    'menu.incidentCategories': 'Incident Categories',
+    
+    // Incident Categories
+    'incidentCategory.pageTitle': 'Incident Categories',
+    'incidentCategory.pageDescription': 'Manage recording incident categories',
+    'incidentCategory.entity': 'Incident Category',
+    'incidentCategory.title': 'Title',
+    'incidentCategory.titleRequired': 'Title is required',
+    'incidentCategory.formDescription': 'Fill in the incident category details',
+    'incidentCategory.tabGeneral': 'General Data',
+    'incidentCategory.tabClassifications': 'Classifications',
+    'incidentCategory.classification': 'Classification',
+    'incidentCategory.noClassifications': 'No classifications registered',
+    'incidentCategory.user': 'User',
     
     // Tasks
     'tasks.title': 'Tasks',
@@ -1495,6 +1523,20 @@ const translations: Record<Language, Record<string, string>> = {
     'menu.tasks': 'Tareas',
     'menu.taskStatus': 'Estado de Tarea',
     'menu.priceTables': 'Tablas de Precios',
+    'menu.incidentCategories': 'Categorías de Incidencia',
+    
+    // Incident Categories
+    'incidentCategory.pageTitle': 'Categorías de Incidencia',
+    'incidentCategory.pageDescription': 'Gestione las categorías de incidencia de grabación',
+    'incidentCategory.entity': 'Categoría de Incidencia',
+    'incidentCategory.title': 'Título',
+    'incidentCategory.titleRequired': 'El título es obligatorio',
+    'incidentCategory.formDescription': 'Complete los datos de la categoría de incidencia',
+    'incidentCategory.tabGeneral': 'Datos Generales',
+    'incidentCategory.tabClassifications': 'Clasificaciones',
+    'incidentCategory.classification': 'Clasificación',
+    'incidentCategory.noClassifications': 'No hay clasificaciones registradas',
+    'incidentCategory.user': 'Usuario',
     
     // Tasks
     'tasks.title': 'Tareas',
