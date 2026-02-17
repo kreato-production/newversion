@@ -15,7 +15,7 @@ export const ListActionBar = ({ children, className }: ListActionBarProps) => {
   return (
     <div 
       className={cn(
-        "flex items-center justify-end gap-2 py-3 px-4 mb-4 border-b border-border/50 bg-muted/30 rounded-lg",
+        "flex items-center justify-end gap-2 py-1.5 px-4 mb-4 border-b border-border/50 bg-muted/30 rounded-lg",
         className
       )}
     >
