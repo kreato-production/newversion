@@ -423,7 +423,6 @@ const Conteudo = () => {
       />
       
       <ListActionBar>
-        <SearchBar value={search} onChange={setSearch} />
         {podeIncluir && (
           <TooltipProvider>
             <Tooltip>
@@ -441,6 +440,8 @@ const Conteudo = () => {
             </Tooltip>
           </TooltipProvider>
         )}
+        <div className="flex-1" />
+        <SearchBar value={search} onChange={setSearch} />
         {podeIncluir && (
           <Button onClick={() => { setEditingItem(null); setIsModalOpen(true); }}>
             <Plus className="w-4 h-4 mr-1" />
