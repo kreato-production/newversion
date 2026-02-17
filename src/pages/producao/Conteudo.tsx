@@ -8,6 +8,7 @@ import { ConteudoFormModal } from '@/components/producao/ConteudoFormModal';
 import { SortableTable, Column } from '@/components/shared/SortableTable';
 import { usePermissions } from '@/hooks/usePermissions';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 import type { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
 import { useLanguage } from '@/contexts/LanguageContext';
 
@@ -80,6 +81,7 @@ const mapDbToConteudo = (
 const Conteudo = () => {
   const { toast } = useToast();
   const { t } = useLanguage();
+  const { user } = useAuth();
   const { canIncluir, canAlterar, canExcluir } = usePermissions();
   
   const podeIncluir = canIncluir('Produção', 'Conteúdo');
@@ -95,7 +97,7 @@ const Conteudo = () => {
   const fetchConteudos = async () => {
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('conteudos')
         .select(`
           *,
@@ -106,6 +108,13 @@ const Conteudo = () => {
           tabelas_preco:tabela_preco_id(nome)
         `)
         .order('descricao');
+
+      // Filter by user's allowed unidades de negócio
+      if (user?.unidadeIds && user.unidadeIds.length > 0) {
+        query = query.in('unidade_negocio_id', user.unidadeIds);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
       setItems((data || []).map(mapDbToConteudo));

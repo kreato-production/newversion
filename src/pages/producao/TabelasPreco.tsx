@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { usePermissions } from '@/hooks/usePermissions';
 import { TabelaPrecoFormModal } from '@/components/producao/TabelaPrecoFormModal';
+import { useAuth } from '@/contexts/AuthContext';
 
 export interface TabelaPrecoItem {
   id: string;
@@ -27,6 +28,7 @@ export interface TabelaPrecoItem {
 
 const TabelasPreco = () => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const { canAlterar } = usePermissions();
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -37,10 +39,17 @@ const TabelasPreco = () => {
   const fetchItems = async () => {
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('tabelas_preco' as any)
         .select('*, unidades_negocio:unidade_negocio_id(id, nome, moeda)')
         .order('nome');
+
+      // Filter by user's allowed unidades de negócio
+      if (user?.unidadeIds && user.unidadeIds.length > 0) {
+        query = query.in('unidade_negocio_id', user.unidadeIds);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
       setItems((data || []).map((db: any) => ({
