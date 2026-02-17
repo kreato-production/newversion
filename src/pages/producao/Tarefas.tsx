@@ -176,11 +176,17 @@ const Tarefas = () => {
       }));
       setStatusList(mappedStatus);
 
-      // Load gravacoes
-      const { data: gravacoesData, error: gravacoesError } = await supabase
+      // Load gravacoes (filtered by unidade de negócio)
+      let gravacoesQuery = supabase
         .from('gravacoes')
-        .select('id, nome')
+        .select('id, nome, unidade_negocio_id')
         .order('nome');
+
+      if (user?.unidadeIds && user.unidadeIds.length > 0) {
+        gravacoesQuery = gravacoesQuery.in('unidade_negocio_id', user.unidadeIds);
+      }
+
+      const { data: gravacoesData, error: gravacoesError } = await gravacoesQuery;
 
       if (gravacoesError) throw gravacoesError;
       setGravacoes(gravacoesData || []);
@@ -192,7 +198,7 @@ const Tarefas = () => {
           *,
           hora_inicio,
           hora_fim,
-          gravacoes:gravacao_id(nome),
+          gravacoes:gravacao_id(nome, unidade_negocio_id),
           recursos_humanos:recurso_humano_id(nome, sobrenome),
           recursos_tecnicos:recurso_tecnico_id(nome),
           status_tarefa:status_id(nome, cor)
@@ -204,6 +210,16 @@ const Tarefas = () => {
         query = query.in('recurso_humano_id', allowedRHIds);
       } else if (allowedRHIds !== null && allowedRHIds.length === 0) {
         // No allowed IDs - return empty
+        setTarefas([]);
+        setIsLoading(false);
+        return;
+      }
+
+      // Filter by allowed gravação IDs (based on unidade de negócio)
+      const allowedGravacaoIds = (gravacoesData || []).map((g: any) => g.id);
+      if (user?.unidadeIds && user.unidadeIds.length > 0 && allowedGravacaoIds.length > 0) {
+        query = query.in('gravacao_id', allowedGravacaoIds);
+      } else if (user?.unidadeIds && user.unidadeIds.length > 0 && allowedGravacaoIds.length === 0) {
         setTarefas([]);
         setIsLoading(false);
         return;
