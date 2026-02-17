@@ -9,13 +9,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/contexts/AuthContext';
@@ -24,6 +17,7 @@ import { Camera } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { PessoaGravacoesTab } from './PessoaGravacoesTab';
 import { useFormFieldConfig, FieldAsterisk } from '@/hooks/useFormFieldConfig';
+import { SearchableSelect } from '@/components/shared/SearchableSelect';
 
 interface PessoaFormModalProps {
   isOpen: boolean;
@@ -79,7 +73,6 @@ export const PessoaFormModal = ({
 
   useEffect(() => {
     if (isOpen) {
-      // Load classificações first, then set form data to ensure Select displays correctly
       const fetchClassificacoes = async () => {
         const { data: cats } = await supabase
           .from('classificacoes_pessoa')
@@ -202,24 +195,16 @@ export const PessoaFormModal = ({
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="classificacao">Classificação <FieldAsterisk type={getAsterisk('classificacao')} /></Label>
-                  <Select
+                  <SearchableSelect
+                    options={classificacoes.map(c => ({ value: c.id, label: c.nome }))}
                     value={formData.classificacaoId || ''}
                     onValueChange={(value) => {
                       const selected = classificacoes.find(c => c.id === value);
                       setFormData({ ...formData, classificacaoId: value, classificacao: selected?.nome || '' });
                     }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione a classificação" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {classificacoes.map((c) => (
-                        <SelectItem key={c.id} value={c.id}>
-                          {c.nome}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    placeholder="Selecione a classificação"
+                    searchPlaceholder="Pesquisar classificação..."
+                  />
                 </div>
               </div>
 
@@ -266,19 +251,17 @@ export const PessoaFormModal = ({
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="sexo">Sexo <FieldAsterisk type={getAsterisk('sexo')} /></Label>
-                  <Select
+                  <SearchableSelect
+                    options={[
+                      { value: 'Masculino', label: 'Masculino' },
+                      { value: 'Feminino', label: 'Feminino' },
+                      { value: 'Outro', label: 'Outro' },
+                    ]}
                     value={formData.sexo}
                     onValueChange={(value) => setFormData({ ...formData, sexo: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Masculino">Masculino</SelectItem>
-                      <SelectItem value="Feminino">Feminino</SelectItem>
-                      <SelectItem value="Outro">Outro</SelectItem>
-                    </SelectContent>
-                  </Select>
+                    placeholder="Selecione"
+                    searchPlaceholder="Pesquisar..."
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="documento">CPF/Documento <FieldAsterisk type={getAsterisk('documento')} /></Label>
@@ -332,21 +315,13 @@ export const PessoaFormModal = ({
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="estado">Estado <FieldAsterisk type={getAsterisk('estado')} /></Label>
-                  <Select
+                  <SearchableSelect
+                    options={estadosBrasileiros.map(uf => ({ value: uf, label: uf }))}
                     value={formData.estado}
                     onValueChange={(value) => setFormData({ ...formData, estado: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {estadosBrasileiros.map((uf) => (
-                        <SelectItem key={uf} value={uf}>
-                          {uf}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    placeholder="Selecione"
+                    searchPlaceholder="Pesquisar estado..."
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="cep">CEP <FieldAsterisk type={getAsterisk('cep')} /></Label>
@@ -361,18 +336,15 @@ export const PessoaFormModal = ({
               {/* Status */}
               <div className="space-y-2">
                 <Label htmlFor="status">Status <FieldAsterisk type={getAsterisk('status')} /></Label>
-                <Select
+                <SearchableSelect
+                  options={[
+                    { value: 'Ativo', label: 'Ativo' },
+                    { value: 'Inativo', label: 'Inativo' },
+                  ]}
                   value={formData.status}
                   onValueChange={(value) => setFormData({ ...formData, status: value as 'Ativo' | 'Inativo' })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Ativo">Ativo</SelectItem>
-                    <SelectItem value="Inativo">Inativo</SelectItem>
-                  </SelectContent>
-                </Select>
+                  placeholder="Selecione"
+                />
               </div>
 
               {/* Observations */}

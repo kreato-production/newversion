@@ -3,12 +3,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Trash2, Star, Upload } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Figurino, FigurinoImagem } from '@/pages/recursos/Figurinos';
 import { supabase } from '@/integrations/supabase/client';
 import { useFormFieldConfig, FieldAsterisk } from '@/hooks/useFormFieldConfig';
+import { SearchableSelect } from '@/components/shared/SearchableSelect';
 
 interface TipoFigurino {
   id: string;
@@ -50,40 +50,27 @@ const FigurinoFormModal = ({ isOpen, onClose, onSave, data, readOnly = false }: 
 
   const fetchDropdownData = useCallback(async () => {
     if (!session) return;
-
     try {
-      // Fetch tipos de figurino from Supabase
       const { data: tiposData } = await supabase
         .from('tipos_figurino')
         .select('id, nome, status')
         .eq('status', 'Ativo')
         .order('nome');
+      setTiposFigurino((tiposData || []).map((t: any) => ({ id: t.id, nome: t.nome })));
 
-      setTiposFigurino((tiposData || []).map((t: any) => ({
-        id: t.id,
-        nome: t.nome,
-      })));
-
-      // Fetch materiais from Supabase
       const { data: materiaisData } = await supabase
         .from('materiais')
         .select('id, nome, status')
         .eq('status', 'Ativo')
         .order('nome');
-
-      setMateriais((materiaisData || []).map((m: any) => ({
-        id: m.id,
-        nome: m.nome,
-      })));
+      setMateriais((materiaisData || []).map((m: any) => ({ id: m.id, nome: m.nome })));
     } catch (err) {
       console.error('Error fetching dropdown data:', err);
     }
   }, [session]);
 
   useEffect(() => {
-    if (isOpen) {
-      fetchDropdownData();
-    }
+    if (isOpen) fetchDropdownData();
   }, [isOpen, fetchDropdownData]);
 
   useEffect(() => {
@@ -112,7 +99,6 @@ const FigurinoFormModal = ({ isOpen, onClose, onSave, data, readOnly = false }: 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
-
     Array.from(files).forEach(file => {
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -128,10 +114,7 @@ const FigurinoFormModal = ({ isOpen, onClose, onSave, data, readOnly = false }: 
   };
 
   const handleSetPrincipal = (id: string) => {
-    setImagens(prev => prev.map(img => ({
-      ...img,
-      isPrincipal: img.id === id
-    })));
+    setImagens(prev => prev.map(img => ({ ...img, isPrincipal: img.id === id })));
   };
 
   const handleRemoveImagem = (id: string) => {
@@ -146,7 +129,6 @@ const FigurinoFormModal = ({ isOpen, onClose, onSave, data, readOnly = false }: 
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
     const figurino: Figurino = {
       id: data?.id || crypto.randomUUID(),
       codigoExterno: formData.codigoExterno,
@@ -161,7 +143,6 @@ const FigurinoFormModal = ({ isOpen, onClose, onSave, data, readOnly = false }: 
       dataCadastro: data?.dataCadastro || new Date().toISOString(),
       usuarioCadastro: data?.usuarioCadastro || user?.nome || 'Sistema',
     };
-
     onSave(figurino);
   };
 
@@ -176,84 +157,43 @@ const FigurinoFormModal = ({ isOpen, onClose, onSave, data, readOnly = false }: 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="codigoExterno">Código Externo <FieldAsterisk type={getAsterisk('codigoExterno')} /></Label>
-              <Input
-                id="codigoExterno"
-                value={formData.codigoExterno}
-                onChange={(e) => handleChange('codigoExterno', e.target.value)}
-                placeholder="Código externo"
-              />
+              <Input id="codigoExterno" value={formData.codigoExterno} onChange={(e) => handleChange('codigoExterno', e.target.value)} placeholder="Código externo" />
             </div>
-
             <div className="space-y-2">
               <Label htmlFor="codigoFigurino">Código do Figurino <FieldAsterisk type={getAsterisk('codigoFigurino')} /></Label>
-              <Input
-                id="codigoFigurino"
-                value={formData.codigoFigurino}
-                onChange={(e) => handleChange('codigoFigurino', e.target.value)}
-                placeholder="FIG-001"
-                required
-              />
+              <Input id="codigoFigurino" value={formData.codigoFigurino} onChange={(e) => handleChange('codigoFigurino', e.target.value)} placeholder="FIG-001" required />
             </div>
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="descricao">Descrição <FieldAsterisk type={getAsterisk('descricao')} /></Label>
-            <Input
-              id="descricao"
-              value={formData.descricao}
-              onChange={(e) => handleChange('descricao', e.target.value)}
-              placeholder="Descrição do figurino"
-              required
-            />
+            <Input id="descricao" value={formData.descricao} onChange={(e) => handleChange('descricao', e.target.value)} placeholder="Descrição do figurino" required />
           </div>
 
           <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="tipoFigurino">Tipo de Figurino <FieldAsterisk type={getAsterisk('tipoFigurino')} /></Label>
-              <Select
+              <SearchableSelect
+                options={tiposFigurino.map(t => ({ value: t.nome, label: t.nome }))}
                 value={formData.tipoFigurino}
                 onValueChange={(value) => handleChange('tipoFigurino', value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione o tipo" />
-                </SelectTrigger>
-                <SelectContent>
-                  {tiposFigurino.map((tipo) => (
-                    <SelectItem key={tipo.id} value={tipo.nome}>
-                      {tipo.nome}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                placeholder="Selecione o tipo"
+                searchPlaceholder="Pesquisar tipo..."
+              />
             </div>
-
             <div className="space-y-2">
               <Label htmlFor="material">Material <FieldAsterisk type={getAsterisk('material')} /></Label>
-              <Select
+              <SearchableSelect
+                options={materiais.map(m => ({ value: m.nome, label: m.nome }))}
                 value={formData.material}
                 onValueChange={(value) => handleChange('material', value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione o material" />
-                </SelectTrigger>
-                <SelectContent>
-                  {materiais.map((mat) => (
-                    <SelectItem key={mat.id} value={mat.nome}>
-                      {mat.nome}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                placeholder="Selecione o material"
+                searchPlaceholder="Pesquisar material..."
+              />
             </div>
-
             <div className="space-y-2">
               <Label htmlFor="tamanhoPeca">Tamanho da Peça <FieldAsterisk type={getAsterisk('tamanhoPeca')} /></Label>
-              <Input
-                id="tamanhoPeca"
-                value={formData.tamanhoPeca}
-                onChange={(e) => handleChange('tamanhoPeca', e.target.value)}
-                placeholder="P, M, G, GG, 38, 40..."
-              />
+              <Input id="tamanhoPeca" value={formData.tamanhoPeca} onChange={(e) => handleChange('tamanhoPeca', e.target.value)} placeholder="P, M, G, GG, 38, 40..." />
             </div>
           </div>
 
@@ -261,38 +201,15 @@ const FigurinoFormModal = ({ isOpen, onClose, onSave, data, readOnly = false }: 
             <div className="space-y-2">
               <Label htmlFor="corPredominante">Cor Predominante <FieldAsterisk type={getAsterisk('corPredominante')} /></Label>
               <div className="flex gap-2">
-                <Input
-                  type="color"
-                  id="corPredominante"
-                  value={formData.corPredominante}
-                  onChange={(e) => handleChange('corPredominante', e.target.value)}
-                  className="w-14 h-10 p-1 cursor-pointer"
-                />
-                <Input
-                  value={formData.corPredominante}
-                  onChange={(e) => handleChange('corPredominante', e.target.value)}
-                  placeholder="#000000"
-                  className="flex-1"
-                />
+                <Input type="color" id="corPredominante" value={formData.corPredominante} onChange={(e) => handleChange('corPredominante', e.target.value)} className="w-14 h-10 p-1 cursor-pointer" />
+                <Input value={formData.corPredominante} onChange={(e) => handleChange('corPredominante', e.target.value)} placeholder="#000000" className="flex-1" />
               </div>
             </div>
-
             <div className="space-y-2">
               <Label htmlFor="corSecundaria">Cor Secundária <FieldAsterisk type={getAsterisk('corSecundaria')} /></Label>
               <div className="flex gap-2">
-                <Input
-                  type="color"
-                  id="corSecundaria"
-                  value={formData.corSecundaria}
-                  onChange={(e) => handleChange('corSecundaria', e.target.value)}
-                  className="w-14 h-10 p-1 cursor-pointer"
-                />
-                <Input
-                  value={formData.corSecundaria}
-                  onChange={(e) => handleChange('corSecundaria', e.target.value)}
-                  placeholder="#ffffff"
-                  className="flex-1"
-                />
+                <Input type="color" id="corSecundaria" value={formData.corSecundaria} onChange={(e) => handleChange('corSecundaria', e.target.value)} className="w-14 h-10 p-1 cursor-pointer" />
+                <Input value={formData.corSecundaria} onChange={(e) => handleChange('corSecundaria', e.target.value)} placeholder="#ffffff" className="flex-1" />
               </div>
             </div>
           </div>
@@ -302,61 +219,27 @@ const FigurinoFormModal = ({ isOpen, onClose, onSave, data, readOnly = false }: 
             <Label>Imagens</Label>
             <div className="border rounded-lg p-4 space-y-4">
               <div className="flex items-center gap-2">
-                <Input
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  onChange={handleImageUpload}
-                  className="hidden"
-                  id="image-upload"
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => document.getElementById('image-upload')?.click()}
-                >
+                <Input type="file" accept="image/*" multiple onChange={handleImageUpload} className="hidden" id="image-upload" />
+                <Button type="button" variant="outline" onClick={() => document.getElementById('image-upload')?.click()}>
                   <Upload className="h-4 w-4 mr-2" />
                   Adicionar Imagens
                 </Button>
               </div>
-
               {imagens.length > 0 && (
                 <div className="grid grid-cols-4 gap-3">
                   {imagens.map((img) => (
                     <div key={img.id} className="relative group">
-                      <img
-                        src={img.url}
-                        alt="Figurino"
-                        className={`w-full h-24 object-cover rounded-lg border-2 ${
-                          img.isPrincipal ? 'border-primary' : 'border-transparent'
-                        }`}
-                      />
+                      <img src={img.url} alt="Figurino" className={`w-full h-24 object-cover rounded-lg border-2 ${img.isPrincipal ? 'border-primary' : 'border-transparent'}`} />
                       <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center gap-1">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-white hover:text-yellow-400"
-                          onClick={() => handleSetPrincipal(img.id)}
-                          title="Definir como principal"
-                        >
+                        <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-white hover:text-yellow-400" onClick={() => handleSetPrincipal(img.id)} title="Definir como principal">
                           <Star className={`h-4 w-4 ${img.isPrincipal ? 'fill-yellow-400 text-yellow-400' : ''}`} />
                         </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-white hover:text-red-400"
-                          onClick={() => handleRemoveImagem(img.id)}
-                          title="Remover imagem"
-                        >
+                        <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-white hover:text-red-400" onClick={() => handleRemoveImagem(img.id)} title="Remover imagem">
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
                       {img.isPrincipal && (
-                        <div className="absolute top-1 right-1 bg-primary text-primary-foreground text-xs px-1.5 py-0.5 rounded">
-                          Principal
-                        </div>
+                        <div className="absolute top-1 right-1 bg-primary text-primary-foreground text-xs px-1.5 py-0.5 rounded">Principal</div>
                       )}
                     </div>
                   ))}
@@ -367,25 +250,14 @@ const FigurinoFormModal = ({ isOpen, onClose, onSave, data, readOnly = false }: 
 
           {data && (
             <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground bg-muted p-3 rounded-lg">
-              <div>
-                <span className="font-medium">Data de Cadastro:</span>{' '}
-                {new Date(data.dataCadastro).toLocaleDateString('pt-BR')}
-              </div>
-              <div>
-                <span className="font-medium">Usuário:</span> {data.usuarioCadastro}
-              </div>
+              <div><span className="font-medium">Data de Cadastro:</span> {new Date(data.dataCadastro).toLocaleDateString('pt-BR')}</div>
+              <div><span className="font-medium">Usuário:</span> {data.usuarioCadastro}</div>
             </div>
           )}
 
           <div className="flex justify-end gap-2 pt-4">
-            <Button type="button" variant="outline" onClick={onClose}>
-              {readOnly ? 'Fechar' : 'Cancelar'}
-            </Button>
-            {!readOnly && (
-              <Button type="submit">
-                {data ? 'Salvar' : 'Criar'}
-              </Button>
-            )}
+            <Button type="button" variant="outline" onClick={onClose}>{readOnly ? 'Fechar' : 'Cancelar'}</Button>
+            {!readOnly && <Button type="submit">{data ? 'Salvar' : 'Criar'}</Button>}
           </div>
         </form>
       </DialogContent>
