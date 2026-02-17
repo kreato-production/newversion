@@ -10,13 +10,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { SearchableSelect } from '@/components/shared/SearchableSelect';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Table,
@@ -597,18 +591,16 @@ export const RecursoHumanoFormModal = ({
                     </div>
                     <div className="space-y-2">
                       <Label>Sexo <FieldAsterisk type={getAsterisk('sexo')} /></Label>
-                      <Select
+                      <SearchableSelect
+                        options={[
+                          { value: 'Masculino', label: 'Masculino' },
+                          { value: 'Feminino', label: 'Feminino' },
+                        ]}
                         value={formData.sexo}
                         onValueChange={(value) => setFormData({ ...formData, sexo: value })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Masculino">Masculino</SelectItem>
-                          <SelectItem value="Feminino">Feminino</SelectItem>
-                        </SelectContent>
-                      </Select>
+                        placeholder="Selecione..."
+                        searchPlaceholder="Pesquisar..."
+                      />
                     </div>
                   </div>
                 </div>
@@ -649,7 +641,8 @@ export const RecursoHumanoFormModal = ({
               <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label>Departamento <FieldAsterisk type={getAsterisk('departamento')} /></Label>
-                  <Select
+                  <SearchableSelect
+                    options={departamentos.map(d => ({ value: d.id, label: d.nome }))}
                     value={formData.departamentoId}
                     onValueChange={(value) => {
                       const depSelecionado = departamentos.find((d) => d.id === value);
@@ -657,24 +650,18 @@ export const RecursoHumanoFormModal = ({
                         ...formData, 
                         departamentoId: value,
                         departamento: depSelecionado?.nome || '',
-                        funcao: '', // Reset function when department changes
-                        funcaoId: '', // Reset function ID when department changes
+                        funcao: '',
+                        funcaoId: '',
                       });
                     }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {departamentos.map((d) => (
-                        <SelectItem key={d.id} value={d.id}>{d.nome}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    placeholder="Selecione..."
+                    searchPlaceholder="Pesquisar departamento..."
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>Função <FieldAsterisk type={getAsterisk('funcao')} /></Label>
-                  <Select
+                  <SearchableSelect
+                    options={funcoesDisponiveis.map(f => ({ value: f.id, label: f.nome }))}
                     value={formData.funcaoId}
                     onValueChange={(value) => {
                       const funcaoSelecionada = funcoesDisponiveis.find(f => f.id === value);
@@ -685,39 +672,29 @@ export const RecursoHumanoFormModal = ({
                       });
                     }}
                     disabled={!formData.departamentoId || isLoadingFuncoes}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder={
-                        !formData.departamentoId 
-                          ? "Selecione um departamento primeiro" 
-                          : isLoadingFuncoes 
-                            ? "Carregando..." 
-                            : funcoesDisponiveis.length === 0 
-                              ? "Nenhuma função cadastrada" 
-                              : "Selecione..."
-                      } />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {funcoesDisponiveis.map((f) => (
-                        <SelectItem key={f.id} value={f.id}>{f.nome}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    placeholder={
+                      !formData.departamentoId 
+                        ? "Selecione um departamento primeiro" 
+                        : isLoadingFuncoes 
+                          ? "Carregando..." 
+                          : funcoesDisponiveis.length === 0 
+                            ? "Nenhuma função cadastrada" 
+                            : "Selecione..."
+                    }
+                    searchPlaceholder="Pesquisar função..."
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>Status <FieldAsterisk type={getAsterisk('status')} /></Label>
-                  <Select
+                  <SearchableSelect
+                    options={[
+                      { value: 'Ativo', label: 'Ativo' },
+                      { value: 'Inativo', label: 'Inativo' },
+                    ]}
                     value={formData.status}
                     onValueChange={(value) => setFormData({ ...formData, status: value as 'Ativo' | 'Inativo' })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Ativo">Ativo</SelectItem>
-                      <SelectItem value="Inativo">Inativo</SelectItem>
-                    </SelectContent>
-                  </Select>
+                    placeholder="Selecione..."
+                  />
                 </div>
               </div>
 
@@ -797,21 +774,13 @@ export const RecursoHumanoFormModal = ({
               <div className="grid grid-cols-4 gap-3">
                 <div className="space-y-1.5">
                   <Label className="text-xs">Motivo <span className="text-destructive">*</span></Label>
-                  <Select
+                  <SearchableSelect
+                    options={MOTIVOS_AUSENCIA.map(m => ({ value: m, label: m }))}
                     value={novaAusencia.motivo}
                     onValueChange={(value) => setNovaAusencia({ ...novaAusencia, motivo: value as Ausencia['motivo'] })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {MOTIVOS_AUSENCIA.map((motivo) => (
-                        <SelectItem key={motivo} value={motivo}>
-                          {motivo}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    placeholder="Selecione..."
+                    searchPlaceholder="Pesquisar motivo..."
+                  />
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs">Data Início <span className="text-destructive">*</span></Label>

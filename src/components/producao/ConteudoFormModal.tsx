@@ -14,13 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { SearchableSelect } from '@/components/shared/SearchableSelect';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -651,92 +645,60 @@ export const ConteudoFormModal = ({
               <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label>{t('recordings.businessUnit')} <FieldAsterisk type={getAsterisk('unidadeNegocio')} /></Label>
-                  <Select
+                  <SearchableSelect
+                    options={unidades.map(u => ({ value: u.nome, label: u.nome }))}
                     value={formData.unidadeNegocio}
                     onValueChange={(value) => {
                       setFormData({ ...formData, unidadeNegocio: value, centroLucro: '', tabelaPrecoId: '' });
                     }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder={t('common.select')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {unidades.map((u) => (
-                        <SelectItem key={u.id} value={u.nome}>{u.nome}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    placeholder={t('common.select')}
+                    searchPlaceholder="Pesquisar unidade..."
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>{t('recordings.profitCenter')} <FieldAsterisk type={getAsterisk('centroLucro')} /></Label>
-                  <Select
+                  <SearchableSelect
+                    options={centrosLucroHierarquicos.map(cl => ({ value: cl.nome, label: cl.nome, displayLabel: cl.displayName }))}
                     value={formData.centroLucro}
                     onValueChange={(value) => setFormData({ ...formData, centroLucro: value })}
                     disabled={!formData.unidadeNegocio}
-                  >
-                    <SelectTrigger className={!formData.unidadeNegocio ? 'opacity-50 cursor-not-allowed' : ''}>
-                      <SelectValue placeholder={!formData.unidadeNegocio ? t('field.selectUnitFirst') : t('common.select')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {centrosLucroHierarquicos.map((cl) => (
-                        <SelectItem key={cl.id} value={cl.nome}>
-                          <span className="font-mono whitespace-pre">{cl.displayName}</span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    placeholder={!formData.unidadeNegocio ? t('field.selectUnitFirst') : t('common.select')}
+                    searchPlaceholder="Pesquisar centro de lucro..."
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>Tabela de Preço <FieldAsterisk type={getAsterisk('tabelaPrecoId')} /></Label>
-                  <Select
+                  <SearchableSelect
+                    options={filteredTabelasPreco.map(tp => ({ value: tp.id, label: tp.nome }))}
                     value={formData.tabelaPrecoId}
                     onValueChange={(value) => setFormData({ ...formData, tabelaPrecoId: value })}
                     disabled={!formData.unidadeNegocio}
-                  >
-                    <SelectTrigger className={!formData.unidadeNegocio ? 'opacity-50 cursor-not-allowed' : ''}>
-                      <SelectValue placeholder={!formData.unidadeNegocio ? 'Selecione uma Unidade de Negócio primeiro' : t('common.select')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {filteredTabelasPreco.map((tp) => (
-                        <SelectItem key={tp.id} value={tp.id}>{tp.nome}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    placeholder={!formData.unidadeNegocio ? 'Selecione uma Unidade de Negócio primeiro' : t('common.select')}
+                    searchPlaceholder="Pesquisar tabela de preço..."
+                  />
                 </div>
               </div>
 
               <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label>{t('content.contentType')} <FieldAsterisk type={getAsterisk('tipoConteudo')} /></Label>
-                  <Select
+                  <SearchableSelect
+                    options={tipos.map(t => ({ value: t.nome, label: t.nome }))}
                     value={formData.tipoConteudo}
                     onValueChange={(value) => setFormData({ ...formData, tipoConteudo: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder={t('common.select')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {tipos.map((t) => (
-                        <SelectItem key={t.id} value={t.nome}>{t.nome}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    placeholder={t('common.select')}
+                    searchPlaceholder="Pesquisar tipo..."
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>{t('content.classification')} <FieldAsterisk type={getAsterisk('classificacao')} /></Label>
-                  <Select
+                  <SearchableSelect
+                    options={classificacoes.map(c => ({ value: c.nome, label: c.nome }))}
                     value={formData.classificacao}
                     onValueChange={(value) => setFormData({ ...formData, classificacao: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder={t('common.select')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {classificacoes.map((c) => (
-                        <SelectItem key={c.id} value={c.nome}>{c.nome}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    placeholder={t('common.select')}
+                    searchPlaceholder="Pesquisar classificação..."
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="anoProducao">{t('content.productionYear')} <FieldAsterisk type={getAsterisk('anoProducao')} /></Label>

@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SearchableSelect } from '@/components/shared/SearchableSelect';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2, Upload, Trash2, Download } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -284,25 +284,25 @@ export const IncidenciaGravacaoFormModal = ({ isOpen, onClose, onSave, data, rea
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>{t('incident.recording')} <FieldAsterisk type={getAsterisk('gravacaoId')} /></Label>
-                <Select value={form.gravacao_id} onValueChange={(v) => setForm({ ...form, gravacao_id: v })} disabled={readOnly || !!defaultGravacaoId}>
-                  <SelectTrigger><SelectValue placeholder={t('common.select')} /></SelectTrigger>
-                  <SelectContent>
-                    {gravacoes.map((g: any) => (
-                      <SelectItem key={g.id} value={g.id}>{g.codigo} - {g.nome}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <SearchableSelect
+                  options={gravacoes.map((g: any) => ({ value: g.id, label: `${g.codigo} - ${g.nome}` }))}
+                  value={form.gravacao_id}
+                  onValueChange={(v) => setForm({ ...form, gravacao_id: v })}
+                  disabled={readOnly || !!defaultGravacaoId}
+                  placeholder={t('common.select')}
+                  searchPlaceholder="Pesquisar gravação..."
+                />
               </div>
               <div className="space-y-2">
                 <Label>{t('incident.physicalResource')} <FieldAsterisk type={getAsterisk('recursoFisicoId')} /></Label>
-                <Select value={form.recurso_fisico_id} onValueChange={(v) => setForm({ ...form, recurso_fisico_id: v })} disabled={readOnly}>
-                  <SelectTrigger><SelectValue placeholder={t('common.select')} /></SelectTrigger>
-                  <SelectContent>
-                    {recursosFisicos.map((r: any) => (
-                      <SelectItem key={r.id} value={r.id}>{r.nome}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <SearchableSelect
+                  options={recursosFisicos.map((r: any) => ({ value: r.id, label: r.nome }))}
+                  value={form.recurso_fisico_id}
+                  onValueChange={(v) => setForm({ ...form, recurso_fisico_id: v })}
+                  disabled={readOnly}
+                  placeholder={t('common.select')}
+                  searchPlaceholder="Pesquisar recurso físico..."
+                />
               </div>
             </div>
 
@@ -310,25 +310,25 @@ export const IncidenciaGravacaoFormModal = ({ isOpen, onClose, onSave, data, rea
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>{t('incident.severity')} <FieldAsterisk type={getAsterisk('severidadeId')} /></Label>
-                <Select value={form.severidade_id} onValueChange={(v) => setForm({ ...form, severidade_id: v })} disabled={readOnly}>
-                  <SelectTrigger><SelectValue placeholder={t('common.select')} /></SelectTrigger>
-                  <SelectContent>
-                    {severidades.map((s: any) => (
-                      <SelectItem key={s.id} value={s.id}>{s.titulo}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <SearchableSelect
+                  options={severidades.map((s: any) => ({ value: s.id, label: s.titulo }))}
+                  value={form.severidade_id}
+                  onValueChange={(v) => setForm({ ...form, severidade_id: v })}
+                  disabled={readOnly}
+                  placeholder={t('common.select')}
+                  searchPlaceholder="Pesquisar severidade..."
+                />
               </div>
               <div className="space-y-2">
                 <Label>{t('incident.impact')} <FieldAsterisk type={getAsterisk('impactoId')} /></Label>
-                <Select value={form.impacto_id} onValueChange={(v) => setForm({ ...form, impacto_id: v })} disabled={readOnly}>
-                  <SelectTrigger><SelectValue placeholder={t('common.select')} /></SelectTrigger>
-                  <SelectContent>
-                    {impactos.map((i: any) => (
-                      <SelectItem key={i.id} value={i.id}>{i.titulo}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <SearchableSelect
+                  options={impactos.map((i: any) => ({ value: i.id, label: i.titulo }))}
+                  value={form.impacto_id}
+                  onValueChange={(v) => setForm({ ...form, impacto_id: v })}
+                  disabled={readOnly}
+                  placeholder={t('common.select')}
+                  searchPlaceholder="Pesquisar impacto..."
+                />
               </div>
             </div>
 
@@ -336,25 +336,25 @@ export const IncidenciaGravacaoFormModal = ({ isOpen, onClose, onSave, data, rea
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>{t('incident.category')} <FieldAsterisk type={getAsterisk('categoriaId')} /></Label>
-                <Select value={form.categoria_id} onValueChange={handleCategoriaChange} disabled={readOnly}>
-                  <SelectTrigger><SelectValue placeholder={t('common.select')} /></SelectTrigger>
-                  <SelectContent>
-                    {categorias.map((c: any) => (
-                      <SelectItem key={c.id} value={c.id}>{c.titulo}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <SearchableSelect
+                  options={categorias.map((c: any) => ({ value: c.id, label: c.titulo }))}
+                  value={form.categoria_id}
+                  onValueChange={handleCategoriaChange}
+                  disabled={readOnly}
+                  placeholder={t('common.select')}
+                  searchPlaceholder="Pesquisar categoria..."
+                />
               </div>
               <div className="space-y-2">
                 <Label>{t('incident.classification')} <FieldAsterisk type={getAsterisk('classificacaoId')} /></Label>
-                <Select value={form.classificacao_id} onValueChange={(v) => setForm({ ...form, classificacao_id: v })} disabled={readOnly || !form.categoria_id}>
-                  <SelectTrigger><SelectValue placeholder={form.categoria_id ? t('common.select') : t('incident.selectCategoryFirst')} /></SelectTrigger>
-                  <SelectContent>
-                    {classificacoes.map((c: any) => (
-                      <SelectItem key={c.id} value={c.id}>{c.titulo}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <SearchableSelect
+                  options={classificacoes.map((c: any) => ({ value: c.id, label: c.titulo }))}
+                  value={form.classificacao_id}
+                  onValueChange={(v) => setForm({ ...form, classificacao_id: v })}
+                  disabled={readOnly || !form.categoria_id}
+                  placeholder={form.categoria_id ? t('common.select') : t('incident.selectCategoryFirst')}
+                  searchPlaceholder="Pesquisar classificação..."
+                />
               </div>
             </div>
 

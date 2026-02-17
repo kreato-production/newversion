@@ -7,13 +7,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -21,6 +14,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import type { RecursoTecnico } from '@/pages/recursos/RecursosTecnicos';
 import { useFormFieldConfig, FieldAsterisk } from '@/hooks/useFormFieldConfig';
+import { SearchableSelect } from '@/components/shared/SearchableSelect';
 
 interface Funcao {
   id: string;
@@ -54,19 +48,15 @@ export const RecursoTecnicoFormModal = ({
 
   const fetchFuncoes = useCallback(async () => {
     if (!session) return;
-
     const { data: funcoesData } = await supabase
       .from('funcoes')
       .select('id, nome')
       .order('nome');
-
     setFuncoes(funcoesData || []);
   }, [session]);
 
   useEffect(() => {
-    if (isOpen) {
-      fetchFuncoes();
-    }
+    if (isOpen) fetchFuncoes();
   }, [isOpen, fetchFuncoes]);
 
   useEffect(() => {
@@ -127,7 +117,8 @@ export const RecursoTecnicoFormModal = ({
           </div>
           <div className="space-y-2">
             <Label htmlFor="funcaoOperador">Função do Operador <FieldAsterisk type={getAsterisk('funcaoOperador')} /></Label>
-            <Select
+            <SearchableSelect
+              options={funcoes.map(f => ({ value: f.id, label: f.nome }))}
               value={formData.funcaoOperadorId}
               onValueChange={(value) => {
                 const funcaoSelecionada = funcoes.find(f => f.id === value);
@@ -137,18 +128,9 @@ export const RecursoTecnicoFormModal = ({
                   funcaoOperador: funcaoSelecionada?.nome || ''
                 });
               }}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione a função..." />
-              </SelectTrigger>
-              <SelectContent>
-                {funcoes.map((funcao) => (
-                  <SelectItem key={funcao.id} value={funcao.id}>
-                    {funcao.nome}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              placeholder="Selecione a função..."
+              searchPlaceholder="Pesquisar função..."
+            />
             <p className="text-xs text-muted-foreground">
               Define qual função pode operar este recurso
             </p>
