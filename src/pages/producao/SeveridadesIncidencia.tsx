@@ -16,6 +16,7 @@ export interface SeveridadeIncidencia {
   codigo_externo: string | null;
   titulo: string;
   descricao: string | null;
+  cor: string | null;
   created_by: string | null;
   created_at: string | null;
   updated_at: string | null;
@@ -71,6 +72,7 @@ const SeveridadesIncidencia = () => {
         titulo: data.titulo,
         descricao: data.descricao || null,
         codigo_externo: data.codigo_externo || null,
+        cor: data.cor || '#888888',
         created_by: user?.id || null,
       };
       if (editingItem) {
@@ -105,7 +107,12 @@ const SeveridadesIncidencia = () => {
     {
       key: 'titulo',
       label: t('incidentSeverity.title'),
-      render: (item) => <span className="font-medium">{item.titulo}</span>,
+      render: (item) => (
+        <div className="flex items-center gap-2">
+          <span className="inline-block w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: item.cor || '#888888' }} />
+          <span className="font-medium">{item.titulo}</span>
+        </div>
+      ),
     },
     {
       key: 'descricao',

@@ -2116,6 +2116,7 @@ export type Database = {
       severidades_incidencia: {
         Row: {
           codigo_externo: string | null
+          cor: string | null
           created_at: string | null
           created_by: string | null
           descricao: string | null
@@ -2125,6 +2126,7 @@ export type Database = {
         }
         Insert: {
           codigo_externo?: string | null
+          cor?: string | null
           created_at?: string | null
           created_by?: string | null
           descricao?: string | null
@@ -2134,6 +2136,7 @@ export type Database = {
         }
         Update: {
           codigo_externo?: string | null
+          cor?: string | null
           created_at?: string | null
           created_by?: string | null
           descricao?: string | null
