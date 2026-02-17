@@ -20,6 +20,7 @@ import { useRecursoFisicoDisponibilidade } from '@/hooks/useRecursoFisicoDisponi
 import { supabase } from '@/integrations/supabase/client';
 import { formatCurrency as formatCurrencyUtil } from '@/lib/currencies';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface RecursoHumanoAlocado {
   id: string;
@@ -104,6 +105,7 @@ interface UnidadeNegocio {
 
 const Mapas = () => {
   const { t, language } = useLanguage();
+  const { user } = useAuth();
   const dateLocale = getDateLocale(language);
   const [viewMode, setViewMode] = useState<'week' | 'month'>('week');
   const [currentWeekStart, setCurrentWeekStart] = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }));
@@ -226,11 +228,17 @@ const Mapas = () => {
   // Função para recarregar dados do Supabase
   const recarregarDados = useCallback(async () => {
     try {
-      // Carregar gravações
-      const { data: gravData } = await supabase
+      // Carregar gravações (filtered by unidade de negócio)
+      let gravQuery = supabase
         .from('gravacoes')
         .select('id, nome, codigo_externo, centro_lucro_id, unidade_negocio_id, data_prevista')
         .order('nome');
+
+      if (user?.unidadeIds && user.unidadeIds.length > 0) {
+        gravQuery = gravQuery.in('unidade_negocio_id', user.unidadeIds);
+      }
+
+      const { data: gravData } = await gravQuery;
       
       const gravacoesList: Gravacao[] = (gravData || []).map((g: any) => ({
         id: g.id,
@@ -398,7 +406,7 @@ const Mapas = () => {
     } catch (err) {
       console.error('Error loading data:', err);
     }
-  }, []);
+  }, [user]);
 
   // Carregar dados inicialmente e quando a aba mudar
   useEffect(() => {
