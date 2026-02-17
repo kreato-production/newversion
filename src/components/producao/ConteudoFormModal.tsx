@@ -574,14 +574,14 @@ export const ConteudoFormModal = ({
 
   // Count visible tabs to set grid cols
   const visibleTabs: { value: string; label: string }[] = [
-    { value: 'dadosGerais', label: 'Dados Gerais' },
+    { value: 'dadosGerais', label: t('contentTab.generalData') },
   ];
   if (data) {
     if (isVisible('Produção', 'Conteúdo', '-', 'Tabulador "Gravações"')) visibleTabs.push({ value: 'gravacoes', label: t('field.recordings') });
     if (isVisible('Produção', 'Conteúdo', '-', 'Tabulador "Elenco"')) visibleTabs.push({ value: 'elenco', label: t('field.cast') });
-    if (isVisible('Produção', 'Conteúdo', '-', 'Tabulador "Recursos Técnicos"')) visibleTabs.push({ value: 'recursosTecnicos', label: 'Recursos Técnicos' });
-    if (isVisible('Produção', 'Conteúdo', '-', 'Tabulador "Recursos Físicos"')) visibleTabs.push({ value: 'recursosFisicos', label: 'Recursos Físicos' });
-    if (isVisible('Produção', 'Conteúdo', '-', 'Tabulador "Terceiros"')) visibleTabs.push({ value: 'terceiros', label: 'Terceiros' });
+    if (isVisible('Produção', 'Conteúdo', '-', 'Tabulador "Recursos Técnicos"')) visibleTabs.push({ value: 'recursosTecnicos', label: t('contentTab.technicalResources') });
+    if (isVisible('Produção', 'Conteúdo', '-', 'Tabulador "Recursos Físicos"')) visibleTabs.push({ value: 'recursosFisicos', label: t('contentTab.physicalResources') });
+    if (isVisible('Produção', 'Conteúdo', '-', 'Tabulador "Terceiros"')) visibleTabs.push({ value: 'terceiros', label: t('contentTab.thirdParties') });
     if (isVisible('Produção', 'Conteúdo', '-', 'Tabulador "Custos"')) visibleTabs.push({ value: 'custos', label: t('field.costs') });
   }
 

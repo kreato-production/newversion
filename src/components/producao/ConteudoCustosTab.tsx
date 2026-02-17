@@ -5,6 +5,7 @@ import { Progress } from '@/components/ui/progress';
 import { Calculator, Loader2, ChevronRight, ChevronDown } from 'lucide-react';
 import { ExportDropdown } from '@/components/shared/ExportDropdown';
 import { useToast } from '@/hooks/use-toast';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { supabase } from '@/integrations/supabase/client';
 import { formatCurrency as formatCurrencyUtil } from '@/lib/currencies';
 import jsPDF from 'jspdf';
@@ -98,6 +99,7 @@ const calcularHorasEntreTempo = (inicio: string, fim: string): number => {
 
 export const ConteudoCustosTab = ({ conteudoId, conteudoNome }: ConteudoCustosTabProps) => {
   const { toast } = useToast();
+  const { t } = useLanguage();
   const [isLoading, setIsLoading] = useState(true);
   const [rtEstimados, setRtEstimados] = useState<EstimadoItem[]>([]);
   const [rtRealizados, setRtRealizados] = useState<RealizadoItem[]>([]);
@@ -503,21 +505,21 @@ export const ConteudoCustosTab = ({ conteudoId, conteudoNome }: ConteudoCustosTa
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
-    doc.text('Matriz Comparativa de Custos', 14, 13);
+    doc.text(t('costMatrix.title'), 14, 13);
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
-    doc.text(`Conteúdo: ${titulo} | Data: ${dataExport} | Gravações: ${numGravacoes}`, 14, 22);
+    doc.text(`${t('menu.content')}: ${titulo} | ${t('common.date')}: ${dataExport} | ${t('field.recordings')}: ${numGravacoes}`, 14, 22);
 
     const headers = [
       [
-        { content: 'Recurso', rowSpan: 2 },
-        { content: 'ESTIMADO (Acumulado)', colSpan: 6 },
-        { content: 'REALIZADO', colSpan: 4 },
-        { content: 'RESUMO', colSpan: 3 },
+        { content: t('costMatrix.resource'), rowSpan: 2 },
+        { content: `${t('costMatrix.estimated')} (${t('costMatrix.accumulatedValues')})`, colSpan: 6 },
+        { content: t('costMatrix.actual'), colSpan: 4 },
+        { content: t('costMatrix.summary'), colSpan: 3 },
       ],
-      ['Qtd', 'Horas', 'Vlr Unitário', 'Vlr Total', 'Desc.', 'Vlr c/ Desc.',
-       'Qtd', 'Horas', 'Vlr Unitário', 'Vlr Total',
-       'Saldo', 'Desvio', 'Progresso'],
+      [t('costMatrix.quantity'), t('costMatrix.hours'), t('costMatrix.unitValue'), t('costMatrix.totalValue'), t('costMatrix.discount'), t('costMatrix.totalWithDiscount'),
+       t('costMatrix.quantity'), t('costMatrix.hours'), t('costMatrix.unitValue'), t('costMatrix.totalValue'),
+       t('costMatrix.balance'), t('costMatrix.deviation'), t('costMatrix.progress')],
     ];
 
     const allRows = [...rtMatrizRows, ...rfMatrizRows];
@@ -539,7 +541,7 @@ export const ConteudoCustosTab = ({ conteudoId, conteudoNome }: ConteudoCustosTa
     ]);
 
     body.push([
-      'Total',
+      t('common.total'),
       totais.estQtd.toString(), totais.estHoras.toString(), '',
       formatCurrency(totais.estValorTotal), '', '',
       totais.realQtd.toString(), totais.realHoras.toString(), '',
@@ -569,14 +571,14 @@ export const ConteudoCustosTab = ({ conteudoId, conteudoNome }: ConteudoCustosTa
     const allRows = [...rtMatrizRows, ...rfMatrizRows];
 
     const data = [
-      ['MATRIZ COMPARATIVA DE CUSTOS'],
-      [`Conteúdo: ${titulo}`, `Data: ${dataExport}`, `Gravações: ${numGravacoes}`],
+      [t('costMatrix.title').toUpperCase()],
+      [`${t('menu.content')}: ${titulo}`, `${t('common.date')}: ${dataExport}`, `${t('field.recordings')}: ${numGravacoes}`],
       [],
       [
-        'Recurso',
-        'Est. Qtd', 'Est. Horas', 'Est. Vlr Unitário', 'Est. Vlr Total', 'Est. Desconto', 'Est. Vlr c/ Desc.',
-        'Real. Qtd', 'Real. Horas', 'Real. Vlr Unitário', 'Real. Vlr Total',
-        'Saldo', 'Desvio', 'Progresso',
+        t('costMatrix.resource'),
+        `Est. ${t('costMatrix.quantity')}`, `Est. ${t('costMatrix.hours')}`, `Est. ${t('costMatrix.unitValue')}`, `Est. ${t('costMatrix.totalValue')}`, `Est. ${t('costMatrix.discount')}`, `Est. ${t('costMatrix.totalWithDiscount')}`,
+        `Real. ${t('costMatrix.quantity')}`, `Real. ${t('costMatrix.hours')}`, `Real. ${t('costMatrix.unitValue')}`, `Real. ${t('costMatrix.totalValue')}`,
+        t('costMatrix.balance'), t('costMatrix.deviation'), t('costMatrix.progress'),
       ],
       ...allRows.map(row => [
         row.recursoNome,
@@ -589,7 +591,7 @@ export const ConteudoCustosTab = ({ conteudoId, conteudoNome }: ConteudoCustosTa
         row.saldo, `${row.desvioPercentual}%`, `${row.progressPercent}%`,
       ]),
       [
-        'Total',
+        t('common.total'),
         totais.estQtd, totais.estHoras, '', totais.estValorTotal, '', '',
         totais.realQtd, totais.realHoras, '', totais.realValorTotal,
         totais.saldo, `${totais.desvio}%`, `${totais.progressPercent}%`,
@@ -751,9 +753,9 @@ export const ConteudoCustosTab = ({ conteudoId, conteudoNome }: ConteudoCustosTa
             <Calculator className="h-5 w-5 text-primary" />
           </div>
           <div>
-            <h3 className="text-lg font-semibold">Matriz Comparativa de Custos</h3>
+            <h3 className="text-lg font-semibold">{t('costMatrix.title')}</h3>
             <p className="text-sm text-muted-foreground">
-              {numGravacoes} gravação(ões) • {rtMatrizRows.length} recurso(s) técnico(s) • {rfMatrizRows.length} recurso(s) físico(s){terceirosEstimados.length > 0 ? ` • ${terceirosEstimados.length} terceiro(s)` : ''} • Valores acumulados
+              {numGravacoes} {t('costMatrix.recordings')} • {rtMatrizRows.length} {t('costMatrix.technicalResources')} • {rfMatrizRows.length} {t('costMatrix.physicalResources')}{terceirosEstimados.length > 0 ? ` • ${terceirosEstimados.length} ${t('costMatrix.thirdParties')}` : ''} • {t('costMatrix.accumulatedValues')}
             </p>
           </div>
         </div>
@@ -766,47 +768,47 @@ export const ConteudoCustosTab = ({ conteudoId, conteudoNome }: ConteudoCustosTa
             <TableHeader>
               <TableRow className="border-b-0">
                 <TableHead rowSpan={2} className="align-bottom border-r font-semibold text-foreground">
-                  Recurso
+                  {t('costMatrix.resource')}
                 </TableHead>
                 <TableHead colSpan={6} className="text-center font-bold text-white border-r bg-kreato-blue">
-                  ESTIMADO
+                  {t('costMatrix.estimated')}
                 </TableHead>
                 <TableHead colSpan={4} className="text-center font-bold text-white border-r bg-kreato-cyan">
-                  REALIZADO
+                  {t('costMatrix.actual')}
                 </TableHead>
                 <TableHead colSpan={3} className="text-center font-bold text-white bg-kreato-orange">
-                  RESUMO
+                  {t('costMatrix.summary')}
                 </TableHead>
               </TableRow>
               <TableRow>
-                <TableHead className="text-center text-xs border-r bg-kreato-blue/15">Quantidade</TableHead>
-                <TableHead className="text-center text-xs border-r bg-kreato-blue/15">Horas</TableHead>
-                <TableHead className="text-right text-xs border-r bg-kreato-blue/15">Valor Unitário</TableHead>
-                <TableHead className="text-right text-xs border-r bg-kreato-blue/15">Valor Total</TableHead>
-                <TableHead className="text-center text-xs border-r bg-kreato-blue/15">Desconto</TableHead>
-                <TableHead className="text-right text-xs border-r bg-kreato-blue/15">Vlr Total c/ Desc.</TableHead>
-                <TableHead className="text-center text-xs border-r bg-kreato-cyan/15">Quantidade</TableHead>
-                <TableHead className="text-center text-xs border-r bg-kreato-cyan/15">Horas</TableHead>
-                <TableHead className="text-right text-xs border-r bg-kreato-cyan/15">Valor Unitário</TableHead>
-                <TableHead className="text-right text-xs border-r bg-kreato-cyan/15">Valor Total</TableHead>
-                <TableHead className="text-right text-xs border-r bg-kreato-orange/15">Saldo</TableHead>
-                <TableHead className="text-center text-xs border-r bg-kreato-orange/15">Desvio</TableHead>
-                <TableHead className="text-center text-xs bg-kreato-orange/15 min-w-[100px]">Progresso</TableHead>
+                <TableHead className="text-center text-xs border-r bg-kreato-blue/15">{t('costMatrix.quantity')}</TableHead>
+                <TableHead className="text-center text-xs border-r bg-kreato-blue/15">{t('costMatrix.hours')}</TableHead>
+                <TableHead className="text-right text-xs border-r bg-kreato-blue/15">{t('costMatrix.unitValue')}</TableHead>
+                <TableHead className="text-right text-xs border-r bg-kreato-blue/15">{t('costMatrix.totalValue')}</TableHead>
+                <TableHead className="text-center text-xs border-r bg-kreato-blue/15">{t('costMatrix.discount')}</TableHead>
+                <TableHead className="text-right text-xs border-r bg-kreato-blue/15">{t('costMatrix.totalWithDiscount')}</TableHead>
+                <TableHead className="text-center text-xs border-r bg-kreato-cyan/15">{t('costMatrix.quantity')}</TableHead>
+                <TableHead className="text-center text-xs border-r bg-kreato-cyan/15">{t('costMatrix.hours')}</TableHead>
+                <TableHead className="text-right text-xs border-r bg-kreato-cyan/15">{t('costMatrix.unitValue')}</TableHead>
+                <TableHead className="text-right text-xs border-r bg-kreato-cyan/15">{t('costMatrix.totalValue')}</TableHead>
+                <TableHead className="text-right text-xs border-r bg-kreato-orange/15">{t('costMatrix.balance')}</TableHead>
+                <TableHead className="text-center text-xs border-r bg-kreato-orange/15">{t('costMatrix.deviation')}</TableHead>
+                <TableHead className="text-center text-xs bg-kreato-orange/15 min-w-[100px]">{t('costMatrix.progress')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {/* Recursos Técnicos */}
-              {renderGroupRows(rtMatrizRows, 'Recursos Técnicos')}
+              {renderGroupRows(rtMatrizRows, t('costMatrix.technicalResourcesGroup'))}
 
               {/* Recursos Físicos */}
-              {renderGroupRows(rfMatrizRows, 'Recursos Físicos')}
+              {renderGroupRows(rfMatrizRows, t('costMatrix.physicalResourcesGroup'))}
 
               {/* Terceiros */}
               {hasTerceiros && (
                 <>
                   <TableRow className="bg-muted/60">
                     <TableCell colSpan={totalColumns} className="font-semibold text-xs text-foreground py-1.5 uppercase tracking-wide">
-                      Terceiros
+                      {t('costMatrix.thirdPartiesGroup')}
                     </TableCell>
                   </TableRow>
                   {allTerceiros.map((t) => (
@@ -843,7 +845,7 @@ export const ConteudoCustosTab = ({ conteudoId, conteudoNome }: ConteudoCustosTa
 
               {/* Total */}
               <TableRow className="bg-muted/50 font-bold border-t-2">
-                <TableCell className="border-r font-bold">Total</TableCell>
+                <TableCell className="border-r font-bold">{t('common.total')}</TableCell>
                 <TableCell className="text-center border-r">{totais.estQtd}</TableCell>
                 <TableCell className="text-center border-r">{totais.estHoras}</TableCell>
                 <TableCell className="text-right border-r"></TableCell>
