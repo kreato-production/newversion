@@ -1,7 +1,7 @@
 import { useState, useEffect, forwardRef, useCallback } from 'react';
 import { format, parse } from 'date-fns';
 import { ptBR, enUS, es } from 'date-fns/locale';
-import { CalendarIcon, Check, ChevronsUpDown } from 'lucide-react';
+import { CalendarIcon } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -20,13 +20,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -47,7 +40,8 @@ import { DialogActionBar } from '@/components/shared/DialogActionBar';
 import { supabase } from '@/integrations/supabase/client';
 import { getCurrencyByCode } from '@/lib/currencies';
 import { useFormFieldConfig, FieldAsterisk } from '@/hooks/useFormFieldConfig';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { SearchableSelect } from '@/components/shared/SearchableSelect';
+
 
 interface GravacaoFormModalProps {
   isOpen: boolean;
@@ -97,7 +91,6 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
   const [statusList, setStatusList] = useState<{ id: string; nome: string }[]>([]);
   const [conteudos, setConteudos] = useState<{ id: string; descricao: string }[]>([]);
 
-  // Get the currency for the selected business unit
   const getSelectedCurrency = () => {
     if (!formData.unidadeNegocio) return null;
     const unidade = unidades.find(u => u.nome === formData.unidadeNegocio);
@@ -106,7 +99,6 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
 
   const selectedCurrency = getSelectedCurrency();
 
-  // Função para construir a hierarquia de centros de lucro
   const buildHierarchy = (items: typeof centrosLucro, parentId: string | null = null, level: number = 0): { id: string; nome: string; displayName: string; level: number }[] => {
     const result: { id: string; nome: string; displayName: string; level: number }[] = [];
     const children = items.filter(item => item.parentId === parentId);
@@ -125,7 +117,6 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
     return result;
   };
 
-  // Filtrar centros de lucro pela unidade de negócio selecionada
   const getFilteredCentrosLucro = () => {
     if (!formData.unidadeNegocio) return [];
     
@@ -183,7 +174,6 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
     }
   }, [isOpen, fetchDropdownData]);
 
-  // Guarda o status inicial do data para garantir persistência
   const incomingStatus = data?.status || '';
 
   useEffect(() => {
@@ -203,20 +193,16 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
         conteudoId: data.conteudoId || '',
         orcamento: String((data as any).orcamento || ''),
       });
-      // Converter string de data para Date (suporta ISO yyyy-MM-dd e BR dd/MM/yyyy)
       if (data.dataPrevista) {
         try {
           let parsedDate: Date | undefined;
           
-          // Check if it's ISO format (yyyy-MM-dd)
           if (/^\d{4}-\d{2}-\d{2}/.test(data.dataPrevista)) {
             parsedDate = new Date(data.dataPrevista);
           } else if (/^\d{2}\/\d{2}\/\d{4}/.test(data.dataPrevista)) {
-            // Brazilian format dd/MM/yyyy
             parsedDate = parse(data.dataPrevista, 'dd/MM/yyyy', new Date());
           }
           
-          // Validate the parsed date
           if (parsedDate && !isNaN(parsedDate.getTime())) {
             setDataPrevista(parsedDate);
           } else {
@@ -229,11 +215,9 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
         setDataPrevista(undefined);
       }
     } else {
-      // Gerar novo código para nova gravação
       const novoCodigo = generateCodigoGravacao();
       setCodigoGerado(novoCodigo);
       
-      // Find initial status (is_inicial = true)
       const inicialStatus = statusList.find((s: any) => s.is_inicial === true);
       
       setFormData({
@@ -252,10 +236,8 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
     }
   }, [data, isOpen]);
 
-  // Auto-assign initial status for new recordings once statusList is loaded
   useEffect(() => {
     if (!isOpen || data || statusList.length === 0) return;
-    // Only set if status is still empty (not yet assigned)
     setFormData(prev => {
       if (prev.status) return prev;
       const inicialStatus = statusList.find((s: any) => s.is_inicial === true);
@@ -266,13 +248,11 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
     });
   }, [isOpen, data, statusList]);
 
-  // Garante que o status atual esteja na lista para o Select renderizar corretamente
   useEffect(() => {
     if (!isOpen || !incomingStatus) return;
     
     setStatusList((prev) => {
       if (prev.some((s) => s.nome === incomingStatus)) return prev;
-      // Adiciona temporariamente o status para o Select conseguir exibir
       return [{ id: '__temp__', nome: incomingStatus }, ...prev];
     });
   }, [isOpen, incomingStatus]);
@@ -398,165 +378,101 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
               <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label>{t('recordings.businessUnit')} <FieldAsterisk type={getAsterisk('unidadeNegocio')} /></Label>
-                  <Select
+                  <SearchableSelect
+                    options={unidades.map(u => ({ value: u.nome, label: u.nome }))}
                     value={formData.unidadeNegocio}
                     onValueChange={(value) => setFormData({ ...formData, unidadeNegocio: value, centroLucro: '' })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder={t('common.select')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {unidades.map((u) => (
-                        <SelectItem key={u.id} value={u.nome}>{u.nome}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    placeholder={t('common.select')}
+                    searchPlaceholder="Pesquisar unidade..."
+                    emptyMessage="Nenhuma unidade encontrada."
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>{t('recordings.profitCenter')} <FieldAsterisk type={getAsterisk('centroLucro')} /></Label>
-                  <Select
+                  <SearchableSelect
+                    options={centrosLucroHierarquicos.map(cl => ({ value: cl.nome, label: cl.nome, displayLabel: cl.displayName }))}
                     value={formData.centroLucro}
                     onValueChange={(value) => setFormData({ ...formData, centroLucro: value })}
                     disabled={!formData.unidadeNegocio}
-                  >
-                    <SelectTrigger className={!formData.unidadeNegocio ? 'opacity-50 cursor-not-allowed' : ''}>
-                      <SelectValue placeholder={!formData.unidadeNegocio ? 'Selecione uma unidade de negócio primeiro' : t('common.select')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {centrosLucroHierarquicos.length === 0 ? (
-                        <div className="px-2 py-1.5 text-sm text-muted-foreground">
-                          Nenhum centro de lucro associado a esta unidade
-                        </div>
-                      ) : (
-                        centrosLucroHierarquicos.map((cl) => (
-                          <SelectItem key={cl.id} value={cl.nome}>
-                            <span className="font-mono whitespace-pre">{cl.displayName}</span>
-                          </SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
+                    placeholder={!formData.unidadeNegocio ? 'Selecione uma unidade de negócio primeiro' : t('common.select')}
+                    searchPlaceholder="Pesquisar centro de lucro..."
+                    emptyMessage="Nenhum centro de lucro encontrado."
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>{t('content.contentType')} <FieldAsterisk type={getAsterisk('tipoConteudo')} /></Label>
-                  <Select
+                  <SearchableSelect
+                    options={tipos.map(tipo => ({ value: tipo.nome, label: tipo.nome }))}
                     value={formData.tipoConteudo}
                     onValueChange={(value) => setFormData({ ...formData, tipoConteudo: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder={t('common.select')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {tipos.map((tipo) => (
-                        <SelectItem key={tipo.id} value={tipo.nome}>{tipo.nome}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    placeholder={t('common.select')}
+                    searchPlaceholder="Pesquisar tipo..."
+                    emptyMessage="Nenhum tipo encontrado."
+                  />
                 </div>
               </div>
 
               <div className="grid grid-cols-4 gap-4">
                 <div className="space-y-2">
                   <Label>{t('content.classification')} <FieldAsterisk type={getAsterisk('classificacao')} /></Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        role="combobox"
-                        className={cn(
-                          "w-full justify-between h-8 text-xs font-normal",
-                          !formData.classificacao && "text-muted-foreground"
-                        )}
-                      >
-                        {formData.classificacao || t('common.select')}
-                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                      <Command>
-                        <CommandInput placeholder="Pesquisar classificação..." />
-                        <CommandList>
-                          <CommandEmpty>Nenhuma classificação encontrada.</CommandEmpty>
-                          <CommandGroup>
-                            {classificacoes.map((c) => (
-                              <CommandItem
-                                key={c.id}
-                                value={c.nome}
-                                onSelect={(value) => {
-                                  setFormData({ ...formData, classificacao: value });
-                                }}
-                              >
-                                <Check
-                                  className={cn(
-                                    "mr-2 h-4 w-4",
-                                    formData.classificacao === c.nome ? "opacity-100" : "opacity-0"
-                                  )}
-                                />
-                                {c.nome}
-                              </CommandItem>
-                            ))}
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
+                  <SearchableSelect
+                    options={classificacoes.map(c => ({ value: c.nome, label: c.nome }))}
+                    value={formData.classificacao}
+                    onValueChange={(value) => setFormData({ ...formData, classificacao: value })}
+                    placeholder={t('common.select')}
+                    searchPlaceholder="Pesquisar classificação..."
+                    emptyMessage="Nenhuma classificação encontrada."
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>{t('common.status')} <FieldAsterisk type={getAsterisk('status')} /></Label>
-                  <Select
+                  <SearchableSelect
+                    options={statusList.map(s => ({ value: s.nome, label: s.nome }))}
                     value={formData.status}
                     onValueChange={(value) => setFormData({ ...formData, status: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder={t('common.select')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {statusList.map((s) => (
-                        <SelectItem key={s.id} value={s.nome}>{s.nome}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    placeholder={t('common.select')}
+                    searchPlaceholder="Pesquisar status..."
+                    emptyMessage="Nenhum status encontrado."
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>{t('content.title')} <FieldAsterisk type={getAsterisk('conteudoId')} /></Label>
-                  <Select
-                    value={formData.conteudoId || "__none__"}
-                    onValueChange={(value) => setFormData({ ...formData, conteudoId: value === "__none__" ? "" : value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder={t('common.select')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">{t('common.none')}</SelectItem>
-                      {conteudos.map((c) => (
-                        <SelectItem key={c.id} value={c.id}>{c.descricao}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <SearchableSelect
+                    options={[
+                      { value: '__none__', label: t('common.none') || 'Nenhum' },
+                      ...conteudos.map(c => ({ value: c.id, label: c.descricao }))
+                    ]}
+                    value={formData.conteudoId || '__none__'}
+                    onValueChange={(value) => setFormData({ ...formData, conteudoId: value === '__none__' ? '' : value })}
+                    placeholder={t('common.select')}
+                    searchPlaceholder="Pesquisar conteúdo..."
+                    emptyMessage="Nenhum conteúdo encontrado."
+                  />
                 </div>
                 <div className="space-y-2">
-                  <Label>{t('recordings.expectedDate')} <FieldAsterisk type={getAsterisk('dataPrevista')} /></Label>
+                  <Label>{t('recordings.plannedDate')} <FieldAsterisk type={getAsterisk('dataPrevista')} /></Label>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button
                         variant="outline"
                         className={cn(
-                          "w-full justify-start text-left font-normal",
+                          "w-full justify-start text-left font-normal h-8 text-xs",
                           !dataPrevista && "text-muted-foreground"
                         )}
                       >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {dataPrevista ? format(dataPrevista, "dd/MM/yyyy") : t('common.select')}
+                        <CalendarIcon className="mr-2 h-3 w-3" />
+                        {dataPrevista
+                          ? format(dataPrevista, 'PPP', { locale: currentLocale })
+                          : t('common.select')}
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
+                    <PopoverContent className="w-auto p-0 bg-popover" align="start">
                       <Calendar
                         mode="single"
                         selected={dataPrevista}
                         onSelect={setDataPrevista}
-                        initialFocus
                         locale={currentLocale}
-                        className={cn("p-3 pointer-events-auto")}
+                        className="p-3 pointer-events-auto"
                       />
                     </PopoverContent>
                   </Popover>
@@ -565,18 +481,8 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="descricao">{t('common.description')} <FieldAsterisk type={getAsterisk('descricao')} /></Label>
-                  <Textarea
-                    id="descricao"
-                    value={formData.descricao}
-                    onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
-                    rows={3}
-                    placeholder={t('common.description') + '...'}
-                  />
-                </div>
-                <div className="space-y-2">
                   <Label htmlFor="orcamento">
-                    Orçamento {selectedCurrency && `(${getCurrencyByCode(selectedCurrency)?.symbol || selectedCurrency})`} <FieldAsterisk type={getAsterisk('orcamento')} />
+                    {t('field.budget')} {selectedCurrency && `(${getCurrencyByCode(selectedCurrency)?.symbol || selectedCurrency})`} <FieldAsterisk type={getAsterisk('orcamento')} />
                   </Label>
                   <Input
                     id="orcamento"
@@ -585,15 +491,38 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
                     onChange={(e) => setFormData({ ...formData, orcamento: e.target.value })}
                     disabled={!formData.unidadeNegocio}
                     className={!formData.unidadeNegocio ? 'opacity-50 cursor-not-allowed' : ''}
-                    placeholder={!formData.unidadeNegocio ? 'Selecione uma Unidade primeiro' : 'Valor do orçamento'}
+                    placeholder={!formData.unidadeNegocio ? t('field.selectUnitFirst') : t('field.budgetPlaceholder')}
                     step="0.01"
                     min="0"
                   />
-                  {!formData.unidadeNegocio && (
-                    <p className="text-xs text-muted-foreground">
-                      Selecione uma Unidade de Negócio para habilitar
-                    </p>
-                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="descricao">{t('common.description')} <FieldAsterisk type={getAsterisk('descricao')} /></Label>
+                  <Textarea
+                    id="descricao"
+                    value={formData.descricao}
+                    onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
+                    rows={2}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 pt-4 border-t">
+                <div className="space-y-2">
+                  <Label>{t('common.registrationUser')}</Label>
+                  <Input
+                    value={data?.usuarioCadastro || user?.nome || 'Admin'}
+                    readOnly
+                    className="bg-muted"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>{t('common.registrationDate')}</Label>
+                  <Input
+                    value={data?.dataCadastro || new Date().toLocaleDateString('pt-BR')}
+                    readOnly
+                    className="bg-muted"
+                  />
                 </div>
               </div>
 
@@ -610,55 +539,57 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
             </form>
           </TabsContent>
 
-          {isVisible('Produção', 'Gravação', '-', 'Tabulador "Roteiro"') && (
+          {data && isVisible('Produção', 'Gravação', '-', 'Tabulador "Roteiro"') && (
             <TabsContent value="roteiro">
-              {data && <RoteiroTab gravacaoId={data.id} />}
+              <RoteiroTab gravacaoId={data.id} />
             </TabsContent>
           )}
 
-          {isVisible('Produção', 'Gravação', '-', 'Tabulador "Recursos"') && (
+          {data && isVisible('Produção', 'Gravação', '-', 'Tabulador "Recursos"') && (
             <TabsContent value="recursos">
-              {data && <RecursosTab gravacaoId={data.id} />}
+              <RecursosTab gravacaoId={data.id} />
             </TabsContent>
           )}
 
-          {isVisible('Produção', 'Gravação', '-', 'Tabulador "Elenco"') && (
+          {data && isVisible('Produção', 'Gravação', '-', 'Tabulador "Elenco"') && (
             <TabsContent value="elenco">
-              {data && <ElencoTab entityId={data.id} storagePrefix="gravacao" />}
+              <ElencoTab entityId={data.id} storagePrefix="gravacao" />
             </TabsContent>
           )}
 
-          {isVisible('Produção', 'Gravação', '-', 'Tabulador "Convidados"') && (
+          {data && isVisible('Produção', 'Gravação', '-', 'Tabulador "Convidados"') && (
             <TabsContent value="convidados">
-              {data && <ConvidadosTab gravacaoId={data.id} />}
+              <ConvidadosTab gravacaoId={data.id} />
             </TabsContent>
           )}
 
-          {isVisible('Produção', 'Gravação', '-', 'Tabulador "Figurinos"') && (
+          {data && isVisible('Produção', 'Gravação', '-', 'Tabulador "Figurinos"') && (
             <TabsContent value="figurinos">
-              {data && <FigurinosTab gravacaoId={data.id} />}
+              <FigurinosTab gravacaoId={data.id} />
             </TabsContent>
           )}
 
-          {isVisible('Produção', 'Gravação', '-', 'Tabulador "Terceiros"') && (
+          {data && isVisible('Produção', 'Gravação', '-', 'Tabulador "Terceiros"') && (
             <TabsContent value="terceiros">
-              {data && <TerceirosTab gravacaoId={data.id} />}
+              <TerceirosTab gravacaoId={data.id} />
             </TabsContent>
           )}
 
-          {isVisible('Produção', 'Gravação', '-', 'Tabulador "Custos"') && (
+          {data && isVisible('Produção', 'Gravação', '-', 'Tabulador "Custos"') && (
             <TabsContent value="custos">
-              {data && <CustosTab gravacaoId={data.id} />}
+              <CustosTab gravacaoId={data.id} />
             </TabsContent>
           )}
 
-          <TabsContent value="tarefas">
-            {data && <GravacaoTarefasTab gravacaoId={data.id} />}
-          </TabsContent>
+          {data && (
+            <TabsContent value="tarefas">
+              <GravacaoTarefasTab gravacaoId={data.id} />
+            </TabsContent>
+          )}
 
-          {isVisible('Produção', 'Gravação', '-', 'Tabulador "Incidências"') && (
+          {data && isVisible('Produção', 'Gravação', '-', 'Tabulador "Incidências"') && (
             <TabsContent value="incidencias">
-              {data && <GravacaoIncidenciasTab gravacaoId={data.id} />}
+              <GravacaoIncidenciasTab gravacaoId={data.id} />
             </TabsContent>
           )}
         </Tabs>
