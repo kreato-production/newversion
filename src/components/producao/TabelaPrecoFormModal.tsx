@@ -68,7 +68,9 @@ export const TabelaPrecoFormModal = ({ isOpen, onClose, onSave, data, readOnly =
   }, [data, isOpen]);
 
   const fetchUnidades = async () => {
-    const { data: un } = await supabase.from('unidades_negocio').select('id, nome, moeda').order('nome');
+    let query = supabase.from('unidades_negocio').select('id, nome, moeda');
+    if (user?.unidadeIds && user.unidadeIds.length > 0) query = query.in('id', user.unidadeIds);
+    const { data: un } = await query.order('nome');
     setUnidades((un || []).map((u: any) => ({ id: u.id, nome: u.nome, moeda: u.moeda || 'BRL' })));
   };
 
