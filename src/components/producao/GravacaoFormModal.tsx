@@ -1,7 +1,7 @@
 import { useState, useEffect, forwardRef, useCallback } from 'react';
 import { format, parse } from 'date-fns';
 import { ptBR, enUS, es } from 'date-fns/locale';
-import { CalendarIcon } from 'lucide-react';
+import { CalendarIcon, Check, ChevronsUpDown } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -47,6 +47,7 @@ import { DialogActionBar } from '@/components/shared/DialogActionBar';
 import { supabase } from '@/integrations/supabase/client';
 import { getCurrencyByCode } from '@/lib/currencies';
 import { useFormFieldConfig, FieldAsterisk } from '@/hooks/useFormFieldConfig';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 
 interface GravacaoFormModalProps {
   isOpen: boolean;
@@ -457,19 +458,48 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
               <div className="grid grid-cols-4 gap-4">
                 <div className="space-y-2">
                   <Label>{t('content.classification')} <FieldAsterisk type={getAsterisk('classificacao')} /></Label>
-                  <Select
-                    value={formData.classificacao}
-                    onValueChange={(value) => setFormData({ ...formData, classificacao: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder={t('common.select')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {classificacoes.map((c) => (
-                        <SelectItem key={c.id} value={c.nome}>{c.nome}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        className={cn(
+                          "w-full justify-between h-8 text-xs font-normal",
+                          !formData.classificacao && "text-muted-foreground"
+                        )}
+                      >
+                        {formData.classificacao || t('common.select')}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                      <Command>
+                        <CommandInput placeholder="Pesquisar classificação..." />
+                        <CommandList>
+                          <CommandEmpty>Nenhuma classificação encontrada.</CommandEmpty>
+                          <CommandGroup>
+                            {classificacoes.map((c) => (
+                              <CommandItem
+                                key={c.id}
+                                value={c.nome}
+                                onSelect={(value) => {
+                                  setFormData({ ...formData, classificacao: value });
+                                }}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    formData.classificacao === c.nome ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                {c.nome}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                 </div>
                 <div className="space-y-2">
                   <Label>{t('common.status')} <FieldAsterisk type={getAsterisk('status')} /></Label>
