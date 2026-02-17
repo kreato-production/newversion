@@ -81,6 +81,17 @@ const Dashboard = () => {
 
     setIsLoading(true);
     try {
+      // Build filtered queries based on user's allowed units
+      const hasUnitFilter = user?.unidadeIds && user.unidadeIds.length > 0;
+
+      let gravacoesQuery = supabase.from('gravacoes').select('id, nome, codigo, data_prevista, status_id');
+      let conteudosQuery = supabase.from('conteudos').select('id', { count: 'exact', head: true });
+
+      if (hasUnitFilter) {
+        gravacoesQuery = gravacoesQuery.in('unidade_negocio_id', user.unidadeIds!);
+        conteudosQuery = conteudosQuery.in('unidade_negocio_id', user.unidadeIds!);
+      }
+
       // Fetch counts from all tables in parallel
       const [
         gravacoesRes,
@@ -91,8 +102,8 @@ const Dashboard = () => {
         unidadesRes,
         fornecedoresRes,
       ] = await Promise.all([
-        supabase.from('gravacoes').select('id, nome, codigo, data_prevista, status_id'),
-        supabase.from('conteudos').select('id', { count: 'exact', head: true }),
+        gravacoesQuery,
+        conteudosQuery,
         supabase.from('recursos_humanos').select('id', { count: 'exact', head: true }),
         supabase.from('recursos_tecnicos').select('id', { count: 'exact', head: true }),
         supabase.from('recursos_fisicos').select('id', { count: 'exact', head: true }),
@@ -139,7 +150,7 @@ const Dashboard = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [session]);
+  }, [session, user]);
 
   useEffect(() => {
     fetchDashboardData();
