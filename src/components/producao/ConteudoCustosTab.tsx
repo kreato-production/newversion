@@ -280,9 +280,9 @@ export const ConteudoCustosTab = ({ conteudoId, conteudoNome }: ConteudoCustosTa
               gravEntry.totalCustoHora += custoHora;
               gravEntry.countCustoHora += 1;
             }
-          } else if (!aloc.recurso_humano_id) {
-            gravEntry.quantidade = Math.max(gravEntry.quantidade, 1);
           }
+          // Anchor records (no operator) only ensure the RT appears in the map,
+          // but do NOT inflate quantidade — operators are the real count.
         }
 
         // Process RF allocations (entries with recurso_fisico_id, no recurso_tecnico_id)
