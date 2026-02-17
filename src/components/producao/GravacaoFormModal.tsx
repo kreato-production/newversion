@@ -450,7 +450,7 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>{t('recordings.plannedDate')} <FieldAsterisk type={getAsterisk('dataPrevista')} /></Label>
+                  <Label>{t('recordings.expectedDate')} <FieldAsterisk type={getAsterisk('dataPrevista')} /></Label>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button
