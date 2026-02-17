@@ -421,13 +421,13 @@ const Tarefas = () => {
   // Statistics
   const totalTarefas = tarefas.length;
   const tarefasPendentes = tarefas.filter(t => 
-    statusList.find(s => s.id === t.statusId)?.codigo === 'PEND'
+    statusList.find(s => s.id === t.statusId)?.codigo === '01'
   ).length;
   const tarefasProgresso = tarefas.filter(t => 
-    statusList.find(s => s.id === t.statusId)?.codigo === 'PROG'
+    statusList.find(s => s.id === t.statusId)?.codigo === '02'
   ).length;
   const tarefasConcluidas = tarefas.filter(t => 
-    statusList.find(s => s.id === t.statusId)?.codigo === 'CONC'
+    statusList.find(s => s.id === t.statusId)?.codigo === '03'
   ).length;
 
   return (
