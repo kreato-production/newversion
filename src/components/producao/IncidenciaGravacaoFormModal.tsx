@@ -11,6 +11,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { useFormFieldConfig, FieldAsterisk } from '@/hooks/useFormFieldConfig';
 
 interface Anexo {
   id: string;
@@ -34,6 +35,23 @@ export const IncidenciaGravacaoFormModal = ({ isOpen, onClose, onSave, data, rea
   const { user } = useAuth();
   const { t } = useLanguage();
   const { toast } = useToast();
+  const { getAsterisk, validateRequired, showValidationError } = useFormFieldConfig('incidenciaGravacao');
+
+  // Map snake_case form keys to camelCase registry keys
+  const fieldKeyMap: Record<string, string> = {
+    codigo_externo: 'codigoExterno', titulo: 'titulo', gravacao_id: 'gravacaoId',
+    recurso_fisico_id: 'recursoFisicoId', severidade_id: 'severidadeId', impacto_id: 'impactoId',
+    categoria_id: 'categoriaId', classificacao_id: 'classificacaoId',
+    data_incidencia: 'dataIncidencia', horario_incidencia: 'horarioIncidencia',
+    tempo_incidencia: 'tempoIncidencia', descricao: 'descricao', causa_provavel: 'causaProvavel',
+  };
+  const fieldLabels: Record<string, string> = {
+    codigoExterno: 'Código Externo', titulo: 'Título', gravacaoId: 'Gravação',
+    recursoFisicoId: 'Recurso Físico', severidadeId: 'Severidade', impactoId: 'Impacto',
+    categoriaId: 'Categoria', classificacaoId: 'Classificação',
+    dataIncidencia: 'Data da Incidência', horarioIncidencia: 'Horário da Incidência',
+    tempoIncidencia: 'Tempo da Incidência', descricao: 'Descrição', causaProvavel: 'Causa Provável',
+  };
 
   const [form, setForm] = useState({
     codigo_externo: '', titulo: '', gravacao_id: '', recurso_fisico_id: '',
@@ -133,6 +151,17 @@ export const IncidenciaGravacaoFormModal = ({ isOpen, onClose, onSave, data, rea
   }, [isOpen, data?.id, fetchAnexos]);
 
   const handleSubmit = async () => {
+    // Map form data to camelCase keys for validation
+    const camelCaseData: Record<string, any> = {};
+    Object.entries(form).forEach(([key, val]) => {
+      const camelKey = fieldKeyMap[key] || key;
+      camelCaseData[camelKey] = val;
+    });
+    const missing = validateRequired(camelCaseData, fieldLabels);
+    if (missing.length > 0) {
+      showValidationError(missing);
+      return;
+    }
     if (!form.titulo.trim()) {
       toast({ title: t('common.error'), description: t('common.required'), variant: 'destructive' });
       return;
@@ -242,11 +271,11 @@ export const IncidenciaGravacaoFormModal = ({ isOpen, onClose, onSave, data, rea
             {/* Row 1: Código Externo + Título */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>{t('common.externalCode')}</Label>
+                <Label>{t('common.externalCode')} <FieldAsterisk type={getAsterisk('codigoExterno')} /></Label>
                 <Input maxLength={10} value={form.codigo_externo} onChange={(e) => setForm({ ...form, codigo_externo: e.target.value })} disabled={readOnly} />
               </div>
               <div className="space-y-2">
-                <Label>{t('incident.title')} *</Label>
+                <Label>{t('incident.title')} <FieldAsterisk type={getAsterisk('titulo')} /></Label>
                 <Input value={form.titulo} onChange={(e) => setForm({ ...form, titulo: e.target.value })} disabled={readOnly} />
               </div>
             </div>
@@ -254,7 +283,7 @@ export const IncidenciaGravacaoFormModal = ({ isOpen, onClose, onSave, data, rea
             {/* Row 2: Gravação + Recurso Físico */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>{t('incident.recording')}</Label>
+                <Label>{t('incident.recording')} <FieldAsterisk type={getAsterisk('gravacaoId')} /></Label>
                 <Select value={form.gravacao_id} onValueChange={(v) => setForm({ ...form, gravacao_id: v })} disabled={readOnly || !!defaultGravacaoId}>
                   <SelectTrigger><SelectValue placeholder={t('common.select')} /></SelectTrigger>
                   <SelectContent>
@@ -265,7 +294,7 @@ export const IncidenciaGravacaoFormModal = ({ isOpen, onClose, onSave, data, rea
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>{t('incident.physicalResource')}</Label>
+                <Label>{t('incident.physicalResource')} <FieldAsterisk type={getAsterisk('recursoFisicoId')} /></Label>
                 <Select value={form.recurso_fisico_id} onValueChange={(v) => setForm({ ...form, recurso_fisico_id: v })} disabled={readOnly}>
                   <SelectTrigger><SelectValue placeholder={t('common.select')} /></SelectTrigger>
                   <SelectContent>
@@ -280,7 +309,7 @@ export const IncidenciaGravacaoFormModal = ({ isOpen, onClose, onSave, data, rea
             {/* Row 3: Severidade + Impacto */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>{t('incident.severity')}</Label>
+                <Label>{t('incident.severity')} <FieldAsterisk type={getAsterisk('severidadeId')} /></Label>
                 <Select value={form.severidade_id} onValueChange={(v) => setForm({ ...form, severidade_id: v })} disabled={readOnly}>
                   <SelectTrigger><SelectValue placeholder={t('common.select')} /></SelectTrigger>
                   <SelectContent>
@@ -291,7 +320,7 @@ export const IncidenciaGravacaoFormModal = ({ isOpen, onClose, onSave, data, rea
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>{t('incident.impact')}</Label>
+                <Label>{t('incident.impact')} <FieldAsterisk type={getAsterisk('impactoId')} /></Label>
                 <Select value={form.impacto_id} onValueChange={(v) => setForm({ ...form, impacto_id: v })} disabled={readOnly}>
                   <SelectTrigger><SelectValue placeholder={t('common.select')} /></SelectTrigger>
                   <SelectContent>
@@ -306,7 +335,7 @@ export const IncidenciaGravacaoFormModal = ({ isOpen, onClose, onSave, data, rea
             {/* Row 4: Categoria + Classificação (dependent) */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>{t('incident.category')}</Label>
+                <Label>{t('incident.category')} <FieldAsterisk type={getAsterisk('categoriaId')} /></Label>
                 <Select value={form.categoria_id} onValueChange={handleCategoriaChange} disabled={readOnly}>
                   <SelectTrigger><SelectValue placeholder={t('common.select')} /></SelectTrigger>
                   <SelectContent>
@@ -317,7 +346,7 @@ export const IncidenciaGravacaoFormModal = ({ isOpen, onClose, onSave, data, rea
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>{t('incident.classification')}</Label>
+                <Label>{t('incident.classification')} <FieldAsterisk type={getAsterisk('classificacaoId')} /></Label>
                 <Select value={form.classificacao_id} onValueChange={(v) => setForm({ ...form, classificacao_id: v })} disabled={readOnly || !form.categoria_id}>
                   <SelectTrigger><SelectValue placeholder={form.categoria_id ? t('common.select') : t('incident.selectCategoryFirst')} /></SelectTrigger>
                   <SelectContent>
@@ -332,28 +361,28 @@ export const IncidenciaGravacaoFormModal = ({ isOpen, onClose, onSave, data, rea
             {/* Row 5: Data + Horário + Tempo */}
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
-                <Label>{t('incident.date')}</Label>
+                <Label>{t('incident.date')} <FieldAsterisk type={getAsterisk('dataIncidencia')} /></Label>
                 <Input type="date" value={form.data_incidencia} onChange={(e) => setForm({ ...form, data_incidencia: e.target.value })} disabled={readOnly} />
               </div>
               <div className="space-y-2">
-                <Label>{t('incident.time')}</Label>
+                <Label>{t('incident.time')} <FieldAsterisk type={getAsterisk('horarioIncidencia')} /></Label>
                 <Input type="time" value={form.horario_incidencia} onChange={(e) => setForm({ ...form, horario_incidencia: e.target.value })} disabled={readOnly} />
               </div>
               <div className="space-y-2">
-                <Label>{t('incident.duration')}</Label>
+                <Label>{t('incident.duration')} <FieldAsterisk type={getAsterisk('tempoIncidencia')} /></Label>
                 <Input type="time" value={form.tempo_incidencia} onChange={(e) => setForm({ ...form, tempo_incidencia: e.target.value })} disabled={readOnly} placeholder="HH:MM" />
               </div>
             </div>
 
             {/* Row 6: Descrição */}
             <div className="space-y-2">
-              <Label>{t('common.description')}</Label>
+              <Label>{t('common.description')} <FieldAsterisk type={getAsterisk('descricao')} /></Label>
               <Textarea rows={3} value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} disabled={readOnly} />
             </div>
 
             {/* Row 7: Causa provável */}
             <div className="space-y-2">
-              <Label>{t('incident.probableCause')}</Label>
+              <Label>{t('incident.probableCause')} <FieldAsterisk type={getAsterisk('causaProvavel')} /></Label>
               <Textarea rows={3} value={form.causa_provavel} onChange={(e) => setForm({ ...form, causa_provavel: e.target.value })} disabled={readOnly} />
             </div>
 
