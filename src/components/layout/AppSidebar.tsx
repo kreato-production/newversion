@@ -24,6 +24,7 @@ import {
   Shirt,
   ListTodo,
   FileText,
+  AlertTriangle,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -60,6 +61,7 @@ const getMenuItems = (): MenuItemData[] => [
       { labelKey: 'menu.content', icon: Film, path: '/producao/conteudo', permission: { modulo: 'Produção', subModulo1: 'Conteúdo' } },
       { labelKey: 'menu.recordings', icon: Video, path: '/producao/gravacao', permission: { modulo: 'Produção', subModulo1: 'Gravação' } },
       { labelKey: 'menu.tasks', icon: ListTodo, path: '/producao/tarefas', permission: { modulo: 'Produção', subModulo1: 'Tarefas' } },
+      { labelKey: 'menu.recordingIncidents', icon: AlertTriangle, path: '/producao/incidencias', permission: { modulo: 'Produção', subModulo1: 'Incidências de Gravação' } },
       { labelKey: 'menu.maps', icon: Map, path: '/producao/mapas', permission: { modulo: 'Produção', subModulo1: 'Mapas' } },
       {
         labelKey: 'menu.parameters',

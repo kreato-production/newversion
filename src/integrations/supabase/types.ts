@@ -1506,6 +1506,150 @@ export type Database = {
         }
         Relationships: []
       }
+      incidencia_anexos: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          id: string
+          incidencia_id: string
+          nome: string
+          tamanho: number | null
+          tipo: string | null
+          url: string
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          incidencia_id: string
+          nome: string
+          tamanho?: number | null
+          tipo?: string | null
+          url: string
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          incidencia_id?: string
+          nome?: string
+          tamanho?: number | null
+          tipo?: string | null
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "incidencia_anexos_incidencia_id_fkey"
+            columns: ["incidencia_id"]
+            isOneToOne: false
+            referencedRelation: "incidencias_gravacao"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      incidencias_gravacao: {
+        Row: {
+          categoria_id: string | null
+          causa_provavel: string | null
+          classificacao_id: string | null
+          codigo_externo: string | null
+          created_at: string | null
+          created_by: string | null
+          data_incidencia: string | null
+          descricao: string | null
+          gravacao_id: string | null
+          horario_incidencia: string | null
+          id: string
+          impacto_id: string | null
+          recurso_fisico_id: string | null
+          severidade_id: string | null
+          tempo_incidencia: unknown
+          titulo: string
+          updated_at: string | null
+        }
+        Insert: {
+          categoria_id?: string | null
+          causa_provavel?: string | null
+          classificacao_id?: string | null
+          codigo_externo?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          data_incidencia?: string | null
+          descricao?: string | null
+          gravacao_id?: string | null
+          horario_incidencia?: string | null
+          id?: string
+          impacto_id?: string | null
+          recurso_fisico_id?: string | null
+          severidade_id?: string | null
+          tempo_incidencia?: unknown
+          titulo: string
+          updated_at?: string | null
+        }
+        Update: {
+          categoria_id?: string | null
+          causa_provavel?: string | null
+          classificacao_id?: string | null
+          codigo_externo?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          data_incidencia?: string | null
+          descricao?: string | null
+          gravacao_id?: string | null
+          horario_incidencia?: string | null
+          id?: string
+          impacto_id?: string | null
+          recurso_fisico_id?: string | null
+          severidade_id?: string | null
+          tempo_incidencia?: unknown
+          titulo?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "incidencias_gravacao_categoria_id_fkey"
+            columns: ["categoria_id"]
+            isOneToOne: false
+            referencedRelation: "categorias_incidencia"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "incidencias_gravacao_classificacao_id_fkey"
+            columns: ["classificacao_id"]
+            isOneToOne: false
+            referencedRelation: "classificacoes_incidencia"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "incidencias_gravacao_gravacao_id_fkey"
+            columns: ["gravacao_id"]
+            isOneToOne: false
+            referencedRelation: "gravacoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "incidencias_gravacao_impacto_id_fkey"
+            columns: ["impacto_id"]
+            isOneToOne: false
+            referencedRelation: "impactos_incidencia"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "incidencias_gravacao_recurso_fisico_id_fkey"
+            columns: ["recurso_fisico_id"]
+            isOneToOne: false
+            referencedRelation: "recursos_fisicos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "incidencias_gravacao_severidade_id_fkey"
+            columns: ["severidade_id"]
+            isOneToOne: false
+            referencedRelation: "severidades_incidencia"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       materiais: {
         Row: {
           codigo_externo: string | null

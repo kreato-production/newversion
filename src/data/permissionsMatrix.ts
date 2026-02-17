@@ -144,6 +144,23 @@ export const basePermissionsMatrix: Omit<PermissionItem, 'id'>[] = [
   { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Impactos de Incidência', campo: 'Título', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
   { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Impactos de Incidência', campo: 'Descrição', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
   
+  // Produção > Incidências de Gravação
+  { modulo: 'Produção', subModulo1: 'Incidências de Gravação', subModulo2: '-', campo: '-', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'submodulo1' },
+  { modulo: 'Produção', subModulo1: 'Incidências de Gravação', subModulo2: '-', campo: 'Código Externo', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Produção', subModulo1: 'Incidências de Gravação', subModulo2: '-', campo: 'Título', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Produção', subModulo1: 'Incidências de Gravação', subModulo2: '-', campo: 'Gravação', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Produção', subModulo1: 'Incidências de Gravação', subModulo2: '-', campo: 'Recurso Físico', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Produção', subModulo1: 'Incidências de Gravação', subModulo2: '-', campo: 'Severidade', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Produção', subModulo1: 'Incidências de Gravação', subModulo2: '-', campo: 'Impacto', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Produção', subModulo1: 'Incidências de Gravação', subModulo2: '-', campo: 'Categoria', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Produção', subModulo1: 'Incidências de Gravação', subModulo2: '-', campo: 'Classificação', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Produção', subModulo1: 'Incidências de Gravação', subModulo2: '-', campo: 'Data da Incidência', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Produção', subModulo1: 'Incidências de Gravação', subModulo2: '-', campo: 'Horário', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Produção', subModulo1: 'Incidências de Gravação', subModulo2: '-', campo: 'Tempo', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Produção', subModulo1: 'Incidências de Gravação', subModulo2: '-', campo: 'Descrição', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Produção', subModulo1: 'Incidências de Gravação', subModulo2: '-', campo: 'Causa Provável', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Produção', subModulo1: 'Incidências de Gravação', subModulo2: '-', campo: 'Tabulador "Anexos"', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  
   // Recursos
   { modulo: 'Recursos', subModulo1: '-', subModulo2: '-', campo: '-', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'modulo' },
   

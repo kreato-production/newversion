@@ -14,6 +14,7 @@ import Conteudo from "@/pages/producao/Conteudo";
 import TiposGravacao from "@/pages/producao/TiposGravacao";
 import Classificacao from "@/pages/producao/Classificacao";
 import CategoriasIncidencia from "@/pages/producao/CategoriasIncidencia";
+import IncidenciasGravacao from "@/pages/producao/IncidenciasGravacao";
 import SeveridadesIncidencia from "@/pages/producao/SeveridadesIncidencia";
 import ImpactosIncidencia from "@/pages/producao/ImpactosIncidencia";
 import StatusGravacao from "@/pages/producao/StatusGravacao";
@@ -71,6 +72,7 @@ const App = () => (
                 <Route path="/producao/tarefas" element={<Tarefas />} />
                 <Route path="/producao/status-tarefa" element={<StatusTarefa />} />
                 <Route path="/producao/tabelas-preco" element={<TabelasPreco />} />
+                <Route path="/producao/incidencias" element={<IncidenciasGravacao />} />
                 <Route path="/recursos/humanos" element={<RecursosHumanos />} />
                 <Route path="/recursos/tecnicos" element={<RecursosTecnicos />} />
                 <Route path="/recursos/fisicos" element={<RecursosFisicos />} />
