@@ -42,6 +42,7 @@ import Usuarios from "@/pages/admin/Usuarios";
 import PerfisAcesso from "@/pages/admin/PerfisAcesso";
 import CentrosLucro from "@/pages/admin/CentrosLucro";
 import Formularios from "@/pages/admin/Formularios";
+import Programas from "@/pages/producao/Programas";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -60,6 +61,7 @@ const App = () => (
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
               <Route element={<MainLayout />}>
                 <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/producao/programas" element={<Programas />} />
                 <Route path="/producao/conteudo" element={<Conteudo />} />
                 <Route path="/producao/gravacao" element={<GravacaoList />} />
                 <Route path="/producao/mapas" element={<Mapas />} />

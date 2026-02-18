@@ -70,6 +70,7 @@ export const ConteudoFormModal = ({
     quantidadeEpisodios: '',
     centroLucro: '',
     unidadeNegocio: '',
+    programaId: '',
     tipoConteudo: '',
     classificacao: '',
     anoProducao: '',
@@ -91,6 +92,8 @@ export const ConteudoFormModal = ({
   const [centroLucroUnidades, setCentroLucroUnidades] = useState<{ centro_lucro_id: string; unidade_negocio_id: string }[]>([]);
   const [tabelasPreco, setTabelasPreco] = useState<{ id: string; nome: string; unidadeNegocioId: string | null }[]>([]);
   const [filteredTabelasPreco, setFilteredTabelasPreco] = useState<{ id: string; nome: string }[]>([]);
+  const [programas, setProgramas] = useState<{ id: string; nome: string; unidadeNegocioId: string | null }[]>([]);
+  const [filteredProgramas, setFilteredProgramas] = useState<{ id: string; nome: string }[]>([]);
 
   const getSelectedCurrency = () => {
     if (!formData.unidadeNegocio) return null;
@@ -151,9 +154,17 @@ export const ConteudoFormModal = ({
     setFilteredTabelasPreco(filtered);
   }, [formData.unidadeNegocio, unidades, tabelasPreco]);
 
+  // Filter programas by selected unidade
+  useEffect(() => {
+    if (!formData.unidadeNegocio) { setFilteredProgramas([]); return; }
+    const unidadeSelecionada = unidades.find(u => u.nome === formData.unidadeNegocio);
+    if (!unidadeSelecionada) { setFilteredProgramas([]); return; }
+    setFilteredProgramas(programas.filter(p => p.unidadeNegocioId === unidadeSelecionada.id));
+  }, [formData.unidadeNegocio, unidades, programas]);
+
   const loadOptions = useCallback(async () => {
     try {
-      const [centrosRes, statusRes, unidadesRes, tiposRes, classificacoesRes, centroLucroUnidadesRes, tabelasPrecoRes] = await Promise.all([
+      const [centrosRes, statusRes, unidadesRes, tiposRes, classificacoesRes, centroLucroUnidadesRes, tabelasPrecoRes, programasRes] = await Promise.all([
         supabase.from('centros_lucro').select('id, nome, parent_id, status').eq('status', 'Ativo').order('nome'),
         supabase.from('status_gravacao').select('id, nome, cor').order('nome'),
         (() => {
@@ -165,6 +176,7 @@ export const ConteudoFormModal = ({
         supabase.from('classificacoes').select('id, nome').order('nome'),
         supabase.from('centro_lucro_unidades').select('centro_lucro_id, unidade_negocio_id'),
         (supabase as any).from('tabelas_preco').select('id, nome, unidade_negocio_id').eq('status', 'Ativo').order('nome'),
+        supabase.from('programas').select('id, nome, unidade_negocio_id').order('nome'),
       ]);
 
       setCentrosLucro((centrosRes.data || []).map(c => ({ id: c.id, nome: c.nome, parentId: c.parent_id, status: c.status || 'Ativo' })));
@@ -174,6 +186,7 @@ export const ConteudoFormModal = ({
       setClassificacoes(classificacoesRes.data || []);
       setCentroLucroUnidades(centroLucroUnidadesRes.data || []);
       setTabelasPreco((tabelasPrecoRes.data || []).map((tp: any) => ({ id: tp.id, nome: tp.nome, unidadeNegocioId: tp.unidade_negocio_id })));
+      setProgramas((programasRes.data || []).map((p: any) => ({ id: p.id, nome: p.nome, unidadeNegocioId: p.unidade_negocio_id })));
     } catch (err) {
       console.error('Error loading options:', err);
     }
@@ -195,6 +208,7 @@ export const ConteudoFormModal = ({
         quantidadeEpisodios: String(data.quantidadeEpisodios || ''),
         centroLucro: data.centroLucro || '',
         unidadeNegocio: data.unidadeNegocio || '',
+        programaId: data.programaId || '',
         tipoConteudo: data.tipoConteudo || '',
         classificacao: data.classificacao || '',
         anoProducao: data.anoProducao || '',
@@ -214,6 +228,7 @@ export const ConteudoFormModal = ({
         quantidadeEpisodios: '',
         centroLucro: '',
         unidadeNegocio: '',
+        programaId: '',
         tipoConteudo: '',
         classificacao: '',
         anoProducao: '',
@@ -350,6 +365,7 @@ export const ConteudoFormModal = ({
       centroLucroId: data?.centroLucroId,
       unidadeNegocio: formData.unidadeNegocio,
       unidadeNegocioId: data?.unidadeNegocioId,
+      programaId: formData.programaId || undefined,
       tipoConteudo: formData.tipoConteudo,
       tipoConteudoId: data?.tipoConteudoId,
       classificacao: formData.classificacao,
@@ -649,7 +665,7 @@ export const ConteudoFormModal = ({
                     options={unidades.map(u => ({ value: u.nome, label: u.nome }))}
                     value={formData.unidadeNegocio}
                     onValueChange={(value) => {
-                      setFormData({ ...formData, unidadeNegocio: value, centroLucro: '', tabelaPrecoId: '' });
+                      setFormData({ ...formData, unidadeNegocio: value, centroLucro: '', tabelaPrecoId: '', programaId: '' });
                     }}
                     placeholder={t('common.select')}
                     searchPlaceholder="Pesquisar unidade..."
@@ -679,7 +695,18 @@ export const ConteudoFormModal = ({
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-4 gap-4">
+                <div className="space-y-2">
+                  <Label>Programa <FieldAsterisk type={getAsterisk('programaId')} /></Label>
+                  <SearchableSelect
+                    options={filteredProgramas.map(p => ({ value: p.id, label: p.nome }))}
+                    value={formData.programaId}
+                    onValueChange={(value) => setFormData({ ...formData, programaId: value })}
+                    disabled={!formData.unidadeNegocio}
+                    placeholder={!formData.unidadeNegocio ? 'Selecione uma Unidade de Negócio primeiro' : t('common.select')}
+                    searchPlaceholder="Pesquisar programa..."
+                  />
+                </div>
                 <div className="space-y-2">
                   <Label>{t('content.contentType')} <FieldAsterisk type={getAsterisk('tipoConteudo')} /></Label>
                   <SearchableSelect

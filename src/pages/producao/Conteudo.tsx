@@ -33,6 +33,8 @@ export interface Conteudo {
   centroLucroId?: string;
   unidadeNegocio: string;
   unidadeNegocioId?: string;
+  programaId?: string;
+  programaNome?: string;
   tipoConteudo: string;
   tipoConteudoId?: string;
   classificacao: string;
@@ -55,6 +57,7 @@ const mapDbToConteudo = (
     tipos_gravacao?: { nome: string } | null;
     classificacoes?: { nome: string } | null;
     tabelas_preco?: { nome: string } | null;
+    programas?: { nome: string } | null;
   }
 ): Conteudo & { orcamento?: number } => ({
   id: db.id,
@@ -65,6 +68,8 @@ const mapDbToConteudo = (
   centroLucroId: db.centro_lucro_id || undefined,
   unidadeNegocio: db.unidades_negocio?.nome || '',
   unidadeNegocioId: db.unidade_negocio_id || undefined,
+  programaId: (db as any).programa_id || undefined,
+  programaNome: (db as any).programas?.nome || '',
   tipoConteudo: db.tipos_gravacao?.nome || '',
   tipoConteudoId: db.tipo_conteudo_id || undefined,
   classificacao: db.classificacoes?.nome || '',
@@ -110,7 +115,8 @@ const Conteudo = () => {
           unidades_negocio:unidade_negocio_id(nome),
           tipos_gravacao:tipo_conteudo_id(nome),
           classificacoes:classificacao_id(nome),
-          tabelas_preco:tabela_preco_id(nome)
+          tabelas_preco:tabela_preco_id(nome),
+          programas:programa_id(nome)
         `)
         .order('descricao');
 
@@ -259,6 +265,7 @@ const Conteudo = () => {
         sinopse: data.sinopse || null,
         orcamento: (data as any).orcamento || 0,
         tabela_preco_id: data.tabelaPrecoId || null,
+        programa_id: data.programaId || null,
         frequencia_data_inicio: data.frequenciaDataInicio || null,
         frequencia_data_fim: data.frequenciaDataFim || null,
         frequencia_dias_semana: data.frequenciaDiasSemana && data.frequenciaDiasSemana.length > 0 ? data.frequenciaDiasSemana : null,
