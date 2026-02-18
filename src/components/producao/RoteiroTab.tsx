@@ -78,9 +78,10 @@ interface ElencoMembro {
 
 interface RoteiroTabProps {
   gravacaoId: string;
+  conteudoId?: string;
 }
 
-export const RoteiroTab = ({ gravacaoId }: RoteiroTabProps) => {
+export const RoteiroTab = ({ gravacaoId, conteudoId }: RoteiroTabProps) => {
   const { t, language } = useLanguage();
   const [cenas, setCenas] = useState<Cena[]>([]);
   const [elenco, setElenco] = useState<ElencoMembro[]>([]);
@@ -139,8 +140,11 @@ export const RoteiroTab = ({ gravacaoId }: RoteiroTabProps) => {
         })));
       }
 
-      // Carregar elenco da gravação
-      const { data: elencoData } = await supabase
+      // Carregar elenco da gravação E do conteúdo associado
+      const elencoResults: any[] = [];
+
+      // Buscar elenco vinculado à gravação
+      const { data: elencoGravacao } = await supabase
         .from('gravacao_elenco')
         .select(`
           id,
@@ -150,24 +154,49 @@ export const RoteiroTab = ({ gravacaoId }: RoteiroTabProps) => {
         `)
         .eq('gravacao_id', gravacaoId);
 
-      if (elencoData) {
-        setElenco(elencoData.map(e => {
-          const pessoa = e.pessoas as any;
-          return {
-            id: e.id,
-            pessoaId: e.pessoa_id,
-            nome: pessoa?.nome || '',
-            nomeTrabalho: pessoa?.nome_trabalho || undefined,
-            personagem: e.personagem || '',
-          };
-        }));
+      if (elencoGravacao) elencoResults.push(...elencoGravacao);
+
+      // Buscar elenco vinculado ao conteúdo (se houver conteúdo associado)
+      if (conteudoId) {
+        const { data: elencoConteudo } = await supabase
+          .from('gravacao_elenco')
+          .select(`
+            id,
+            personagem,
+            pessoa_id,
+            pessoas:pessoa_id(id, nome, sobrenome, nome_trabalho)
+          `)
+          .eq('conteudo_id', conteudoId)
+          .is('gravacao_id', null);
+
+        if (elencoConteudo) {
+          // Evitar duplicatas por pessoa_id
+          const existingPessoaIds = new Set(elencoResults.map(e => e.pessoa_id));
+          elencoConteudo.forEach(e => {
+            if (!existingPessoaIds.has(e.pessoa_id)) {
+              elencoResults.push(e);
+            }
+          });
+        }
       }
 
-      // Carregar figurantes (pessoas com classificação figurante)
+      setElenco(elencoResults.map(e => {
+        const pessoa = e.pessoas as any;
+        return {
+          id: e.id,
+          pessoaId: e.pessoa_id,
+          nome: pessoa?.nome || '',
+          nomeTrabalho: pessoa?.nome_trabalho || undefined,
+          personagem: e.personagem || '',
+        };
+      }));
+
+      // Carregar figurantes - buscar pessoas com classificações que contenham "figurante" ou "extra"
+      // Se não encontrar, buscar todas as pessoas ativas como fallback
       const { data: classificacoesData } = await supabase
         .from('classificacoes_pessoa')
         .select('id, nome')
-        .ilike('nome', '%figurante%');
+        .or('nome.ilike.%figurante%,nome.ilike.%extra%');
 
       const figuranteClassIds = classificacoesData?.map(c => c.id) || [];
 
@@ -187,13 +216,30 @@ export const RoteiroTab = ({ gravacaoId }: RoteiroTabProps) => {
             status: p.status || undefined,
           })));
         }
+      } else {
+        // Fallback: carregar todas as pessoas ativas para seleção de figurantes
+        const { data: pessoasData } = await supabase
+          .from('pessoas')
+          .select('id, nome, sobrenome, nome_trabalho, status')
+          .eq('status', 'Ativo')
+          .order('nome');
+
+        if (pessoasData) {
+          setFigurantes(pessoasData.map(p => ({
+            id: p.id,
+            nome: p.nome,
+            sobrenome: p.sobrenome,
+            nomeTrabalho: p.nome_trabalho || undefined,
+            status: p.status || undefined,
+          })));
+        }
       }
     } catch (error) {
       console.error('Erro ao carregar dados do roteiro:', error);
     } finally {
       setLoading(false);
     }
-  }, [gravacaoId]);
+  }, [gravacaoId, conteudoId]);
 
   useEffect(() => {
     loadData();
