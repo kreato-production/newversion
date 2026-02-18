@@ -475,6 +475,7 @@ export type Database = {
           frequencia_dias_semana: number[] | null
           id: string
           orcamento: number | null
+          programa_id: string | null
           quantidade_episodios: number | null
           sinopse: string | null
           tabela_preco_id: string | null
@@ -495,6 +496,7 @@ export type Database = {
           frequencia_dias_semana?: number[] | null
           id?: string
           orcamento?: number | null
+          programa_id?: string | null
           quantidade_episodios?: number | null
           sinopse?: string | null
           tabela_preco_id?: string | null
@@ -515,6 +517,7 @@ export type Database = {
           frequencia_dias_semana?: number[] | null
           id?: string
           orcamento?: number | null
+          programa_id?: string | null
           quantidade_episodios?: number | null
           sinopse?: string | null
           tabela_preco_id?: string | null
@@ -535,6 +538,13 @@ export type Database = {
             columns: ["classificacao_id"]
             isOneToOne: false
             referencedRelation: "classificacoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conteudos_programa_id_fkey"
+            columns: ["programa_id"]
+            isOneToOne: false
+            referencedRelation: "programas"
             referencedColumns: ["id"]
           },
           {
@@ -1390,6 +1400,7 @@ export type Database = {
           id: string
           nome: string
           orcamento: number | null
+          programa_id: string | null
           status_id: string | null
           tipo_conteudo_id: string | null
           unidade_negocio_id: string | null
@@ -1408,6 +1419,7 @@ export type Database = {
           id?: string
           nome: string
           orcamento?: number | null
+          programa_id?: string | null
           status_id?: string | null
           tipo_conteudo_id?: string | null
           unidade_negocio_id?: string | null
@@ -1426,6 +1438,7 @@ export type Database = {
           id?: string
           nome?: string
           orcamento?: number | null
+          programa_id?: string | null
           status_id?: string | null
           tipo_conteudo_id?: string | null
           unidade_negocio_id?: string | null
@@ -1451,6 +1464,13 @@ export type Database = {
             columns: ["conteudo_id"]
             isOneToOne: false
             referencedRelation: "conteudos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gravacoes_programa_id_fkey"
+            columns: ["programa_id"]
+            isOneToOne: false
+            referencedRelation: "programas"
             referencedColumns: ["id"]
           },
           {
@@ -1908,6 +1928,47 @@ export type Database = {
             columns: ["recurso_humano_id"]
             isOneToOne: false
             referencedRelation: "recursos_humanos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      programas: {
+        Row: {
+          codigo_externo: string | null
+          created_at: string | null
+          created_by: string | null
+          descricao: string | null
+          id: string
+          nome: string
+          unidade_negocio_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          codigo_externo?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          descricao?: string | null
+          id?: string
+          nome: string
+          unidade_negocio_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          codigo_externo?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          descricao?: string | null
+          id?: string
+          nome?: string
+          unidade_negocio_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "programas_unidade_negocio_id_fkey"
+            columns: ["unidade_negocio_id"]
+            isOneToOne: false
+            referencedRelation: "unidades_negocio"
             referencedColumns: ["id"]
           },
         ]
@@ -2758,6 +2819,35 @@ export type Database = {
             columns: ["usuario_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      usuario_programas: {
+        Row: {
+          created_at: string | null
+          id: string
+          programa_id: string
+          usuario_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          programa_id: string
+          usuario_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          programa_id?: string
+          usuario_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "usuario_programas_programa_id_fkey"
+            columns: ["programa_id"]
+            isOneToOne: false
+            referencedRelation: "programas"
             referencedColumns: ["id"]
           },
         ]
