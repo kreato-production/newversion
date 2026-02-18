@@ -138,6 +138,7 @@ const translations: Record<Language, Record<string, string>> = {
     // Menu / Sidebar
     'menu.dashboard': 'Dashboard',
     'menu.production': 'Produção',
+    'menu.programs': 'Programas',
     'menu.content': 'Conteúdo',
     'menu.recordings': 'Gravação',
     'menu.maps': 'Mapas',
@@ -869,6 +870,7 @@ const translations: Record<Language, Record<string, string>> = {
     // Menu / Sidebar
     'menu.dashboard': 'Dashboard',
     'menu.production': 'Production',
+    'menu.programs': 'Programs',
     'menu.content': 'Content',
     'menu.recordings': 'Recordings',
     'menu.maps': 'Maps',
@@ -1600,6 +1602,7 @@ const translations: Record<Language, Record<string, string>> = {
     // Menu / Sidebar
     'menu.dashboard': 'Panel',
     'menu.production': 'Producción',
+    'menu.programs': 'Programas',
     'menu.content': 'Contenido',
     'menu.recordings': 'Grabaciones',
     'menu.maps': 'Mapas',

@@ -36,12 +36,20 @@ export const basePermissionsMatrix: Omit<PermissionItem, 'id'>[] = [
   // Produção
   { modulo: 'Produção', subModulo1: '-', subModulo2: '-', campo: '-', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'modulo' },
   
+  // Produção > Programas
+  { modulo: 'Produção', subModulo1: 'Programas', subModulo2: '-', campo: '-', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'submodulo1' },
+  { modulo: 'Produção', subModulo1: 'Programas', subModulo2: '-', campo: 'Código Externo', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Produção', subModulo1: 'Programas', subModulo2: '-', campo: 'Nome', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Produção', subModulo1: 'Programas', subModulo2: '-', campo: 'Unidade de Negócio', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Produção', subModulo1: 'Programas', subModulo2: '-', campo: 'Descrição', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+
   // Produção > Conteúdo
   { modulo: 'Produção', subModulo1: 'Conteúdo', subModulo2: '-', campo: '-', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'submodulo1' },
   { modulo: 'Produção', subModulo1: 'Conteúdo', subModulo2: '-', campo: 'Código Externo', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
   { modulo: 'Produção', subModulo1: 'Conteúdo', subModulo2: '-', campo: 'Descrição', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
   { modulo: 'Produção', subModulo1: 'Conteúdo', subModulo2: '-', campo: 'Qtd.Episódios', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
   { modulo: 'Produção', subModulo1: 'Conteúdo', subModulo2: '-', campo: 'Unidade de Negócio', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Produção', subModulo1: 'Conteúdo', subModulo2: '-', campo: 'Programa', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
   { modulo: 'Produção', subModulo1: 'Conteúdo', subModulo2: '-', campo: 'Centro de Lucro', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
   { modulo: 'Produção', subModulo1: 'Conteúdo', subModulo2: '-', campo: 'Tipo de Conteúdo', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
   { modulo: 'Produção', subModulo1: 'Conteúdo', subModulo2: '-', campo: 'Classificação', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
@@ -63,6 +71,7 @@ export const basePermissionsMatrix: Omit<PermissionItem, 'id'>[] = [
   { modulo: 'Produção', subModulo1: 'Gravação', subModulo2: '-', campo: 'Código Externo', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
   { modulo: 'Produção', subModulo1: 'Gravação', subModulo2: '-', campo: 'Nome', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
   { modulo: 'Produção', subModulo1: 'Gravação', subModulo2: '-', campo: 'Unidade de Negócio', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Produção', subModulo1: 'Gravação', subModulo2: '-', campo: 'Programa', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
   { modulo: 'Produção', subModulo1: 'Gravação', subModulo2: '-', campo: 'Centro de Lucro', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
   { modulo: 'Produção', subModulo1: 'Gravação', subModulo2: '-', campo: 'Tipo de Conteúdo', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
   { modulo: 'Produção', subModulo1: 'Gravação', subModulo2: '-', campo: 'Classificação', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },

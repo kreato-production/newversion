@@ -58,6 +58,7 @@ const getMenuItems = (): MenuItemData[] => [
     icon: Video,
     permission: { modulo: 'Produção' },
     children: [
+      { labelKey: 'menu.programs', icon: FolderCog, path: '/producao/programas', permission: { modulo: 'Produção', subModulo1: 'Programas' } },
       { labelKey: 'menu.content', icon: Film, path: '/producao/conteudo', permission: { modulo: 'Produção', subModulo1: 'Conteúdo' } },
       { labelKey: 'menu.recordings', icon: Video, path: '/producao/gravacao', permission: { modulo: 'Produção', subModulo1: 'Gravação' } },
       { labelKey: 'menu.tasks', icon: ListTodo, path: '/producao/tarefas', permission: { modulo: 'Produção', subModulo1: 'Tarefas' } },

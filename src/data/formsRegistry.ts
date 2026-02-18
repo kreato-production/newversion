@@ -15,6 +15,17 @@ export interface FormDefinition {
 
 export const formsRegistry: FormDefinition[] = [
   {
+    id: 'programa',
+    nome: 'Programa',
+    modulo: 'Produção',
+    campos: [
+      { campo: 'codigoExterno', label: 'Código Externo' },
+      { campo: 'nome', label: 'Nome' },
+      { campo: 'unidadeNegocio', label: 'Unidade de Negócio' },
+      { campo: 'descricao', label: 'Descrição' },
+    ],
+  },
+  {
     id: 'conteudo',
     nome: 'Conteúdo',
     modulo: 'Produção',
@@ -23,6 +34,7 @@ export const formsRegistry: FormDefinition[] = [
       { campo: 'descricao', label: 'Descrição' },
       { campo: 'quantidadeEpisodios', label: 'Qtd. Episódios' },
       { campo: 'unidadeNegocio', label: 'Unidade de Negócio' },
+      { campo: 'programaId', label: 'Programa' },
       { campo: 'centroLucro', label: 'Centro de Lucro' },
       { campo: 'tipoConteudo', label: 'Tipo de Conteúdo' },
       { campo: 'classificacao', label: 'Classificação' },
@@ -45,6 +57,7 @@ export const formsRegistry: FormDefinition[] = [
       { campo: 'codigoExterno', label: 'Código Externo' },
       { campo: 'nome', label: 'Nome' },
       { campo: 'unidadeNegocio', label: 'Unidade de Negócio' },
+      { campo: 'programaId', label: 'Programa' },
       { campo: 'centroLucro', label: 'Centro de Lucro' },
       { campo: 'tipoConteudo', label: 'Tipo de Conteúdo' },
       { campo: 'classificacao', label: 'Classificação' },
