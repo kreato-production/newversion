@@ -541,7 +541,7 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
 
           {data && isVisible('Produção', 'Gravação', '-', 'Tabulador "Roteiro"') && (
             <TabsContent value="roteiro">
-              <RoteiroTab gravacaoId={data.id} />
+              <RoteiroTab gravacaoId={data.id} conteudoId={formData.conteudoId || undefined} />
             </TabsContent>
           )}
 
