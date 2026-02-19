@@ -416,7 +416,7 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>{t('programs.title')}</Label>
+                  <Label>Programa</Label>
                   <SearchableSelect
                     options={filteredProgramas.map(p => ({ value: p.id, label: p.nome }))}
                     value={formData.programaId}
