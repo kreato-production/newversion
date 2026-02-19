@@ -81,6 +81,7 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
     status: '',
     conteudoId: '',
     orcamento: '',
+    programaId: '',
   });
 
   const [unidades, setUnidades] = useState<{ id: string; nome: string; moeda?: string | null }[]>([]);
@@ -90,6 +91,8 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
   const [tipos, setTipos] = useState<{ id: string; nome: string }[]>([]);
   const [statusList, setStatusList] = useState<{ id: string; nome: string }[]>([]);
   const [conteudos, setConteudos] = useState<{ id: string; descricao: string }[]>([]);
+  const [programas, setProgramas] = useState<{ id: string; nome: string; unidadeNegocioId: string | null }[]>([]);
+  const [filteredProgramas, setFilteredProgramas] = useState<{ id: string; nome: string }[]>([]);
 
   const getSelectedCurrency = () => {
     if (!formData.unidadeNegocio) return null;
@@ -137,7 +140,7 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
     if (!session) return;
 
     try {
-      const [unidadesRes, centrosRes, centroLucroUnidadesRes, classificacoesRes, tiposRes, statusRes, conteudosRes] = await Promise.all([
+      const [unidadesRes, centrosRes, centroLucroUnidadesRes, classificacoesRes, tiposRes, statusRes, conteudosRes, programasRes] = await Promise.all([
         (() => {
           let q = supabase.from('unidades_negocio').select('id, nome, moeda');
           if (user?.unidadeIds && user.unidadeIds.length > 0) q = q.in('id', user.unidadeIds);
@@ -149,6 +152,7 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
         supabase.from('tipos_gravacao').select('id, nome').order('nome'),
         supabase.from('status_gravacao').select('id, nome, is_inicial').order('nome'),
         supabase.from('conteudos').select('id, descricao').order('descricao'),
+        supabase.from('programas').select('id, nome, unidade_negocio_id').order('nome'),
       ]);
 
       setUnidades((unidadesRes.data || []).map(u => ({ id: u.id, nome: u.nome, moeda: u.moeda })));
@@ -163,6 +167,7 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
       setTipos(tiposRes.data || []);
       setStatusList(statusRes.data || []);
       setConteudos(conteudosRes.data || []);
+      setProgramas((programasRes.data || []).map((p: any) => ({ id: p.id, nome: p.nome, unidadeNegocioId: p.unidade_negocio_id })));
     } catch (err) {
       console.error('Error fetching dropdown data:', err);
     }
@@ -192,6 +197,7 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
         status: data.status || '',
         conteudoId: data.conteudoId || '',
         orcamento: String((data as any).orcamento || ''),
+        programaId: data.programaId || '',
       });
       if (data.dataPrevista) {
         try {
@@ -231,6 +237,7 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
         status: inicialStatus?.nome || '',
         conteudoId: '',
         orcamento: '',
+        programaId: '',
       });
       setDataPrevista(undefined);
     }
@@ -256,6 +263,14 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
       return [{ id: '__temp__', nome: incomingStatus }, ...prev];
     });
   }, [isOpen, incomingStatus]);
+
+  // Filter programas by selected unidade
+  useEffect(() => {
+    if (!formData.unidadeNegocio) { setFilteredProgramas([]); return; }
+    const unidadeSelecionada = unidades.find(u => u.nome === formData.unidadeNegocio);
+    if (!unidadeSelecionada) { setFilteredProgramas([]); return; }
+    setFilteredProgramas(programas.filter(p => p.unidadeNegocioId === unidadeSelecionada.id));
+  }, [formData.unidadeNegocio, unidades, programas]);
 
   const gravacaoFieldLabels: Record<string, string> = {
     codigoExterno: 'Código Externo', nome: 'Nome', unidadeNegocio: 'Unidade de Negócio',
@@ -286,6 +301,7 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
       status: formData.status,
       conteudoId: formData.conteudoId,
       orcamento: parseFloat(formData.orcamento) || 0,
+      programaId: formData.programaId,
       dataPrevista: dataPrevista ? format(dataPrevista, 'dd/MM/yyyy') : '',
       dataCadastro: data?.dataCadastro || new Date().toLocaleDateString('pt-BR'),
       usuarioCadastro: data?.usuarioCadastro || user?.nome || 'Admin',
@@ -375,13 +391,13 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-4 gap-4">
                 <div className="space-y-2">
                   <Label>{t('recordings.businessUnit')} <FieldAsterisk type={getAsterisk('unidadeNegocio')} /></Label>
                   <SearchableSelect
                     options={unidades.map(u => ({ value: u.nome, label: u.nome }))}
                     value={formData.unidadeNegocio}
-                    onValueChange={(value) => setFormData({ ...formData, unidadeNegocio: value, centroLucro: '' })}
+                    onValueChange={(value) => setFormData({ ...formData, unidadeNegocio: value, centroLucro: '', programaId: '' })}
                     placeholder={t('common.select')}
                     searchPlaceholder="Pesquisar unidade..."
                     emptyMessage="Nenhuma unidade encontrada."
@@ -397,6 +413,18 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
                     placeholder={!formData.unidadeNegocio ? 'Selecione uma unidade de negócio primeiro' : t('common.select')}
                     searchPlaceholder="Pesquisar centro de lucro..."
                     emptyMessage="Nenhum centro de lucro encontrado."
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>{t('programs.title')}</Label>
+                  <SearchableSelect
+                    options={filteredProgramas.map(p => ({ value: p.id, label: p.nome }))}
+                    value={formData.programaId}
+                    onValueChange={(value) => setFormData({ ...formData, programaId: value })}
+                    disabled={!formData.unidadeNegocio}
+                    placeholder={!formData.unidadeNegocio ? 'Selecione uma unidade primeiro' : t('common.select')}
+                    searchPlaceholder="Pesquisar programa..."
+                    emptyMessage="Nenhum programa encontrado."
                   />
                 </div>
                 <div className="space-y-2">

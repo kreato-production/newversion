@@ -23,10 +23,11 @@ import { useAuth } from '@/contexts/AuthContext';
 import type { Usuario } from '@/pages/admin/Usuarios';
 import { UnidadesNegocioTab } from './UnidadesNegocioTab';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Camera, X, Plus, Trash2, Users } from 'lucide-react';
+import { Camera, X, Plus, Trash2, Users, Tv } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { toast } from 'sonner';
+import { SearchableSelect } from '@/components/shared/SearchableSelect';
 
 interface UsuarioFormModalProps {
   isOpen: boolean;
@@ -53,6 +54,11 @@ export const UsuarioFormModal = ({
   const [equipes, setEquipes] = useState<{ id: string; codigo: string; descricao: string }[]>([]);
   const [usuarioEquipes, setUsuarioEquipes] = useState<{ id: string; equipe_id: string; equipe_codigo: string; equipe_descricao: string }[]>([]);
   const [selectedEquipeId, setSelectedEquipeId] = useState('');
+
+  // Programas tab state
+  const [allProgramas, setAllProgramas] = useState<{ id: string; nome: string; unidade_negocio_id: string | null }[]>([]);
+  const [usuarioProgramas, setUsuarioProgramas] = useState<{ id: string; programa_id: string; programa_nome: string }[]>([]);
+  const [selectedProgramaId, setSelectedProgramaId] = useState('');
 
   const [formData, setFormData] = useState({
     codigoExterno: '',
@@ -116,6 +122,39 @@ export const UsuarioFormModal = ({
     }
   }, [session]);
 
+  // Fetch all programas
+  const fetchAllProgramas = useCallback(async () => {
+    if (!session) return;
+    try {
+      const { data: pData, error } = await supabase
+        .from('programas')
+        .select('id, nome, unidade_negocio_id')
+        .order('nome');
+      if (error) throw error;
+      setAllProgramas(pData || []);
+    } catch (err) {
+      console.error('Error fetching programas:', err);
+    }
+  }, [session]);
+
+  // Fetch usuario programas
+  const fetchUsuarioProgramas = useCallback(async (usuarioId: string) => {
+    try {
+      const { data: upData, error } = await supabase
+        .from('usuario_programas')
+        .select('id, programa_id, programas:programa_id(nome)')
+        .eq('usuario_id', usuarioId);
+      if (error) throw error;
+      setUsuarioProgramas((upData || []).map((up: any) => ({
+        id: up.id,
+        programa_id: up.programa_id,
+        programa_nome: up.programas?.nome || '',
+      })));
+    } catch (err) {
+      console.error('Error fetching usuario programas:', err);
+    }
+  }, []);
+
   // Fetch usuario equipes
   const fetchUsuarioEquipes = useCallback(async (usuarioId: string) => {
     try {
@@ -140,8 +179,9 @@ export const UsuarioFormModal = ({
       fetchPerfis();
       fetchRecursosHumanos();
       fetchEquipes();
+      fetchAllProgramas();
     }
-  }, [isOpen, fetchPerfis, fetchRecursosHumanos, fetchEquipes]);
+  }, [isOpen, fetchPerfis, fetchRecursosHumanos, fetchEquipes, fetchAllProgramas]);
 
   useEffect(() => {
     if (data) {
@@ -161,6 +201,7 @@ export const UsuarioFormModal = ({
       });
       setFotoPreview(data.foto || null);
       fetchUsuarioEquipes(data.id);
+      fetchUsuarioProgramas(data.id);
     } else {
       setFormData({
         codigoExterno: '',
@@ -178,9 +219,11 @@ export const UsuarioFormModal = ({
       });
       setFotoPreview(null);
       setUsuarioEquipes([]);
+      setUsuarioProgramas([]);
     }
     setSelectedEquipeId('');
-  }, [data, isOpen, fetchUsuarioEquipes]);
+    setSelectedProgramaId('');
+  }, [data, isOpen, fetchUsuarioEquipes, fetchUsuarioProgramas]);
 
   const handleFotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -246,6 +289,44 @@ export const UsuarioFormModal = ({
     }
   };
 
+  const handleAddPrograma = async () => {
+    if (!selectedProgramaId || !data) return;
+    if (usuarioProgramas.some(up => up.programa_id === selectedProgramaId)) {
+      toast.error('Programa já adicionado.');
+      return;
+    }
+    try {
+      const { data: inserted, error } = await supabase
+        .from('usuario_programas')
+        .insert({ usuario_id: data.id, programa_id: selectedProgramaId })
+        .select('id, programa_id, programas:programa_id(nome)')
+        .single();
+      if (error) throw error;
+      setUsuarioProgramas(prev => [...prev, {
+        id: inserted.id,
+        programa_id: inserted.programa_id,
+        programa_nome: (inserted as any).programas?.nome || '',
+      }]);
+      setSelectedProgramaId('');
+      toast.success('Programa adicionado!');
+    } catch (err) {
+      console.error('Error adding programa:', err);
+      toast.error('Erro ao adicionar programa.');
+    }
+  };
+
+  const handleRemovePrograma = async (id: string) => {
+    try {
+      const { error } = await supabase.from('usuario_programas').delete().eq('id', id);
+      if (error) throw error;
+      setUsuarioProgramas(prev => prev.filter(up => up.id !== id));
+      toast.success('Programa removido!');
+    } catch (err) {
+      console.error('Error removing programa:', err);
+      toast.error('Erro ao remover programa.');
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -282,7 +363,9 @@ export const UsuarioFormModal = ({
   };
 
   const isCoordenacao = formData.tipoAcesso === 'Coordenação';
-  const tabCount = 2 + (isCoordenacao && data ? 1 : 0);
+  const tabCount = 3 + (isCoordenacao && data ? 1 : 0);
+
+  const gridColsClass = tabCount === 4 ? 'grid-cols-4' : 'grid-cols-3';
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -295,9 +378,10 @@ export const UsuarioFormModal = ({
         </DialogHeader>
 
         <Tabs defaultValue="dados" className="w-full">
-          <TabsList className={`grid w-full ${tabCount === 3 ? 'grid-cols-3' : 'grid-cols-2'}`}>
+          <TabsList className={`grid w-full ${gridColsClass}`}>
             <TabsTrigger value="dados">Dados Gerais</TabsTrigger>
             <TabsTrigger value="unidades" disabled={!data}>Unidades de Negócio</TabsTrigger>
+            <TabsTrigger value="programas" disabled={!data}>Programas</TabsTrigger>
             {isCoordenacao && data && (
               <TabsTrigger value="equipes">Equipes</TabsTrigger>
             )}
@@ -514,6 +598,70 @@ export const UsuarioFormModal = ({
 
           <TabsContent value="unidades">
             {data && <UnidadesNegocioTab usuarioId={data.id} />}
+          </TabsContent>
+
+          <TabsContent value="programas">
+            {data && (
+              <div className="space-y-4 mt-4">
+                <div className="flex items-end gap-2">
+                  <div className="flex-1 space-y-2">
+                    <Label>Selecionar Programa</Label>
+                    <SearchableSelect
+                      options={allProgramas
+                        .filter(p => !usuarioProgramas.some(up => up.programa_id === p.id))
+                        .map(p => ({ value: p.id, label: p.nome }))}
+                      value={selectedProgramaId}
+                      onValueChange={setSelectedProgramaId}
+                      placeholder="Selecione um programa..."
+                      searchPlaceholder="Pesquisar programa..."
+                      emptyMessage="Nenhum programa encontrado."
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    onClick={handleAddPrograma}
+                    disabled={!selectedProgramaId}
+                    size="sm"
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Adicionar
+                  </Button>
+                </div>
+
+                {usuarioProgramas.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-8 text-center">
+                    <Tv className="w-12 h-12 text-muted-foreground mb-2" />
+                    <p className="text-muted-foreground">Nenhum programa vinculado a este usuário.</p>
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Programa</TableHead>
+                        <TableHead className="w-16">Ações</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {usuarioProgramas.map((up) => (
+                        <TableRow key={up.id}>
+                          <TableCell>{up.programa_nome}</TableCell>
+                          <TableCell>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="text-destructive hover:text-destructive"
+                              onClick={() => handleRemovePrograma(up.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </div>
+            )}
           </TabsContent>
 
           {isCoordenacao && data && (
