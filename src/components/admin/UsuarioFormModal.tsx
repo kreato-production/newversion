@@ -59,6 +59,7 @@ export const UsuarioFormModal = ({
   const [allProgramas, setAllProgramas] = useState<{ id: string; nome: string; unidade_negocio_id: string | null }[]>([]);
   const [usuarioProgramas, setUsuarioProgramas] = useState<{ id: string; programa_id: string; programa_nome: string }[]>([]);
   const [selectedProgramaId, setSelectedProgramaId] = useState('');
+  const [usuarioUnidadeIds, setUsuarioUnidadeIds] = useState<string[]>([]);
 
   const [formData, setFormData] = useState({
     codigoExterno: '',
@@ -137,6 +138,20 @@ export const UsuarioFormModal = ({
     }
   }, [session]);
 
+  // Fetch usuario unidades (for filtering programas)
+  const fetchUsuarioUnidades = useCallback(async (usuarioId: string) => {
+    try {
+      const { data: uuData, error } = await supabase
+        .from('usuario_unidades')
+        .select('unidade_id')
+        .eq('usuario_id', usuarioId);
+      if (error) throw error;
+      setUsuarioUnidadeIds((uuData || []).map(u => u.unidade_id));
+    } catch (err) {
+      console.error('Error fetching usuario unidades:', err);
+    }
+  }, []);
+
   // Fetch usuario programas
   const fetchUsuarioProgramas = useCallback(async (usuarioId: string) => {
     try {
@@ -202,6 +217,7 @@ export const UsuarioFormModal = ({
       setFotoPreview(data.foto || null);
       fetchUsuarioEquipes(data.id);
       fetchUsuarioProgramas(data.id);
+      fetchUsuarioUnidades(data.id);
     } else {
       setFormData({
         codigoExterno: '',
@@ -220,10 +236,11 @@ export const UsuarioFormModal = ({
       setFotoPreview(null);
       setUsuarioEquipes([]);
       setUsuarioProgramas([]);
+      setUsuarioUnidadeIds([]);
     }
     setSelectedEquipeId('');
     setSelectedProgramaId('');
-  }, [data, isOpen, fetchUsuarioEquipes, fetchUsuarioProgramas]);
+  }, [data, isOpen, fetchUsuarioEquipes, fetchUsuarioProgramas, fetchUsuarioUnidades]);
 
   const handleFotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -609,6 +626,7 @@ export const UsuarioFormModal = ({
                     <SearchableSelect
                       options={allProgramas
                         .filter(p => !usuarioProgramas.some(up => up.programa_id === p.id))
+                        .filter(p => usuarioUnidadeIds.length === 0 || (p.unidade_negocio_id && usuarioUnidadeIds.includes(p.unidade_negocio_id)))
                         .map(p => ({ value: p.id, label: p.nome }))}
                       value={selectedProgramaId}
                       onValueChange={setSelectedProgramaId}
