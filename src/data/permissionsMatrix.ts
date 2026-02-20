@@ -104,6 +104,7 @@ export const basePermissionsMatrix: Omit<PermissionItem, 'id'>[] = [
   { modulo: 'Produção', subModulo1: 'Mapas', subModulo2: '-', campo: '-', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'submodulo1' },
   { modulo: 'Produção', subModulo1: 'Mapas', subModulo2: 'Vista "Recursos Físicos"', campo: '-', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'submodulo2' },
   { modulo: 'Produção', subModulo1: 'Mapas', subModulo2: 'Vista "Recursos Humanos"', campo: '-', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'submodulo2' },
+  { modulo: 'Produção', subModulo1: 'Mapas', subModulo2: 'Vista "Requisições"', campo: '-', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'submodulo2' },
   
   // Produção > Parametrizações
   { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Tipo de gravação', campo: '-', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'submodulo2' },

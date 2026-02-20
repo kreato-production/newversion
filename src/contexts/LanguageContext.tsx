@@ -452,6 +452,7 @@ const translations: Record<Language, Record<string, string>> = {
     'maps.physicalResources': 'Recursos Físicos',
     'maps.humanResources': 'Recursos Humanos',
     'maps.costAppropriation': 'Apropriação de Custos',
+    'maps.requisitions': 'Requisições',
     
     // Parameters
     'parameters.positions': 'Cargos',
@@ -1184,6 +1185,7 @@ const translations: Record<Language, Record<string, string>> = {
     'maps.physicalResources': 'Physical Resources',
     'maps.humanResources': 'Human Resources',
     'maps.costAppropriation': 'Cost Appropriation',
+    'maps.requisitions': 'Requisitions',
     
     // Parameters
     'parameters.positions': 'Positions',
@@ -1912,6 +1914,7 @@ const translations: Record<Language, Record<string, string>> = {
     'maps.physicalResources': 'Recursos Físicos',
     'maps.humanResources': 'Recursos Humanos',
     'maps.costAppropriation': 'Apropiación de Costos',
+    'maps.requisitions': 'Requisiciones',
     
     // Parameters
     'parameters.positions': 'Cargos',
