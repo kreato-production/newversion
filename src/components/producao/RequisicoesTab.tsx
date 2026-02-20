@@ -57,7 +57,12 @@ interface EstoqueItem {
   tempoUso: string;
 }
 
-const RequisicoesTab = () => {
+interface RequisicoesTabProps {
+  dateStart: string; // YYYY-MM-DD
+  dateEnd: string;   // YYYY-MM-DD
+}
+
+const RequisicoesTab = ({ dateStart, dateEnd }: RequisicoesTabProps) => {
   const { t } = useLanguage();
   const [subTab, setSubTab] = useState('tecnicos');
   const [requisicoesTecnicas, setRequisicoesTecnicas] = useState<RequisicaoRT[]>([]);
@@ -94,6 +99,11 @@ const RequisicoesTab = () => {
     return (h2 * 60 + m2) - (h1 * 60 + m1);
   };
 
+  const isInDateRange = (date: string) => {
+    if (!date) return false;
+    return date >= dateStart && date <= dateEnd;
+  };
+
   // Fetch pending requisitions
   const fetchRequisicoes = useCallback(async () => {
     setLoading(true);
@@ -117,6 +127,9 @@ const RequisicoesTab = () => {
       // For each anchor row, check if there are sibling rows with recurso_humano assigned
       const pendingRT: RequisicaoRT[] = [];
       for (const row of (rtData || [])) {
+        const gravacao = row.gravacoes as any;
+        // Filter by date range
+        if (!isInDateRange(gravacao?.data_prevista || '')) continue;
         // Check if any sibling row for same gravacao + recurso_tecnico has a recurso_humano
         const { count } = await supabase
           .from('gravacao_recursos')
@@ -126,7 +139,6 @@ const RequisicoesTab = () => {
           .not('recurso_humano_id', 'is', null);
 
         if ((count || 0) === 0) {
-          const gravacao = row.gravacoes as any;
           const recurso = row.recursos_tecnicos as any;
           pendingRT.push({
             gravacaoId: row.gravacao_id,
@@ -161,30 +173,35 @@ const RequisicoesTab = () => {
         `)
         .not('recurso_fisico_id', 'is', null);
 
-      const pendingRF: RequisicaoRF[] = (rfData || []).map((row: any) => {
-        const gravacao = row.gravacoes as any;
-        const recurso = row.recursos_fisicos as any;
-        return {
-          gravacaoId: row.gravacao_id,
-          gravacaoNome: gravacao?.nome || '',
-          recursoFisicoId: row.recurso_fisico_id!,
-          recursoFisicoNome: recurso?.nome || '',
-          dataPrevista: gravacao?.data_prevista || '',
-          horaInicio: row.hora_inicio?.substring(0, 5) || '',
-          horaFim: row.hora_fim?.substring(0, 5) || '',
-          tempoGravacao: calcularTempo(
-            row.hora_inicio?.substring(0, 5) || '',
-            row.hora_fim?.substring(0, 5) || ''
-          ),
-          gravacaoRecursoId: row.id,
-        };
-      });
+      const pendingRF: RequisicaoRF[] = (rfData || [])
+        .filter((row: any) => {
+          const gravacao = row.gravacoes as any;
+          return isInDateRange(gravacao?.data_prevista || '');
+        })
+        .map((row: any) => {
+          const gravacao = row.gravacoes as any;
+          const recurso = row.recursos_fisicos as any;
+          return {
+            gravacaoId: row.gravacao_id,
+            gravacaoNome: gravacao?.nome || '',
+            recursoFisicoId: row.recurso_fisico_id!,
+            recursoFisicoNome: recurso?.nome || '',
+            dataPrevista: gravacao?.data_prevista || '',
+            horaInicio: row.hora_inicio?.substring(0, 5) || '',
+            horaFim: row.hora_fim?.substring(0, 5) || '',
+            tempoGravacao: calcularTempo(
+              row.hora_inicio?.substring(0, 5) || '',
+              row.hora_fim?.substring(0, 5) || ''
+            ),
+            gravacaoRecursoId: row.id,
+          };
+        });
       setRequisicoesFisicas(pendingRF);
     } catch (err) {
       console.error('Error fetching requisicoes:', err);
     }
     setLoading(false);
-  }, []);
+  }, [dateStart, dateEnd]);
 
   useEffect(() => {
     fetchRequisicoes();

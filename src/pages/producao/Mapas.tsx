@@ -2277,7 +2277,10 @@ const Mapas = () => {
           </Card>
         </TabsContent>
         <TabsContent value="requisicoes" className="space-y-4">
-          <RequisicoesTab />
+          <RequisicoesTab
+            dateStart={format(displayDays[0], 'yyyy-MM-dd')}
+            dateEnd={format(displayDays[displayDays.length - 1], 'yyyy-MM-dd')}
+          />
         </TabsContent>
       </Tabs>
     </div>
