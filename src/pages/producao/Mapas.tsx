@@ -10,7 +10,8 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Progress } from '@/components/ui/progress';
-import { Calendar, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Filter, MapPin, Users, CalendarDays, CalendarRange, FileDown, Loader2, Clock, Film, User, DollarSign, Building2, Briefcase, Wrench, MapPinIcon } from 'lucide-react';
+import { Calendar, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Filter, MapPin, Users, CalendarDays, CalendarRange, FileDown, Loader2, Clock, Film, User, DollarSign, Building2, Briefcase, Wrench, MapPinIcon, ClipboardList } from 'lucide-react';
+import RequisicoesTab from '@/components/producao/RequisicoesTab';
 import { format, addDays, startOfWeek, addWeeks, subWeeks, startOfMonth, endOfMonth, addMonths, subMonths, eachDayOfInterval, getDay, parseISO, getMonth, getYear, isSameDay, isWithinInterval } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { getDateLocale, getDayAbbreviations } from '@/lib/dateLocale';
@@ -1896,6 +1897,10 @@ const Mapas = () => {
             <DollarSign className="h-4 w-4" />
             {t('maps.costAppropriation')}
           </TabsTrigger>
+          <TabsTrigger value="requisicoes" className="gap-2">
+            <ClipboardList className="h-4 w-4" />
+            {t('maps.requisitions')}
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="fisicos" className="space-y-4">
@@ -2270,6 +2275,9 @@ const Mapas = () => {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+        <TabsContent value="requisicoes" className="space-y-4">
+          <RequisicoesTab />
         </TabsContent>
       </Tabs>
     </div>
