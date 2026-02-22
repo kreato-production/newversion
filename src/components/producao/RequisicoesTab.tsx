@@ -6,8 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Wrench, MapPin, Clock, User, Package, Check } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Wrench, MapPin, Clock, Package, Check, Link2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { toast } from 'sonner';
@@ -21,7 +21,12 @@ interface RequisicaoRT {
   horaInicio: string;
   horaFim: string;
   tempoGravacao: string;
-  gravacaoRecursoId: string; // the anchor row id
+  gravacaoRecursoId: string;
+  // Local association state
+  selectedRH?: { id: string; nome: string; sobrenome: string; fotoUrl: string | null } | null;
+  associadoHoraInicio?: string;
+  associadoHoraFim?: string;
+  tempoAssociado?: string;
 }
 
 interface RequisicaoRF {
@@ -34,6 +39,10 @@ interface RequisicaoRF {
   horaFim: string;
   tempoGravacao: string;
   gravacaoRecursoId: string;
+  selectedEstoque?: { id: string; nome: string; numerador: number; imagemUrl: string | null } | null;
+  associadoHoraInicio?: string;
+  associadoHoraFim?: string;
+  tempoAssociado?: string;
 }
 
 interface RHCandidate {
@@ -58,8 +67,8 @@ interface EstoqueItem {
 }
 
 interface RequisicoesTabProps {
-  dateStart: string; // YYYY-MM-DD
-  dateEnd: string;   // YYYY-MM-DD
+  dateStart: string;
+  dateEnd: string;
 }
 
 const RequisicoesTab = ({ dateStart, dateEnd }: RequisicoesTabProps) => {
@@ -68,17 +77,22 @@ const RequisicoesTab = ({ dateStart, dateEnd }: RequisicoesTabProps) => {
   const [requisicoesTecnicas, setRequisicoesTecnicas] = useState<RequisicaoRT[]>([]);
   const [requisicoesFisicas, setRequisicoesFisicas] = useState<RequisicaoRF[]>([]);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   // Popup state for technical resources
-  const [selectedRT, setSelectedRT] = useState<RequisicaoRT | null>(null);
+  const [selectedRTIndex, setSelectedRTIndex] = useState<number | null>(null);
   const [rhCandidates, setRhCandidates] = useState<RHCandidate[]>([]);
   const [selectedRHId, setSelectedRHId] = useState<string | null>(null);
+  const [popupHoraInicio, setPopupHoraInicio] = useState('');
+  const [popupHoraFim, setPopupHoraFim] = useState('');
   const [loadingCandidates, setLoadingCandidates] = useState(false);
 
   // Popup state for physical resources
-  const [selectedRF, setSelectedRF] = useState<RequisicaoRF | null>(null);
+  const [selectedRFIndex, setSelectedRFIndex] = useState<number | null>(null);
   const [estoqueItems, setEstoqueItems] = useState<EstoqueItem[]>([]);
   const [selectedEstoqueId, setSelectedEstoqueId] = useState<string | null>(null);
+  const [popupRFHoraInicio, setPopupRFHoraInicio] = useState('');
+  const [popupRFHoraFim, setPopupRFHoraFim] = useState('');
   const [loadingEstoque, setLoadingEstoque] = useState(false);
 
   const calcularTempo = (inicio: string, fim: string): string => {
@@ -104,33 +118,23 @@ const RequisicoesTab = ({ dateStart, dateEnd }: RequisicoesTabProps) => {
     return date >= dateStart && date <= dateEnd;
   };
 
-  // Fetch pending requisitions
   const fetchRequisicoes = useCallback(async () => {
     setLoading(true);
     try {
-      // Fetch all gravacao_recursos with recurso_tecnico that have NO recurso_humano (anchor rows)
       const { data: rtData } = await supabase
         .from('gravacao_recursos')
         .select(`
-          id,
-          gravacao_id,
-          recurso_tecnico_id,
-          recurso_humano_id,
-          hora_inicio,
-          hora_fim,
+          id, gravacao_id, recurso_tecnico_id, recurso_humano_id, hora_inicio, hora_fim,
           gravacoes!gravacao_recursos_gravacao_id_fkey(nome, data_prevista),
           recursos_tecnicos!gravacao_recursos_recurso_tecnico_id_fkey(nome)
         `)
         .not('recurso_tecnico_id', 'is', null)
         .is('recurso_humano_id', null);
 
-      // For each anchor row, check if there are sibling rows with recurso_humano assigned
       const pendingRT: RequisicaoRT[] = [];
       for (const row of (rtData || [])) {
         const gravacao = row.gravacoes as any;
-        // Filter by date range
         if (!isInDateRange(gravacao?.data_prevista || '')) continue;
-        // Check if any sibling row for same gravacao + recurso_tecnico has a recurso_humano
         const { count } = await supabase
           .from('gravacao_recursos')
           .select('id', { count: 'exact', head: true })
@@ -158,16 +162,10 @@ const RequisicoesTab = ({ dateStart, dateEnd }: RequisicoesTabProps) => {
       }
       setRequisicoesTecnicas(pendingRT);
 
-      // Fetch all gravacao_recursos with recurso_fisico that don't have estoque item linked yet
-      // For physical resources, we consider those allocated but without hora_inicio/hora_fim as pending
       const { data: rfData } = await supabase
         .from('gravacao_recursos')
         .select(`
-          id,
-          gravacao_id,
-          recurso_fisico_id,
-          hora_inicio,
-          hora_fim,
+          id, gravacao_id, recurso_fisico_id, hora_inicio, hora_fim,
           gravacoes!gravacao_recursos_gravacao_id_fkey(nome, data_prevista),
           recursos_fisicos!gravacao_recursos_recurso_fisico_id_fkey(nome)
         `)
@@ -207,33 +205,38 @@ const RequisicoesTab = ({ dateStart, dateEnd }: RequisicoesTabProps) => {
     fetchRequisicoes();
   }, [fetchRequisicoes]);
 
-  // Group requisicoes by gravacao for display
   const groupedRT = useMemo(() => {
-    const map = new Map<string, RequisicaoRT[]>();
-    requisicoesTecnicas.forEach(r => {
+    const map = new Map<string, { index: number; req: RequisicaoRT }[]>();
+    requisicoesTecnicas.forEach((r, i) => {
       if (!map.has(r.gravacaoId)) map.set(r.gravacaoId, []);
-      map.get(r.gravacaoId)!.push(r);
+      map.get(r.gravacaoId)!.push({ index: i, req: r });
     });
     return Array.from(map.entries());
   }, [requisicoesTecnicas]);
 
   const groupedRF = useMemo(() => {
-    const map = new Map<string, RequisicaoRF[]>();
-    requisicoesFisicas.forEach(r => {
+    const map = new Map<string, { index: number; req: RequisicaoRF }[]>();
+    requisicoesFisicas.forEach((r, i) => {
       if (!map.has(r.gravacaoId)) map.set(r.gravacaoId, []);
-      map.get(r.gravacaoId)!.push(r);
+      map.get(r.gravacaoId)!.push({ index: i, req: r });
     });
     return Array.from(map.entries());
   }, [requisicoesFisicas]);
 
-  // Handle click on RT row - fetch candidates
-  const handleRTClick = async (req: RequisicaoRT) => {
-    setSelectedRT(req);
-    setSelectedRHId(null);
+  // Check if there are any pending associations
+  const hasRTAssociations = requisicoesTecnicas.some(r => r.selectedRH);
+  const hasRFAssociations = requisicoesFisicas.some(r => r.selectedEstoque);
+
+  // Handle click on RT row
+  const handleRTClick = async (globalIndex: number) => {
+    const req = requisicoesTecnicas[globalIndex];
+    setSelectedRTIndex(globalIndex);
+    setSelectedRHId(req.selectedRH?.id || null);
+    setPopupHoraInicio(req.associadoHoraInicio || req.horaInicio || '');
+    setPopupHoraFim(req.associadoHoraFim || req.horaFim || '');
     setLoadingCandidates(true);
 
     try {
-      // Get the funcao_operador_id for this recurso tecnico
       const { data: rtData } = await supabase
         .from('recursos_tecnicos')
         .select('funcao_operador_id')
@@ -247,7 +250,6 @@ const RequisicoesTab = ({ dateStart, dateEnd }: RequisicoesTabProps) => {
         return;
       }
 
-      // Fetch RH with matching funcao
       const { data: rhData } = await supabase
         .from('recursos_humanos')
         .select('id, nome, sobrenome, foto_url, funcao_id, funcoes:funcao_id(nome)')
@@ -255,12 +257,9 @@ const RequisicoesTab = ({ dateStart, dateEnd }: RequisicoesTabProps) => {
         .eq('status', 'Ativo');
 
       const candidates: RHCandidate[] = [];
-
       for (const rh of (rhData || [])) {
-        // Fetch escalas for the date
         const dataPrevista = req.dataPrevista;
         if (!dataPrevista) continue;
-
         const dayOfWeek = new Date(dataPrevista + 'T12:00:00').getDay();
 
         const { data: escalasData } = await supabase
@@ -274,10 +273,8 @@ const RequisicoesTab = ({ dateStart, dateEnd }: RequisicoesTabProps) => {
           const dias = e.dias_semana || [1, 2, 3, 4, 5];
           return dias.includes(dayOfWeek);
         });
-
         if (escalasAtivas.length === 0) continue;
 
-        // Calculate total available time
         let totalDisponivelMin = 0;
         const escalasFormatted = escalasAtivas.map((e: any) => {
           const inicio = e.hora_inicio?.substring(0, 5) || '08:00';
@@ -286,7 +283,6 @@ const RequisicoesTab = ({ dateStart, dateEnd }: RequisicoesTabProps) => {
           return { horaInicio: inicio, horaFim: fim };
         });
 
-        // Fetch existing occupations for that date
         const { data: ocupData } = await supabase
           .from('gravacao_recursos')
           .select('hora_inicio, hora_fim, gravacao_id, gravacoes!gravacao_recursos_gravacao_id_fkey(nome, data_prevista)')
@@ -294,10 +290,7 @@ const RequisicoesTab = ({ dateStart, dateEnd }: RequisicoesTabProps) => {
           .not('hora_inicio', 'is', null);
 
         const ocupacoes = (ocupData || [])
-          .filter((o: any) => {
-            const gravacao = o.gravacoes as any;
-            return gravacao?.data_prevista === dataPrevista;
-          })
+          .filter((o: any) => (o.gravacoes as any)?.data_prevista === dataPrevista)
           .map((o: any) => ({
             horaInicio: o.hora_inicio?.substring(0, 5) || '',
             horaFim: o.hora_fim?.substring(0, 5) || '',
@@ -305,28 +298,19 @@ const RequisicoesTab = ({ dateStart, dateEnd }: RequisicoesTabProps) => {
           }));
 
         let totalOcupadoMin = 0;
-        ocupacoes.forEach((o: any) => {
-          totalOcupadoMin += calcularMinutos(o.horaInicio, o.horaFim);
-        });
+        ocupacoes.forEach((o: any) => { totalOcupadoMin += calcularMinutos(o.horaInicio, o.horaFim); });
 
         const tempoLivreMin = Math.max(0, totalDisponivelMin - totalOcupadoMin);
         const hours = Math.floor(tempoLivreMin / 60);
         const mins = tempoLivreMin % 60;
 
         candidates.push({
-          id: rh.id,
-          nome: rh.nome,
-          sobrenome: rh.sobrenome,
-          fotoUrl: rh.foto_url,
+          id: rh.id, nome: rh.nome, sobrenome: rh.sobrenome, fotoUrl: rh.foto_url,
           funcao: (rh.funcoes as any)?.nome || '',
           tempoLivre: mins > 0 ? `${hours}h${mins}m` : `${hours}h`,
-          tempoLivreMinutos: tempoLivreMin,
-          escalas: escalasFormatted,
-          ocupacoes,
+          tempoLivreMinutos: tempoLivreMin, escalas: escalasFormatted, ocupacoes,
         });
       }
-
-      // Sort by most free time
       candidates.sort((a, b) => b.tempoLivreMinutos - a.tempoLivreMinutos);
       setRhCandidates(candidates);
     } catch (err) {
@@ -335,35 +319,41 @@ const RequisicoesTab = ({ dateStart, dateEnd }: RequisicoesTabProps) => {
     setLoadingCandidates(false);
   };
 
-  // Handle confirm RH selection
-  const handleConfirmRH = async () => {
-    if (!selectedRT || !selectedRHId) return;
-    try {
-      // Insert a new gravacao_recursos row linking the RH to the RT for this gravacao
-      const { error } = await supabase
-        .from('gravacao_recursos')
-        .insert({
-          gravacao_id: selectedRT.gravacaoId,
-          recurso_tecnico_id: selectedRT.recursoTecnicoId,
-          recurso_humano_id: selectedRHId,
-          hora_inicio: selectedRT.horaInicio || null,
-          hora_fim: selectedRT.horaFim || null,
-        });
-
-      if (error) throw error;
-      toast.success('Recurso humano associado com sucesso');
-      setSelectedRT(null);
-      fetchRequisicoes();
-    } catch (err) {
-      console.error('Error associating RH:', err);
-      toast.error('Erro ao associar recurso humano');
+  // Confirm RH selection in popup (local only)
+  const handleConfirmRHLocal = () => {
+    if (selectedRTIndex === null || !selectedRHId) return;
+    const candidate = rhCandidates.find(c => c.id === selectedRHId);
+    if (!candidate) return;
+    if (!popupHoraInicio || !popupHoraFim) {
+      toast.error('Informe a hora de início e fim');
+      return;
     }
+    if (calcularMinutos(popupHoraInicio, popupHoraFim) <= 0) {
+      toast.error('Hora de fim deve ser maior que hora de início');
+      return;
+    }
+
+    setRequisicoesTecnicas(prev => {
+      const updated = [...prev];
+      updated[selectedRTIndex] = {
+        ...updated[selectedRTIndex],
+        selectedRH: { id: candidate.id, nome: candidate.nome, sobrenome: candidate.sobrenome, fotoUrl: candidate.fotoUrl },
+        associadoHoraInicio: popupHoraInicio,
+        associadoHoraFim: popupHoraFim,
+        tempoAssociado: calcularTempo(popupHoraInicio, popupHoraFim),
+      };
+      return updated;
+    });
+    setSelectedRTIndex(null);
   };
 
-  // Handle click on RF row - fetch stock items
-  const handleRFClick = async (req: RequisicaoRF) => {
-    setSelectedRF(req);
-    setSelectedEstoqueId(null);
+  // Handle click on RF row
+  const handleRFClick = async (globalIndex: number) => {
+    const req = requisicoesFisicas[globalIndex];
+    setSelectedRFIndex(globalIndex);
+    setSelectedEstoqueId(req.selectedEstoque?.id || null);
+    setPopupRFHoraInicio(req.associadoHoraInicio || req.horaInicio || '');
+    setPopupRFHoraFim(req.associadoHoraFim || req.horaFim || '');
     setLoadingEstoque(true);
     try {
       const { data: estoqueData } = await supabase
@@ -373,12 +363,8 @@ const RequisicoesTab = ({ dateStart, dateEnd }: RequisicoesTabProps) => {
         .order('numerador');
 
       setEstoqueItems((estoqueData || []).map((item: any) => ({
-        id: item.id,
-        numerador: item.numerador,
-        codigo: item.codigo,
-        nome: item.nome,
-        imagemUrl: item.imagem_url,
-        tempoUso: req.tempoGravacao || '-',
+        id: item.id, numerador: item.numerador, codigo: item.codigo,
+        nome: item.nome, imagemUrl: item.imagem_url, tempoUso: req.tempoGravacao || '-',
       })));
     } catch (err) {
       console.error('Error fetching estoque:', err);
@@ -386,15 +372,77 @@ const RequisicoesTab = ({ dateStart, dateEnd }: RequisicoesTabProps) => {
     setLoadingEstoque(false);
   };
 
-  // Handle confirm RF selection (just close popup - the resource is already allocated)
-  const handleConfirmRF = async () => {
-    if (!selectedRF) return;
-    // The physical resource is already allocated via gravacao_recursos
-    // The selection from estoque is informational
-    toast.success('Item de estoque selecionado');
-    setSelectedRF(null);
-    // Remove from list
-    setRequisicoesFisicas(prev => prev.filter(r => r.gravacaoRecursoId !== selectedRF.gravacaoRecursoId));
+  // Confirm RF selection in popup (local only)
+  const handleConfirmRFLocal = () => {
+    if (selectedRFIndex === null || !selectedEstoqueId) return;
+    const item = estoqueItems.find(i => i.id === selectedEstoqueId);
+    if (!item) return;
+    if (!popupRFHoraInicio || !popupRFHoraFim) {
+      toast.error('Informe a hora de início e fim');
+      return;
+    }
+    if (calcularMinutos(popupRFHoraInicio, popupRFHoraFim) <= 0) {
+      toast.error('Hora de fim deve ser maior que hora de início');
+      return;
+    }
+
+    setRequisicoesFisicas(prev => {
+      const updated = [...prev];
+      updated[selectedRFIndex] = {
+        ...updated[selectedRFIndex],
+        selectedEstoque: { id: item.id, nome: item.nome, numerador: item.numerador, imagemUrl: item.imagemUrl },
+        associadoHoraInicio: popupRFHoraInicio,
+        associadoHoraFim: popupRFHoraFim,
+        tempoAssociado: calcularTempo(popupRFHoraInicio, popupRFHoraFim),
+      };
+      return updated;
+    });
+    setSelectedRFIndex(null);
+  };
+
+  // BATCH SAVE: "Associar" button
+  const handleAssociar = async () => {
+    setSaving(true);
+    try {
+      // Save RT associations
+      const rtToSave = requisicoesTecnicas.filter(r => r.selectedRH);
+      for (const req of rtToSave) {
+        const { error } = await supabase
+          .from('gravacao_recursos')
+          .insert({
+            gravacao_id: req.gravacaoId,
+            recurso_tecnico_id: req.recursoTecnicoId,
+            recurso_humano_id: req.selectedRH!.id,
+            hora_inicio: req.associadoHoraInicio || null,
+            hora_fim: req.associadoHoraFim || null,
+          });
+        if (error) throw error;
+      }
+
+      // Save RF associations (update hora_inicio/hora_fim on existing row)
+      const rfToSave = requisicoesFisicas.filter(r => r.selectedEstoque);
+      for (const req of rfToSave) {
+        const { error } = await supabase
+          .from('gravacao_recursos')
+          .update({
+            hora_inicio: req.associadoHoraInicio || null,
+            hora_fim: req.associadoHoraFim || null,
+          })
+          .eq('id', req.gravacaoRecursoId);
+        if (error) throw error;
+      }
+
+      const totalSaved = rtToSave.length + rfToSave.length;
+      if (totalSaved > 0) {
+        toast.success(`${totalSaved} associação(ões) realizada(s) com sucesso`);
+      }
+      // Re-fetch to remove associated items
+      await fetchRequisicoes();
+    } catch (err) {
+      console.error('Error saving associations:', err);
+      toast.error('Erro ao salvar associações');
+    }
+    setSaving(false);
   };
 
   const formatDate = (dateStr: string) => {
@@ -409,125 +457,198 @@ const RequisicoesTab = ({ dateStart, dateEnd }: RequisicoesTabProps) => {
 
   return (
     <div className="space-y-4">
-      <Tabs value={subTab} onValueChange={setSubTab}>
-        <TabsList>
-          <TabsTrigger value="tecnicos" className="gap-2">
-            <Wrench className="h-4 w-4" />
-            Recursos Técnicos
-          </TabsTrigger>
-          <TabsTrigger value="fisicos" className="gap-2">
-            <MapPin className="h-4 w-4" />
-            Recursos Físicos
-          </TabsTrigger>
-        </TabsList>
+      <div className="flex items-center justify-between">
+        <Tabs value={subTab} onValueChange={setSubTab} className="flex-1">
+          <div className="flex items-center justify-between">
+            <TabsList>
+              <TabsTrigger value="tecnicos" className="gap-2">
+                <Wrench className="h-4 w-4" />
+                Recursos Técnicos
+              </TabsTrigger>
+              <TabsTrigger value="fisicos" className="gap-2">
+                <MapPin className="h-4 w-4" />
+                Recursos Físicos
+              </TabsTrigger>
+            </TabsList>
+            <Button
+              size="sm"
+              onClick={handleAssociar}
+              disabled={saving || (!hasRTAssociations && !hasRFAssociations)}
+              className="gap-2"
+            >
+              <Link2 className="h-4 w-4" />
+              {saving ? 'Associando...' : 'Associar'}
+            </Button>
+          </div>
 
-        {/* Sub-tab: Recursos Técnicos */}
-        <TabsContent value="tecnicos" className="mt-4">
-          {loading ? (
-            <div className="text-center py-8 text-muted-foreground text-sm">Carregando...</div>
-          ) : groupedRT.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground text-sm">
-              Nenhuma requisição pendente de recurso técnico
-            </div>
-          ) : (
-            <Card>
-              <CardContent className="p-0">
-                <div className="overflow-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-primary text-primary-foreground">
-                        <TableHead className="text-primary-foreground font-semibold">Gravação</TableHead>
-                        <TableHead className="text-primary-foreground font-semibold">Recursos Técnico</TableHead>
-                        <TableHead className="text-primary-foreground font-semibold">Data</TableHead>
-                        <TableHead className="text-primary-foreground font-semibold text-center">Tempo de Gravação</TableHead>
-                        <TableHead className="text-primary-foreground font-semibold">Recurso Humano</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {groupedRT.map(([gravacaoId, items]) => (
-                        items.map((req, idx) => (
-                          <TableRow
-                            key={req.gravacaoRecursoId}
-                            className={`cursor-pointer hover:bg-accent/50 ${idx % 2 === 0 ? '' : 'bg-muted/30'}`}
-                            onClick={() => handleRTClick(req)}
-                          >
-                            <TableCell className="font-medium">
-                              {idx === 0 ? req.gravacaoNome : ''}
-                            </TableCell>
-                            <TableCell>{req.recursoTecnicoNome}</TableCell>
-                            <TableCell>{formatDate(req.dataPrevista)}</TableCell>
-                            <TableCell className="text-center">{req.tempoGravacao}</TableCell>
-                            <TableCell className="text-muted-foreground">-</TableCell>
-                          </TableRow>
-                        ))
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
+          {/* Sub-tab: Recursos Técnicos */}
+          <TabsContent value="tecnicos" className="mt-4">
+            {loading ? (
+              <div className="text-center py-8 text-muted-foreground text-sm">Carregando...</div>
+            ) : groupedRT.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground text-sm">
+                Nenhuma requisição pendente de recurso técnico
+              </div>
+            ) : (
+              <Card>
+                <CardContent className="p-0">
+                  <div className="overflow-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-primary text-primary-foreground">
+                          <TableHead className="text-primary-foreground font-semibold">Gravação</TableHead>
+                          <TableHead className="text-primary-foreground font-semibold">Recurso Técnico</TableHead>
+                          <TableHead className="text-primary-foreground font-semibold">Data</TableHead>
+                          <TableHead className="text-primary-foreground font-semibold text-center">Tempo de Gravação</TableHead>
+                          <TableHead className="text-primary-foreground font-semibold text-center">Tempo Associado</TableHead>
+                          <TableHead className="text-primary-foreground font-semibold">Recurso Humano</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {groupedRT.map(([gravacaoId, items]) =>
+                          items.map(({ index: globalIdx, req }, localIdx) => (
+                            <TableRow
+                              key={req.gravacaoRecursoId}
+                              className={`cursor-pointer hover:bg-accent/50 ${localIdx % 2 === 0 ? '' : 'bg-muted/30'} ${req.selectedRH ? 'bg-green-50 dark:bg-green-950/20' : ''}`}
+                              onClick={() => handleRTClick(globalIdx)}
+                            >
+                              <TableCell className="font-medium">
+                                {localIdx === 0 ? req.gravacaoNome : ''}
+                              </TableCell>
+                              <TableCell>{req.recursoTecnicoNome}</TableCell>
+                              <TableCell>{formatDate(req.dataPrevista)}</TableCell>
+                              <TableCell className="text-center">{req.tempoGravacao}</TableCell>
+                              <TableCell className="text-center">
+                                {req.tempoAssociado || '-'}
+                              </TableCell>
+                              <TableCell>
+                                {req.selectedRH ? (
+                                  <div className="flex items-center gap-2">
+                                    <Avatar className="h-6 w-6">
+                                      <AvatarImage src={req.selectedRH.fotoUrl || undefined} />
+                                      <AvatarFallback className="text-[10px] bg-muted">
+                                        {getInitials(req.selectedRH.nome, req.selectedRH.sobrenome)}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    <span className="text-xs font-medium">{req.selectedRH.nome} {req.selectedRH.sobrenome}</span>
+                                  </div>
+                                ) : (
+                                  <span className="text-muted-foreground">-</span>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
 
-        {/* Sub-tab: Recursos Físicos */}
-        <TabsContent value="fisicos" className="mt-4">
-          {loading ? (
-            <div className="text-center py-8 text-muted-foreground text-sm">Carregando...</div>
-          ) : groupedRF.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground text-sm">
-              Nenhuma requisição pendente de recurso físico
-            </div>
-          ) : (
-            <Card>
-              <CardContent className="p-0">
-                <div className="overflow-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-primary text-primary-foreground">
-                        <TableHead className="text-primary-foreground font-semibold">Gravação</TableHead>
-                        <TableHead className="text-primary-foreground font-semibold">Recurso Físico</TableHead>
-                        <TableHead className="text-primary-foreground font-semibold">Data</TableHead>
-                        <TableHead className="text-primary-foreground font-semibold text-center">Tempo de Gravação</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {groupedRF.map(([gravacaoId, items]) => (
-                        items.map((req, idx) => (
-                          <TableRow
-                            key={req.gravacaoRecursoId}
-                            className={`cursor-pointer hover:bg-accent/50 ${idx % 2 === 0 ? '' : 'bg-muted/30'}`}
-                            onClick={() => handleRFClick(req)}
-                          >
-                            <TableCell className="font-medium">
-                              {idx === 0 ? req.gravacaoNome : ''}
-                            </TableCell>
-                            <TableCell>{req.recursoFisicoNome}</TableCell>
-                            <TableCell>{formatDate(req.dataPrevista)}</TableCell>
-                            <TableCell className="text-center">{req.tempoGravacao}</TableCell>
-                          </TableRow>
-                        ))
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
-      </Tabs>
+          {/* Sub-tab: Recursos Físicos */}
+          <TabsContent value="fisicos" className="mt-4">
+            {loading ? (
+              <div className="text-center py-8 text-muted-foreground text-sm">Carregando...</div>
+            ) : groupedRF.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground text-sm">
+                Nenhuma requisição pendente de recurso físico
+              </div>
+            ) : (
+              <Card>
+                <CardContent className="p-0">
+                  <div className="overflow-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-primary text-primary-foreground">
+                          <TableHead className="text-primary-foreground font-semibold">Gravação</TableHead>
+                          <TableHead className="text-primary-foreground font-semibold">Recurso Físico</TableHead>
+                          <TableHead className="text-primary-foreground font-semibold">Data</TableHead>
+                          <TableHead className="text-primary-foreground font-semibold text-center">Tempo de Gravação</TableHead>
+                          <TableHead className="text-primary-foreground font-semibold text-center">Tempo Associado</TableHead>
+                          <TableHead className="text-primary-foreground font-semibold">Item de Estoque</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {groupedRF.map(([gravacaoId, items]) =>
+                          items.map(({ index: globalIdx, req }, localIdx) => (
+                            <TableRow
+                              key={req.gravacaoRecursoId}
+                              className={`cursor-pointer hover:bg-accent/50 ${localIdx % 2 === 0 ? '' : 'bg-muted/30'} ${req.selectedEstoque ? 'bg-green-50 dark:bg-green-950/20' : ''}`}
+                              onClick={() => handleRFClick(globalIdx)}
+                            >
+                              <TableCell className="font-medium">
+                                {localIdx === 0 ? req.gravacaoNome : ''}
+                              </TableCell>
+                              <TableCell>{req.recursoFisicoNome}</TableCell>
+                              <TableCell>{formatDate(req.dataPrevista)}</TableCell>
+                              <TableCell className="text-center">{req.tempoGravacao}</TableCell>
+                              <TableCell className="text-center">
+                                {req.tempoAssociado || '-'}
+                              </TableCell>
+                              <TableCell>
+                                {req.selectedEstoque ? (
+                                  <div className="flex items-center gap-2">
+                                    <div className="h-6 w-6 rounded bg-muted flex items-center justify-center overflow-hidden">
+                                      {req.selectedEstoque.imagemUrl ? (
+                                        <img src={req.selectedEstoque.imagemUrl} alt="" className="h-full w-full object-cover" />
+                                      ) : (
+                                        <Package className="h-3 w-3 text-muted-foreground" />
+                                      )}
+                                    </div>
+                                    <span className="text-xs font-medium">#{req.selectedEstoque.numerador} - {req.selectedEstoque.nome}</span>
+                                  </div>
+                                ) : (
+                                  <span className="text-muted-foreground">-</span>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+        </Tabs>
+      </div>
 
       {/* Dialog: Select RH for RT */}
-      <Dialog open={!!selectedRT} onOpenChange={(open) => !open && setSelectedRT(null)}>
+      <Dialog open={selectedRTIndex !== null} onOpenChange={(open) => !open && setSelectedRTIndex(null)}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="text-base">
-              Selecionar Recurso Humano - {selectedRT?.recursoTecnicoNome}
+              Selecionar Recurso Humano - {selectedRTIndex !== null ? requisicoesTecnicas[selectedRTIndex]?.recursoTecnicoNome : ''}
             </DialogTitle>
-            <p className="text-xs text-muted-foreground mt-1">
-              Gravação: {selectedRT?.gravacaoNome} • Data: {selectedRT ? formatDate(selectedRT.dataPrevista) : ''}
+            <p className="text-xs text-white/80 mt-1">
+              Gravação: {selectedRTIndex !== null ? requisicoesTecnicas[selectedRTIndex]?.gravacaoNome : ''} • Data: {selectedRTIndex !== null ? formatDate(requisicoesTecnicas[selectedRTIndex]?.dataPrevista) : ''}
             </p>
           </DialogHeader>
-          <div className="max-h-80 overflow-y-auto space-y-2">
+
+          {/* Time inputs */}
+          <div className="flex items-center gap-4 p-3 rounded-lg border bg-muted/30">
+            <div className="flex-1">
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Hora Início</label>
+              <Input type="time" value={popupHoraInicio} onChange={e => setPopupHoraInicio(e.target.value)} className="h-8 text-xs" />
+            </div>
+            <div className="flex-1">
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Hora Fim</label>
+              <Input type="time" value={popupHoraFim} onChange={e => setPopupHoraFim(e.target.value)} className="h-8 text-xs" />
+            </div>
+            {popupHoraInicio && popupHoraFim && calcularMinutos(popupHoraInicio, popupHoraFim) > 0 && (
+              <div className="pt-4">
+                <Badge variant="outline" className="text-xs">
+                  <Clock className="h-3 w-3 mr-1" />
+                  {calcularTempo(popupHoraInicio, popupHoraFim)}
+                </Badge>
+              </div>
+            )}
+          </div>
+
+          <div className="max-h-64 overflow-y-auto space-y-2">
             {loadingCandidates ? (
               <div className="text-center py-6 text-muted-foreground text-sm">Carregando candidatos...</div>
             ) : rhCandidates.length === 0 ? (
@@ -539,9 +660,7 @@ const RequisicoesTab = ({ dateStart, dateEnd }: RequisicoesTabProps) => {
                 <div
                   key={candidate.id}
                   className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-                    selectedRHId === candidate.id
-                      ? 'border-primary bg-primary/5'
-                      : 'border-border hover:bg-accent/50'
+                    selectedRHId === candidate.id ? 'border-primary bg-primary/5' : 'border-border hover:bg-accent/50'
                   }`}
                   onClick={() => setSelectedRHId(candidate.id)}
                 >
@@ -569,24 +688,45 @@ const RequisicoesTab = ({ dateStart, dateEnd }: RequisicoesTabProps) => {
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" size="sm" onClick={() => setSelectedRT(null)}>Cancelar</Button>
-            <Button size="sm" disabled={!selectedRHId} onClick={handleConfirmRH}>Confirmar</Button>
+            <Button variant="outline" size="sm" onClick={() => setSelectedRTIndex(null)}>Cancelar</Button>
+            <Button size="sm" disabled={!selectedRHId || !popupHoraInicio || !popupHoraFim} onClick={handleConfirmRHLocal}>Confirmar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Dialog: Select Estoque Item for RF */}
-      <Dialog open={!!selectedRF} onOpenChange={(open) => !open && setSelectedRF(null)}>
+      <Dialog open={selectedRFIndex !== null} onOpenChange={(open) => !open && setSelectedRFIndex(null)}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="text-base">
-              Estoque - {selectedRF?.recursoFisicoNome}
+              Estoque - {selectedRFIndex !== null ? requisicoesFisicas[selectedRFIndex]?.recursoFisicoNome : ''}
             </DialogTitle>
-            <p className="text-xs text-muted-foreground mt-1">
-              Gravação: {selectedRF?.gravacaoNome} • Data: {selectedRF ? formatDate(selectedRF.dataPrevista) : ''} • Tempo: {selectedRF?.tempoGravacao}
+            <p className="text-xs text-white/80 mt-1">
+              Gravação: {selectedRFIndex !== null ? requisicoesFisicas[selectedRFIndex]?.gravacaoNome : ''} • Data: {selectedRFIndex !== null ? formatDate(requisicoesFisicas[selectedRFIndex]?.dataPrevista) : ''}
             </p>
           </DialogHeader>
-          <div className="max-h-80 overflow-y-auto space-y-2">
+
+          {/* Time inputs */}
+          <div className="flex items-center gap-4 p-3 rounded-lg border bg-muted/30">
+            <div className="flex-1">
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Hora Início</label>
+              <Input type="time" value={popupRFHoraInicio} onChange={e => setPopupRFHoraInicio(e.target.value)} className="h-8 text-xs" />
+            </div>
+            <div className="flex-1">
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Hora Fim</label>
+              <Input type="time" value={popupRFHoraFim} onChange={e => setPopupRFHoraFim(e.target.value)} className="h-8 text-xs" />
+            </div>
+            {popupRFHoraInicio && popupRFHoraFim && calcularMinutos(popupRFHoraInicio, popupRFHoraFim) > 0 && (
+              <div className="pt-4">
+                <Badge variant="outline" className="text-xs">
+                  <Clock className="h-3 w-3 mr-1" />
+                  {calcularTempo(popupRFHoraInicio, popupRFHoraFim)}
+                </Badge>
+              </div>
+            )}
+          </div>
+
+          <div className="max-h-64 overflow-y-auto space-y-2">
             {loadingEstoque ? (
               <div className="text-center py-6 text-muted-foreground text-sm">Carregando estoque...</div>
             ) : estoqueItems.length === 0 ? (
@@ -598,9 +738,7 @@ const RequisicoesTab = ({ dateStart, dateEnd }: RequisicoesTabProps) => {
                 <div
                   key={item.id}
                   className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-                    selectedEstoqueId === item.id
-                      ? 'border-primary bg-primary/5'
-                      : 'border-border hover:bg-accent/50'
+                    selectedEstoqueId === item.id ? 'border-primary bg-primary/5' : 'border-border hover:bg-accent/50'
                   }`}
                   onClick={() => setSelectedEstoqueId(item.id)}
                 >
@@ -629,8 +767,8 @@ const RequisicoesTab = ({ dateStart, dateEnd }: RequisicoesTabProps) => {
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" size="sm" onClick={() => setSelectedRF(null)}>Cancelar</Button>
-            <Button size="sm" disabled={!selectedEstoqueId} onClick={handleConfirmRF}>Confirmar</Button>
+            <Button variant="outline" size="sm" onClick={() => setSelectedRFIndex(null)}>Cancelar</Button>
+            <Button size="sm" disabled={!selectedEstoqueId || !popupRFHoraInicio || !popupRFHoraFim} onClick={handleConfirmRFLocal}>Confirmar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
