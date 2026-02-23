@@ -21,7 +21,7 @@ interface RequisicaoRT {
   horaInicio: string;
   horaFim: string;
   tempoGravacao: string;
-  gravacaoRecursoId: string;
+  gravacaoRecursoId: string; // anchor id
   // Local association state
   selectedRH?: { id: string; nome: string; sobrenome: string; fotoUrl: string | null } | null;
   associadoHoraInicio?: string;
@@ -121,7 +121,10 @@ const RequisicoesTab = ({ dateStart, dateEnd }: RequisicoesTabProps) => {
   const fetchRequisicoes = useCallback(async () => {
     setLoading(true);
     try {
-      const { data: rtData } = await supabase
+      // Fetch RT anchors (recurso_humano_id IS NULL) 
+      // An anchor is "pending" if it has NO child rows (parent_recurso_id = anchor.id)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: rtData } = await (supabase as any)
         .from('gravacao_recursos')
         .select(`
           id, gravacao_id, recurso_tecnico_id, recurso_humano_id, hora_inicio, hora_fim,
@@ -135,12 +138,13 @@ const RequisicoesTab = ({ dateStart, dateEnd }: RequisicoesTabProps) => {
       for (const row of (rtData || [])) {
         const gravacao = row.gravacoes as any;
         if (!isInDateRange(gravacao?.data_prevista || '')) continue;
-        const { count } = await supabase
+        
+        // Check if this specific anchor has any children (RH rows with parent_recurso_id = this anchor)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { count } = await (supabase as any)
           .from('gravacao_recursos')
           .select('id', { count: 'exact', head: true })
-          .eq('gravacao_id', row.gravacao_id)
-          .eq('recurso_tecnico_id', row.recurso_tecnico_id)
-          .not('recurso_humano_id', 'is', null);
+          .eq('parent_recurso_id', row.id);
 
         if ((count || 0) === 0) {
           const recurso = row.recursos_tecnicos as any;
@@ -162,6 +166,7 @@ const RequisicoesTab = ({ dateStart, dateEnd }: RequisicoesTabProps) => {
       }
       setRequisicoesTecnicas(pendingRT);
 
+      // Fetch RF rows
       const { data: rfData } = await supabase
         .from('gravacao_recursos')
         .select(`
@@ -223,7 +228,6 @@ const RequisicoesTab = ({ dateStart, dateEnd }: RequisicoesTabProps) => {
     return Array.from(map.entries());
   }, [requisicoesFisicas]);
 
-  // Check if there are any pending associations
   const hasRTAssociations = requisicoesTecnicas.some(r => r.selectedRH);
   const hasRFAssociations = requisicoesFisicas.some(r => r.selectedEstoque);
 
@@ -400,14 +404,15 @@ const RequisicoesTab = ({ dateStart, dateEnd }: RequisicoesTabProps) => {
     setSelectedRFIndex(null);
   };
 
-  // BATCH SAVE: "Associar" button
+  // BATCH SAVE: "Associar" button - uses parent_recurso_id to link to anchor
   const handleAssociar = async () => {
     setSaving(true);
     try {
-      // Save RT associations
+      // Save RT associations with parent_recurso_id
       const rtToSave = requisicoesTecnicas.filter(r => r.selectedRH);
       for (const req of rtToSave) {
-        const { error } = await supabase
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { error } = await (supabase as any)
           .from('gravacao_recursos')
           .insert({
             gravacao_id: req.gravacaoId,
@@ -415,6 +420,7 @@ const RequisicoesTab = ({ dateStart, dateEnd }: RequisicoesTabProps) => {
             recurso_humano_id: req.selectedRH!.id,
             hora_inicio: req.associadoHoraInicio || null,
             hora_fim: req.associadoHoraFim || null,
+            parent_recurso_id: req.gravacaoRecursoId, // link to the anchor
           });
         if (error) throw error;
       }
@@ -436,7 +442,6 @@ const RequisicoesTab = ({ dateStart, dateEnd }: RequisicoesTabProps) => {
       if (totalSaved > 0) {
         toast.success(`${totalSaved} associação(ões) realizada(s) com sucesso`);
       }
-      // Re-fetch to remove associated items
       await fetchRequisicoes();
     } catch (err) {
       console.error('Error saving associations:', err);
@@ -471,304 +476,307 @@ const RequisicoesTab = ({ dateStart, dateEnd }: RequisicoesTabProps) => {
               </TabsTrigger>
             </TabsList>
             <Button
-              size="sm"
               onClick={handleAssociar}
               disabled={saving || (!hasRTAssociations && !hasRFAssociations)}
               className="gap-2"
             >
               <Link2 className="h-4 w-4" />
-              {saving ? 'Associando...' : 'Associar'}
+              {saving ? 'Salvando...' : 'Associar'}
             </Button>
           </div>
 
-          {/* Sub-tab: Recursos Técnicos */}
-          <TabsContent value="tecnicos" className="mt-4">
+          <TabsContent value="tecnicos">
             {loading ? (
-              <div className="text-center py-8 text-muted-foreground text-sm">Carregando...</div>
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+              </div>
             ) : groupedRT.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground text-sm">
-                Nenhuma requisição pendente de recurso técnico
+                Nenhum recurso técnico pendente de associação neste período.
               </div>
             ) : (
-              <Card>
-                <CardContent className="p-0">
-                  <div className="overflow-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="bg-primary text-primary-foreground">
-                          <TableHead className="text-primary-foreground font-semibold">Gravação</TableHead>
-                          <TableHead className="text-primary-foreground font-semibold">Recurso Técnico</TableHead>
-                          <TableHead className="text-primary-foreground font-semibold">Data</TableHead>
-                          <TableHead className="text-primary-foreground font-semibold text-center">Tempo de Gravação</TableHead>
-                          <TableHead className="text-primary-foreground font-semibold text-center">Tempo Associado</TableHead>
-                          <TableHead className="text-primary-foreground font-semibold">Recurso Humano</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {groupedRT.map(([gravacaoId, items]) =>
-                          items.map(({ index: globalIdx, req }, localIdx) => (
+              <div className="space-y-4">
+                {groupedRT.map(([gravId, items]) => (
+                  <Card key={gravId}>
+                    <CardContent className="p-0">
+                      <div className="bg-muted/50 px-3 py-2 border-b">
+                        <span className="font-medium text-sm">{items[0].req.gravacaoNome}</span>
+                        <Badge variant="outline" className="ml-2 text-[10px]">{formatDate(items[0].req.dataPrevista)}</Badge>
+                      </div>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="text-xs">Recurso Técnico</TableHead>
+                            <TableHead className="text-xs">Tempo de Gravação</TableHead>
+                            <TableHead className="text-xs">Recurso Humano</TableHead>
+                            <TableHead className="text-xs">Tempo Associado</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {items.map(({ index, req }) => (
                             <TableRow
                               key={req.gravacaoRecursoId}
-                              className={`cursor-pointer hover:bg-accent/50 ${localIdx % 2 === 0 ? '' : 'bg-muted/30'} ${req.selectedRH ? 'bg-green-50 dark:bg-green-950/20' : ''}`}
-                              onClick={() => handleRTClick(globalIdx)}
+                              className={`cursor-pointer transition-colors ${req.selectedRH ? 'bg-primary/5 hover:bg-primary/10' : 'hover:bg-muted/50'}`}
+                              onClick={() => handleRTClick(index)}
                             >
-                              <TableCell className="font-medium">
-                                {localIdx === 0 ? req.gravacaoNome : ''}
+                              <TableCell className="text-xs font-medium">{req.recursoTecnicoNome}</TableCell>
+                              <TableCell className="text-xs">
+                                <Badge variant="secondary" className="gap-1">
+                                  <Clock className="h-3 w-3" />
+                                  {req.tempoGravacao}
+                                </Badge>
                               </TableCell>
-                              <TableCell>{req.recursoTecnicoNome}</TableCell>
-                              <TableCell>{formatDate(req.dataPrevista)}</TableCell>
-                              <TableCell className="text-center">{req.tempoGravacao}</TableCell>
-                              <TableCell className="text-center">
-                                {req.tempoAssociado || '-'}
-                              </TableCell>
-                              <TableCell>
+                              <TableCell className="text-xs">
                                 {req.selectedRH ? (
                                   <div className="flex items-center gap-2">
                                     <Avatar className="h-6 w-6">
                                       <AvatarImage src={req.selectedRH.fotoUrl || undefined} />
-                                      <AvatarFallback className="text-[10px] bg-muted">
+                                      <AvatarFallback className="text-[9px]">
                                         {getInitials(req.selectedRH.nome, req.selectedRH.sobrenome)}
                                       </AvatarFallback>
                                     </Avatar>
-                                    <span className="text-xs font-medium">{req.selectedRH.nome} {req.selectedRH.sobrenome}</span>
+                                    <span>{req.selectedRH.nome} {req.selectedRH.sobrenome}</span>
+                                    <Check className="h-3 w-3 text-primary" />
                                   </div>
                                 ) : (
-                                  <span className="text-muted-foreground">-</span>
+                                  <span className="text-muted-foreground italic">Clique para associar</span>
                                 )}
                               </TableCell>
+                              <TableCell className="text-xs">
+                                {req.tempoAssociado ? (
+                                  <Badge variant="outline" className="gap-1">
+                                    <Clock className="h-3 w-3" />
+                                    {req.tempoAssociado}
+                                  </Badge>
+                                ) : '-'}
+                              </TableCell>
                             </TableRow>
-                          ))
-                        )}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </CardContent>
-              </Card>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
             )}
           </TabsContent>
 
-          {/* Sub-tab: Recursos Físicos */}
-          <TabsContent value="fisicos" className="mt-4">
+          <TabsContent value="fisicos">
             {loading ? (
-              <div className="text-center py-8 text-muted-foreground text-sm">Carregando...</div>
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+              </div>
             ) : groupedRF.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground text-sm">
-                Nenhuma requisição pendente de recurso físico
+                Nenhum recurso físico pendente de associação neste período.
               </div>
             ) : (
-              <Card>
-                <CardContent className="p-0">
-                  <div className="overflow-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="bg-primary text-primary-foreground">
-                          <TableHead className="text-primary-foreground font-semibold">Gravação</TableHead>
-                          <TableHead className="text-primary-foreground font-semibold">Recurso Físico</TableHead>
-                          <TableHead className="text-primary-foreground font-semibold">Data</TableHead>
-                          <TableHead className="text-primary-foreground font-semibold text-center">Tempo de Gravação</TableHead>
-                          <TableHead className="text-primary-foreground font-semibold text-center">Tempo Associado</TableHead>
-                          <TableHead className="text-primary-foreground font-semibold">Item de Estoque</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {groupedRF.map(([gravacaoId, items]) =>
-                          items.map(({ index: globalIdx, req }, localIdx) => (
+              <div className="space-y-4">
+                {groupedRF.map(([gravId, items]) => (
+                  <Card key={gravId}>
+                    <CardContent className="p-0">
+                      <div className="bg-muted/50 px-3 py-2 border-b">
+                        <span className="font-medium text-sm">{items[0].req.gravacaoNome}</span>
+                        <Badge variant="outline" className="ml-2 text-[10px]">{formatDate(items[0].req.dataPrevista)}</Badge>
+                      </div>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="text-xs">Recurso Físico</TableHead>
+                            <TableHead className="text-xs">Tempo de Gravação</TableHead>
+                            <TableHead className="text-xs">Item Estoque</TableHead>
+                            <TableHead className="text-xs">Tempo Associado</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {items.map(({ index, req }) => (
                             <TableRow
                               key={req.gravacaoRecursoId}
-                              className={`cursor-pointer hover:bg-accent/50 ${localIdx % 2 === 0 ? '' : 'bg-muted/30'} ${req.selectedEstoque ? 'bg-green-50 dark:bg-green-950/20' : ''}`}
-                              onClick={() => handleRFClick(globalIdx)}
+                              className={`cursor-pointer transition-colors ${req.selectedEstoque ? 'bg-primary/5 hover:bg-primary/10' : 'hover:bg-muted/50'}`}
+                              onClick={() => handleRFClick(index)}
                             >
-                              <TableCell className="font-medium">
-                                {localIdx === 0 ? req.gravacaoNome : ''}
+                              <TableCell className="text-xs font-medium">{req.recursoFisicoNome}</TableCell>
+                              <TableCell className="text-xs">
+                                <Badge variant="secondary" className="gap-1">
+                                  <Clock className="h-3 w-3" />
+                                  {req.tempoGravacao}
+                                </Badge>
                               </TableCell>
-                              <TableCell>{req.recursoFisicoNome}</TableCell>
-                              <TableCell>{formatDate(req.dataPrevista)}</TableCell>
-                              <TableCell className="text-center">{req.tempoGravacao}</TableCell>
-                              <TableCell className="text-center">
-                                {req.tempoAssociado || '-'}
-                              </TableCell>
-                              <TableCell>
+                              <TableCell className="text-xs">
                                 {req.selectedEstoque ? (
                                   <div className="flex items-center gap-2">
-                                    <div className="h-6 w-6 rounded bg-muted flex items-center justify-center overflow-hidden">
-                                      {req.selectedEstoque.imagemUrl ? (
-                                        <img src={req.selectedEstoque.imagemUrl} alt="" className="h-full w-full object-cover" />
-                                      ) : (
-                                        <Package className="h-3 w-3 text-muted-foreground" />
-                                      )}
-                                    </div>
-                                    <span className="text-xs font-medium">#{req.selectedEstoque.numerador} - {req.selectedEstoque.nome}</span>
+                                    {req.selectedEstoque.imagemUrl && (
+                                      <Avatar className="h-6 w-6">
+                                        <AvatarImage src={req.selectedEstoque.imagemUrl} />
+                                        <AvatarFallback className="text-[9px]">
+                                          #{req.selectedEstoque.numerador}
+                                        </AvatarFallback>
+                                      </Avatar>
+                                    )}
+                                    <span>#{req.selectedEstoque.numerador} - {req.selectedEstoque.nome}</span>
+                                    <Check className="h-3 w-3 text-primary" />
                                   </div>
                                 ) : (
-                                  <span className="text-muted-foreground">-</span>
+                                  <span className="text-muted-foreground italic">Clique para associar</span>
                                 )}
                               </TableCell>
+                              <TableCell className="text-xs">
+                                {req.tempoAssociado ? (
+                                  <Badge variant="outline" className="gap-1">
+                                    <Clock className="h-3 w-3" />
+                                    {req.tempoAssociado}
+                                  </Badge>
+                                ) : '-'}
+                              </TableCell>
                             </TableRow>
-                          ))
-                        )}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </CardContent>
-              </Card>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
             )}
           </TabsContent>
         </Tabs>
       </div>
 
-      {/* Dialog: Select RH for RT */}
+      {/* RT Popup - Select RH */}
       <Dialog open={selectedRTIndex !== null} onOpenChange={(open) => !open && setSelectedRTIndex(null)}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle className="text-base">
-              Selecionar Recurso Humano - {selectedRTIndex !== null ? requisicoesTecnicas[selectedRTIndex]?.recursoTecnicoNome : ''}
+            <DialogTitle className="flex items-center gap-2">
+              <Wrench className="h-5 w-5" />
+              Associar Recurso Humano
             </DialogTitle>
-            <p className="text-xs text-white/80 mt-1">
-              Gravação: {selectedRTIndex !== null ? requisicoesTecnicas[selectedRTIndex]?.gravacaoNome : ''} • Data: {selectedRTIndex !== null ? formatDate(requisicoesTecnicas[selectedRTIndex]?.dataPrevista) : ''}
-            </p>
-          </DialogHeader>
-
-          {/* Time inputs */}
-          <div className="flex items-center gap-4 p-3 rounded-lg border bg-muted/30">
-            <div className="flex-1">
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">Hora Início</label>
-              <Input type="time" value={popupHoraInicio} onChange={e => setPopupHoraInicio(e.target.value)} className="h-8 text-xs" />
-            </div>
-            <div className="flex-1">
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">Hora Fim</label>
-              <Input type="time" value={popupHoraFim} onChange={e => setPopupHoraFim(e.target.value)} className="h-8 text-xs" />
-            </div>
-            {popupHoraInicio && popupHoraFim && calcularMinutos(popupHoraInicio, popupHoraFim) > 0 && (
-              <div className="pt-4">
-                <Badge variant="outline" className="text-xs">
-                  <Clock className="h-3 w-3 mr-1" />
-                  {calcularTempo(popupHoraInicio, popupHoraFim)}
-                </Badge>
-              </div>
+            {selectedRTIndex !== null && (
+              <p className="text-sm text-muted-foreground">
+                {requisicoesTecnicas[selectedRTIndex]?.recursoTecnicoNome} — {formatDate(requisicoesTecnicas[selectedRTIndex]?.dataPrevista)}
+              </p>
             )}
-          </div>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground font-medium">Hora Início</label>
+                <Input type="time" value={popupHoraInicio} onChange={(e) => setPopupHoraInicio(e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground font-medium">Hora Fim</label>
+                <Input type="time" value={popupHoraFim} onChange={(e) => setPopupHoraFim(e.target.value)} />
+              </div>
+            </div>
 
-          <div className="max-h-64 overflow-y-auto space-y-2">
             {loadingCandidates ? (
-              <div className="text-center py-6 text-muted-foreground text-sm">Carregando candidatos...</div>
+              <div className="flex items-center justify-center py-4">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
+              </div>
             ) : rhCandidates.length === 0 ? (
-              <div className="text-center py-6 text-muted-foreground text-sm">
-                Nenhum recurso humano disponível para esta função
+              <div className="text-center py-4 text-sm text-muted-foreground">
+                Nenhum colaborador disponível com a função necessária.
               </div>
             ) : (
-              rhCandidates.map(candidate => (
-                <div
-                  key={candidate.id}
-                  className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-                    selectedRHId === candidate.id ? 'border-primary bg-primary/5' : 'border-border hover:bg-accent/50'
-                  }`}
-                  onClick={() => setSelectedRHId(candidate.id)}
-                >
-                  <Avatar className="h-10 w-10">
-                    <AvatarImage src={candidate.fotoUrl || undefined} />
-                    <AvatarFallback className="text-xs bg-muted">
-                      {getInitials(candidate.nome, candidate.sobrenome)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium text-sm">{candidate.nome} {candidate.sobrenome}</div>
-                    <div className="text-xs text-muted-foreground">{candidate.funcao}</div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant={candidate.tempoLivreMinutos > 0 ? 'default' : 'destructive'} className="text-xs">
-                      <Clock className="h-3 w-3 mr-1" />
-                      {candidate.tempoLivre} livre
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {rhCandidates.map((c) => (
+                  <div
+                    key={c.id}
+                    className={`flex items-center gap-3 p-2 rounded-lg border cursor-pointer transition-colors ${selectedRHId === c.id ? 'bg-primary/10 border-primary' : 'hover:bg-muted/50'}`}
+                    onClick={() => setSelectedRHId(c.id)}
+                  >
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage src={c.fotoUrl || undefined} />
+                      <AvatarFallback className="text-[10px]">{getInitials(c.nome, c.sobrenome)}</AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{c.nome} {c.sobrenome}</p>
+                      <p className="text-[10px] text-muted-foreground">{c.funcao}</p>
+                    </div>
+                    <Badge variant="outline" className="text-[10px] gap-1 shrink-0">
+                      <Clock className="h-3 w-3" />
+                      {c.tempoLivre}
                     </Badge>
-                    {selectedRHId === candidate.id && (
-                      <Check className="h-4 w-4 text-primary" />
-                    )}
+                    {selectedRHId === c.id && <Check className="h-4 w-4 text-primary shrink-0" />}
                   </div>
-                </div>
-              ))
+                ))}
+              </div>
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" size="sm" onClick={() => setSelectedRTIndex(null)}>Cancelar</Button>
-            <Button size="sm" disabled={!selectedRHId || !popupHoraInicio || !popupHoraFim} onClick={handleConfirmRHLocal}>Confirmar</Button>
+            <Button variant="outline" onClick={() => setSelectedRTIndex(null)}>Cancelar</Button>
+            <Button onClick={handleConfirmRHLocal} disabled={!selectedRHId || !popupHoraInicio || !popupHoraFim}>
+              Confirmar
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Dialog: Select Estoque Item for RF */}
+      {/* RF Popup - Select Estoque Item */}
       <Dialog open={selectedRFIndex !== null} onOpenChange={(open) => !open && setSelectedRFIndex(null)}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle className="text-base">
-              Estoque - {selectedRFIndex !== null ? requisicoesFisicas[selectedRFIndex]?.recursoFisicoNome : ''}
+            <DialogTitle className="flex items-center gap-2">
+              <Package className="h-5 w-5" />
+              Associar Item de Estoque
             </DialogTitle>
-            <p className="text-xs text-white/80 mt-1">
-              Gravação: {selectedRFIndex !== null ? requisicoesFisicas[selectedRFIndex]?.gravacaoNome : ''} • Data: {selectedRFIndex !== null ? formatDate(requisicoesFisicas[selectedRFIndex]?.dataPrevista) : ''}
-            </p>
-          </DialogHeader>
-
-          {/* Time inputs */}
-          <div className="flex items-center gap-4 p-3 rounded-lg border bg-muted/30">
-            <div className="flex-1">
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">Hora Início</label>
-              <Input type="time" value={popupRFHoraInicio} onChange={e => setPopupRFHoraInicio(e.target.value)} className="h-8 text-xs" />
-            </div>
-            <div className="flex-1">
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">Hora Fim</label>
-              <Input type="time" value={popupRFHoraFim} onChange={e => setPopupRFHoraFim(e.target.value)} className="h-8 text-xs" />
-            </div>
-            {popupRFHoraInicio && popupRFHoraFim && calcularMinutos(popupRFHoraInicio, popupRFHoraFim) > 0 && (
-              <div className="pt-4">
-                <Badge variant="outline" className="text-xs">
-                  <Clock className="h-3 w-3 mr-1" />
-                  {calcularTempo(popupRFHoraInicio, popupRFHoraFim)}
-                </Badge>
-              </div>
+            {selectedRFIndex !== null && (
+              <p className="text-sm text-muted-foreground">
+                {requisicoesFisicas[selectedRFIndex]?.recursoFisicoNome} — {formatDate(requisicoesFisicas[selectedRFIndex]?.dataPrevista)}
+              </p>
             )}
-          </div>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground font-medium">Hora Início</label>
+                <Input type="time" value={popupRFHoraInicio} onChange={(e) => setPopupRFHoraInicio(e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground font-medium">Hora Fim</label>
+                <Input type="time" value={popupRFHoraFim} onChange={(e) => setPopupRFHoraFim(e.target.value)} />
+              </div>
+            </div>
 
-          <div className="max-h-64 overflow-y-auto space-y-2">
             {loadingEstoque ? (
-              <div className="text-center py-6 text-muted-foreground text-sm">Carregando estoque...</div>
+              <div className="flex items-center justify-center py-4">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
+              </div>
             ) : estoqueItems.length === 0 ? (
-              <div className="text-center py-6 text-muted-foreground text-sm">
-                Nenhum item de estoque disponível
+              <div className="text-center py-4 text-sm text-muted-foreground">
+                Nenhum item de estoque disponível.
               </div>
             ) : (
-              estoqueItems.map(item => (
-                <div
-                  key={item.id}
-                  className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-                    selectedEstoqueId === item.id ? 'border-primary bg-primary/5' : 'border-border hover:bg-accent/50'
-                  }`}
-                  onClick={() => setSelectedEstoqueId(item.id)}
-                >
-                  <div className="h-10 w-10 rounded bg-muted flex items-center justify-center overflow-hidden">
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {estoqueItems.map((item) => (
+                  <div
+                    key={item.id}
+                    className={`flex items-center gap-3 p-2 rounded-lg border cursor-pointer transition-colors ${selectedEstoqueId === item.id ? 'bg-primary/10 border-primary' : 'hover:bg-muted/50'}`}
+                    onClick={() => setSelectedEstoqueId(item.id)}
+                  >
                     {item.imagemUrl ? (
-                      <img src={item.imagemUrl} alt={item.nome} className="h-full w-full object-cover" />
+                      <Avatar className="h-8 w-8">
+                        <AvatarImage src={item.imagemUrl} />
+                        <AvatarFallback className="text-[10px]">#{item.numerador}</AvatarFallback>
+                      </Avatar>
                     ) : (
-                      <Package className="h-5 w-5 text-muted-foreground" />
+                      <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center text-[10px] font-medium">
+                        #{item.numerador}
+                      </div>
                     )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">#{item.numerador} - {item.nome}</p>
+                      {item.codigo && <p className="text-[10px] text-muted-foreground">{item.codigo}</p>}
+                    </div>
+                    {selectedEstoqueId === item.id && <Check className="h-4 w-4 text-primary shrink-0" />}
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium text-sm">#{item.numerador} - {item.nome}</div>
-                    {item.codigo && <div className="text-xs text-muted-foreground">Cód: {item.codigo}</div>}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="secondary" className="text-xs">
-                      <Clock className="h-3 w-3 mr-1" />
-                      {item.tempoUso}
-                    </Badge>
-                    {selectedEstoqueId === item.id && (
-                      <Check className="h-4 w-4 text-primary" />
-                    )}
-                  </div>
-                </div>
-              ))
+                ))}
+              </div>
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" size="sm" onClick={() => setSelectedRFIndex(null)}>Cancelar</Button>
-            <Button size="sm" disabled={!selectedEstoqueId || !popupRFHoraInicio || !popupRFHoraFim} onClick={handleConfirmRFLocal}>Confirmar</Button>
+            <Button variant="outline" onClick={() => setSelectedRFIndex(null)}>Cancelar</Button>
+            <Button onClick={handleConfirmRFLocal} disabled={!selectedEstoqueId || !popupRFHoraInicio || !popupRFHoraFim}>
+              Confirmar
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

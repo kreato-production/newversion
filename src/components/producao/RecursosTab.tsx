@@ -50,15 +50,17 @@ interface EstoqueItem {
   numerador: number;
 }
 
+// Each RecursoAlocado = one instance (one gravacao_recursos anchor row)
 interface RecursoAlocado {
-  id: string;
+  id: string; // local id
+  anchorDbId: string; // gravacao_recursos.id from DB
   tipo: 'tecnico' | 'fisico';
   recursoId: string;
   recursoNome: string;
   funcaoOperador?: string;
   estoqueItemId?: string;
   estoqueItemNome?: string;
-  alocacoes: Record<string, number>;
+  horas: Record<string, number>; // day -> hours (duration)
   recursosHumanos: Record<string, RecursoHumanoAlocado[]>;
   horarios: Record<string, HorarioOcupacao>;
 }
@@ -82,6 +84,24 @@ interface RecursoHumano {
 interface RecursosTabProps {
   gravacaoId: string;
 }
+
+// Convert decimal hours to HH:MM time string (duration from 00:00)
+const hoursToTimeRange = (hours: number): { horaInicio: string; horaFim: string } => {
+  const h = Math.floor(hours);
+  const m = Math.round((hours - h) * 60);
+  return {
+    horaInicio: '00:00',
+    horaFim: `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`,
+  };
+};
+
+// Convert hora_inicio/hora_fim to decimal hours
+const timeRangeToHours = (inicio: string | null, fim: string | null): number => {
+  if (!inicio || !fim) return 0;
+  const [h1, m1] = inicio.split(':').map(Number);
+  const [h2, m2] = fim.split(':').map(Number);
+  return ((h2 * 60 + m2) - (h1 * 60 + m1)) / 60;
+};
 
 export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
   const { toast } = useToast();
@@ -128,12 +148,10 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
       if (data) {
         setGravacaoInfo(data);
         setGravacaoDataPrevista(data.data_prevista);
-        // Inicializar mesAno com base na data_prevista da gravação
         if (data.data_prevista) {
           const [ano, mes] = data.data_prevista.split('-');
           setMesAno(`${ano}-${mes}`);
         } else {
-          // Fallback para mês atual
           const now = new Date();
           setMesAno(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`);
         }
@@ -147,7 +165,6 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
     const fetchResources = async () => {
       if (!session) return;
 
-      // Fetch recursos técnicos with function info
       const { data: tecnicosData } = await supabase
         .from('recursos_tecnicos')
         .select('id, nome, funcao_operador_id, funcoes:funcao_operador_id(nome)')
@@ -161,26 +178,22 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
         }))
       );
 
-      // Fetch recursos físicos que têm pelo menos 1 item em estoque
       const { data: fisicosData } = await supabase
         .from('recursos_fisicos')
         .select('id, nome, rf_estoque_itens(id)')
         .order('nome');
       
-      // Filtrar apenas recursos que possuem itens em estoque
       const fisicosComEstoque = (fisicosData || [])
         .filter((r: any) => r.rf_estoque_itens && r.rf_estoque_itens.length > 0)
         .map((r: any) => ({ id: r.id, nome: r.nome }));
       setRecursosFisicos(fisicosComEstoque);
 
-      // Fetch recursos humanos with function and absences
       const { data: humanosData } = await supabase
         .from('recursos_humanos')
         .select('id, nome, sobrenome, funcao_id, funcoes:funcao_id(nome), departamento_id, departamentos:departamento_id(nome)')
         .eq('status', 'Ativo')
         .order('nome');
 
-      // Fetch absences for all human resources
       const humanIds = (humanosData || []).map((h: any) => h.id);
       const { data: ausenciasData } = await supabase
         .from('rh_ausencias')
@@ -233,13 +246,12 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
     fetchEstoqueItens();
   }, [selectedTipo, selectedRecurso]);
 
-  // Fetch allocated resources for this recording
+  // Fetch allocated resources - each anchor = one row
   const fetchAlocacoes = useCallback(async () => {
     if (!session || !gravacaoId) return;
 
     setIsLoading(true);
     try {
-      // Primeiro buscar a data_prevista da gravação
       const { data: gravacaoData } = await supabase
         .from('gravacoes')
         .select('data_prevista')
@@ -248,7 +260,8 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
       
       const dataPrevista = gravacaoData?.data_prevista;
 
-      const { data: alocacoesData } = await supabase
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: alocacoesData } = await (supabase as any)
         .from('gravacao_recursos')
         .select(`
           id,
@@ -257,101 +270,84 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
           recurso_tecnico_id,
           recurso_fisico_id,
           recurso_humano_id,
+          parent_recurso_id,
           recursos_tecnicos:recurso_tecnico_id(id, nome, funcao_operador_id, funcoes:funcao_operador_id(nome)),
           recursos_fisicos:recurso_fisico_id(id, nome),
           recursos_humanos:recurso_humano_id(id, nome, sobrenome)
         `)
         .eq('gravacao_id', gravacaoId);
 
-      // Group allocations by resource
-      const resourceMap = new Map<string, RecursoAlocado>();
-      
+      const entries: RecursoAlocado[] = [];
+      const rhByAnchor: Record<string, RecursoHumanoAlocado[]> = {};
+
+      // First pass: collect anchors and RH rows
       (alocacoesData || []).forEach((aloc: any) => {
-        // Determinar o tipo de recurso
-        // Se tem recurso_humano_id E recurso_tecnico_id, é uma alocação de RH em recurso técnico
-        // Se tem apenas recurso_tecnico_id, é apenas o recurso técnico
-        // Se tem apenas recurso_fisico_id (e não é alocação de RH), é recurso físico
+        const isTecnicoAnchor = !!aloc.recurso_tecnico_id && !aloc.recurso_humano_id;
         const isTecnicoRH = !!aloc.recurso_tecnico_id && !!aloc.recurso_humano_id;
-        const isTecnicoSomente = !!aloc.recurso_tecnico_id && !aloc.recurso_humano_id;
-        const isFisico = !!aloc.recurso_fisico_id && !aloc.recurso_tecnico_id;
-        
-        let resourceKey = '';
-        let recurso: RecursoAlocado | undefined;
+        const isFisicoAnchor = !!aloc.recurso_fisico_id && !aloc.recurso_tecnico_id;
 
-        // Processar recursos técnicos (com ou sem RH)
-        if ((isTecnicoRH || isTecnicoSomente) && aloc.recursos_tecnicos) {
-          resourceKey = `tecnico_${aloc.recurso_tecnico_id}`;
-          if (!resourceMap.has(resourceKey)) {
-            resourceMap.set(resourceKey, {
-              id: aloc.recurso_tecnico_id,
-              tipo: 'tecnico',
-              recursoId: aloc.recurso_tecnico_id,
-              recursoNome: aloc.recursos_tecnicos.nome,
-              funcaoOperador: aloc.recursos_tecnicos.funcoes?.nome,
-              alocacoes: {},
-              recursosHumanos: {},
-              horarios: {},
+        if (isTecnicoAnchor && aloc.recursos_tecnicos) {
+          const hours = timeRangeToHours(
+            aloc.hora_inicio?.substring(0, 5) || null,
+            aloc.hora_fim?.substring(0, 5) || null
+          );
+          const entry: RecursoAlocado = {
+            id: aloc.id,
+            anchorDbId: aloc.id,
+            tipo: 'tecnico',
+            recursoId: aloc.recurso_tecnico_id,
+            recursoNome: aloc.recursos_tecnicos.nome,
+            funcaoOperador: aloc.recursos_tecnicos.funcoes?.nome,
+            horas: dataPrevista ? { [dataPrevista]: hours } : {},
+            recursosHumanos: {},
+            horarios: {},
+          };
+          entries.push(entry);
+        } else if (isFisicoAnchor && aloc.recursos_fisicos) {
+          const hours = timeRangeToHours(
+            aloc.hora_inicio?.substring(0, 5) || null,
+            aloc.hora_fim?.substring(0, 5) || null
+          );
+          const entry: RecursoAlocado = {
+            id: aloc.id,
+            anchorDbId: aloc.id,
+            tipo: 'fisico',
+            recursoId: aloc.recurso_fisico_id,
+            recursoNome: aloc.recursos_fisicos.nome,
+            horas: dataPrevista ? { [dataPrevista]: hours } : {},
+            recursosHumanos: {},
+            horarios: dataPrevista && aloc.hora_inicio && aloc.hora_fim ? {
+              [dataPrevista]: {
+                horaInicio: aloc.hora_inicio.substring(0, 5),
+                horaFim: aloc.hora_fim.substring(0, 5),
+              }
+            } : {},
+          };
+          entries.push(entry);
+        } else if (isTecnicoRH && aloc.recursos_humanos) {
+          const parentId = aloc.parent_recurso_id;
+          if (parentId) {
+            if (!rhByAnchor[parentId]) rhByAnchor[parentId] = [];
+            rhByAnchor[parentId].push({
+              id: aloc.id,
+              recursoHumanoId: aloc.recurso_humano_id,
+              nome: `${aloc.recursos_humanos.nome} ${aloc.recursos_humanos.sobrenome}`,
+              horaInicio: aloc.hora_inicio?.substring(0, 5) || '08:00',
+              horaFim: aloc.hora_fim?.substring(0, 5) || '18:00',
             });
-          }
-          recurso = resourceMap.get(resourceKey);
-
-          // Marcar alocação na data_prevista - incrementar para cada registro âncora
-          if (recurso && dataPrevista && isTecnicoSomente) {
-            recurso.alocacoes[dataPrevista] = (recurso.alocacoes[dataPrevista] || 0) + 1;
-          }
-
-          // Se é alocação de RH em recurso técnico
-          if (isTecnicoRH && aloc.recursos_humanos && recurso && dataPrevista) {
-            const rhName = `${aloc.recursos_humanos.nome} ${aloc.recursos_humanos.sobrenome}`;
-            if (!recurso.recursosHumanos[dataPrevista]) {
-              recurso.recursosHumanos[dataPrevista] = [];
-            }
-            
-            // Verificar se já existe para evitar duplicatas
-            const jaExiste = recurso.recursosHumanos[dataPrevista].some(
-              (rh) => rh.recursoHumanoId === aloc.recurso_humano_id
-            );
-            
-            if (!jaExiste) {
-              recurso.recursosHumanos[dataPrevista].push({
-                id: aloc.id,
-                recursoHumanoId: aloc.recurso_humano_id,
-                nome: rhName,
-                horaInicio: aloc.hora_inicio?.substring(0, 5) || '08:00',
-                horaFim: aloc.hora_fim?.substring(0, 5) || '18:00',
-              });
-            }
-          }
-        } else if (isFisico && aloc.recursos_fisicos) {
-          resourceKey = `fisico_${aloc.recurso_fisico_id}`;
-          if (!resourceMap.has(resourceKey)) {
-            resourceMap.set(resourceKey, {
-              id: aloc.recurso_fisico_id,
-              tipo: 'fisico',
-              recursoId: aloc.recurso_fisico_id,
-              recursoNome: aloc.recursos_fisicos.nome,
-              alocacoes: {},
-              recursosHumanos: {},
-              horarios: {},
-            });
-          }
-          recurso = resourceMap.get(resourceKey);
-          
-          // Marcar alocação na data_prevista e guardar horários
-          if (recurso && dataPrevista) {
-            recurso.alocacoes[dataPrevista] = (recurso.alocacoes[dataPrevista] || 0) + 1;
-            
-            if (aloc.hora_inicio && aloc.hora_fim) {
-              recurso.horarios[dataPrevista] = {
-                horaInicio: aloc.hora_inicio?.substring(0, 5) || '08:00',
-                horaFim: aloc.hora_fim?.substring(0, 5) || '18:00',
-              };
-            }
           }
         }
       });
 
-      setRecursos(Array.from(resourceMap.values()));
+      // Second pass: attach RH to anchors
+      entries.forEach(entry => {
+        if (entry.tipo === 'tecnico' && rhByAnchor[entry.anchorDbId]) {
+          const dataPrevistaVal = Object.keys(entry.horas)[0] || dataPrevista || '';
+          entry.recursosHumanos[dataPrevistaVal] = rhByAnchor[entry.anchorDbId];
+        }
+      });
+
+      setRecursos(entries);
     } catch (error) {
       console.error('Error fetching allocations:', error);
     } finally {
@@ -363,30 +359,9 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
     fetchAlocacoes();
   }, [fetchAlocacoes]);
 
-  // Check for conflicts in other recordings
-  const getConflito = useCallback(async (recursoId: string, tipo: 'tecnico' | 'fisico', dia: string): Promise<{ gravacaoNome: string } | null> => {
-    const column = tipo === 'tecnico' ? 'recurso_tecnico_id' : 'recurso_fisico_id';
-    
-    const { data } = await supabase
-      .from('gravacao_recursos')
-      .select(`
-        gravacao_id,
-        gravacoes:gravacao_id(nome, codigo, data_prevista)
-      `)
-      .eq(column, recursoId)
-      .neq('gravacao_id', gravacaoId);
+  // Conflict detection
+  const [conflitosCache, setConflitosCache] = useState<Record<string, Record<string, string>>>({});
 
-    for (const item of data || []) {
-      const gravacao = item.gravacoes as any;
-      if (gravacao?.data_prevista === dia) {
-        return { gravacaoNome: gravacao.nome || gravacao.codigo };
-      }
-    }
-    
-    return null;
-  }, [gravacaoId]);
-
-  // Get conflicts for all dates of a resource
   const getConflitosRecurso = useCallback(async (recursoId: string, tipo: 'tecnico' | 'fisico'): Promise<Record<string, string>> => {
     const conflitos: Record<string, string> = {};
     const column = tipo === 'tecnico' ? 'recurso_tecnico_id' : 'recurso_fisico_id';
@@ -410,15 +385,14 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
     return conflitos;
   }, [gravacaoId]);
 
-  // For UI rendering, we need synchronous conflict data
-  const [conflitosCache, setConflitosCache] = useState<Record<string, Record<string, string>>>({});
-
   useEffect(() => {
     const loadConflitos = async () => {
       const cache: Record<string, Record<string, string>> = {};
       for (const recurso of recursos) {
         const key = `${recurso.tipo}_${recurso.recursoId}`;
-        cache[key] = await getConflitosRecurso(recurso.recursoId, recurso.tipo);
+        if (!cache[key]) {
+          cache[key] = await getConflitosRecurso(recurso.recursoId, recurso.tipo);
+        }
       }
       setConflitosCache(cache);
     };
@@ -445,6 +419,7 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
     return dias;
   }, [mesAno]);
 
+  // Add resource - always creates a new anchor (allows duplicates)
   const handleAddRecurso = async () => {
     if (!selectedRecurso) return;
     
@@ -452,65 +427,45 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
     const recurso = lista.find((r) => r.id === selectedRecurso);
     if (!recurso) return;
 
-    // Para recursos físicos, verificar se o item de estoque + recurso já existe
-    if (selectedTipo === 'fisico') {
-      const exists = recursos.find(
-        (r) => r.recursoId === selectedRecurso && r.tipo === 'fisico' && r.estoqueItemId === (selectedEstoqueItem || undefined)
-      );
-      if (exists) {
-        toast({
-          title: 'Item já adicionado',
-          description: 'Este item de estoque já está na lista.',
-          variant: 'destructive',
-        });
-        return;
-      }
-    } else {
-      const exists = recursos.find((r) => r.recursoId === selectedRecurso && r.tipo === selectedTipo);
-      if (exists) {
-        toast({
-          title: 'Recurso já adicionado',
-          description: 'Este recurso já está na lista.',
-          variant: 'destructive',
-        });
-        return;
-      }
-    }
-
-    // Obter informações do item de estoque selecionado
     const estoqueItem = selectedEstoqueItem ? estoqueItens.find((e) => e.id === selectedEstoqueItem) : undefined;
 
-    // Para recursos técnicos, criar registro base no banco (sem recurso_humano_id)
-    // Isso garante que o recurso técnico persista mesmo sem colaboradores associados
-    if (selectedTipo === 'tecnico') {
-      // Verificar se já existe registro base
-      const { data: existingBase } = await supabase
-        .from('gravacao_recursos')
-        .select('id')
-        .eq('gravacao_id', gravacaoId)
-        .eq('recurso_tecnico_id', selectedRecurso)
-        .is('recurso_humano_id', null)
-        .maybeSingle();
+    // Always create a new anchor row in the database
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const insertData: any = {
+      gravacao_id: gravacaoId,
+    };
 
-      if (!existingBase) {
-        await supabase.from('gravacao_recursos').insert({
-          gravacao_id: gravacaoId,
-          recurso_tecnico_id: selectedRecurso,
-          recurso_humano_id: null,
-        });
-      }
+    if (selectedTipo === 'tecnico') {
+      insertData.recurso_tecnico_id = selectedRecurso;
+    } else {
+      insertData.recurso_fisico_id = selectedRecurso;
     }
 
-    // Add to local state
+    const { data: newRow, error } = await supabase
+      .from('gravacao_recursos')
+      .insert(insertData)
+      .select('id')
+      .single();
+
+    if (error || !newRow) {
+      toast({
+        title: 'Erro',
+        description: 'Erro ao adicionar recurso.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     const novoRecurso: RecursoAlocado = {
-      id: crypto.randomUUID(),
+      id: newRow.id,
+      anchorDbId: newRow.id,
       tipo: selectedTipo,
       recursoId: selectedRecurso,
       recursoNome: recurso.nome,
       funcaoOperador: selectedTipo === 'tecnico' ? (recurso as any).funcaoOperador : undefined,
       estoqueItemId: estoqueItem?.id,
       estoqueItemNome: estoqueItem ? `#${estoqueItem.numerador} - ${estoqueItem.nome}${estoqueItem.codigo ? ` (${estoqueItem.codigo})` : ''}` : undefined,
-      alocacoes: {},
+      horas: {},
       recursosHumanos: {},
       horarios: {},
     };
@@ -520,105 +475,51 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
     setSelectedEstoqueItem('');
   };
 
-  const handleRemoveRecurso = async (id: string) => {
-    const recurso = recursos.find((r) => r.id === id || r.recursoId === id);
+  const handleRemoveRecurso = async (recursoLocalId: string) => {
+    const recurso = recursos.find((r) => r.id === recursoLocalId);
     if (!recurso) return;
 
-    // Delete from database - inclui registro base e todas as alocações de RH
-    const column = recurso.tipo === 'tecnico' ? 'recurso_tecnico_id' : 'recurso_fisico_id';
-    
-    // Para recursos técnicos, também excluir tarefas associadas
+    // For technical resources, remove associated tasks
     if (recurso.tipo === 'tecnico') {
-      // Buscar todos os RHs alocados para este recurso técnico
-      const { data: alocacoes } = await supabase
-        .from('gravacao_recursos')
-        .select('recurso_humano_id')
-        .eq('gravacao_id', gravacaoId)
-        .eq('recurso_tecnico_id', recurso.recursoId)
-        .not('recurso_humano_id', 'is', null);
-
-      // Excluir tarefas de cada colaborador
-      for (const aloc of alocacoes || []) {
-        if (aloc.recurso_humano_id) {
-          await removeTaskForRH(aloc.recurso_humano_id, recurso.recursoId);
-        }
+      const rhList = Object.values(recurso.recursosHumanos).flat();
+      for (const rh of rhList) {
+        await removeTaskForRH(rh.recursoHumanoId, recurso.recursoId);
       }
     }
 
+    // Delete the anchor and all children (CASCADE via parent_recurso_id)
     await supabase
       .from('gravacao_recursos')
       .delete()
-      .eq('gravacao_id', gravacaoId)
-      .eq(column, recurso.recursoId);
+      .eq('id', recurso.anchorDbId);
 
-    setRecursos(recursos.filter((r) => r.id !== id && r.recursoId !== id));
+    setRecursos(recursos.filter((r) => r.id !== recursoLocalId));
   };
 
-  const handleAlocacaoChange = async (recursoId: string, dia: string, valor: number) => {
-    const recursoAtual = recursos.find((r) => r.id === recursoId || r.recursoId === recursoId);
+  // Handle hours change for a specific instance
+  const handleHorasChange = async (recursoLocalId: string, dia: string, horasValue: number) => {
+    const recursoAtual = recursos.find((r) => r.id === recursoLocalId);
     if (!recursoAtual) return;
-
-    if (valor > 0) {
-      // Check for conflicts
-      const conflito = await getConflito(recursoAtual.recursoId, recursoAtual.tipo, dia);
-      if (conflito) {
-        toast({
-          title: 'Conflito de alocação',
-          description: `Este recurso já está alocado para a gravação "${conflito.gravacaoNome}" nesta data.`,
-          variant: 'destructive',
-        });
-        return;
-      }
-
-      // Check availability for physical resources
-      if (recursoAtual.tipo === 'fisico') {
-        const disponibilidade = verificarDisponibilidade(recursoAtual.recursoId, dia, undefined, undefined, gravacaoId);
-        if (!disponibilidade.disponivel) {
-          toast({
-            title: 'Recurso indisponível',
-            description: disponibilidade.motivo || 'Este recurso físico não está disponível nesta data.',
-            variant: 'destructive',
-          });
-          return;
-        }
-      }
-    }
 
     // Update local state
     const updated = recursos.map((r) => {
-      if (r.id === recursoId || r.recursoId === recursoId) {
+      if (r.id === recursoLocalId) {
         return {
           ...r,
-          alocacoes: {
-            ...r.alocacoes,
-            [dia]: valor,
-          },
+          horas: { ...r.horas, [dia]: horasValue },
         };
       }
       return r;
     });
     setRecursos(updated);
 
-    // Sync with database
-    const column = recursoAtual.tipo === 'tecnico' ? 'recurso_tecnico_id' : 'recurso_fisico_id';
+    // Convert hours to time range and save to DB
+    const { horaInicio: hi, horaFim: hf } = hoursToTimeRange(horasValue);
     
-    if (valor > 0) {
-      // Check if allocation exists
-      const { data: existing } = await supabase
-        .from('gravacao_recursos')
-        .select('id')
-        .eq('gravacao_id', gravacaoId)
-        .eq(column, recursoAtual.recursoId)
-        .maybeSingle();
-
-      if (!existing) {
-        // Insert new allocation
-        await supabase.from('gravacao_recursos').insert({
-          gravacao_id: gravacaoId,
-          [column]: recursoAtual.recursoId,
-        });
-      }
-    }
+    await supabase
+      .from('gravacao_recursos')
+      .update({ hora_inicio: hi, hora_fim: hf })
+      .eq('id', recursoAtual.anchorDbId);
   };
 
   const openRHModal = (recurso: RecursoAlocado, dia: string) => {
@@ -635,9 +536,8 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
     if (!rhId || !dia) return null;
     
     const dataObj = parseISO(dia);
-    const diaSemana = dataObj.getDay(); // 0 = domingo, 1 = segunda, etc.
+    const diaSemana = dataObj.getDay();
 
-    // Buscar escalas do colaborador que incluem a data
     const { data: escalas } = await supabase
       .from('rh_escalas')
       .select('*')
@@ -647,7 +547,6 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
 
     if (!escalas || escalas.length === 0) return null;
 
-    // Encontrar uma escala que inclua o dia da semana
     for (const escala of escalas) {
       const diasSemana = escala.dias_semana || [1, 2, 3, 4, 5];
       if (diasSemana.includes(diaSemana)) {
@@ -661,7 +560,6 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
     return null;
   };
 
-  // Effect para atualizar horários quando colaborador é selecionado
   useEffect(() => {
     const updateHorariosFromEscala = async () => {
       if (!selectedRH || !rhModalDia) return;
@@ -671,7 +569,6 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
         setHoraInicio(escala.horaInicio);
         setHoraFim(escala.horaFim);
       } else {
-        // Se não houver escala, usar horários padrão
         setHoraInicio('08:00');
         setHoraFim('18:00');
       }
@@ -687,17 +584,15 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
     recursoTecnicoId: string, 
     recursoTecnicoNome: string, 
     dia: string,
-    horaInicio: string,
-    horaFim: string
+    taskHoraInicio: string,
+    taskHoraFim: string
   ) => {
-    // Get default status
     const { data: statusData } = await supabase
       .from('status_tarefa')
       .select('id')
       .eq('is_inicial', true)
       .maybeSingle();
 
-    // Check if task already exists
     const { data: existingTask } = await supabase
       .from('tarefas')
       .select('id')
@@ -709,7 +604,6 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
 
     if (existingTask) return;
 
-    // Create task with hora_inicio and hora_fim
     await supabase.from('tarefas').insert({
       gravacao_id: gravacaoId,
       recurso_humano_id: rhId,
@@ -720,15 +614,12 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
       prioridade: 'media',
       data_inicio: dia,
       data_fim: dia,
-      hora_inicio: horaInicio,
-      hora_fim: horaFim,
+      hora_inicio: taskHoraInicio,
+      hora_fim: taskHoraFim,
     });
   };
 
-  // Remove automatic task for RH - regardless of status
   const removeTaskForRH = async (rhId: string, recursoTecnicoId: string) => {
-    // Delete ALL tasks associated with this collaborator and technical resource
-    // regardless of the task's current status (Pendente, Concluída, etc.)
     await supabase
       .from('tarefas')
       .delete()
@@ -753,7 +644,7 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
 
     // Update local state
     const updated = recursos.map((r) => {
-      if (r.id === rhModalRecurso.id || r.recursoId === rhModalRecurso.recursoId) {
+      if (r.id === rhModalRecurso.id) {
         const rhAtual = r.recursosHumanos[rhModalDia] || [];
         return {
           ...r,
@@ -768,16 +659,35 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
 
     setRecursos(updated);
 
-    // Save to database
-    await supabase.from('gravacao_recursos').insert({
+    // Save to database with parent_recurso_id linking to the anchor
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: newRow } = await (supabase as any).from('gravacao_recursos').insert({
       gravacao_id: gravacaoId,
       recurso_tecnico_id: rhModalRecurso.recursoId,
       recurso_humano_id: selectedRH,
       hora_inicio: horaInicio,
       hora_fim: horaFim,
-    });
+      parent_recurso_id: rhModalRecurso.anchorDbId,
+    }).select('id').single();
 
-    // Create automatic task with hora_inicio and hora_fim
+    // Update local RH id with DB id
+    if (newRow) {
+      setRecursos(prev => prev.map(r => {
+        if (r.id === rhModalRecurso.id) {
+          const rhList = r.recursosHumanos[rhModalDia] || [];
+          return {
+            ...r,
+            recursosHumanos: {
+              ...r.recursosHumanos,
+              [rhModalDia]: rhList.map(item => item.id === novoRH.id ? { ...item, id: newRow.id } : item),
+            },
+          };
+        }
+        return r;
+      }));
+    }
+
+    // Create automatic task
     await createTaskForRH(
       selectedRH,
       rh.nome,
@@ -798,13 +708,13 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
     setHoraFim('18:00');
   };
 
-  const handleRemoveRH = async (recursoId: string, dia: string, rhId: string) => {
-    const recurso = recursos.find((r) => r.id === recursoId || r.recursoId === recursoId);
+  const handleRemoveRH = async (recursoLocalId: string, dia: string, rhId: string) => {
+    const recurso = recursos.find((r) => r.id === recursoLocalId);
     const rhInfo = recurso?.recursosHumanos[dia]?.find((rh) => rh.id === rhId);
 
     // Update local state
     const updated = recursos.map((r) => {
-      if (r.id === recursoId || r.recursoId === recursoId) {
+      if (r.id === recursoLocalId) {
         return {
           ...r,
           recursosHumanos: {
@@ -818,23 +728,21 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
     setRecursos(updated);
 
     // Remove from database
-    if (rhInfo && recurso) {
+    if (rhInfo) {
       await supabase
         .from('gravacao_recursos')
         .delete()
-        .eq('gravacao_id', gravacaoId)
-        .eq('recurso_tecnico_id', recurso.recursoId)
-        .eq('recurso_humano_id', rhInfo.recursoHumanoId);
+        .eq('id', rhInfo.id);
 
-      // Check if RH is still allocated to this resource
+      // Check if RH is still allocated to this resource anywhere
       const aindaAlocado = updated.some((r) => {
-        if (r.recursoId !== recurso.recursoId) return false;
+        if (r.recursoId !== recurso?.recursoId) return false;
         return Object.values(r.recursosHumanos).some((rhList) =>
           rhList.some((rh) => rh.recursoHumanoId === rhInfo.recursoHumanoId)
         );
       });
 
-      if (!aindaAlocado) {
+      if (!aindaAlocado && recurso) {
         await removeTaskForRH(rhInfo.recursoHumanoId, recurso.recursoId);
         toast({
           title: 'Colaborador desalocado',
@@ -917,15 +825,15 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
 
     // Update local state
     const updated = recursos.map((r) => {
-      if (r.id === horarioModalRecurso.id || r.recursoId === horarioModalRecurso.recursoId) {
+      if (r.id === horarioModalRecurso.id) {
+        // Also update horas based on the time range
+        const hours = timeRangeToHours(horarioInicio, horarioFim);
         return {
           ...r,
+          horas: { ...r.horas, [horarioModalDia]: hours },
           horarios: {
             ...r.horarios,
-            [horarioModalDia]: {
-              horaInicio: horarioInicio,
-              horaFim: horarioFim,
-            },
+            [horarioModalDia]: { horaInicio: horarioInicio, horaFim: horarioFim },
           },
         };
       }
@@ -935,26 +843,10 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
     setRecursos(updated);
 
     // Sync with database
-    const { data: existing } = await supabase
+    await supabase
       .from('gravacao_recursos')
-      .select('id')
-      .eq('gravacao_id', gravacaoId)
-      .eq('recurso_fisico_id', horarioModalRecurso.recursoId)
-      .maybeSingle();
-
-    if (existing) {
-      await supabase
-        .from('gravacao_recursos')
-        .update({ hora_inicio: horarioInicio, hora_fim: horarioFim })
-        .eq('id', existing.id);
-    } else {
-      await supabase.from('gravacao_recursos').insert({
-        gravacao_id: gravacaoId,
-        recurso_fisico_id: horarioModalRecurso.recursoId,
-        hora_inicio: horarioInicio,
-        hora_fim: horarioFim,
-      });
-    }
+      .update({ hora_inicio: horarioInicio, hora_fim: horarioFim })
+      .eq('id', horarioModalRecurso.anchorDbId);
 
     setHorarioModalOpen(false);
   };
@@ -962,26 +854,21 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
   const handleRemoveHorario = async () => {
     if (!horarioModalRecurso) return;
 
-    // Update local state
     const updated = recursos.map((r) => {
-      if (r.id === horarioModalRecurso.id || r.recursoId === horarioModalRecurso.recursoId) {
+      if (r.id === horarioModalRecurso.id) {
         const { [horarioModalDia]: _, ...restHorarios } = r.horarios;
-        return {
-          ...r,
-          horarios: restHorarios,
-        };
+        const { [horarioModalDia]: __, ...restHoras } = r.horas;
+        return { ...r, horarios: restHorarios, horas: restHoras };
       }
       return r;
     });
 
     setRecursos(updated);
 
-    // Remove from database
     await supabase
       .from('gravacao_recursos')
-      .delete()
-      .eq('gravacao_id', gravacaoId)
-      .eq('recurso_fisico_id', horarioModalRecurso.recursoId);
+      .update({ hora_inicio: null, hora_fim: null })
+      .eq('id', horarioModalRecurso.anchorDbId);
 
     setHorarioModalOpen(false);
   };
@@ -1008,13 +895,12 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
 
   const rhAlocadosNoDia = useMemo(() => {
     if (!rhModalRecurso || !rhModalDia) return [];
-    const recursoAtual = recursos.find((r) => r.id === rhModalRecurso.id || r.recursoId === rhModalRecurso.recursoId);
+    const recursoAtual = recursos.find((r) => r.id === rhModalRecurso.id);
     return recursoAtual?.recursosHumanos[rhModalDia] || [];
   }, [recursos, rhModalRecurso, rhModalDia]);
 
   const isColaboradorAusente = (rh: RecursoHumano, dataStr: string): boolean => {
     if (!rh.ausencias || rh.ausencias.length === 0) return false;
-
     const data = parseISO(dataStr);
     return rh.ausencias.some((ausencia) => {
       const inicio = parseISO(ausencia.dataInicio);
@@ -1025,7 +911,6 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
 
   const getMotivoAusencia = (rh: RecursoHumano, dataStr: string): string | null => {
     if (!rh.ausencias || rh.ausencias.length === 0) return null;
-
     const data = parseISO(dataStr);
     const ausencia = rh.ausencias.find((a) => {
       const inicio = parseISO(a.dataInicio);
@@ -1037,30 +922,25 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
 
   const recursosHumanosFiltrados = useMemo(() => {
     let filtrados = recursosHumanos;
-
     if (rhModalRecurso?.funcaoOperador) {
       filtrados = filtrados.filter(
         (rh) => rh.funcao?.toLowerCase() === rhModalRecurso.funcaoOperador?.toLowerCase()
       );
     }
-
     if (rhModalDia) {
       filtrados = filtrados.filter((rh) => !isColaboradorAusente(rh, rhModalDia));
     }
-
     return filtrados;
   }, [recursosHumanos, rhModalRecurso?.funcaoOperador, rhModalDia]);
 
   const colaboradoresAusentes = useMemo(() => {
     if (!rhModalDia) return [];
-
     let filtrados = recursosHumanos;
     if (rhModalRecurso?.funcaoOperador) {
       filtrados = filtrados.filter(
         (rh) => rh.funcao?.toLowerCase() === rhModalRecurso.funcaoOperador?.toLowerCase()
       );
     }
-
     return filtrados
       .filter((rh) => isColaboradorAusente(rh, rhModalDia))
       .map((rh) => ({
@@ -1089,7 +969,7 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
                 {diasDoMes.map((d) => (
                   <th
                     key={d.dia}
-                    className={`px-0.5 py-1 text-center font-medium w-10 ${d.isWeekend ? 'bg-weekend' : ''}`}
+                    className={`px-0.5 py-1 text-center font-medium w-12 ${d.isWeekend ? 'bg-weekend' : ''}`}
                   >
                     {d.dia}
                   </th>
@@ -1117,10 +997,10 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
                     {diasDoMes.map((d) => {
                       const rhCount = getRHCount(recurso, d.dataKey);
                       const rhList = recurso.recursosHumanos[d.dataKey] || [];
-                      const qtdAlocada = recurso.alocacoes[d.dataKey] || 0;
-                      const faltaColaborador = isTecnico && qtdAlocada > 0 && rhCount === 0;
+                      const horasValue = recurso.horas[d.dataKey] || 0;
+                      const faltaColaborador = isTecnico && horasValue > 0 && rhCount === 0;
                       const horario = getHorario(recurso, d.dataKey);
-                      const faltaHorario = !isTecnico && qtdAlocada > 0 && !horario;
+                      const faltaHorario = !isTecnico && horasValue > 0 && !horario;
                       const conflito = conflitos[d.dataKey];
 
                       return (
@@ -1133,7 +1013,7 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
                               <TooltipProvider delayDuration={200}>
                                 <Tooltip>
                                   <TooltipTrigger asChild>
-                                    <div className="w-8 h-6 flex items-center justify-center bg-destructive/20 rounded border border-destructive/30 cursor-not-allowed">
+                                    <div className="w-10 h-6 flex items-center justify-center bg-destructive/20 rounded border border-destructive/30 cursor-not-allowed">
                                       <AlertTriangle className="w-3 h-3 text-destructive" />
                                     </div>
                                   </TooltipTrigger>
@@ -1147,15 +1027,14 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
                               <Input
                                 type="number"
                                 min="0"
-                                className="w-8 h-6 text-center p-0 text-[10px]"
-                                value={recurso.alocacoes[d.dataKey] || ''}
-                                onChange={(e) =>
-                                  handleAlocacaoChange(
-                                    recurso.id,
-                                    d.dataKey,
-                                    parseInt(e.target.value) || 0
-                                  )
-                                }
+                                step="0.5"
+                                className="w-10 h-6 text-center p-0 text-[10px]"
+                                value={horasValue > 0 ? horasValue : ''}
+                                placeholder="h"
+                                onChange={(e) => {
+                                  const val = parseFloat(e.target.value) || 0;
+                                  handleHorasChange(recurso.id, d.dataKey, val);
+                                }}
                               />
                             )}
                             {isTecnico && (
