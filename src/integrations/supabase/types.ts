@@ -1247,6 +1247,7 @@ export type Database = {
           hora_fim: string | null
           hora_inicio: string | null
           id: string
+          parent_recurso_id: string | null
           recurso_fisico_id: string | null
           recurso_humano_id: string | null
           recurso_tecnico_id: string | null
@@ -1257,6 +1258,7 @@ export type Database = {
           hora_fim?: string | null
           hora_inicio?: string | null
           id?: string
+          parent_recurso_id?: string | null
           recurso_fisico_id?: string | null
           recurso_humano_id?: string | null
           recurso_tecnico_id?: string | null
@@ -1267,6 +1269,7 @@ export type Database = {
           hora_fim?: string | null
           hora_inicio?: string | null
           id?: string
+          parent_recurso_id?: string | null
           recurso_fisico_id?: string | null
           recurso_humano_id?: string | null
           recurso_tecnico_id?: string | null
@@ -1277,6 +1280,13 @@ export type Database = {
             columns: ["gravacao_id"]
             isOneToOne: false
             referencedRelation: "gravacoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gravacao_recursos_parent_recurso_id_fkey"
+            columns: ["parent_recurso_id"]
+            isOneToOne: false
+            referencedRelation: "gravacao_recursos"
             referencedColumns: ["id"]
           },
           {
