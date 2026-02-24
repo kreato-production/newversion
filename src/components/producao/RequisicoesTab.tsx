@@ -44,6 +44,12 @@ interface RequisicaoRF {
   horaFim: string;
   tempoGravacao: string;
   gravacaoRecursoId: string;
+  // Persisted association (from DB)
+  persistedEstoque?: { id: string; nome: string; numerador: number; imagemUrl: string | null } | null;
+  persistedHoraInicio?: string;
+  persistedHoraFim?: string;
+  persistedTempoAssociado?: string;
+  // Local association state
   selectedEstoque?: { id: string; nome: string; numerador: number; imagemUrl: string | null } | null;
   associadoHoraInicio?: string;
   associadoHoraFim?: string;
@@ -162,6 +168,9 @@ const RequisicoesTab = ({ dateStart, dateEnd }: RequisicoesTabProps) => {
         const child = (childRows || [])[0];
         const rh = child?.recursos_humanos as any;
 
+        // Skip items that already have a persisted association
+        if (child && rh) continue;
+
         const entry: RequisicaoRT = {
           gravacaoId: row.gravacao_id,
           gravacaoNome: gravacao?.nome || '',
@@ -173,20 +182,6 @@ const RequisicoesTab = ({ dateStart, dateEnd }: RequisicoesTabProps) => {
           tempoGravacao,
           gravacaoRecursoId: row.id,
         };
-
-        if (child && rh) {
-          const childHoraInicio = child.hora_inicio?.substring(0, 5) || '';
-          const childHoraFim = child.hora_fim?.substring(0, 5) || '';
-          entry.persistedRH = {
-            id: rh.id,
-            nome: rh.nome,
-            sobrenome: rh.sobrenome,
-            fotoUrl: rh.foto_url,
-          };
-          entry.persistedHoraInicio = childHoraInicio;
-          entry.persistedHoraFim = childHoraFim;
-          entry.persistedTempoAssociado = calcularTempo(childHoraInicio, childHoraFim);
-        }
 
         allRT.push(entry);
       }
@@ -202,29 +197,41 @@ const RequisicoesTab = ({ dateStart, dateEnd }: RequisicoesTabProps) => {
         `)
         .not('recurso_fisico_id', 'is', null);
 
-      const allRF: RequisicaoRF[] = (rfData || [])
-        .filter((row: any) => {
-          const gravacao = row.gravacoes as any;
-          return isInDateRange(gravacao?.data_prevista || '');
-        })
-        .map((row: any) => {
-          const gravacao = row.gravacoes as any;
-          const recurso = row.recursos_fisicos as any;
-          return {
-            gravacaoId: row.gravacao_id,
-            gravacaoNome: gravacao?.nome || '',
-            recursoFisicoId: row.recurso_fisico_id!,
-            recursoFisicoNome: recurso?.nome || '',
-            dataPrevista: gravacao?.data_prevista || '',
-            horaInicio: row.hora_inicio?.substring(0, 5) || '',
-            horaFim: row.hora_fim?.substring(0, 5) || '',
-            tempoGravacao: calcularTempo(
-              row.hora_inicio?.substring(0, 5) || '',
-              row.hora_fim?.substring(0, 5) || ''
-            ),
-            gravacaoRecursoId: row.id,
-          };
+      const allRF: RequisicaoRF[] = [];
+      for (const row of (rfData || [])) {
+        const gravacao = row.gravacoes as any;
+        if (!isInDateRange(gravacao?.data_prevista || '')) continue;
+        const recurso = row.recursos_fisicos as any;
+
+        // Check if this anchor has a child (estoque association)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: childRows } = await (supabase as any)
+          .from('gravacao_recursos')
+          .select(`
+            id, recurso_fisico_id, hora_inicio, hora_fim,
+            rf_estoque_itens:recurso_fisico_id(id, nome, numerador, imagem_url)
+          `)
+          .eq('parent_recurso_id', row.id);
+
+        const child = (childRows || [])[0];
+        // Skip items that already have a persisted association
+        if (child) continue;
+
+        allRF.push({
+          gravacaoId: row.gravacao_id,
+          gravacaoNome: gravacao?.nome || '',
+          recursoFisicoId: row.recurso_fisico_id!,
+          recursoFisicoNome: recurso?.nome || '',
+          dataPrevista: gravacao?.data_prevista || '',
+          horaInicio: row.hora_inicio?.substring(0, 5) || '',
+          horaFim: row.hora_fim?.substring(0, 5) || '',
+          tempoGravacao: calcularTempo(
+            row.hora_inicio?.substring(0, 5) || '',
+            row.hora_fim?.substring(0, 5) || ''
+          ),
+          gravacaoRecursoId: row.id,
         });
+      }
       setRequisicoesFisicas(allRF);
     } catch (err) {
       console.error('Error fetching requisicoes:', err);
@@ -259,10 +266,20 @@ const RequisicoesTab = ({ dateStart, dateEnd }: RequisicoesTabProps) => {
 
   // Helper to determine row background class for RT rows
   const getRowBgClassRT = (req: RequisicaoRT): string => {
-    const rh = req.selectedRH || req.persistedRH;
+    const rh = req.selectedRH;
     if (!rh) return 'hover:bg-muted/50';
-    // Has association - check if tempoGravacao matches tempoAssociado
-    const tempoAssociado = req.tempoAssociado || req.persistedTempoAssociado || '-';
+    const tempoAssociado = req.tempoAssociado || '-';
+    if (tempoAssociado !== '-' && req.tempoGravacao !== '-' && tempoAssociado !== req.tempoGravacao) {
+      return 'bg-yellow-50 dark:bg-yellow-950/30 hover:bg-yellow-100 dark:hover:bg-yellow-950/50';
+    }
+    return 'bg-green-50 dark:bg-green-950/30 hover:bg-green-100 dark:hover:bg-green-950/50';
+  };
+
+  // Helper to determine row background class for RF rows
+  const getRowBgClassRF = (req: RequisicaoRF): string => {
+    const estoque = req.selectedEstoque;
+    if (!estoque) return 'hover:bg-muted/50';
+    const tempoAssociado = req.tempoAssociado || '-';
     if (tempoAssociado !== '-' && req.tempoGravacao !== '-' && tempoAssociado !== req.tempoGravacao) {
       return 'bg-yellow-50 dark:bg-yellow-950/30 hover:bg-yellow-100 dark:hover:bg-yellow-950/50';
     }
@@ -552,14 +569,13 @@ const RequisicoesTab = ({ dateStart, dateEnd }: RequisicoesTabProps) => {
                         </TableHeader>
                         <TableBody>
                           {items.map(({ index, req }) => {
-                            const displayRH = req.selectedRH || req.persistedRH;
-                            const displayTempoAssociado = req.tempoAssociado || req.persistedTempoAssociado;
-                            const isPersisted = !!req.persistedRH && !req.selectedRH;
+                            const displayRH = req.selectedRH;
+                            const displayTempoAssociado = req.tempoAssociado;
                             return (
                             <TableRow
                               key={req.gravacaoRecursoId}
                               className={`cursor-pointer transition-colors ${getRowBgClassRT(req)}`}
-                              onClick={() => !isPersisted && handleRTClick(index)}
+                              onClick={() => handleRTClick(index)}
                             >
                               <TableCell className="text-xs font-medium">{req.recursoTecnicoNome}</TableCell>
                               <TableCell className="text-xs">
@@ -635,7 +651,7 @@ const RequisicoesTab = ({ dateStart, dateEnd }: RequisicoesTabProps) => {
                           {items.map(({ index, req }) => (
                             <TableRow
                               key={req.gravacaoRecursoId}
-                              className={`cursor-pointer transition-colors ${req.selectedEstoque ? 'bg-primary/5 hover:bg-primary/10' : 'hover:bg-muted/50'}`}
+                              className={`cursor-pointer transition-colors ${getRowBgClassRF(req)}`}
                               onClick={() => handleRFClick(index)}
                             >
                               <TableCell className="text-xs font-medium">{req.recursoFisicoNome}</TableCell>
