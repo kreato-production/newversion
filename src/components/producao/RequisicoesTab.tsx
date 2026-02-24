@@ -22,7 +22,12 @@ interface RequisicaoRT {
   horaFim: string;
   tempoGravacao: string;
   gravacaoRecursoId: string; // anchor id
-  // Local association state
+  // Persisted association (from DB)
+  persistedRH?: { id: string; nome: string; sobrenome: string; fotoUrl: string | null } | null;
+  persistedHoraInicio?: string;
+  persistedHoraFim?: string;
+  persistedTempoAssociado?: string;
+  // Local association state (staged, not yet saved)
   selectedRH?: { id: string; nome: string; sobrenome: string; fotoUrl: string | null } | null;
   associadoHoraInicio?: string;
   associadoHoraFim?: string;
@@ -121,8 +126,7 @@ const RequisicoesTab = ({ dateStart, dateEnd }: RequisicoesTabProps) => {
   const fetchRequisicoes = useCallback(async () => {
     setLoading(true);
     try {
-      // Fetch RT anchors (recurso_humano_id IS NULL) 
-      // An anchor is "pending" if it has NO child rows (parent_recurso_id = anchor.id)
+      // Fetch ALL RT anchors (recurso_humano_id IS NULL = anchor rows)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data: rtData } = await (supabase as any)
         .from('gravacao_recursos')
@@ -134,37 +138,59 @@ const RequisicoesTab = ({ dateStart, dateEnd }: RequisicoesTabProps) => {
         .not('recurso_tecnico_id', 'is', null)
         .is('recurso_humano_id', null);
 
-      const pendingRT: RequisicaoRT[] = [];
+      const allRT: RequisicaoRT[] = [];
       for (const row of (rtData || [])) {
         const gravacao = row.gravacoes as any;
         if (!isInDateRange(gravacao?.data_prevista || '')) continue;
         
-        // Check if this specific anchor has any children (RH rows with parent_recurso_id = this anchor)
+        const recurso = row.recursos_tecnicos as any;
+        const tempoGravacao = calcularTempo(
+          row.hora_inicio?.substring(0, 5) || '',
+          row.hora_fim?.substring(0, 5) || ''
+        );
+
+        // Check if this anchor has a child (RH association)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { count } = await (supabase as any)
+        const { data: childRows } = await (supabase as any)
           .from('gravacao_recursos')
-          .select('id', { count: 'exact', head: true })
+          .select(`
+            id, recurso_humano_id, hora_inicio, hora_fim,
+            recursos_humanos:recurso_humano_id(id, nome, sobrenome, foto_url)
+          `)
           .eq('parent_recurso_id', row.id);
 
-        if ((count || 0) === 0) {
-          const recurso = row.recursos_tecnicos as any;
-          pendingRT.push({
-            gravacaoId: row.gravacao_id,
-            gravacaoNome: gravacao?.nome || '',
-            recursoTecnicoId: row.recurso_tecnico_id!,
-            recursoTecnicoNome: recurso?.nome || '',
-            dataPrevista: gravacao?.data_prevista || '',
-            horaInicio: row.hora_inicio?.substring(0, 5) || '',
-            horaFim: row.hora_fim?.substring(0, 5) || '',
-            tempoGravacao: calcularTempo(
-              row.hora_inicio?.substring(0, 5) || '',
-              row.hora_fim?.substring(0, 5) || ''
-            ),
-            gravacaoRecursoId: row.id,
-          });
+        const child = (childRows || [])[0];
+        const rh = child?.recursos_humanos as any;
+
+        const entry: RequisicaoRT = {
+          gravacaoId: row.gravacao_id,
+          gravacaoNome: gravacao?.nome || '',
+          recursoTecnicoId: row.recurso_tecnico_id!,
+          recursoTecnicoNome: recurso?.nome || '',
+          dataPrevista: gravacao?.data_prevista || '',
+          horaInicio: row.hora_inicio?.substring(0, 5) || '',
+          horaFim: row.hora_fim?.substring(0, 5) || '',
+          tempoGravacao,
+          gravacaoRecursoId: row.id,
+        };
+
+        if (child && rh) {
+          const childHoraInicio = child.hora_inicio?.substring(0, 5) || '';
+          const childHoraFim = child.hora_fim?.substring(0, 5) || '';
+          entry.persistedRH = {
+            id: rh.id,
+            nome: rh.nome,
+            sobrenome: rh.sobrenome,
+            fotoUrl: rh.foto_url,
+          };
+          entry.persistedHoraInicio = childHoraInicio;
+          entry.persistedHoraFim = childHoraFim;
+          entry.persistedTempoAssociado = calcularTempo(childHoraInicio, childHoraFim);
         }
+
+        allRT.push(entry);
       }
-      setRequisicoesTecnicas(pendingRT);
+      setRequisicoesTecnicas(allRT);
 
       // Fetch RF rows
       const { data: rfData } = await supabase
@@ -176,7 +202,7 @@ const RequisicoesTab = ({ dateStart, dateEnd }: RequisicoesTabProps) => {
         `)
         .not('recurso_fisico_id', 'is', null);
 
-      const pendingRF: RequisicaoRF[] = (rfData || [])
+      const allRF: RequisicaoRF[] = (rfData || [])
         .filter((row: any) => {
           const gravacao = row.gravacoes as any;
           return isInDateRange(gravacao?.data_prevista || '');
@@ -199,7 +225,7 @@ const RequisicoesTab = ({ dateStart, dateEnd }: RequisicoesTabProps) => {
             gravacaoRecursoId: row.id,
           };
         });
-      setRequisicoesFisicas(pendingRF);
+      setRequisicoesFisicas(allRF);
     } catch (err) {
       console.error('Error fetching requisicoes:', err);
     }
@@ -230,6 +256,18 @@ const RequisicoesTab = ({ dateStart, dateEnd }: RequisicoesTabProps) => {
 
   const hasRTAssociations = requisicoesTecnicas.some(r => r.selectedRH);
   const hasRFAssociations = requisicoesFisicas.some(r => r.selectedEstoque);
+
+  // Helper to determine row background class for RT rows
+  const getRowBgClassRT = (req: RequisicaoRT): string => {
+    const rh = req.selectedRH || req.persistedRH;
+    if (!rh) return 'hover:bg-muted/50';
+    // Has association - check if tempoGravacao matches tempoAssociado
+    const tempoAssociado = req.tempoAssociado || req.persistedTempoAssociado || '-';
+    if (tempoAssociado !== '-' && req.tempoGravacao !== '-' && tempoAssociado !== req.tempoGravacao) {
+      return 'bg-yellow-50 dark:bg-yellow-950/30 hover:bg-yellow-100 dark:hover:bg-yellow-950/50';
+    }
+    return 'bg-green-50 dark:bg-green-950/30 hover:bg-green-100 dark:hover:bg-green-950/50';
+  };
 
   // Handle click on RT row
   const handleRTClick = async (globalIndex: number) => {
@@ -513,11 +551,15 @@ const RequisicoesTab = ({ dateStart, dateEnd }: RequisicoesTabProps) => {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {items.map(({ index, req }) => (
+                          {items.map(({ index, req }) => {
+                            const displayRH = req.selectedRH || req.persistedRH;
+                            const displayTempoAssociado = req.tempoAssociado || req.persistedTempoAssociado;
+                            const isPersisted = !!req.persistedRH && !req.selectedRH;
+                            return (
                             <TableRow
                               key={req.gravacaoRecursoId}
-                              className={`cursor-pointer transition-colors ${req.selectedRH ? 'bg-primary/5 hover:bg-primary/10' : 'hover:bg-muted/50'}`}
-                              onClick={() => handleRTClick(index)}
+                              className={`cursor-pointer transition-colors ${getRowBgClassRT(req)}`}
+                              onClick={() => !isPersisted && handleRTClick(index)}
                             >
                               <TableCell className="text-xs font-medium">{req.recursoTecnicoNome}</TableCell>
                               <TableCell className="text-xs">
@@ -527,15 +569,15 @@ const RequisicoesTab = ({ dateStart, dateEnd }: RequisicoesTabProps) => {
                                 </Badge>
                               </TableCell>
                               <TableCell className="text-xs">
-                                {req.selectedRH ? (
+                                {displayRH ? (
                                   <div className="flex items-center gap-2">
                                     <Avatar className="h-6 w-6">
-                                      <AvatarImage src={req.selectedRH.fotoUrl || undefined} />
+                                      <AvatarImage src={displayRH.fotoUrl || undefined} />
                                       <AvatarFallback className="text-[9px]">
-                                        {getInitials(req.selectedRH.nome, req.selectedRH.sobrenome)}
+                                        {getInitials(displayRH.nome, displayRH.sobrenome)}
                                       </AvatarFallback>
                                     </Avatar>
-                                    <span>{req.selectedRH.nome} {req.selectedRH.sobrenome}</span>
+                                    <span>{displayRH.nome} {displayRH.sobrenome}</span>
                                     <Check className="h-3 w-3 text-primary" />
                                   </div>
                                 ) : (
@@ -543,15 +585,16 @@ const RequisicoesTab = ({ dateStart, dateEnd }: RequisicoesTabProps) => {
                                 )}
                               </TableCell>
                               <TableCell className="text-xs">
-                                {req.tempoAssociado ? (
+                                {displayTempoAssociado ? (
                                   <Badge variant="outline" className="gap-1">
                                     <Clock className="h-3 w-3" />
-                                    {req.tempoAssociado}
+                                    {displayTempoAssociado}
                                   </Badge>
                                 ) : '-'}
                               </TableCell>
                             </TableRow>
-                          ))}
+                            );
+                          })}
                         </TableBody>
                       </Table>
                     </CardContent>

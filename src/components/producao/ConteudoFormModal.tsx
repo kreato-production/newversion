@@ -512,36 +512,49 @@ export const ConteudoFormModal = ({
       if (novasGravacoes.length > 0 && data?.id) {
         try {
           const [rtRes, rfRes] = await Promise.all([
-            (supabase as any).from('conteudo_recursos_tecnicos').select('recurso_tecnico_id, quantidade').eq('conteudo_id', data.id),
-            (supabase as any).from('conteudo_recursos_fisicos').select('recurso_fisico_id, quantidade').eq('conteudo_id', data.id),
+            (supabase as any).from('conteudo_recursos_tecnicos').select('recurso_tecnico_id, quantidade, quantidade_horas').eq('conteudo_id', data.id),
+            (supabase as any).from('conteudo_recursos_fisicos').select('recurso_fisico_id, quantidade, quantidade_horas').eq('conteudo_id', data.id),
           ]);
 
           const recursosTecnicos = rtRes.data || [];
           const recursosFisicos = rfRes.data || [];
+
+          const hoursToTime = (hours: number) => {
+            const h = Math.floor(hours);
+            const m = Math.round((hours - h) * 60);
+            return {
+              hora_inicio: '00:00',
+              hora_fim: `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`,
+            };
+          };
 
           for (const gravacao of novasGravacoes) {
             const inserts: any[] = [];
 
             for (const rt of recursosTecnicos) {
               const qty = rt.quantidade || 1;
+              const timeRange = rt.quantidade_horas ? hoursToTime(Number(rt.quantidade_horas)) : {};
               for (let q = 0; q < qty; q++) {
                 inserts.push({
                   gravacao_id: gravacao.id,
                   recurso_tecnico_id: rt.recurso_tecnico_id,
                   recurso_humano_id: null,
                   recurso_fisico_id: null,
+                  ...timeRange,
                 });
               }
             }
 
             for (const rf of recursosFisicos) {
               const qty = rf.quantidade || 1;
+              const timeRange = rf.quantidade_horas ? hoursToTime(Number(rf.quantidade_horas)) : {};
               for (let q = 0; q < qty; q++) {
                 inserts.push({
                   gravacao_id: gravacao.id,
                   recurso_fisico_id: rf.recurso_fisico_id,
                   recurso_tecnico_id: null,
                   recurso_humano_id: null,
+                  ...timeRange,
                 });
               }
             }

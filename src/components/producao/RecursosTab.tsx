@@ -429,6 +429,32 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
 
     const estoqueItem = selectedEstoqueItem ? estoqueItens.find((e) => e.id === selectedEstoqueItem) : undefined;
 
+    // Fetch default hours from content resources if gravação has a conteúdo
+    let defaultHours = 0;
+    try {
+      const { data: gravData } = await supabase
+        .from('gravacoes')
+        .select('conteudo_id')
+        .eq('id', gravacaoId)
+        .single();
+
+      if (gravData?.conteudo_id) {
+        const tableName = selectedTipo === 'tecnico' ? 'conteudo_recursos_tecnicos' : 'conteudo_recursos_fisicos';
+        const colName = selectedTipo === 'tecnico' ? 'recurso_tecnico_id' : 'recurso_fisico_id';
+        const { data: contentRes } = await (supabase as any)
+          .from(tableName)
+          .select('quantidade_horas')
+          .eq('conteudo_id', gravData.conteudo_id)
+          .eq(colName, selectedRecurso)
+          .maybeSingle();
+        if (contentRes?.quantidade_horas) {
+          defaultHours = Number(contentRes.quantidade_horas);
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching default hours from content:', err);
+    }
+
     // Always create a new anchor row in the database
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const insertData: any = {
@@ -439,6 +465,13 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
       insertData.recurso_tecnico_id = selectedRecurso;
     } else {
       insertData.recurso_fisico_id = selectedRecurso;
+    }
+
+    // Set default hours if available
+    if (defaultHours > 0) {
+      const { horaInicio: hi, horaFim: hf } = hoursToTimeRange(defaultHours);
+      insertData.hora_inicio = hi;
+      insertData.hora_fim = hf;
     }
 
     const { data: newRow, error } = await supabase
@@ -465,7 +498,7 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
       funcaoOperador: selectedTipo === 'tecnico' ? (recurso as any).funcaoOperador : undefined,
       estoqueItemId: estoqueItem?.id,
       estoqueItemNome: estoqueItem ? `#${estoqueItem.numerador} - ${estoqueItem.nome}${estoqueItem.codigo ? ` (${estoqueItem.codigo})` : ''}` : undefined,
-      horas: {},
+      horas: gravacaoDataPrevista && defaultHours > 0 ? { [gravacaoDataPrevista]: defaultHours } : {},
       recursosHumanos: {},
       horarios: {},
     };
