@@ -231,8 +231,8 @@ const GravacaoList = () => {
         try {
           // Fetch content resources
           const [rtRes, rfRes, existingRes] = await Promise.all([
-            (supabase as any).from('conteudo_recursos_tecnicos').select('recurso_tecnico_id, quantidade').eq('conteudo_id', conteudoId),
-            (supabase as any).from('conteudo_recursos_fisicos').select('recurso_fisico_id, quantidade').eq('conteudo_id', conteudoId),
+            (supabase as any).from('conteudo_recursos_tecnicos').select('recurso_tecnico_id, quantidade, quantidade_horas').eq('conteudo_id', conteudoId),
+            (supabase as any).from('conteudo_recursos_fisicos').select('recurso_fisico_id, quantidade, quantidade_horas').eq('conteudo_id', conteudoId),
             (supabase as any).from('gravacao_recursos').select('id, recurso_tecnico_id, recurso_fisico_id, recurso_humano_id').eq('gravacao_id', data.id),
           ]);
 
@@ -242,6 +242,16 @@ const GravacaoList = () => {
 
           const inserts: any[] = [];
 
+          // Helper to convert decimal hours to time range
+          const hoursToTime = (hours: number) => {
+            const h = Math.floor(hours);
+            const m = Math.round((hours - h) * 60);
+            return {
+              hora_inicio: '00:00',
+              hora_fim: `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`,
+            };
+          };
+
           // For each content technical resource, check how many anchor entries (recurso_humano_id is null) already exist
           for (const rt of recursosTecnicos) {
             const qty = rt.quantidade || 1;
@@ -249,12 +259,14 @@ const GravacaoList = () => {
               (e: any) => e.recurso_tecnico_id === rt.recurso_tecnico_id && e.recurso_humano_id === null
             ).length;
             const missing = qty - existingCount;
+            const timeRange = rt.quantidade_horas ? hoursToTime(Number(rt.quantidade_horas)) : {};
             for (let i = 0; i < missing; i++) {
               inserts.push({
                 gravacao_id: data.id,
                 recurso_tecnico_id: rt.recurso_tecnico_id,
                 recurso_humano_id: null,
                 recurso_fisico_id: null,
+                ...timeRange,
               });
             }
           }
@@ -266,12 +278,14 @@ const GravacaoList = () => {
               (e: any) => e.recurso_fisico_id === rf.recurso_fisico_id && e.recurso_tecnico_id === null
             ).length;
             const missing = qty - existingCount;
+            const timeRange = rf.quantidade_horas ? hoursToTime(Number(rf.quantidade_horas)) : {};
             for (let i = 0; i < missing; i++) {
               inserts.push({
                 gravacao_id: data.id,
                 recurso_fisico_id: rf.recurso_fisico_id,
                 recurso_tecnico_id: null,
                 recurso_humano_id: null,
+                ...timeRange,
               });
             }
           }
