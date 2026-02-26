@@ -1,3 +1,5 @@
+// ============= Full file contents =============
+
 import { useState, useEffect, useMemo } from 'react';
 import { ChevronRight, ChevronDown, Eye, EyeOff } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
@@ -15,6 +17,7 @@ import {
   createDefaultPermissions,
   getModulos,
 } from '@/data/permissionsMatrix';
+import { usePermissions } from '@/hooks/usePermissions';
 
 interface PermissoesTabProps {
   perfilId: string;
@@ -33,6 +36,7 @@ const PermissoesTab = ({ perfilId, perfilNome }: PermissoesTabProps) => {
   const [permissions, setPermissions] = useState<PerfilPermissoes | null>(null);
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
   const [searchTerm, setSearchTerm] = useState('');
+  const { enabledModules } = usePermissions(); // Get enabled modules for tenant
 
   useEffect(() => {
     if (!perfilId) return;
@@ -75,7 +79,16 @@ const PermissoesTab = ({ perfilId, perfilNome }: PermissoesTabProps) => {
     const subModulo1Map = new Map<string, TreeNode>();
     const subModulo2Map = new Map<string, TreeNode>();
 
-    permissions.permissoes.forEach((perm) => {
+    // Filter permissions based on enabled tenant modules
+    const filteredPermissions = permissions.permissoes.filter(perm => {
+      // If Global admin module logic applies, we might want to hide Global from regular profiles
+      if (perm.modulo === 'Global') return false; 
+      
+      // Filter by enabled modules
+      return enabledModules.has(perm.modulo) || enabledModules.has('Global'); // Global enables everything
+    });
+
+    filteredPermissions.forEach((perm) => {
       const moduloKey = perm.modulo;
       const subModulo1Key = `${perm.modulo}_${perm.subModulo1}`;
       const subModulo2Key = `${perm.modulo}_${perm.subModulo1}_${perm.subModulo2}`;
@@ -150,7 +163,7 @@ const PermissoesTab = ({ perfilId, perfilNome }: PermissoesTabProps) => {
     });
 
     return tree;
-  }, [permissions]);
+  }, [permissions, enabledModules]);
 
   const filteredTree = useMemo(() => {
     if (!searchTerm.trim()) return buildTree;

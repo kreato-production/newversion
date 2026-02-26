@@ -26,29 +26,66 @@ Deno.serve(async (req) => {
     const { data: existingProfile } = await supabaseAdmin
       .from('profiles')
       .select('id')
-      .eq('usuario', 'Admin')
+      .eq('usuario', 'admin_global')
       .maybeSingle()
 
     if (existingProfile) {
+      // Ensure role is global_admin
+      await supabaseAdmin
+        .from('user_roles')
+        .upsert({ user_id: existingProfile.id, role: 'global_admin' }, { onConflict: 'user_id,role' })
+
       return new Response(
-        JSON.stringify({ success: true, message: 'Admin user already exists' }),
+        JSON.stringify({ success: true, message: 'Global Admin user already exists, ensured role.' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
     // Create admin user with Supabase Auth
-    const adminEmail = 'admin@kreato.app'
-    const adminPassword = 'kreato'
+    const adminEmail = 'ericolimam@hotmail.com'
+    const adminPassword = 'kreato_global'
+    const adminUser = 'admin_global'
 
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email: adminEmail,
       password: adminPassword,
       email_confirm: true, // Auto-confirm email
       user_metadata: {
-        nome: 'Administrador',
-        usuario: 'Admin'
+        nome: 'Administrador Global',
+        usuario: adminUser
       }
     })
+
+    // If email exists but user doesn't match above check (edge case), handle error or find user
+    if (authError && authError.message.includes('already been registered')) {
+        // Find auth user
+        const { data: users } = await supabaseAdmin.auth.admin.listUsers()
+        const existingAuth = users.users.find(u => u.email === adminEmail)
+        
+        if (existingAuth) {
+             // Create profile for admin if missing
+            const { error: profileError } = await supabaseAdmin
+            .from('profiles')
+            .upsert({
+                id: existingAuth.id,
+                nome: 'Administrador Global',
+                usuario: adminUser,
+                email: adminEmail,
+                status: 'Ativo',
+                tipo_acesso: 'Global',
+            })
+
+            // Assign role
+            await supabaseAdmin
+            .from('user_roles')
+            .upsert({ user_id: existingAuth.id, role: 'global_admin' }, { onConflict: 'user_id,role' })
+
+            return new Response(
+                JSON.stringify({ success: true, message: 'Recovered existing auth user for global admin.' }),
+                { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            )
+        }
+    }
 
     if (authError) {
       console.error('Error creating admin auth user:', authError)
@@ -70,9 +107,11 @@ Deno.serve(async (req) => {
       .from('profiles')
       .insert({
         id: authData.user.id,
-        nome: 'Administrador',
-        usuario: 'Admin',
+        nome: 'Administrador Global',
+        usuario: adminUser,
         email: adminEmail,
+        status: 'Ativo',
+        tipo_acesso: 'Global',
       })
 
     if (profileError) {
@@ -83,12 +122,12 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Make sure the user has admin role
+    // Make sure the user has global_admin role
     const { error: roleError } = await supabaseAdmin
       .from('user_roles')
       .upsert({
         user_id: authData.user.id,
-        role: 'admin'
+        role: 'global_admin'
       }, { onConflict: 'user_id,role' })
 
     if (roleError) {
@@ -98,10 +137,10 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: 'Admin user created successfully',
+        message: 'Global Admin user created successfully',
         credentials: {
-          usuario: 'Admin',
-          senha: 'kreato'
+          usuario: adminUser,
+          senha: adminPassword
         }
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
