@@ -620,36 +620,57 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
     taskHoraInicio: string,
     taskHoraFim: string
   ) => {
-    const { data: statusData } = await supabase
-      .from('status_tarefa')
-      .select('id')
-      .eq('is_inicial', true)
-      .maybeSingle();
+    try {
+      const { data: statusData, error: statusError } = await supabase
+        .from('status_tarefa')
+        .select('id')
+        .eq('is_inicial', true)
+        .maybeSingle();
 
-    const { data: existingTask } = await supabase
-      .from('tarefas')
-      .select('id')
-      .eq('gravacao_id', gravacaoId)
-      .eq('recurso_humano_id', rhId)
-      .eq('recurso_tecnico_id', recursoTecnicoId)
-      .eq('data_inicio', dia)
-      .maybeSingle();
+      if (statusError) {
+        console.error('Error fetching initial status for auto-task:', statusError);
+      }
 
-    if (existingTask) return;
+      const { data: existingTask, error: existingError } = await supabase
+        .from('tarefas')
+        .select('id')
+        .eq('gravacao_id', gravacaoId)
+        .eq('recurso_humano_id', rhId)
+        .eq('recurso_tecnico_id', recursoTecnicoId)
+        .eq('data_inicio', dia)
+        .maybeSingle();
 
-    await supabase.from('tarefas').insert({
-      gravacao_id: gravacaoId,
-      recurso_humano_id: rhId,
-      recurso_tecnico_id: recursoTecnicoId,
-      titulo: `Operação: ${recursoTecnicoNome}`,
-      descricao: `Tarefa automática criada para operação do recurso técnico "${recursoTecnicoNome}" na gravação "${gravacaoInfo?.nome || gravacaoInfo?.codigo || ''}"`,
-      status_id: statusData?.id,
-      prioridade: 'media',
-      data_inicio: dia,
-      data_fim: dia,
-      hora_inicio: taskHoraInicio,
-      hora_fim: taskHoraFim,
-    });
+      if (existingError) {
+        console.error('Error checking existing task:', existingError);
+      }
+
+      if (existingTask) return;
+
+      const { error: insertError } = await supabase.from('tarefas').insert({
+        gravacao_id: gravacaoId,
+        recurso_humano_id: rhId,
+        recurso_tecnico_id: recursoTecnicoId,
+        titulo: `Operação: ${recursoTecnicoNome}`,
+        descricao: `Tarefa automática criada para operação do recurso técnico "${recursoTecnicoNome}" na gravação "${gravacaoInfo?.nome || gravacaoInfo?.codigo || ''}"`,
+        status_id: statusData?.id || null,
+        prioridade: 'media',
+        data_inicio: dia,
+        data_fim: dia,
+        hora_inicio: taskHoraInicio,
+        hora_fim: taskHoraFim,
+      });
+
+      if (insertError) {
+        console.error('Error creating automatic task:', insertError);
+        toast({
+          title: 'Aviso',
+          description: `Colaborador alocado, mas houve erro ao criar tarefa automática: ${insertError.message}`,
+          variant: 'destructive',
+        });
+      }
+    } catch (err) {
+      console.error('Unexpected error in createTaskForRH:', err);
+    }
   };
 
   const removeTaskForRH = async (rhId: string, recursoTecnicoId: string) => {
