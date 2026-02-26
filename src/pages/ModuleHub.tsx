@@ -203,8 +203,8 @@ const ModuleHub = () => {
                     onClick={() => navigate(item.path)}
                     className="flex flex-col items-center gap-3 p-4 rounded-xl border border-border bg-card hover:bg-accent hover:border-primary/30 transition-all duration-200 group cursor-pointer"
                   >
-                    <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-                      <Icon className="w-7 h-7 text-primary" />
+                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                      <Icon className="w-5 h-5 text-primary" />
                     </div>
                     <span className="text-xs font-medium text-center text-foreground leading-tight">
                       {label}
