@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import {
   Table,
   TableBody,
@@ -11,7 +10,7 @@ import {
 } from '@/components/ui/table';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Trash2, Building2, Save, X } from 'lucide-react';
+import { Plus, Trash2, Building2, Link } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -19,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { UnidadeNegocioFormModal } from './UnidadeNegocioFormModal';
 
 interface Unidade {
   id: string;
@@ -26,20 +26,17 @@ interface Unidade {
   nome: string;
   moeda: string;
   descricao: string | null;
-  tenant_id: string; // Explicitly showing tenant relationship
+  tenant_id: string;
 }
 
 export const TenantUnidadesTab = ({ tenantId }: { tenantId: string }) => {
   const { toast } = useToast();
   const [unidades, setUnidades] = useState<Unidade[]>([]);
+  const [availableUnidades, setAvailableUnidades] = useState<Unidade[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isAdding, setIsAdding] = useState(false);
-  const [newUnidade, setNewUnidade] = useState({
-    codigo_externo: '',
-    nome: '',
-    moeda: 'BRL',
-    descricao: '',
-  });
+  const [isLinking, setIsLinking] = useState(false);
+  const [selectedUnidadeId, setSelectedUnidadeId] = useState('');
+  const [isCreating, setIsCreating] = useState(false);
 
   const fetchUnidades = async () => {
     try {
@@ -58,58 +55,90 @@ export const TenantUnidadesTab = ({ tenantId }: { tenantId: string }) => {
     }
   };
 
+  const fetchAvailableUnidades = async () => {
+    try {
+      // Fetch units that have NO tenant_id (unassigned)
+      const { data, error } = await supabase
+        .from('unidades_negocio')
+        .select('*')
+        .is('tenant_id', null)
+        .order('nome');
+
+      if (error) throw error;
+      setAvailableUnidades(data || []);
+    } catch (error) {
+      console.error('Error fetching available units:', error);
+    }
+  };
+
   useEffect(() => {
     fetchUnidades();
+    fetchAvailableUnidades();
   }, [tenantId]);
 
-  const handleAdd = async () => {
-    if (!newUnidade.nome) {
-      toast({ title: 'Erro', description: 'Nome é obrigatório', variant: 'destructive' });
-      return;
-    }
+  const handleLink = async () => {
+    if (!selectedUnidadeId) return;
 
     try {
       const { error } = await supabase
         .from('unidades_negocio')
-        .insert({
+        .update({ tenant_id: tenantId })
+        .eq('id', selectedUnidadeId);
+
+      if (error) throw error;
+
+      toast({ title: 'Sucesso', description: 'Unidade associada ao tenant' });
+      setSelectedUnidadeId('');
+      setIsLinking(false);
+      fetchUnidades();
+      fetchAvailableUnidades();
+    } catch (error: any) {
+      console.error('Error linking unit:', error);
+      toast({ title: 'Erro', description: error.message || 'Erro ao associar unidade', variant: 'destructive' });
+    }
+  };
+
+  const handleCreateNew = async (data: any) => {
+    try {
+      const { error } = await supabase
+        .from('unidades_negocio')
+        .upsert({
+          id: data.id,
           tenant_id: tenantId,
-          codigo_externo: newUnidade.codigo_externo || null,
-          nome: newUnidade.nome,
-          moeda: newUnidade.moeda,
-          descricao: newUnidade.descricao || null,
+          codigo_externo: data.codigoExterno || null,
+          nome: data.nome,
+          moeda: data.moeda || 'BRL',
+          descricao: data.descricao || null,
+          imagem_url: data.imagem || null,
         });
 
       if (error) throw error;
 
-      toast({ title: 'Sucesso', description: 'Unidade adicionada' });
-      setNewUnidade({ codigo_externo: '', nome: '', moeda: 'BRL', descricao: '' });
-      setIsAdding(false);
+      toast({ title: 'Sucesso', description: 'Unidade criada e associada ao tenant' });
       fetchUnidades();
+      fetchAvailableUnidades();
     } catch (error: any) {
-      console.error('Error adding unit:', error);
-      toast({ 
-        title: 'Erro', 
-        description: error.message || 'Erro ao adicionar unidade', 
-        variant: 'destructive' 
-      });
+      console.error('Error creating unit:', error);
+      toast({ title: 'Erro', description: error.message || 'Erro ao criar unidade', variant: 'destructive' });
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Deseja excluir esta unidade? Dados relacionados podem ser afetados.')) return;
+  const handleUnlink = async (id: string) => {
+    if (!confirm('Deseja desassociar esta unidade deste tenant?')) return;
 
     try {
       const { error } = await supabase
         .from('unidades_negocio')
-        .delete()
+        .update({ tenant_id: null })
         .eq('id', id);
 
       if (error) throw error;
-      toast({ title: 'Sucesso', description: 'Unidade removida' });
+      toast({ title: 'Sucesso', description: 'Unidade desassociada' });
       fetchUnidades();
+      fetchAvailableUnidades();
     } catch (error) {
-      console.error('Error deleting unit:', error);
-      toast({ title: 'Erro', description: 'Erro ao remover unidade', variant: 'destructive' });
+      console.error('Error unlinking unit:', error);
+      toast({ title: 'Erro', description: 'Erro ao desassociar unidade', variant: 'destructive' });
     }
   };
 
@@ -119,64 +148,51 @@ export const TenantUnidadesTab = ({ tenantId }: { tenantId: string }) => {
         <div className="text-sm text-muted-foreground">
           Unidades de Negócio associadas a este tenant.
         </div>
-        {!isAdding && (
-          <Button onClick={() => setIsAdding(true)} size="sm">
-            <Plus className="mr-2 h-4 w-4" />
-            Nova Unidade
-          </Button>
-        )}
+        <div className="flex gap-2">
+          {!isLinking && (
+            <>
+              <Button variant="outline" onClick={() => setIsLinking(true)} size="sm">
+                <Link className="mr-2 h-4 w-4" />
+                Associar Existente
+              </Button>
+              <Button onClick={() => setIsCreating(true)} size="sm">
+                <Plus className="mr-2 h-4 w-4" />
+                Nova Unidade
+              </Button>
+            </>
+          )}
+        </div>
       </div>
 
-      {isAdding && (
+      {isLinking && (
         <div className="bg-card p-4 rounded-lg border space-y-4 animate-in fade-in zoom-in-95 duration-200">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="space-y-2">
-              <span className="text-sm font-medium">Código Externo</span>
-              <Input
-                value={newUnidade.codigo_externo}
-                onChange={(e) => setNewUnidade(prev => ({ ...prev, codigo_externo: e.target.value }))}
-                maxLength={10}
-              />
-            </div>
-            <div className="space-y-2 md:col-span-2">
-              <span className="text-sm font-medium">Nome <span className="text-destructive">*</span></span>
-              <Input
-                value={newUnidade.nome}
-                onChange={(e) => setNewUnidade(prev => ({ ...prev, nome: e.target.value }))}
-              />
-            </div>
-            <div className="space-y-2">
-              <span className="text-sm font-medium">Moeda</span>
-              <Select 
-                value={newUnidade.moeda}
-                onValueChange={(val) => setNewUnidade(prev => ({ ...prev, moeda: val }))}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="BRL">BRL (R$)</SelectItem>
-                  <SelectItem value="USD">USD ($)</SelectItem>
-                  <SelectItem value="EUR">EUR (€)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
           <div className="space-y-2">
-            <span className="text-sm font-medium">Descrição</span>
-            <Input
-              value={newUnidade.descricao}
-              onChange={(e) => setNewUnidade(prev => ({ ...prev, descricao: e.target.value }))}
-            />
+            <span className="text-sm font-medium">Selecione uma Unidade de Negócio existente</span>
+            <Select value={selectedUnidadeId} onValueChange={setSelectedUnidadeId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecionar unidade..." />
+              </SelectTrigger>
+              <SelectContent>
+                {availableUnidades.length === 0 ? (
+                  <SelectItem value="_none" disabled>
+                    Nenhuma unidade disponível
+                  </SelectItem>
+                ) : (
+                  availableUnidades.map((u) => (
+                    <SelectItem key={u.id} value={u.id}>
+                      {u.nome} {u.codigo_externo ? `(${u.codigo_externo})` : ''}
+                    </SelectItem>
+                  ))
+                )}
+              </SelectContent>
+            </Select>
           </div>
           <div className="flex justify-end gap-2">
-            <Button variant="ghost" size="sm" onClick={() => setIsAdding(false)}>
-              <X className="mr-2 h-4 w-4" />
+            <Button variant="ghost" size="sm" onClick={() => { setIsLinking(false); setSelectedUnidadeId(''); }}>
               Cancelar
             </Button>
-            <Button size="sm" onClick={handleAdd}>
-              <Save className="mr-2 h-4 w-4" />
-              Salvar
+            <Button size="sm" onClick={handleLink} disabled={!selectedUnidadeId}>
+              Associar
             </Button>
           </div>
         </div>
@@ -204,7 +220,7 @@ export const TenantUnidadesTab = ({ tenantId }: { tenantId: string }) => {
                 </TableCell>
                 <TableCell>{unidade.moeda}</TableCell>
                 <TableCell>
-                  <Button variant="ghost" size="icon" onClick={() => handleDelete(unidade.id)}>
+                  <Button variant="ghost" size="icon" onClick={() => handleUnlink(unidade.id)} title="Desassociar">
                     <Trash2 className="h-4 w-4 text-destructive" />
                   </Button>
                 </TableCell>
@@ -213,13 +229,19 @@ export const TenantUnidadesTab = ({ tenantId }: { tenantId: string }) => {
             {unidades.length === 0 && (
               <TableRow>
                 <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
-                  Nenhuma unidade cadastrada neste tenant
+                  Nenhuma unidade associada a este tenant
                 </TableCell>
               </TableRow>
             )}
           </TableBody>
         </Table>
       </div>
+
+      <UnidadeNegocioFormModal
+        isOpen={isCreating}
+        onClose={() => setIsCreating(false)}
+        onSave={handleCreateNew}
+      />
     </div>
   );
 };
