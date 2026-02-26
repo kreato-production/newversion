@@ -9,6 +9,7 @@ import { ThemeProvider } from "@/hooks/use-theme";
 import MainLayout from "@/components/layout/MainLayout";
 import Login from "@/pages/Login";
 import Dashboard from "@/pages/Dashboard";
+import ModuleHub from "@/pages/ModuleHub";
 import GravacaoList from "@/pages/producao/GravacaoList";
 import Conteudo from "@/pages/producao/Conteudo";
 import TiposGravacao from "@/pages/producao/TiposGravacao";
@@ -63,6 +64,11 @@ const App = () => (
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
               <Route element={<MainLayout />}>
                 <Route path="/dashboard" element={<Dashboard />} />
+                
+                {/* Module Hub Pages */}
+                <Route path="/module/:moduleName" element={<ModuleHub />} />
+                
+                {/* Produção */}
                 <Route path="/producao/programas" element={<Programas />} />
                 <Route path="/producao/conteudo" element={<Conteudo />} />
                 <Route path="/producao/gravacao" element={<GravacaoList />} />
@@ -77,6 +83,7 @@ const App = () => (
                 <Route path="/producao/status-tarefa" element={<StatusTarefa />} />
                 <Route path="/producao/tabelas-preco" element={<TabelasPreco />} />
                 <Route path="/producao/incidencias" element={<IncidenciasGravacao />} />
+                {/* Recursos */}
                 <Route path="/recursos/humanos" element={<RecursosHumanos />} />
                 <Route path="/recursos/tecnicos" element={<RecursosTecnicos />} />
                 <Route path="/recursos/fisicos" element={<RecursosFisicos />} />
@@ -92,13 +99,13 @@ const App = () => (
                 <Route path="/recursos/tipo-figurino" element={<TipoFigurino />} />
                 <Route path="/recursos/material" element={<Material />} />
                 <Route path="/recursos/equipes" element={<Equipes />} />
+                {/* Administração */}
                 <Route path="/admin/unidades" element={<UnidadesNegocio />} />
                 <Route path="/admin/usuarios" element={<Usuarios />} />
                 <Route path="/admin/perfis" element={<PerfisAcesso />} />
                 <Route path="/admin/centros-lucro" element={<CentrosLucro />} />
                 <Route path="/admin/formularios" element={<Formularios />} />
-                
-                {/* Global Routes */}
+                {/* Global */}
                 <Route path="/global/tenants" element={<Tenants />} />
                 <Route path="/global/usuarios" element={<GlobalUsers />} />
               </Route>
