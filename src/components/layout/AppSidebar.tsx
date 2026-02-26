@@ -1,30 +1,10 @@
-import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
-  ChevronDown,
-  ChevronRight,
   Video,
-  Settings,
   Users,
   Building2,
-  Wrench,
-  MapPin,
-  Truck,
-  Briefcase,
-  FolderCog,
-  UserCog,
-  Shield,
   LayoutDashboard,
   LogOut,
-  Map,
-  Landmark,
-  Film,
-  Contact,
-  Tag,
-  Shirt,
-  ListTodo,
-  FileText,
-  AlertTriangle,
   Globe,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -34,220 +14,73 @@ import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import kreatoLogo from '@/assets/kreato-logo.png';
 
-interface MenuItemData {
+interface ModuleItemData {
   labelKey: string;
-  label?: string; // Fallback or direct label
+  label?: string;
   icon: React.ElementType;
-  path?: string;
-  children?: MenuItemData[];
-  permission?: {
-    modulo: string;
-    subModulo1?: string;
-    subModulo2?: string;
-  };
-  globalOnly?: boolean; // New flag for global admin menu items
+  path: string;
+  permission?: { modulo: string };
+  globalOnly?: boolean;
 }
 
-const getMenuItems = (isGlobalAdmin: boolean): MenuItemData[] => [
+const getModuleItems = (isGlobalAdmin: boolean): ModuleItemData[] => [
   {
     labelKey: 'menu.dashboard',
     icon: LayoutDashboard,
     path: '/dashboard',
     permission: { modulo: 'Dashboard' },
   },
-  // Global Admin Section
-  ...(isGlobalAdmin ? [{
-    labelKey: 'menu.global',
-    label: 'Global',
-    icon: Globe,
-    globalOnly: true,
-    children: [
-      { labelKey: 'menu.tenants', label: 'Tenants', icon: Building2, path: '/global/tenants', globalOnly: true },
-      { labelKey: 'menu.globalUsers', label: 'Usuários Globais', icon: Users, path: '/global/usuarios', globalOnly: true },
-    ]
-  }] : []),
+  ...(isGlobalAdmin
+    ? [
+        {
+          labelKey: 'menu.global',
+          label: 'Global',
+          icon: Globe,
+          path: '/module/global',
+          globalOnly: true,
+        },
+      ]
+    : []),
   {
     labelKey: 'menu.production',
     icon: Video,
+    path: '/module/producao',
     permission: { modulo: 'Produção' },
-    children: [
-      { labelKey: 'menu.programs', icon: FolderCog, path: '/producao/programas', permission: { modulo: 'Produção', subModulo1: 'Programas' } },
-      { labelKey: 'menu.content', icon: Film, path: '/producao/conteudo', permission: { modulo: 'Produção', subModulo1: 'Conteúdo' } },
-      { labelKey: 'menu.recordings', icon: Video, path: '/producao/gravacao', permission: { modulo: 'Produção', subModulo1: 'Gravação' } },
-      { labelKey: 'menu.tasks', icon: ListTodo, path: '/producao/tarefas', permission: { modulo: 'Produção', subModulo1: 'Tarefas' } },
-      { labelKey: 'menu.recordingIncidents', icon: AlertTriangle, path: '/producao/incidencias', permission: { modulo: 'Produção', subModulo1: 'Incidências de Gravação' } },
-      { labelKey: 'menu.maps', icon: Map, path: '/producao/mapas', permission: { modulo: 'Produção', subModulo1: 'Mapas' } },
-      {
-        labelKey: 'menu.parameters',
-        icon: Settings,
-        permission: { modulo: 'Produção', subModulo1: 'Parametrizações' },
-        children: [
-          { labelKey: 'menu.recordingTypes', icon: Settings, path: '/producao/tipos-gravacao', permission: { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Tipo de gravação' } },
-          { labelKey: 'menu.classification', icon: Settings, path: '/producao/classificacao', permission: { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Classificação' } },
-          { labelKey: 'menu.recordingStatus', icon: Settings, path: '/producao/status', permission: { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Status de Gravação' } },
-          { labelKey: 'menu.taskStatus', icon: Settings, path: '/producao/status-tarefa', permission: { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Status da Tarefa' } },
-          { labelKey: 'menu.priceTables', icon: Settings, path: '/producao/tabelas-preco', permission: { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Tabelas de Preços' } },
-          { labelKey: 'menu.incidentCategories', icon: Settings, path: '/producao/categorias-incidencia', permission: { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Categorias de Incidência' } },
-          { labelKey: 'menu.incidentSeverities', icon: Settings, path: '/producao/severidades-incidencia', permission: { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Severidades de Incidência' } },
-          { labelKey: 'menu.incidentImpacts', icon: Settings, path: '/producao/impactos-incidencia', permission: { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Impactos de Incidência' } },
-        ],
-      },
-    ],
   },
   {
     labelKey: 'menu.resources',
     icon: Users,
+    path: '/module/recursos',
     permission: { modulo: 'Recursos' },
-    children: [
-      { labelKey: 'menu.humanResources', icon: Users, path: '/recursos/humanos', permission: { modulo: 'Recursos', subModulo1: 'Recursos Humanos' } },
-      { labelKey: 'menu.technicalResources', icon: Wrench, path: '/recursos/tecnicos', permission: { modulo: 'Recursos', subModulo1: 'Recursos Técnicos' } },
-      { labelKey: 'menu.physicalResources', icon: MapPin, path: '/recursos/fisicos', permission: { modulo: 'Recursos', subModulo1: 'Recursos Físicos' } },
-      { labelKey: 'menu.suppliers', icon: Truck, path: '/recursos/fornecedores', permission: { modulo: 'Recursos', subModulo1: 'Fornecedores' } },
-      { labelKey: 'menu.people', icon: Contact, path: '/recursos/pessoas', permission: { modulo: 'Recursos', subModulo1: 'Pessoas' } },
-      { labelKey: 'menu.costumes', icon: Shirt, path: '/recursos/figurinos', permission: { modulo: 'Recursos', subModulo1: 'Figurinos' } },
-      { labelKey: 'menu.teams', icon: Users, path: '/recursos/equipes', permission: { modulo: 'Recursos', subModulo1: 'Equipes' } },
-      {
-        labelKey: 'menu.parameters',
-        icon: FolderCog,
-        permission: { modulo: 'Recursos', subModulo1: 'Parametrizações' },
-        children: [
-          { labelKey: 'menu.positions', icon: Briefcase, path: '/recursos/cargos', permission: { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Cargos' } },
-          { labelKey: 'menu.departments', icon: Building2, path: '/recursos/departamentos', permission: { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Departamentos' } },
-          { labelKey: 'menu.functions', icon: Settings, path: '/recursos/funcoes', permission: { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Funções' } },
-          { labelKey: 'menu.services', icon: Settings, path: '/recursos/servicos', permission: { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Serviços' } },
-          { labelKey: 'menu.supplierCategory', icon: Settings, path: '/recursos/categoria-fornecedores', permission: { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Categoria de Fornecedores' } },
-          { labelKey: 'menu.peopleClassification', icon: Tag, path: '/recursos/classificacao-pessoas', permission: { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Classificação de Pessoas' } },
-          { labelKey: 'menu.costumeType', icon: Shirt, path: '/recursos/tipo-figurino', permission: { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Tipo de Figurino' } },
-          { labelKey: 'menu.material', icon: Settings, path: '/recursos/material', permission: { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Material' } },
-        ],
-      },
-    ],
   },
   {
     labelKey: 'menu.admin',
     icon: Building2,
+    path: '/module/admin',
     permission: { modulo: 'Administração' },
-    children: [
-      { labelKey: 'menu.businessUnits', icon: Building2, path: '/admin/unidades', permission: { modulo: 'Administração', subModulo1: 'Unidades de Negócio' } },
-      { labelKey: 'menu.profitCenters', icon: Landmark, path: '/admin/centros-lucro', permission: { modulo: 'Administração', subModulo1: 'Centros de Custos' } },
-      { labelKey: 'menu.users', icon: UserCog, path: '/admin/usuarios', permission: { modulo: 'Administração', subModulo1: 'Usuários' } },
-      { labelKey: 'menu.accessProfiles', icon: Shield, path: '/admin/perfis', permission: { modulo: 'Administração', subModulo1: 'Perfis de Acesso' } },
-      { labelKey: 'menu.forms', icon: FileText, path: '/admin/formularios', permission: { modulo: 'Administração', subModulo1: 'Formulários' } },
-    ],
   },
 ];
-
-const MenuItemComponent = ({
-  item,
-  level = 0,
-  checkPermission,
-}: {
-  item: MenuItemData;
-  level?: number;
-  checkPermission: (modulo: string, subModulo1?: string, subModulo2?: string) => boolean;
-}) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const location = useLocation();
-  const { t } = useLanguage();
-  
-  // Verifica permissão do item
-  if (item.permission) {
-    const { modulo, subModulo1, subModulo2 } = item.permission;
-    if (!checkPermission(modulo, subModulo1, subModulo2)) {
-      return null;
-    }
-  }
-  
-  // Filtra children visíveis
-  const visibleChildren = item.children?.filter((child) => {
-    if (child.globalOnly) return true; // Global admin items always visible if parent is visible
-    if (!child.permission) return true;
-    const { modulo, subModulo1, subModulo2 } = child.permission;
-    return checkPermission(modulo, subModulo1, subModulo2);
-  });
-  
-  const hasChildren = visibleChildren && visibleChildren.length > 0;
-  const isActive = item.path === location.pathname;
-  const Icon = item.icon;
-
-  const isChildActive = (items: MenuItemData[]): boolean => {
-    return items.some((child) => {
-      if (child.path === location.pathname) return true;
-      if (child.children) return isChildActive(child.children);
-      return false;
-    });
-  };
-
-  const isParentActive = hasChildren && visibleChildren ? isChildActive(visibleChildren) : false;
-
-  // Se tem children mas nenhum visível, não renderiza o pai
-  if (item.children && item.children.length > 0 && (!visibleChildren || visibleChildren.length === 0)) {
-    return null;
-  }
-
-  // Get label: use translation if key exists, otherwise use fallback label
-  const label = item.label || t(item.labelKey);
-
-  return (
-    <div>
-      {hasChildren ? (
-        <button
-          onClick={() => setIsOpen(!isOpen)}
-          className={cn(
-            'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-200',
-            'hover:bg-sidebar-accent text-sidebar-foreground',
-            isParentActive && 'bg-sidebar-accent',
-            level > 0 && 'text-sm'
-          )}
-          style={{ paddingLeft: `${12 + level * 16}px` }}
-        >
-          <Icon size={level === 0 ? 20 : 16} className="shrink-0" />
-          <span className="flex-1 text-left font-medium">{label}</span>
-          {isOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-        </button>
-      ) : (
-        <Link
-          to={item.path || '#'}
-          className={cn(
-            'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-200',
-            'hover:bg-sidebar-accent text-sidebar-foreground',
-            isActive && 'bg-sidebar-primary text-sidebar-primary-foreground',
-            level > 0 && 'text-sm'
-          )}
-          style={{ paddingLeft: `${12 + level * 16}px` }}
-        >
-          <Icon size={level === 0 ? 20 : 16} className="shrink-0" />
-          <span className="font-medium">{label}</span>
-        </Link>
-      )}
-      
-      {hasChildren && isOpen && (
-        <div className="mt-1 space-y-1">
-          {visibleChildren?.map((child, idx) => (
-            <MenuItemComponent key={idx} item={child} level={level + 1} checkPermission={checkPermission} />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-};
 
 const AppSidebar = () => {
   const { user, logout } = useAuth();
   const { t } = useLanguage();
   const { isVisible } = usePermissions();
-  
-  // Assuming we'll have a flag or logic to check if user is global admin
-  // For now, let's use a temporary check based on email or user metadata
-  const isGlobalAdmin = user?.email?.includes('admin_global') || user?.usuario === 'admin_global'; 
-  
-  const menuItems = getMenuItems(isGlobalAdmin);
+  const location = useLocation();
 
-  // Função para verificar permissão
-  const checkPermission = (modulo: string, subModulo1?: string, subModulo2?: string): boolean => {
-    // Global admins bypass permission checks for now, or you can implement specific logic
+  const isGlobalAdmin = user?.email?.includes('admin_global') || user?.usuario === 'admin_global';
+  const moduleItems = getModuleItems(isGlobalAdmin);
+
+  const checkPermission = (modulo: string): boolean => {
     if (isGlobalAdmin) return true;
-    return isVisible(modulo, subModulo1 || '-', subModulo2 || '-', '-');
+    return isVisible(modulo, '-', '-', '-');
+  };
+
+  // Check if current path belongs to a module
+  const isModuleActive = (modulePath: string): boolean => {
+    if (modulePath === '/dashboard') return location.pathname === '/dashboard';
+    // e.g. /module/producao -> check if current path starts with /producao or /module/producao
+    const moduleKey = modulePath.replace('/module/', '/');
+    return location.pathname.startsWith(modulePath) || location.pathname.startsWith(moduleKey);
   };
 
   return (
@@ -257,9 +90,29 @@ const AppSidebar = () => {
       </div>
 
       <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-        {menuItems.map((item, idx) => (
-          <MenuItemComponent key={idx} item={item} checkPermission={checkPermission} />
-        ))}
+        {moduleItems.map((item, idx) => {
+          // Check permission
+          if (item.permission && !checkPermission(item.permission.modulo)) return null;
+
+          const Icon = item.icon;
+          const label = item.label || t(item.labelKey);
+          const active = isModuleActive(item.path);
+
+          return (
+            <Link
+              key={idx}
+              to={item.path}
+              className={cn(
+                'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-200',
+                'hover:bg-sidebar-accent text-sidebar-foreground',
+                active && 'bg-sidebar-primary text-sidebar-primary-foreground'
+              )}
+            >
+              <Icon size={20} className="shrink-0" />
+              <span className="font-medium">{label}</span>
+            </Link>
+          );
+        })}
       </nav>
 
       <div className="p-3 border-t border-sidebar-border">
