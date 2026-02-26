@@ -66,20 +66,19 @@ Deno.serve(async (req) => {
       auth: { autoRefreshToken: false, persistSession: false },
     })
 
-    // Authorize: only admins can create/update users
-    const { data: adminRole, error: roleError } = await supabaseAdmin
+    // Authorize: only admins or global_admins can create/update users
+    const { data: adminRoles, error: roleError } = await supabaseAdmin
       .from('user_roles')
       .select('role')
       .eq('user_id', callerId)
-      .eq('role', 'admin')
-      .maybeSingle()
+      .in('role', ['admin', 'global_admin'])
 
     if (roleError) {
       console.error('Error checking admin role:', roleError)
       return jsonResponse({ success: false, error: 'Falha ao validar permissão.' }, 500)
     }
 
-    if (!adminRole) {
+    if (!adminRoles || adminRoles.length === 0) {
       return jsonResponse({ success: false, error: 'Sem permissão para criar usuários.' }, 403)
     }
 
