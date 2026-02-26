@@ -132,46 +132,75 @@ const RequisicoesTab = ({ dateStart, dateEnd }: RequisicoesTabProps) => {
   const fetchRequisicoes = useCallback(async () => {
     setLoading(true);
     try {
-      // Fetch ALL RT anchors (recurso_humano_id IS NULL = anchor rows)
+      // Fetch ALL RT anchors and ALL child rows in parallel (eliminates N+1 queries)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data: rtData } = await (supabase as any)
-        .from('gravacao_recursos')
-        .select(`
-          id, gravacao_id, recurso_tecnico_id, recurso_humano_id, hora_inicio, hora_fim,
-          gravacoes!gravacao_recursos_gravacao_id_fkey(nome, data_prevista),
-          recursos_tecnicos!gravacao_recursos_recurso_tecnico_id_fkey(nome)
-        `)
-        .not('recurso_tecnico_id', 'is', null)
-        .is('recurso_humano_id', null);
+      const [rtResult, rtChildrenResult, rfResult, rfChildrenResult] = await Promise.all([
+        (supabase as any)
+          .from('gravacao_recursos')
+          .select(`
+            id, gravacao_id, recurso_tecnico_id, recurso_humano_id, hora_inicio, hora_fim,
+            gravacoes!gravacao_recursos_gravacao_id_fkey(nome, data_prevista),
+            recursos_tecnicos!gravacao_recursos_recurso_tecnico_id_fkey(nome)
+          `)
+          .not('recurso_tecnico_id', 'is', null)
+          .is('recurso_humano_id', null),
+        // Fetch ALL child rows (RH associations) in one query
+        (supabase as any)
+          .from('gravacao_recursos')
+          .select(`
+            id, parent_recurso_id, recurso_humano_id, hora_inicio, hora_fim,
+            recursos_humanos:recurso_humano_id(id, nome, sobrenome, foto_url)
+          `)
+          .not('parent_recurso_id', 'is', null)
+          .not('recurso_humano_id', 'is', null),
+        // Fetch RF anchors
+        supabase
+          .from('gravacao_recursos')
+          .select(`
+            id, gravacao_id, recurso_fisico_id, hora_inicio, hora_fim,
+            gravacoes!gravacao_recursos_gravacao_id_fkey(nome, data_prevista),
+            recursos_fisicos!gravacao_recursos_recurso_fisico_id_fkey(nome)
+          `)
+          .not('recurso_fisico_id', 'is', null)
+          .is('recurso_tecnico_id', null),
+        // Fetch ALL RF child rows in one query
+        (supabase as any)
+          .from('gravacao_recursos')
+          .select('id, parent_recurso_id')
+          .not('parent_recurso_id', 'is', null)
+          .is('recurso_humano_id', null),
+      ]);
 
+      const rtData = rtResult.data || [];
+      const rtChildren = rtChildrenResult.data || [];
+      const rfData = rfResult.data || [];
+      const rfChildren = rfChildrenResult.data || [];
+
+      // Build a set of anchor IDs that already have RH children
+      const anchorsWithRH = new Set<string>();
+      for (const child of rtChildren) {
+        if (child.recursos_humanos) {
+          anchorsWithRH.add(child.parent_recurso_id);
+        }
+      }
+
+      // Build a set of anchor IDs that already have RF children
+      const anchorsWithRFChild = new Set<string>();
+      for (const child of rfChildren) {
+        anchorsWithRFChild.add(child.parent_recurso_id);
+      }
+
+      // Process RT anchors
       const allRT: RequisicaoRT[] = [];
-      for (const row of (rtData || [])) {
+      for (const row of rtData) {
         const gravacao = row.gravacoes as any;
         if (!isInDateRange(gravacao?.data_prevista || '')) continue;
         
+        // Skip items that already have a persisted RH association
+        if (anchorsWithRH.has(row.id)) continue;
+
         const recurso = row.recursos_tecnicos as any;
-        const tempoGravacao = calcularTempo(
-          row.hora_inicio?.substring(0, 5) || '',
-          row.hora_fim?.substring(0, 5) || ''
-        );
-
-        // Check if this anchor has a child (RH association)
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { data: childRows } = await (supabase as any)
-          .from('gravacao_recursos')
-          .select(`
-            id, recurso_humano_id, hora_inicio, hora_fim,
-            recursos_humanos:recurso_humano_id(id, nome, sobrenome, foto_url)
-          `)
-          .eq('parent_recurso_id', row.id);
-
-        const child = (childRows || [])[0];
-        const rh = child?.recursos_humanos as any;
-
-        // Skip items that already have a persisted association
-        if (child && rh) continue;
-
-        const entry: RequisicaoRT = {
+        allRT.push({
           gravacaoId: row.gravacao_id,
           gravacaoNome: gravacao?.nome || '',
           recursoTecnicoId: row.recurso_tecnico_id!,
@@ -179,44 +208,25 @@ const RequisicoesTab = ({ dateStart, dateEnd }: RequisicoesTabProps) => {
           dataPrevista: gravacao?.data_prevista || '',
           horaInicio: row.hora_inicio?.substring(0, 5) || '',
           horaFim: row.hora_fim?.substring(0, 5) || '',
-          tempoGravacao,
+          tempoGravacao: calcularTempo(
+            row.hora_inicio?.substring(0, 5) || '',
+            row.hora_fim?.substring(0, 5) || ''
+          ),
           gravacaoRecursoId: row.id,
-        };
-
-        allRT.push(entry);
+        });
       }
       setRequisicoesTecnicas(allRT);
 
-      // Fetch RF rows
-      const { data: rfData } = await supabase
-        .from('gravacao_recursos')
-        .select(`
-          id, gravacao_id, recurso_fisico_id, hora_inicio, hora_fim,
-          gravacoes!gravacao_recursos_gravacao_id_fkey(nome, data_prevista),
-          recursos_fisicos!gravacao_recursos_recurso_fisico_id_fkey(nome)
-        `)
-        .not('recurso_fisico_id', 'is', null);
-
+      // Process RF anchors
       const allRF: RequisicaoRF[] = [];
-      for (const row of (rfData || [])) {
+      for (const row of rfData) {
         const gravacao = row.gravacoes as any;
         if (!isInDateRange(gravacao?.data_prevista || '')) continue;
+        
+        // Skip items that already have a persisted child association
+        if (anchorsWithRFChild.has(row.id)) continue;
+
         const recurso = row.recursos_fisicos as any;
-
-        // Check if this anchor has a child (estoque association)
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { data: childRows } = await (supabase as any)
-          .from('gravacao_recursos')
-          .select(`
-            id, recurso_fisico_id, hora_inicio, hora_fim,
-            rf_estoque_itens:recurso_fisico_id(id, nome, numerador, imagem_url)
-          `)
-          .eq('parent_recurso_id', row.id);
-
-        const child = (childRows || [])[0];
-        // Skip items that already have a persisted association
-        if (child) continue;
-
         allRF.push({
           gravacaoId: row.gravacao_id,
           gravacaoNome: gravacao?.nome || '',
@@ -315,23 +325,58 @@ const RequisicoesTab = ({ dateStart, dateEnd }: RequisicoesTabProps) => {
         .eq('funcao_id', funcaoId)
         .eq('status', 'Ativo');
 
-      const candidates: RHCandidate[] = [];
-      for (const rh of (rhData || [])) {
-        const dataPrevista = req.dataPrevista;
-        if (!dataPrevista) continue;
-        const dayOfWeek = new Date(dataPrevista + 'T12:00:00').getDay();
+      const rhList = rhData || [];
+      if (rhList.length === 0) {
+        setRhCandidates([]);
+        setLoadingCandidates(false);
+        return;
+      }
 
-        const { data: escalasData } = await supabase
+      const dataPrevista = req.dataPrevista;
+      if (!dataPrevista) {
+        setRhCandidates([]);
+        setLoadingCandidates(false);
+        return;
+      }
+
+      const dayOfWeek = new Date(dataPrevista + 'T12:00:00').getDay();
+      const rhIds = rhList.map((r: any) => r.id);
+
+      // Batch fetch escalas and ocupações for all candidates in parallel
+      const [escalasResult, ocupResult] = await Promise.all([
+        supabase
           .from('rh_escalas')
-          .select('hora_inicio, hora_fim, data_inicio, data_fim, dias_semana')
-          .eq('recurso_humano_id', rh.id)
+          .select('recurso_humano_id, hora_inicio, hora_fim, data_inicio, data_fim, dias_semana')
+          .in('recurso_humano_id', rhIds)
           .lte('data_inicio', dataPrevista)
-          .gte('data_fim', dataPrevista);
+          .gte('data_fim', dataPrevista),
+        supabase
+          .from('gravacao_recursos')
+          .select('recurso_humano_id, hora_inicio, hora_fim, gravacao_id, gravacoes!gravacao_recursos_gravacao_id_fkey(nome, data_prevista)')
+          .in('recurso_humano_id', rhIds)
+          .not('hora_inicio', 'is', null),
+      ]);
 
-        const escalasAtivas = (escalasData || []).filter((e: any) => {
-          const dias = e.dias_semana || [1, 2, 3, 4, 5];
-          return dias.includes(dayOfWeek);
-        });
+      // Index escalas by RH id
+      const escalasByRH = new Map<string, any[]>();
+      for (const e of (escalasResult.data || [])) {
+        const dias = e.dias_semana || [1, 2, 3, 4, 5];
+        if (!dias.includes(dayOfWeek)) continue;
+        if (!escalasByRH.has(e.recurso_humano_id)) escalasByRH.set(e.recurso_humano_id, []);
+        escalasByRH.get(e.recurso_humano_id)!.push(e);
+      }
+
+      // Index ocupações by RH id (filtered by date)
+      const ocupByRH = new Map<string, any[]>();
+      for (const o of (ocupResult.data || [])) {
+        if ((o.gravacoes as any)?.data_prevista !== dataPrevista) continue;
+        if (!ocupByRH.has(o.recurso_humano_id!)) ocupByRH.set(o.recurso_humano_id!, []);
+        ocupByRH.get(o.recurso_humano_id!)!.push(o);
+      }
+
+      const candidates: RHCandidate[] = [];
+      for (const rh of rhList) {
+        const escalasAtivas = escalasByRH.get(rh.id) || [];
         if (escalasAtivas.length === 0) continue;
 
         let totalDisponivelMin = 0;
@@ -342,19 +387,11 @@ const RequisicoesTab = ({ dateStart, dateEnd }: RequisicoesTabProps) => {
           return { horaInicio: inicio, horaFim: fim };
         });
 
-        const { data: ocupData } = await supabase
-          .from('gravacao_recursos')
-          .select('hora_inicio, hora_fim, gravacao_id, gravacoes!gravacao_recursos_gravacao_id_fkey(nome, data_prevista)')
-          .eq('recurso_humano_id', rh.id)
-          .not('hora_inicio', 'is', null);
-
-        const ocupacoes = (ocupData || [])
-          .filter((o: any) => (o.gravacoes as any)?.data_prevista === dataPrevista)
-          .map((o: any) => ({
-            horaInicio: o.hora_inicio?.substring(0, 5) || '',
-            horaFim: o.hora_fim?.substring(0, 5) || '',
-            gravacao: (o.gravacoes as any)?.nome || '',
-          }));
+        const ocupacoes = (ocupByRH.get(rh.id) || []).map((o: any) => ({
+          horaInicio: o.hora_inicio?.substring(0, 5) || '',
+          horaFim: o.hora_fim?.substring(0, 5) || '',
+          gravacao: (o.gravacoes as any)?.nome || '',
+        }));
 
         let totalOcupadoMin = 0;
         ocupacoes.forEach((o: any) => { totalOcupadoMin += calcularMinutos(o.horaInicio, o.horaFim); });
