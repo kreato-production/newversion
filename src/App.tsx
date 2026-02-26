@@ -43,6 +43,8 @@ import PerfisAcesso from "@/pages/admin/PerfisAcesso";
 import CentrosLucro from "@/pages/admin/CentrosLucro";
 import Formularios from "@/pages/admin/Formularios";
 import Programas from "@/pages/producao/Programas";
+import Tenants from "@/pages/admin/Tenants";
+import GlobalUsers from "@/pages/admin/GlobalUsers";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -95,6 +97,10 @@ const App = () => (
                 <Route path="/admin/perfis" element={<PerfisAcesso />} />
                 <Route path="/admin/centros-lucro" element={<CentrosLucro />} />
                 <Route path="/admin/formularios" element={<Formularios />} />
+                
+                {/* Global Routes */}
+                <Route path="/global/tenants" element={<Tenants />} />
+                <Route path="/global/usuarios" element={<GlobalUsers />} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>

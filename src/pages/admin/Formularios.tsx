@@ -1,3 +1,5 @@
+// ============= Full file contents =============
+
 import { useState, useEffect, useCallback } from 'react';
 import { formsRegistry, type FormDefinition } from '@/data/formsRegistry';
 import { supabase } from '@/integrations/supabase/client';
@@ -22,6 +24,7 @@ import {
 } from '@/components/ui/select';
 import { ChevronLeft, FileText, Save } from 'lucide-react';
 import type { FieldValidationType } from '@/hooks/useFormFieldConfig';
+import { usePermissions } from '@/hooks/usePermissions';
 
 const Formularios = () => {
   const [selectedForm, setSelectedForm] = useState<FormDefinition | null>(null);
@@ -30,6 +33,7 @@ const Formularios = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
+  const { enabledModules } = usePermissions();
 
   const fetchFieldConfigs = useCallback(async (formularioId: string) => {
     setIsLoading(true);
@@ -108,8 +112,11 @@ const Formularios = () => {
 
   // Group forms by module
   const groupedForms = formsRegistry.reduce((acc, form) => {
-    if (!acc[form.modulo]) acc[form.modulo] = [];
-    acc[form.modulo].push(form);
+    // Only include if module is enabled
+    if (enabledModules.has(form.modulo) || enabledModules.has('Global')) {
+      if (!acc[form.modulo]) acc[form.modulo] = [];
+      acc[form.modulo].push(form);
+    }
     return acc;
   }, {} as Record<string, FormDefinition[]>);
 

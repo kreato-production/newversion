@@ -25,6 +25,7 @@ import {
   ListTodo,
   FileText,
   AlertTriangle,
+  Globe,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -35,24 +36,36 @@ import kreatoLogo from '@/assets/kreato-logo.png';
 
 interface MenuItemData {
   labelKey: string;
+  label?: string; // Fallback or direct label
   icon: React.ElementType;
   path?: string;
   children?: MenuItemData[];
-  // Permissão: modulo, subModulo1, subModulo2
   permission?: {
     modulo: string;
     subModulo1?: string;
     subModulo2?: string;
   };
+  globalOnly?: boolean; // New flag for global admin menu items
 }
 
-const getMenuItems = (): MenuItemData[] => [
+const getMenuItems = (isGlobalAdmin: boolean): MenuItemData[] => [
   {
     labelKey: 'menu.dashboard',
     icon: LayoutDashboard,
     path: '/dashboard',
     permission: { modulo: 'Dashboard' },
   },
+  // Global Admin Section
+  ...(isGlobalAdmin ? [{
+    labelKey: 'menu.global',
+    label: 'Global',
+    icon: Globe,
+    globalOnly: true,
+    children: [
+      { labelKey: 'menu.tenants', label: 'Tenants', icon: Building2, path: '/global/tenants', globalOnly: true },
+      { labelKey: 'menu.globalUsers', label: 'Usuários Globais', icon: Users, path: '/global/usuarios', globalOnly: true },
+    ]
+  }] : []),
   {
     labelKey: 'menu.production',
     icon: Video,
@@ -147,6 +160,7 @@ const MenuItemComponent = ({
   
   // Filtra children visíveis
   const visibleChildren = item.children?.filter((child) => {
+    if (child.globalOnly) return true; // Global admin items always visible if parent is visible
     if (!child.permission) return true;
     const { modulo, subModulo1, subModulo2 } = child.permission;
     return checkPermission(modulo, subModulo1, subModulo2);
@@ -171,6 +185,9 @@ const MenuItemComponent = ({
     return null;
   }
 
+  // Get label: use translation if key exists, otherwise use fallback label
+  const label = item.label || t(item.labelKey);
+
   return (
     <div>
       {hasChildren ? (
@@ -185,7 +202,7 @@ const MenuItemComponent = ({
           style={{ paddingLeft: `${12 + level * 16}px` }}
         >
           <Icon size={level === 0 ? 20 : 16} className="shrink-0" />
-          <span className="flex-1 text-left font-medium">{t(item.labelKey)}</span>
+          <span className="flex-1 text-left font-medium">{label}</span>
           {isOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
         </button>
       ) : (
@@ -200,7 +217,7 @@ const MenuItemComponent = ({
           style={{ paddingLeft: `${12 + level * 16}px` }}
         >
           <Icon size={level === 0 ? 20 : 16} className="shrink-0" />
-          <span className="font-medium">{t(item.labelKey)}</span>
+          <span className="font-medium">{label}</span>
         </Link>
       )}
       
@@ -219,10 +236,17 @@ const AppSidebar = () => {
   const { user, logout } = useAuth();
   const { t } = useLanguage();
   const { isVisible } = usePermissions();
-  const menuItems = getMenuItems();
+  
+  // Assuming we'll have a flag or logic to check if user is global admin
+  // For now, let's use a temporary check based on email or user metadata
+  const isGlobalAdmin = user?.email?.includes('admin_global') || user?.usuario === 'admin_global'; 
+  
+  const menuItems = getMenuItems(isGlobalAdmin);
 
   // Função para verificar permissão
   const checkPermission = (modulo: string, subModulo1?: string, subModulo2?: string): boolean => {
+    // Global admins bypass permission checks for now, or you can implement specific logic
+    if (isGlobalAdmin) return true;
     return isVisible(modulo, subModulo1 || '-', subModulo2 || '-', '-');
   };
 
@@ -248,7 +272,9 @@ const AppSidebar = () => {
           </Avatar>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium truncate">{user?.nome}</p>
-            <p className="text-xs text-sidebar-foreground/70 truncate">{user?.perfil}</p>
+            <p className="text-xs text-sidebar-foreground/70 truncate">
+              {isGlobalAdmin ? 'Global Admin' : user?.perfil}
+            </p>
           </div>
           <button
             onClick={logout}
