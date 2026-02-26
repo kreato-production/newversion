@@ -156,11 +156,14 @@ const ParametroListPage = ({ title, description, entityName, storageKey, permiss
       // Refresh data
       await fetchData();
       setEditingItem(null);
-    } catch (err) {
+    } catch (err: any) {
       console.error(`Error saving ${tableName}:`, err);
+      const isDuplicate = err?.code === '23505';
       toast({
         title: 'Erro',
-        description: `Erro ao salvar: ${(err as Error).message}`,
+        description: isDuplicate
+          ? `Já existe um(a) ${entityName} com este nome. Utilize um nome diferente.`
+          : `Erro ao salvar: ${(err as Error).message}`,
         variant: 'destructive',
       });
     }
