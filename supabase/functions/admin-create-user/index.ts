@@ -19,6 +19,7 @@ type CreateUserPayload = {
   status?: 'Ativo' | 'Inativo' | string | null
   tipoAcesso?: string | null
   recursoHumanoId?: string | null
+  tenantId?: string | null
   // For update-only mode (existing user password change)
   userId?: string | null
   updateOnly?: boolean
@@ -80,6 +81,19 @@ Deno.serve(async (req) => {
 
     if (!adminRoles || adminRoles.length === 0) {
       return jsonResponse({ success: false, error: 'Sem permissão para criar usuários.' }, 403)
+    }
+
+    const isCallerGlobalAdmin = adminRoles.some((r: any) => r.role === 'global_admin')
+
+    // Fetch caller's tenant_id to inherit for new users
+    let callerTenantId: string | null = null
+    if (!isCallerGlobalAdmin) {
+      const { data: callerProfile } = await supabaseAdmin
+        .from('profiles')
+        .select('tenant_id')
+        .eq('id', callerId)
+        .maybeSingle()
+      callerTenantId = callerProfile?.tenant_id ?? null
     }
 
     let payload: CreateUserPayload
@@ -206,6 +220,7 @@ Deno.serve(async (req) => {
         status: payload.status ?? 'Ativo',
         tipo_acesso: payload.tipoAcesso ?? 'Operacional',
         recurso_humano_id: (payload.recursoHumanoId && payload.recursoHumanoId !== 'none') ? payload.recursoHumanoId : null,
+        tenant_id: payload.tenantId ?? callerTenantId ?? null,
       },
       { onConflict: 'id' }
     )
