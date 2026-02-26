@@ -30,19 +30,32 @@ Deno.serve(async (req) => {
       .maybeSingle()
 
     if (existingProfile) {
+      // Update auth email and password to match expected values
+      const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(existingProfile.id, {
+        email: adminEmail,
+        password: adminPassword,
+        email_confirm: true,
+      })
+      if (updateError) {
+        console.error('Error updating admin auth:', updateError)
+      }
+
+      // Ensure profile email matches
+      await supabaseAdmin.from('profiles').update({ email: adminEmail }).eq('id', existingProfile.id)
+
       // Ensure role is global_admin
       await supabaseAdmin
         .from('user_roles')
         .upsert({ user_id: existingProfile.id, role: 'global_admin' }, { onConflict: 'user_id,role' })
 
       return new Response(
-        JSON.stringify({ success: true, message: 'Global Admin user already exists, ensured role.' }),
+        JSON.stringify({ success: true, message: 'Global Admin user updated and ensured role.' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
     // Create admin user with Supabase Auth
-    const adminEmail = 'ericolimam@hotmail.com'
+    const adminEmail = 'admin_global@kreato.app'
     const adminPassword = 'kreato_global'
     const adminUser = 'admin_global'
 
