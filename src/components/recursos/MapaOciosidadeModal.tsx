@@ -92,60 +92,38 @@ export const MapaOciosidadeModal = ({
     if (!isOpen) return;
 
     const fetchOcupacoes = async () => {
-      // Fetch all tasks with gravacao dates
-      const { data: tarefasData } = await supabase
-        .from('tarefas')
-        .select('id, gravacao_id, recurso_humano_id, data_inicio')
-        .not('recurso_humano_id', 'is', null)
-        .not('data_inicio', 'is', null);
-
-      // Fetch gravacao dates
-      const { data: gravacoesData } = await supabase
-        .from('gravacoes')
-        .select('id, data_prevista');
+      // Fetch gravacao dates and allocation hours in parallel
+      const [gravacoesResult, alocacoesResult] = await Promise.all([
+        supabase.from('gravacoes').select('id, data_prevista'),
+        supabase.from('gravacao_recursos')
+          .select('gravacao_id, recurso_humano_id, hora_inicio, hora_fim')
+          .not('recurso_humano_id', 'is', null),
+      ]);
 
       const gravacaoDateMap: Record<string, string> = {};
-      (gravacoesData || []).forEach((g: any) => {
+      (gravacoesResult.data || []).forEach((g: any) => {
         if (g.data_prevista) gravacaoDateMap[g.id] = g.data_prevista;
       });
 
-      // Fetch all allocation hours
-      const { data: alocacoesData } = await supabase
-        .from('gravacao_recursos')
-        .select('gravacao_id, recurso_humano_id, hora_inicio, hora_fim')
-        .not('recurso_humano_id', 'is', null);
+      const alocacoesData = alocacoesResult.data;
 
-      // Build map: rhId -> gravacaoId -> { horaInicio, horaFim }
-      const alocHorarios: Record<string, Record<string, { horaInicio: string; horaFim: string }>> = {};
-      (alocacoesData || []).forEach((a: any) => {
-        if (!a.recurso_humano_id || !a.hora_inicio || !a.hora_fim) return;
-        if (!alocHorarios[a.recurso_humano_id]) alocHorarios[a.recurso_humano_id] = {};
-        alocHorarios[a.recurso_humano_id][a.gravacao_id] = {
-          horaInicio: a.hora_inicio.substring(0, 5),
-          horaFim: a.hora_fim.substring(0, 5),
-        };
-      });
-
-      // Calculate occupied minutes per RH per day
+      // Calculate occupied minutes per RH per day directly from gravacao_recursos
       const result: Record<string, Record<string, number>> = {};
 
-      (tarefasData || []).forEach((t: any) => {
-        if (!t.recurso_humano_id || !t.gravacao_id) return;
-        const dia = t.data_inicio;
+      (alocacoesData || []).forEach((a: any) => {
+        if (!a.recurso_humano_id || !a.hora_inicio || !a.hora_fim) return;
+        const dia = gravacaoDateMap[a.gravacao_id];
         if (!dia) return;
 
-        const rhId = t.recurso_humano_id;
+        const rhId = a.recurso_humano_id;
         if (!result[rhId]) result[rhId] = {};
 
-        // Get allocated hours for this RH in this gravacao
-        const horario = alocHorarios[rhId]?.[t.gravacao_id];
-        let duracaoMinutos = 0;
-        if (horario) {
-          const [hi, mi] = horario.horaInicio.split(':').map(Number);
-          const [hf, mf] = horario.horaFim.split(':').map(Number);
-          duracaoMinutos = (hf * 60 + mf) - (hi * 60 + mi);
-          if (duracaoMinutos < 0) duracaoMinutos = 0;
-        }
+        const horaInicio = a.hora_inicio.substring(0, 5);
+        const horaFim = a.hora_fim.substring(0, 5);
+        const [hi, mi] = horaInicio.split(':').map(Number);
+        const [hf, mf] = horaFim.split(':').map(Number);
+        let duracaoMinutos = (hf * 60 + mf) - (hi * 60 + mi);
+        if (duracaoMinutos < 0) duracaoMinutos = 0;
 
         result[rhId][dia] = (result[rhId][dia] || 0) + duracaoMinutos;
       });
