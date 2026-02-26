@@ -78,12 +78,12 @@ const CentrosLucro = () => {
           .eq('id', data.id);
 
         if (error) throw error;
-        toast({ title: 'Sucesso', description: 'Centro de Lucro atualizado!' });
+        toast({ title: 'Sucesso', description: 'Centro de Custos atualizado!' });
       } else {
         const { error } = await supabase.from('centros_lucro').insert(dbData);
 
         if (error) throw error;
-        toast({ title: 'Sucesso', description: 'Centro de Lucro cadastrado!' });
+        toast({ title: 'Sucesso', description: 'Centro de Custos cadastrado!' });
       }
 
       await fetchData();
@@ -103,19 +103,19 @@ const CentrosLucro = () => {
     if (hasChildren) {
       toast({
         title: 'Não é possível excluir',
-        description: 'Este centro de lucro possui itens filhos. Exclua-os primeiro.',
+        description: 'Este centro de custos possui itens filhos. Exclua-os primeiro.',
         variant: 'destructive',
       });
       return;
     }
 
-    if (confirm('Deseja realmente excluir este centro de lucro?')) {
+    if (confirm('Deseja realmente excluir este centro de custos?')) {
       try {
         const { error } = await supabase.from('centros_lucro').delete().eq('id', id);
 
         if (error) throw error;
         await fetchData();
-        toast({ title: 'Excluído', description: 'Centro de Lucro removido!' });
+        toast({ title: 'Excluído', description: 'Centro de Custos removido!' });
       } catch (err) {
         console.error('Error deleting centro lucro:', err);
         toast({
@@ -249,12 +249,12 @@ const CentrosLucro = () => {
   return (
     <div>
       <PageHeader
-        title="Centro de Lucro"
-        description="Gerencie os centros de lucro hierárquicos"
+        title="Centro de Custos"
+        description="Gerencie os centros de custos hierárquicos"
       />
 
       <ListActionBar>
-        <NewButton tooltip="Novo Centro de Lucro" onClick={() => { setEditingItem(null); setIsModalOpen(true); }} />
+        <NewButton tooltip="Novo Centro de Custos" onClick={() => { setEditingItem(null); setIsModalOpen(true); }} />
         <div className="flex-1" />
         <SearchBar value={search} onChange={setSearch} />
       </ListActionBar>
@@ -262,11 +262,11 @@ const CentrosLucro = () => {
       <DataCard>
         {items.length === 0 ? (
           <EmptyState
-            title="Nenhum centro de lucro cadastrado"
-            description="Adicione centros de lucro para organizar suas operações."
+            title="Nenhum centro de custos cadastrado"
+            description="Adicione centros de custos para organizar suas operações."
             icon={FolderTree}
             onAction={() => setIsModalOpen(true)}
-            actionLabel="Adicionar Centro de Lucro"
+            actionLabel="Adicionar Centro de Custos"
           />
         ) : rootItems.length === 0 && search ? (
           <EmptyState

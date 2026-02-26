@@ -337,7 +337,7 @@ export const ConteudoFormModal = ({
 
   const conteudoFieldLabels: Record<string, string> = {
     codigoExterno: 'Código Externo', descricao: 'Descrição', quantidadeEpisodios: 'Qtd. Episódios',
-    unidadeNegocio: 'Unidade de Negócio', centroLucro: 'Centro de Lucro', tipoConteudo: 'Tipo de Conteúdo',
+    unidadeNegocio: 'Unidade de Negócio', centroLucro: 'Centro de Custos', tipoConteudo: 'Tipo de Conteúdo',
     classificacao: 'Classificação', anoProducao: 'Ano de Produção', sinopse: 'Sinopse', orcamento: 'Orçamento',
     tabelaPrecoId: 'Tabela de Preço',
   };
@@ -692,7 +692,7 @@ export const ConteudoFormModal = ({
                     onValueChange={(value) => setFormData({ ...formData, centroLucro: value })}
                     disabled={!formData.unidadeNegocio}
                     placeholder={!formData.unidadeNegocio ? t('field.selectUnitFirst') : t('common.select')}
-                    searchPlaceholder="Pesquisar centro de lucro..."
+                    searchPlaceholder="Pesquisar centro de custos..."
                   />
                 </div>
                 <div className="space-y-2">

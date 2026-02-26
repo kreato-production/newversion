@@ -220,10 +220,10 @@ export const CentroLucroFormModal = ({
       <DialogContent className="w-[900px] max-w-[900px] max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {data ? 'Editar Centro de Lucro' : 'Novo Centro de Lucro'}
+            {data ? 'Editar Centro de Custos' : 'Novo Centro de Custos'}
           </DialogTitle>
           <DialogDescription>
-            Preencha os campos para {data ? 'editar' : 'cadastrar'} o centro de lucro.
+            Preencha os campos para {data ? 'editar' : 'cadastrar'} o centro de custos.
           </DialogDescription>
         </DialogHeader>
 
@@ -278,7 +278,7 @@ export const CentroLucroFormModal = ({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="parentId">Centro de Lucro Pai</Label>
+                <Label htmlFor="parentId">Centro de Custos Pai</Label>
                 <Select
                   value={formData.parentId}
                   onValueChange={(value) =>
@@ -326,7 +326,7 @@ export const CentroLucroFormModal = ({
             <div className="space-y-4">
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Building2 className="h-4 w-4" />
-                <span>Selecione as unidades de negócio associadas a este centro de lucro:</span>
+                <span>Selecione as unidades de negócio associadas a este centro de custos:</span>
               </div>
 
               {isLoadingUnidades ? (

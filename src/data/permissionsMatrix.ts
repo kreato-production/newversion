@@ -50,7 +50,7 @@ export const basePermissionsMatrix: Omit<PermissionItem, 'id'>[] = [
   { modulo: 'Produção', subModulo1: 'Conteúdo', subModulo2: '-', campo: 'Qtd.Episódios', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
   { modulo: 'Produção', subModulo1: 'Conteúdo', subModulo2: '-', campo: 'Unidade de Negócio', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
   { modulo: 'Produção', subModulo1: 'Conteúdo', subModulo2: '-', campo: 'Programa', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
-  { modulo: 'Produção', subModulo1: 'Conteúdo', subModulo2: '-', campo: 'Centro de Lucro', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Produção', subModulo1: 'Conteúdo', subModulo2: '-', campo: 'Centro de Custos', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
   { modulo: 'Produção', subModulo1: 'Conteúdo', subModulo2: '-', campo: 'Tipo de Conteúdo', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
   { modulo: 'Produção', subModulo1: 'Conteúdo', subModulo2: '-', campo: 'Classificação', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
   { modulo: 'Produção', subModulo1: 'Conteúdo', subModulo2: '-', campo: 'Ano de Produção', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
@@ -72,7 +72,7 @@ export const basePermissionsMatrix: Omit<PermissionItem, 'id'>[] = [
   { modulo: 'Produção', subModulo1: 'Gravação', subModulo2: '-', campo: 'Nome', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
   { modulo: 'Produção', subModulo1: 'Gravação', subModulo2: '-', campo: 'Unidade de Negócio', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
   { modulo: 'Produção', subModulo1: 'Gravação', subModulo2: '-', campo: 'Programa', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
-  { modulo: 'Produção', subModulo1: 'Gravação', subModulo2: '-', campo: 'Centro de Lucro', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Produção', subModulo1: 'Gravação', subModulo2: '-', campo: 'Centro de Custos', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
   { modulo: 'Produção', subModulo1: 'Gravação', subModulo2: '-', campo: 'Tipo de Conteúdo', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
   { modulo: 'Produção', subModulo1: 'Gravação', subModulo2: '-', campo: 'Classificação', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
   { modulo: 'Produção', subModulo1: 'Gravação', subModulo2: '-', campo: 'Status', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
@@ -329,13 +329,13 @@ export const basePermissionsMatrix: Omit<PermissionItem, 'id'>[] = [
   { modulo: 'Administração', subModulo1: 'Unidades de Negócio', subModulo2: '-', campo: 'Nome', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
   { modulo: 'Administração', subModulo1: 'Unidades de Negócio', subModulo2: '-', campo: 'Descrição', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
   
-  // Administração > Centros de Lucro
-  { modulo: 'Administração', subModulo1: 'Centros de Lucro', subModulo2: '-', campo: '-', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'submodulo1' },
-  { modulo: 'Administração', subModulo1: 'Centros de Lucro', subModulo2: '-', campo: 'Código Externo', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
-  { modulo: 'Administração', subModulo1: 'Centros de Lucro', subModulo2: '-', campo: 'Nome', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
-  { modulo: 'Administração', subModulo1: 'Centros de Lucro', subModulo2: '-', campo: 'Descrição', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
-  { modulo: 'Administração', subModulo1: 'Centros de Lucro', subModulo2: '-', campo: 'Status', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
-  { modulo: 'Administração', subModulo1: 'Centros de Lucro', subModulo2: '-', campo: 'Centro de Lucro Superior', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  // Administração > Centros de Custos
+  { modulo: 'Administração', subModulo1: 'Centros de Custos', subModulo2: '-', campo: '-', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'submodulo1' },
+  { modulo: 'Administração', subModulo1: 'Centros de Custos', subModulo2: '-', campo: 'Código Externo', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Administração', subModulo1: 'Centros de Custos', subModulo2: '-', campo: 'Nome', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Administração', subModulo1: 'Centros de Custos', subModulo2: '-', campo: 'Descrição', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Administração', subModulo1: 'Centros de Custos', subModulo2: '-', campo: 'Status', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
+  { modulo: 'Administração', subModulo1: 'Centros de Custos', subModulo2: '-', campo: 'Centro de Custos Superior', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'campo' },
   
   // Administração > Formulários
   { modulo: 'Administração', subModulo1: 'Formulários', subModulo2: '-', campo: '-', acao: 'visible', somenteLeitura: false, incluir: true, alterar: true, excluir: true, tipo: 'submodulo1' },

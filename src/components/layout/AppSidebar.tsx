@@ -129,7 +129,7 @@ const getMenuItems = (isGlobalAdmin: boolean): MenuItemData[] => [
     permission: { modulo: 'Administração' },
     children: [
       { labelKey: 'menu.businessUnits', icon: Building2, path: '/admin/unidades', permission: { modulo: 'Administração', subModulo1: 'Unidades de Negócio' } },
-      { labelKey: 'menu.profitCenters', icon: Landmark, path: '/admin/centros-lucro', permission: { modulo: 'Administração', subModulo1: 'Centros de Lucro' } },
+      { labelKey: 'menu.profitCenters', icon: Landmark, path: '/admin/centros-lucro', permission: { modulo: 'Administração', subModulo1: 'Centros de Custos' } },
       { labelKey: 'menu.users', icon: UserCog, path: '/admin/usuarios', permission: { modulo: 'Administração', subModulo1: 'Usuários' } },
       { labelKey: 'menu.accessProfiles', icon: Shield, path: '/admin/perfis', permission: { modulo: 'Administração', subModulo1: 'Perfis de Acesso' } },
       { labelKey: 'menu.forms', icon: FileText, path: '/admin/formularios', permission: { modulo: 'Administração', subModulo1: 'Formulários' } },

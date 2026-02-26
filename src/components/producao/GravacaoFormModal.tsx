@@ -274,7 +274,7 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
 
   const gravacaoFieldLabels: Record<string, string> = {
     codigoExterno: 'Código Externo', nome: 'Nome', unidadeNegocio: 'Unidade de Negócio',
-    centroLucro: 'Centro de Lucro', tipoConteudo: 'Tipo de Conteúdo', classificacao: 'Classificação',
+    centroLucro: 'Centro de Custos', tipoConteudo: 'Tipo de Conteúdo', classificacao: 'Classificação',
     status: 'Status', conteudoId: 'Conteúdo', dataPrevista: 'Data Prevista', descricao: 'Descrição', orcamento: 'Orçamento',
   };
 
@@ -411,8 +411,8 @@ export const GravacaoFormModal = forwardRef<HTMLDivElement, GravacaoFormModalPro
                     onValueChange={(value) => setFormData({ ...formData, centroLucro: value })}
                     disabled={!formData.unidadeNegocio}
                     placeholder={!formData.unidadeNegocio ? 'Selecione uma unidade de negócio primeiro' : t('common.select')}
-                    searchPlaceholder="Pesquisar centro de lucro..."
-                    emptyMessage="Nenhum centro de lucro encontrado."
+                    searchPlaceholder="Pesquisar centro de custos..."
+                    emptyMessage="Nenhum centro de custos encontrado."
                   />
                 </div>
                 <div className="space-y-2">

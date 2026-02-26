@@ -140,7 +140,7 @@ export const GravacaoReportGenerator = ({ gravacaoId, disabled }: GravacaoReport
         ['Data Prevista', formatDate(data.basicInfo.dataPrevista)],
         ['Status', data.basicInfo.status || '-'],
         ['Unidade de Negócio', data.basicInfo.unidadeNegocio || '-'],
-        ['Centro de Lucro', data.basicInfo.centroLucro || '-'],
+        ['Centro de Custos', data.basicInfo.centroLucro || '-'],
         ['Classificação', data.basicInfo.classificacao || '-'],
         ['Tipo de Conteúdo', data.basicInfo.tipoConteudo || '-'],
         ['Conteúdo', data.basicInfo.conteudo || '-'],
