@@ -154,7 +154,7 @@ const translations: Record<Language, Record<string, string>> = {
     'menu.users': 'Usuários',
     'menu.accessProfiles': 'Perfil de Acesso',
     'menu.businessUnits': 'Unidade de Negócio',
-    'menu.profitCenters': 'Centro de Lucro',
+    'menu.profitCenters': 'Centro de Custos',
     'menu.forms': 'Formulários',
     'menu.parameters': 'Parametrizações',
     'menu.logout': 'Sair',
@@ -308,11 +308,11 @@ const translations: Record<Language, Record<string, string>> = {
     'businessUnits.saved': 'Unidade de Negócio salva com sucesso!',
     'businessUnits.updated': 'Unidade de Negócio atualizada com sucesso!',
     
-    // Profit Centers
-    'profitCenters.title': 'Centros de Lucro',
-    'profitCenters.description': 'Gerencie os centros de lucro da organização',
-    'profitCenters.new': 'Novo Centro de Lucro',
-    'profitCenters.edit': 'Editar Centro de Lucro',
+    // Cost Centers
+    'profitCenters.title': 'Centros de Custos',
+    'profitCenters.description': 'Gerencie os centros de custos da organização',
+    'profitCenters.new': 'Novo Centro de Custos',
+    'profitCenters.edit': 'Editar Centro de Custos',
     
     // Users
     'users.title': 'Usuários',
@@ -358,7 +358,7 @@ const translations: Record<Language, Record<string, string>> = {
     'recordings.empty': 'Nenhuma gravação cadastrada',
     'recordings.emptyDescription': 'Comece adicionando gravações para gerenciar sua produção.',
     'recordings.businessUnit': 'Unidade de Negócio',
-    'recordings.profitCenter': 'Centro de Lucro',
+    'recordings.profitCenter': 'Centro de Custos',
     
     // Cast
     'cast.title': 'Elenco',
@@ -887,7 +887,7 @@ const translations: Record<Language, Record<string, string>> = {
     'menu.users': 'Users',
     'menu.accessProfiles': 'Access Profile',
     'menu.businessUnits': 'Business Unit',
-    'menu.profitCenters': 'Profit Center',
+    'menu.profitCenters': 'Cost Center',
     'menu.forms': 'Forms',
     'menu.parameters': 'Parameters',
     'menu.logout': 'Logout',
@@ -1041,11 +1041,11 @@ const translations: Record<Language, Record<string, string>> = {
     'businessUnits.saved': 'Business Unit saved successfully!',
     'businessUnits.updated': 'Business Unit updated successfully!',
     
-    // Profit Centers
-    'profitCenters.title': 'Profit Centers',
-    'profitCenters.description': 'Manage organization profit centers',
-    'profitCenters.new': 'New Profit Center',
-    'profitCenters.edit': 'Edit Profit Center',
+    // Cost Centers
+    'profitCenters.title': 'Cost Centers',
+    'profitCenters.description': 'Manage organization cost centers',
+    'profitCenters.new': 'New Cost Center',
+    'profitCenters.edit': 'Edit Cost Center',
     
     // Users
     'users.title': 'Users',
@@ -1091,7 +1091,7 @@ const translations: Record<Language, Record<string, string>> = {
     'recordings.empty': 'No recordings registered',
     'recordings.emptyDescription': 'Start adding recordings to manage your production.',
     'recordings.businessUnit': 'Business Unit',
-    'recordings.profitCenter': 'Profit Center',
+    'recordings.profitCenter': 'Cost Center',
     
     // Cast
     'cast.title': 'Cast',
@@ -1620,7 +1620,7 @@ const translations: Record<Language, Record<string, string>> = {
     'menu.users': 'Usuarios',
     'menu.accessProfiles': 'Perfil de Acceso',
     'menu.businessUnits': 'Unidad de Negocio',
-    'menu.profitCenters': 'Centro de Beneficio',
+    'menu.profitCenters': 'Centro de Costos',
     'menu.forms': 'Formularios',
     'menu.parameters': 'Parámetros',
     'menu.logout': 'Salir',
@@ -1770,11 +1770,11 @@ const translations: Record<Language, Record<string, string>> = {
     'businessUnits.saved': '¡Unidad de Negocio guardada con éxito!',
     'businessUnits.updated': '¡Unidad de Negocio actualizada con éxito!',
     
-    // Profit Centers
-    'profitCenters.title': 'Centros de Beneficio',
-    'profitCenters.description': 'Gestione los centros de beneficio de la organización',
-    'profitCenters.new': 'Nuevo Centro de Beneficio',
-    'profitCenters.edit': 'Editar Centro de Beneficio',
+    // Cost Centers
+    'profitCenters.title': 'Centros de Costos',
+    'profitCenters.description': 'Gestione los centros de costos de la organización',
+    'profitCenters.new': 'Nuevo Centro de Costos',
+    'profitCenters.edit': 'Editar Centro de Costos',
     
     // Users
     'users.title': 'Usuarios',
@@ -1820,7 +1820,7 @@ const translations: Record<Language, Record<string, string>> = {
     'recordings.empty': 'No hay grabaciones registradas',
     'recordings.emptyDescription': 'Comience agregando grabaciones para gestionar su producción.',
     'recordings.businessUnit': 'Unidad de Negocio',
-    'recordings.profitCenter': 'Centro de Beneficio',
+    'recordings.profitCenter': 'Centro de Costos',
     
     // Cast
     'cast.title': 'Elenco',
