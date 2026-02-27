@@ -5,8 +5,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import {
   Users,
   Building2,
-  UserCog,
-  Shield,
   Globe,
 } from 'lucide-react';
 
@@ -41,6 +39,8 @@ import iconTipoGravacao from '@/assets/icons/tipo_gravacao.svg';
 import iconStatusGravacao from '@/assets/icons/status_gravacao.svg';
 import iconStatusTarefa from '@/assets/icons/status_tarefa.svg';
 import iconImpactoIncidencias from '@/assets/icons/impacto_incidencias.svg';
+import iconUsuarios from '@/assets/icons/usuarios.svg';
+import iconPerfisAcesso from '@/assets/icons/perfis_acesso.svg';
 
 interface SubModuleItem {
   labelKey: string;
@@ -135,8 +135,8 @@ const moduleConfig: Record<string, { titleKey: string; groups: SubModuleGroup[] 
         items: [
           { labelKey: 'menu.businessUnits', svgIcon: iconUnidadeNegocio, path: '/admin/unidades', permission: { modulo: 'Administração', subModulo1: 'Unidades de Negócio' } },
           { labelKey: 'menu.profitCenters', svgIcon: iconCentroCustos, path: '/admin/centros-lucro', permission: { modulo: 'Administração', subModulo1: 'Centros de Custos' } },
-          { labelKey: 'menu.users', icon: UserCog, path: '/admin/usuarios', permission: { modulo: 'Administração', subModulo1: 'Usuários' } },
-          { labelKey: 'menu.accessProfiles', icon: Shield, path: '/admin/perfis', permission: { modulo: 'Administração', subModulo1: 'Perfis de Acesso' } },
+          { labelKey: 'menu.users', svgIcon: iconUsuarios, path: '/admin/usuarios', permission: { modulo: 'Administração', subModulo1: 'Usuários' } },
+          { labelKey: 'menu.accessProfiles', svgIcon: iconPerfisAcesso, path: '/admin/perfis', permission: { modulo: 'Administração', subModulo1: 'Perfis de Acesso' } },
           { labelKey: 'menu.forms', svgIcon: iconFormularios, path: '/admin/formularios', permission: { modulo: 'Administração', subModulo1: 'Formulários' } },
         ],
       },
