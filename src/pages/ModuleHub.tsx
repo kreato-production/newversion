@@ -220,7 +220,7 @@ const ModuleHub = () => {
                         <Icon className="w-5 h-5 text-primary" />
                       ) : null}
                     </div>
-                    <span className="text-xs font-medium text-center text-foreground leading-tight">
+                    <span className="text-xs font-medium text-center text-foreground group-hover:text-white leading-tight transition-colors">
                       {label}
                     </span>
                   </button>
