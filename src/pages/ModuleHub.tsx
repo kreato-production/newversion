@@ -3,28 +3,18 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useAuth } from '@/contexts/AuthContext';
 import {
-  Video,
   Settings,
   Users,
   Building2,
-  Wrench,
-  MapPin,
   Truck,
   Briefcase,
-  FolderCog,
   UserCog,
   Shield,
-  Map,
   Landmark,
-  Film,
   Contact,
   Tag,
   Shirt,
-  ListTodo,
-  FileText,
-  AlertTriangle,
   Globe,
-  DollarSign,
   Layers,
   CheckSquare,
   TableProperties,
@@ -33,10 +23,23 @@ import {
   Target,
 } from 'lucide-react';
 
+// Custom SVG icons
+import iconProgramas from '@/assets/icons/programas.svg';
+import iconConteudo from '@/assets/icons/conteudo.svg';
+import iconGravacoes from '@/assets/icons/gravacoes.svg';
+import iconTarefas from '@/assets/icons/tarefas.svg';
+import iconIncidencias from '@/assets/icons/incidencias.svg';
+import iconMapas from '@/assets/icons/mapas.svg';
+import iconRecursosHumanos from '@/assets/icons/recursos_humanos.svg';
+import iconRecursosFisicos from '@/assets/icons/recursos_fisicos.svg';
+import iconRecursosTecnicos from '@/assets/icons/recursos_tecnicos.svg';
+import iconFormularios from '@/assets/icons/formularios.svg';
+
 interface SubModuleItem {
   labelKey: string;
   label?: string;
-  icon: React.ElementType;
+  icon?: React.ElementType;
+  svgIcon?: string;
   path: string;
   permission?: {
     modulo: string;
@@ -60,12 +63,12 @@ const moduleConfig: Record<string, { titleKey: string; groups: SubModuleGroup[] 
         title: 'Produção',
         titleKey: 'menu.production',
         items: [
-          { labelKey: 'menu.programs', icon: FolderCog, path: '/producao/programas', permission: { modulo: 'Produção', subModulo1: 'Programas' } },
-          { labelKey: 'menu.content', icon: Film, path: '/producao/conteudo', permission: { modulo: 'Produção', subModulo1: 'Conteúdo' } },
-          { labelKey: 'menu.recordings', icon: Video, path: '/producao/gravacao', permission: { modulo: 'Produção', subModulo1: 'Gravação' } },
-          { labelKey: 'menu.tasks', icon: ListTodo, path: '/producao/tarefas', permission: { modulo: 'Produção', subModulo1: 'Tarefas' } },
-          { labelKey: 'menu.recordingIncidents', icon: AlertTriangle, path: '/producao/incidencias', permission: { modulo: 'Produção', subModulo1: 'Incidências de Gravação' } },
-          { labelKey: 'menu.maps', icon: Map, path: '/producao/mapas', permission: { modulo: 'Produção', subModulo1: 'Mapas' } },
+          { labelKey: 'menu.programs', svgIcon: iconProgramas, path: '/producao/programas', permission: { modulo: 'Produção', subModulo1: 'Programas' } },
+          { labelKey: 'menu.content', svgIcon: iconConteudo, path: '/producao/conteudo', permission: { modulo: 'Produção', subModulo1: 'Conteúdo' } },
+          { labelKey: 'menu.recordings', svgIcon: iconGravacoes, path: '/producao/gravacao', permission: { modulo: 'Produção', subModulo1: 'Gravação' } },
+          { labelKey: 'menu.tasks', svgIcon: iconTarefas, path: '/producao/tarefas', permission: { modulo: 'Produção', subModulo1: 'Tarefas' } },
+          { labelKey: 'menu.recordingIncidents', svgIcon: iconIncidencias, path: '/producao/incidencias', permission: { modulo: 'Produção', subModulo1: 'Incidências de Gravação' } },
+          { labelKey: 'menu.maps', svgIcon: iconMapas, path: '/producao/mapas', permission: { modulo: 'Produção', subModulo1: 'Mapas' } },
         ],
       },
       {
@@ -91,9 +94,9 @@ const moduleConfig: Record<string, { titleKey: string; groups: SubModuleGroup[] 
         title: 'Recursos',
         titleKey: 'menu.resources',
         items: [
-          { labelKey: 'menu.humanResources', icon: Users, path: '/recursos/humanos', permission: { modulo: 'Recursos', subModulo1: 'Recursos Humanos' } },
-          { labelKey: 'menu.technicalResources', icon: Wrench, path: '/recursos/tecnicos', permission: { modulo: 'Recursos', subModulo1: 'Recursos Técnicos' } },
-          { labelKey: 'menu.physicalResources', icon: MapPin, path: '/recursos/fisicos', permission: { modulo: 'Recursos', subModulo1: 'Recursos Físicos' } },
+          { labelKey: 'menu.humanResources', svgIcon: iconRecursosHumanos, path: '/recursos/humanos', permission: { modulo: 'Recursos', subModulo1: 'Recursos Humanos' } },
+          { labelKey: 'menu.technicalResources', svgIcon: iconRecursosTecnicos, path: '/recursos/tecnicos', permission: { modulo: 'Recursos', subModulo1: 'Recursos Técnicos' } },
+          { labelKey: 'menu.physicalResources', svgIcon: iconRecursosFisicos, path: '/recursos/fisicos', permission: { modulo: 'Recursos', subModulo1: 'Recursos Físicos' } },
           { labelKey: 'menu.suppliers', icon: Truck, path: '/recursos/fornecedores', permission: { modulo: 'Recursos', subModulo1: 'Fornecedores' } },
           { labelKey: 'menu.people', icon: Contact, path: '/recursos/pessoas', permission: { modulo: 'Recursos', subModulo1: 'Pessoas' } },
           { labelKey: 'menu.costumes', icon: Shirt, path: '/recursos/figurinos', permission: { modulo: 'Recursos', subModulo1: 'Figurinos' } },
@@ -127,7 +130,7 @@ const moduleConfig: Record<string, { titleKey: string; groups: SubModuleGroup[] 
           { labelKey: 'menu.profitCenters', icon: Landmark, path: '/admin/centros-lucro', permission: { modulo: 'Administração', subModulo1: 'Centros de Custos' } },
           { labelKey: 'menu.users', icon: UserCog, path: '/admin/usuarios', permission: { modulo: 'Administração', subModulo1: 'Usuários' } },
           { labelKey: 'menu.accessProfiles', icon: Shield, path: '/admin/perfis', permission: { modulo: 'Administração', subModulo1: 'Perfis de Acesso' } },
-          { labelKey: 'menu.forms', icon: FileText, path: '/admin/formularios', permission: { modulo: 'Administração', subModulo1: 'Formulários' } },
+          { labelKey: 'menu.forms', svgIcon: iconFormularios, path: '/admin/formularios', permission: { modulo: 'Administração', subModulo1: 'Formulários' } },
         ],
       },
     ],
@@ -204,7 +207,11 @@ const ModuleHub = () => {
                     className="flex flex-col items-center gap-3 p-4 rounded-xl border border-border bg-card hover:bg-accent hover:border-primary/30 transition-all duration-200 group cursor-pointer"
                   >
                     <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-                      <Icon className="w-5 h-5 text-primary" />
+                      {item.svgIcon ? (
+                        <img src={item.svgIcon} alt={label} className="w-6 h-6" />
+                      ) : Icon ? (
+                        <Icon className="w-5 h-5 text-primary" />
+                      ) : null}
                     </div>
                     <span className="text-xs font-medium text-center text-foreground leading-tight">
                       {label}
