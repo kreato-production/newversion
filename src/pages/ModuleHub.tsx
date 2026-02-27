@@ -10,16 +10,13 @@ import {
   Briefcase,
   UserCog,
   Shield,
-  Landmark,
   Contact,
   Tag,
   Shirt,
   Globe,
   Layers,
   CheckSquare,
-  TableProperties,
   BarChart3,
-  Flame,
   Target,
 } from 'lucide-react';
 
@@ -34,6 +31,16 @@ import iconRecursosHumanos from '@/assets/icons/recursos_humanos.svg';
 import iconRecursosFisicos from '@/assets/icons/recursos_fisicos.svg';
 import iconRecursosTecnicos from '@/assets/icons/recursos_tecnicos.svg';
 import iconFormularios from '@/assets/icons/formularios.svg';
+import iconUnidadeNegocio from '@/assets/icons/unidade_negocio.svg';
+import iconCentroCustos from '@/assets/icons/centro_custos.svg';
+import iconTipoFigurino from '@/assets/icons/tipo_figurino.svg';
+import iconCategoriaFornecedores from '@/assets/icons/categoria_fornecedores.svg';
+import iconServicos from '@/assets/icons/servicos.svg';
+import iconFuncoes from '@/assets/icons/funcoes.svg';
+import iconDepartamentos from '@/assets/icons/departamentos.svg';
+import iconEquipes from '@/assets/icons/equipes.svg';
+import iconSeveridadeIncidencias from '@/assets/icons/severidade_incidencias.svg';
+import iconTabelaPrecos from '@/assets/icons/tabela_precos.svg';
 
 interface SubModuleItem {
   labelKey: string;
@@ -79,9 +86,9 @@ const moduleConfig: Record<string, { titleKey: string; groups: SubModuleGroup[] 
           { labelKey: 'menu.classification', icon: Tag, path: '/producao/classificacao', permission: { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Classificação' } },
           { labelKey: 'menu.recordingStatus', icon: CheckSquare, path: '/producao/status', permission: { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Status de Gravação' } },
           { labelKey: 'menu.taskStatus', icon: CheckSquare, path: '/producao/status-tarefa', permission: { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Status da Tarefa' } },
-          { labelKey: 'menu.priceTables', icon: TableProperties, path: '/producao/tabelas-preco', permission: { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Tabelas de Preços' } },
+          { labelKey: 'menu.priceTables', svgIcon: iconTabelaPrecos, path: '/producao/tabelas-preco', permission: { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Tabelas de Preços' } },
           { labelKey: 'menu.incidentCategories', icon: BarChart3, path: '/producao/categorias-incidencia', permission: { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Categorias de Incidência' } },
-          { labelKey: 'menu.incidentSeverities', icon: Flame, path: '/producao/severidades-incidencia', permission: { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Severidades de Incidência' } },
+          { labelKey: 'menu.incidentSeverities', svgIcon: iconSeveridadeIncidencias, path: '/producao/severidades-incidencia', permission: { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Severidades de Incidência' } },
           { labelKey: 'menu.incidentImpacts', icon: Target, path: '/producao/impactos-incidencia', permission: { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Impactos de Incidência' } },
         ],
       },
@@ -100,7 +107,7 @@ const moduleConfig: Record<string, { titleKey: string; groups: SubModuleGroup[] 
           { labelKey: 'menu.suppliers', icon: Truck, path: '/recursos/fornecedores', permission: { modulo: 'Recursos', subModulo1: 'Fornecedores' } },
           { labelKey: 'menu.people', icon: Contact, path: '/recursos/pessoas', permission: { modulo: 'Recursos', subModulo1: 'Pessoas' } },
           { labelKey: 'menu.costumes', icon: Shirt, path: '/recursos/figurinos', permission: { modulo: 'Recursos', subModulo1: 'Figurinos' } },
-          { labelKey: 'menu.teams', icon: Users, path: '/recursos/equipes', permission: { modulo: 'Recursos', subModulo1: 'Equipes' } },
+          { labelKey: 'menu.teams', svgIcon: iconEquipes, path: '/recursos/equipes', permission: { modulo: 'Recursos', subModulo1: 'Equipes' } },
         ],
       },
       {
@@ -108,12 +115,12 @@ const moduleConfig: Record<string, { titleKey: string; groups: SubModuleGroup[] 
         titleKey: 'menu.parameters',
         items: [
           { labelKey: 'menu.positions', icon: Briefcase, path: '/recursos/cargos', permission: { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Cargos' } },
-          { labelKey: 'menu.departments', icon: Building2, path: '/recursos/departamentos', permission: { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Departamentos' } },
-          { labelKey: 'menu.functions', icon: Settings, path: '/recursos/funcoes', permission: { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Funções' } },
-          { labelKey: 'menu.services', icon: Settings, path: '/recursos/servicos', permission: { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Serviços' } },
-          { labelKey: 'menu.supplierCategory', icon: Settings, path: '/recursos/categoria-fornecedores', permission: { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Categoria de Fornecedores' } },
+          { labelKey: 'menu.departments', svgIcon: iconDepartamentos, path: '/recursos/departamentos', permission: { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Departamentos' } },
+          { labelKey: 'menu.functions', svgIcon: iconFuncoes, path: '/recursos/funcoes', permission: { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Funções' } },
+          { labelKey: 'menu.services', svgIcon: iconServicos, path: '/recursos/servicos', permission: { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Serviços' } },
+          { labelKey: 'menu.supplierCategory', svgIcon: iconCategoriaFornecedores, path: '/recursos/categoria-fornecedores', permission: { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Categoria de Fornecedores' } },
           { labelKey: 'menu.peopleClassification', icon: Tag, path: '/recursos/classificacao-pessoas', permission: { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Classificação de Pessoas' } },
-          { labelKey: 'menu.costumeType', icon: Shirt, path: '/recursos/tipo-figurino', permission: { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Tipo de Figurino' } },
+          { labelKey: 'menu.costumeType', svgIcon: iconTipoFigurino, path: '/recursos/tipo-figurino', permission: { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Tipo de Figurino' } },
           { labelKey: 'menu.material', icon: Settings, path: '/recursos/material', permission: { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Material' } },
         ],
       },
@@ -126,8 +133,8 @@ const moduleConfig: Record<string, { titleKey: string; groups: SubModuleGroup[] 
         title: 'Administração',
         titleKey: 'menu.admin',
         items: [
-          { labelKey: 'menu.businessUnits', icon: Building2, path: '/admin/unidades', permission: { modulo: 'Administração', subModulo1: 'Unidades de Negócio' } },
-          { labelKey: 'menu.profitCenters', icon: Landmark, path: '/admin/centros-lucro', permission: { modulo: 'Administração', subModulo1: 'Centros de Custos' } },
+          { labelKey: 'menu.businessUnits', svgIcon: iconUnidadeNegocio, path: '/admin/unidades', permission: { modulo: 'Administração', subModulo1: 'Unidades de Negócio' } },
+          { labelKey: 'menu.profitCenters', svgIcon: iconCentroCustos, path: '/admin/centros-lucro', permission: { modulo: 'Administração', subModulo1: 'Centros de Custos' } },
           { labelKey: 'menu.users', icon: UserCog, path: '/admin/usuarios', permission: { modulo: 'Administração', subModulo1: 'Usuários' } },
           { labelKey: 'menu.accessProfiles', icon: Shield, path: '/admin/perfis', permission: { modulo: 'Administração', subModulo1: 'Perfis de Acesso' } },
           { labelKey: 'menu.forms', svgIcon: iconFormularios, path: '/admin/formularios', permission: { modulo: 'Administração', subModulo1: 'Formulários' } },
