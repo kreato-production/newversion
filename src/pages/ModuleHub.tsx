@@ -3,8 +3,6 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useAuth } from '@/contexts/AuthContext';
 import {
-  Users,
-  Building2,
   Globe,
 } from 'lucide-react';
 
@@ -41,6 +39,8 @@ import iconStatusTarefa from '@/assets/icons/status_tarefa.svg';
 import iconImpactoIncidencias from '@/assets/icons/impacto_incidencias.svg';
 import iconUsuarios from '@/assets/icons/usuarios.svg';
 import iconPerfisAcesso from '@/assets/icons/perfis_acesso.svg';
+import iconTenant from '@/assets/icons/tenant.svg';
+import iconUsuariosGlobais from '@/assets/icons/usuarios_globais.svg';
 
 interface SubModuleItem {
   labelKey: string;
@@ -148,8 +148,8 @@ const moduleConfig: Record<string, { titleKey: string; groups: SubModuleGroup[] 
       {
         title: 'Global',
         items: [
-          { labelKey: 'menu.tenants', label: 'Tenants', icon: Building2, path: '/global/tenants', globalOnly: true },
-          { labelKey: 'menu.globalUsers', label: 'Usuários Globais', icon: Users, path: '/global/usuarios', globalOnly: true },
+          { labelKey: 'menu.tenants', label: 'Tenants', svgIcon: iconTenant, path: '/global/tenants', globalOnly: true },
+          { labelKey: 'menu.globalUsers', label: 'Usuários Globais', svgIcon: iconUsuariosGlobais, path: '/global/usuarios', globalOnly: true },
         ],
       },
     ],
