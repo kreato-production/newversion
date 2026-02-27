@@ -3,21 +3,11 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useAuth } from '@/contexts/AuthContext';
 import {
-  Settings,
   Users,
   Building2,
-  Truck,
-  Briefcase,
   UserCog,
   Shield,
-  Contact,
-  Tag,
-  Shirt,
   Globe,
-  Layers,
-  CheckSquare,
-  BarChart3,
-  Target,
 } from 'lucide-react';
 
 // Custom SVG icons
@@ -41,6 +31,16 @@ import iconDepartamentos from '@/assets/icons/departamentos.svg';
 import iconEquipes from '@/assets/icons/equipes.svg';
 import iconSeveridadeIncidencias from '@/assets/icons/severidade_incidencias.svg';
 import iconTabelaPrecos from '@/assets/icons/tabela_precos.svg';
+import iconFornecedores from '@/assets/icons/fornecedores.svg';
+import iconPessoas from '@/assets/icons/pessoas.svg';
+import iconFigurinos from '@/assets/icons/figurinos.svg';
+import iconCargos from '@/assets/icons/cargos.svg';
+import iconClassificacaoPessoas from '@/assets/icons/classificacao_pessoas.svg';
+import iconMaterial from '@/assets/icons/material.svg';
+import iconTipoGravacao from '@/assets/icons/tipo_gravacao.svg';
+import iconStatusGravacao from '@/assets/icons/status_gravacao.svg';
+import iconStatusTarefa from '@/assets/icons/status_tarefa.svg';
+import iconImpactoIncidencias from '@/assets/icons/impacto_incidencias.svg';
 
 interface SubModuleItem {
   labelKey: string;
@@ -82,14 +82,14 @@ const moduleConfig: Record<string, { titleKey: string; groups: SubModuleGroup[] 
         title: 'Parametrizações',
         titleKey: 'menu.parameters',
         items: [
-          { labelKey: 'menu.recordingTypes', icon: Layers, path: '/producao/tipos-gravacao', permission: { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Tipo de gravação' } },
-          { labelKey: 'menu.classification', icon: Tag, path: '/producao/classificacao', permission: { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Classificação' } },
-          { labelKey: 'menu.recordingStatus', icon: CheckSquare, path: '/producao/status', permission: { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Status de Gravação' } },
-          { labelKey: 'menu.taskStatus', icon: CheckSquare, path: '/producao/status-tarefa', permission: { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Status da Tarefa' } },
+          { labelKey: 'menu.recordingTypes', svgIcon: iconTipoGravacao, path: '/producao/tipos-gravacao', permission: { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Tipo de gravação' } },
+          { labelKey: 'menu.classification', svgIcon: iconIncidencias, path: '/producao/classificacao', permission: { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Classificação' } },
+          { labelKey: 'menu.recordingStatus', svgIcon: iconStatusGravacao, path: '/producao/status', permission: { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Status de Gravação' } },
+          { labelKey: 'menu.taskStatus', svgIcon: iconStatusTarefa, path: '/producao/status-tarefa', permission: { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Status da Tarefa' } },
           { labelKey: 'menu.priceTables', svgIcon: iconTabelaPrecos, path: '/producao/tabelas-preco', permission: { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Tabelas de Preços' } },
-          { labelKey: 'menu.incidentCategories', icon: BarChart3, path: '/producao/categorias-incidencia', permission: { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Categorias de Incidência' } },
+          { labelKey: 'menu.incidentCategories', svgIcon: iconIncidencias, path: '/producao/categorias-incidencia', permission: { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Categorias de Incidência' } },
           { labelKey: 'menu.incidentSeverities', svgIcon: iconSeveridadeIncidencias, path: '/producao/severidades-incidencia', permission: { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Severidades de Incidência' } },
-          { labelKey: 'menu.incidentImpacts', icon: Target, path: '/producao/impactos-incidencia', permission: { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Impactos de Incidência' } },
+          { labelKey: 'menu.incidentImpacts', svgIcon: iconImpactoIncidencias, path: '/producao/impactos-incidencia', permission: { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Impactos de Incidência' } },
         ],
       },
     ],
@@ -104,9 +104,9 @@ const moduleConfig: Record<string, { titleKey: string; groups: SubModuleGroup[] 
           { labelKey: 'menu.humanResources', svgIcon: iconRecursosHumanos, path: '/recursos/humanos', permission: { modulo: 'Recursos', subModulo1: 'Recursos Humanos' } },
           { labelKey: 'menu.technicalResources', svgIcon: iconRecursosTecnicos, path: '/recursos/tecnicos', permission: { modulo: 'Recursos', subModulo1: 'Recursos Técnicos' } },
           { labelKey: 'menu.physicalResources', svgIcon: iconRecursosFisicos, path: '/recursos/fisicos', permission: { modulo: 'Recursos', subModulo1: 'Recursos Físicos' } },
-          { labelKey: 'menu.suppliers', icon: Truck, path: '/recursos/fornecedores', permission: { modulo: 'Recursos', subModulo1: 'Fornecedores' } },
-          { labelKey: 'menu.people', icon: Contact, path: '/recursos/pessoas', permission: { modulo: 'Recursos', subModulo1: 'Pessoas' } },
-          { labelKey: 'menu.costumes', icon: Shirt, path: '/recursos/figurinos', permission: { modulo: 'Recursos', subModulo1: 'Figurinos' } },
+          { labelKey: 'menu.suppliers', svgIcon: iconFornecedores, path: '/recursos/fornecedores', permission: { modulo: 'Recursos', subModulo1: 'Fornecedores' } },
+          { labelKey: 'menu.people', svgIcon: iconPessoas, path: '/recursos/pessoas', permission: { modulo: 'Recursos', subModulo1: 'Pessoas' } },
+          { labelKey: 'menu.costumes', svgIcon: iconFigurinos, path: '/recursos/figurinos', permission: { modulo: 'Recursos', subModulo1: 'Figurinos' } },
           { labelKey: 'menu.teams', svgIcon: iconEquipes, path: '/recursos/equipes', permission: { modulo: 'Recursos', subModulo1: 'Equipes' } },
         ],
       },
@@ -114,14 +114,14 @@ const moduleConfig: Record<string, { titleKey: string; groups: SubModuleGroup[] 
         title: 'Parametrizações',
         titleKey: 'menu.parameters',
         items: [
-          { labelKey: 'menu.positions', icon: Briefcase, path: '/recursos/cargos', permission: { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Cargos' } },
+          { labelKey: 'menu.positions', svgIcon: iconCargos, path: '/recursos/cargos', permission: { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Cargos' } },
           { labelKey: 'menu.departments', svgIcon: iconDepartamentos, path: '/recursos/departamentos', permission: { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Departamentos' } },
           { labelKey: 'menu.functions', svgIcon: iconFuncoes, path: '/recursos/funcoes', permission: { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Funções' } },
           { labelKey: 'menu.services', svgIcon: iconServicos, path: '/recursos/servicos', permission: { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Serviços' } },
           { labelKey: 'menu.supplierCategory', svgIcon: iconCategoriaFornecedores, path: '/recursos/categoria-fornecedores', permission: { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Categoria de Fornecedores' } },
-          { labelKey: 'menu.peopleClassification', icon: Tag, path: '/recursos/classificacao-pessoas', permission: { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Classificação de Pessoas' } },
+          { labelKey: 'menu.peopleClassification', svgIcon: iconClassificacaoPessoas, path: '/recursos/classificacao-pessoas', permission: { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Classificação de Pessoas' } },
           { labelKey: 'menu.costumeType', svgIcon: iconTipoFigurino, path: '/recursos/tipo-figurino', permission: { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Tipo de Figurino' } },
-          { labelKey: 'menu.material', icon: Settings, path: '/recursos/material', permission: { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Material' } },
+          { labelKey: 'menu.material', svgIcon: iconMaterial, path: '/recursos/material', permission: { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Material' } },
         ],
       },
     ],
