@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Upload, X, ImageIcon, Loader2 } from 'lucide-react';
 import {
   Dialog,
@@ -21,9 +21,9 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useAuth } from '@/contexts/AuthContext';
-import { UnidadeNegocio } from '@/pages/admin/UnidadesNegocio';
-import { supabase } from '@/integrations/supabase/client';
 import { CURRENCIES } from '@/lib/currencies';
+import type { UnidadeNegocio } from '@/modules/unidades/unidades.types';
+import { unidadesRepository } from '@/modules/unidades/unidades.repository';
 
 interface UnidadeNegocioFormModalProps {
   isOpen: boolean;
@@ -56,38 +56,38 @@ export const UnidadeNegocioFormModal = ({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   useEffect(() => {
-    if (isOpen) {
-      setFormData(data ? {
-        codigoExterno: data.codigoExterno || '',
-        nome: data.nome || '',
-        descricao: data.descricao || '',
-        imagem: data.imagem || '',
-        moeda: data.moeda || 'BRL',
-      } : { ...emptyFormData });
-      setSelectedFile(null);
-    }
+    if (!isOpen) return;
+
+    setFormData(
+      data
+        ? {
+            codigoExterno: data.codigoExterno || '',
+            nome: data.nome || '',
+            descricao: data.descricao || '',
+            imagem: data.imagem || '',
+            moeda: data.moeda || 'BRL',
+          }
+        : { ...emptyFormData },
+    );
+    setSelectedFile(null);
   }, [isOpen, data]);
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
     if (!file) return;
 
-    // Validar tipo de arquivo
     if (!file.type.startsWith('image/')) {
       alert('Por favor, selecione apenas arquivos de imagem.');
       return;
     }
 
-    // Validar tamanho (max 2MB)
     if (file.size > 2 * 1024 * 1024) {
-      alert('A imagem deve ter no máximo 2MB.');
+      alert('A imagem deve ter no maximo 2MB.');
       return;
     }
 
-    // Store file for later upload
     setSelectedFile(file);
-    
-    // Create local preview
+
     const reader = new FileReader();
     reader.onloadend = () => {
       setFormData({ ...formData, imagem: reader.result as string });
@@ -103,47 +103,22 @@ export const UnidadeNegocioFormModal = ({
     }
   };
 
-  const uploadImage = async (file: File, unidadeId: string): Promise<string | null> => {
-    const fileExt = file.name.split('.').pop();
-    const filePath = `${unidadeId}.${fileExt}`;
-
-    // Delete existing file if any (ignore errors)
-    await supabase.storage.from('unidades-negocio').remove([filePath]);
-
-    const { error } = await supabase.storage
-      .from('unidades-negocio')
-      .upload(filePath, file, { upsert: true });
-
-    if (error) {
-      console.error('Error uploading image:', error);
-      return null;
-    }
-
-    const { data: urlData } = supabase.storage
-      .from('unidades-negocio')
-      .getPublicUrl(filePath);
-
-    return urlData.publicUrl;
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
     setIsSaving(true);
 
     try {
       const unidadeId = data?.id || crypto.randomUUID();
       let imagemUrl = formData.imagem;
 
-      // If there's a new file to upload
       if (selectedFile) {
         setIsUploading(true);
-        const uploadedUrl = await uploadImage(selectedFile, unidadeId);
+        const uploadedUrl = await unidadesRepository.uploadLogo(selectedFile, unidadeId);
         if (uploadedUrl) {
           imagemUrl = uploadedUrl;
         }
         setIsUploading(false);
       } else if (!formData.imagem) {
-        // Image was removed
         imagemUrl = '';
       }
 
@@ -157,11 +132,13 @@ export const UnidadeNegocioFormModal = ({
         dataCadastro: data?.dataCadastro || new Date().toLocaleDateString('pt-BR'),
         usuarioCadastro: data?.usuarioCadastro || user?.nome || 'Admin',
       });
+
       onClose();
     } catch (error) {
-      console.error('Error saving:', error);
+      console.error('Error saving unidade:', error);
     } finally {
       setIsSaving(false);
+      setIsUploading(false);
     }
   };
 
@@ -169,31 +146,26 @@ export const UnidadeNegocioFormModal = ({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="w-[900px] max-w-[900px] max-h-[80vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{data ? 'Editar Unidade de Negócio' : 'Nova Unidade de Negócio'}</DialogTitle>
+          <DialogTitle>{data ? 'Editar Unidade de Negocio' : 'Nova Unidade de Negocio'}</DialogTitle>
           <DialogDescription>
-            Preencha os campos abaixo para {data ? 'editar' : 'cadastrar'} a unidade de negócio.
+            Preencha os campos abaixo para {data ? 'editar' : 'cadastrar'} a unidade de negocio.
           </DialogDescription>
         </DialogHeader>
         <Tabs defaultValue="dados" className="w-full">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="dados">Dados Gerais</TabsTrigger>
-            <TabsTrigger value="preferencias">Preferências</TabsTrigger>
+            <TabsTrigger value="preferencias">Preferencias</TabsTrigger>
           </TabsList>
 
           <TabsContent value="dados">
             <form onSubmit={handleSubmit} className="space-y-4 mt-4">
-              {/* Upload de Imagem */}
               <div className="space-y-2">
                 <Label>Logotipo</Label>
                 <div className="flex items-start gap-4">
                   <div className="relative">
                     {formData.imagem ? (
                       <div className="relative w-24 h-24 rounded-lg overflow-hidden border bg-muted">
-                        <img
-                          src={formData.imagem}
-                          alt="Logo"
-                          className="w-full h-full object-contain"
-                        />
+                        <img src={formData.imagem} alt="Logo" className="w-full h-full object-contain" />
                         <Button
                           type="button"
                           variant="destructive"
@@ -223,54 +195,51 @@ export const UnidadeNegocioFormModal = ({
                       onChange={handleImageUpload}
                       className="hidden"
                     />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => fileInputRef.current?.click()}
-                    >
+                    <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
                       <Upload className="w-4 h-4 mr-2" />
                       {formData.imagem ? 'Alterar' : 'Upload'}
                     </Button>
-                    <p className="text-xs text-muted-foreground">
-                      Formatos: JPG, PNG, GIF. Máx: 2MB
-                    </p>
+                    <p className="text-xs text-muted-foreground">Formatos: JPG, PNG, GIF. Max: 2MB</p>
                   </div>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="codigoExterno">Código Externo</Label>
+                  <Label htmlFor="codigoExterno">Codigo Externo</Label>
                   <Input
                     id="codigoExterno"
                     value={formData.codigoExterno}
-                    onChange={(e) => setFormData({ ...formData, codigoExterno: e.target.value })}
+                    onChange={(event) => setFormData({ ...formData, codigoExterno: event.target.value })}
                     maxLength={10}
-                    placeholder="Máx. 10 caracteres"
+                    placeholder="Max. 10 caracteres"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="nome">Nome <span className="text-destructive">*</span></Label>
+                  <Label htmlFor="nome">
+                    Nome <span className="text-destructive">*</span>
+                  </Label>
                   <Input
                     id="nome"
                     value={formData.nome}
-                    onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
+                    onChange={(event) => setFormData({ ...formData, nome: event.target.value })}
                     maxLength={100}
                     required
                   />
                 </div>
               </div>
+
               <div className="space-y-2">
-                <Label htmlFor="descricao">Descrição</Label>
+                <Label htmlFor="descricao">Descricao</Label>
                 <Textarea
                   id="descricao"
                   value={formData.descricao}
-                  onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
+                  onChange={(event) => setFormData({ ...formData, descricao: event.target.value })}
                   rows={3}
-                  placeholder="Descrição da unidade de negócio..."
+                  placeholder="Descricao da unidade de negocio..."
                 />
               </div>
+
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={onClose} disabled={isSaving}>
                   {readOnly ? 'Fechar' : 'Cancelar'}
@@ -294,7 +263,7 @@ export const UnidadeNegocioFormModal = ({
           <TabsContent value="preferencias">
             <form onSubmit={handleSubmit} className="space-y-4 mt-4">
               <div className="space-y-2">
-                <Label htmlFor="moeda">Moeda Padrão</Label>
+                <Label htmlFor="moeda">Moeda Padrao</Label>
                 <Select
                   value={formData.moeda}
                   onValueChange={(value) => setFormData({ ...formData, moeda: value })}
@@ -311,7 +280,7 @@ export const UnidadeNegocioFormModal = ({
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-muted-foreground">
-                  Esta moeda será usada para exibir todos os valores de custos relacionados a esta unidade de negócio.
+                  Esta moeda sera usada para exibir todos os valores de custos relacionados a esta unidade de negocio.
                 </p>
               </div>
               <DialogFooter>

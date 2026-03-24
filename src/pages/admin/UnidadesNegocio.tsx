@@ -1,48 +1,16 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
 import { ListActionBar } from '@/components/shared/ListActionBar';
-import { SortableTable, Column } from '@/components/shared/SortableTable';
+import { SortableTable, type Column } from '@/components/shared/SortableTable';
 import { Edit, Trash2, Building2, Loader2 } from 'lucide-react';
 import { NewButton } from '@/components/shared/NewButton';
 import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { UnidadeNegocioFormModal } from '@/components/admin/UnidadeNegocioFormModal';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-
-interface UnidadeNegocioDb {
-  id: string;
-  codigo_externo: string | null;
-  nome: string;
-  descricao: string | null;
-  imagem_url: string | null;
-  moeda: string | null;
-  created_at: string | null;
-  created_by: string | null;
-}
-
-export interface UnidadeNegocio {
-  id: string;
-  codigoExterno: string;
-  nome: string;
-  descricao: string;
-  imagem?: string;
-  moeda?: string;
-  dataCadastro: string;
-  usuarioCadastro: string;
-}
-
-const mapDbToUnidade = (db: UnidadeNegocioDb, userName: string): UnidadeNegocio => ({
-  id: db.id,
-  codigoExterno: db.codigo_externo || '',
-  nome: db.nome,
-  descricao: db.descricao || '',
-  imagem: db.imagem_url || '',
-  moeda: db.moeda || 'BRL',
-  dataCadastro: db.created_at ? new Date(db.created_at).toLocaleDateString('pt-BR') : '',
-  usuarioCadastro: userName,
-});
+import { unidadesRepository } from '@/modules/unidades/unidades.repository';
+import type { UnidadeNegocio } from '@/modules/unidades/unidades.types';
 
 const UnidadesNegocio = () => {
   const { toast } = useToast();
@@ -62,19 +30,12 @@ const UnidadesNegocio = () => {
 
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('unidades_negocio')
-        .select('*')
-        .order('nome', { ascending: true });
-
-      if (error) throw error;
-
-      setItems((data || []).map((d) => mapDbToUnidade(d, user?.nome || '')));
-    } catch (err) {
-      console.error('Error fetching unidades_negocio:', err);
+      setItems(await unidadesRepository.list(user?.nome || ''));
+    } catch (error) {
+      console.error('Error fetching unidades_negocio:', error);
       toast({
         title: 'Erro',
-        description: `Erro ao carregar dados: ${(err as Error).message}`,
+        description: `Erro ao carregar dados: ${(error as Error).message}`,
         variant: 'destructive',
       });
     } finally {
@@ -88,65 +49,41 @@ const UnidadesNegocio = () => {
 
   const handleSave = async (data: UnidadeNegocio) => {
     try {
-      const dbData = {
-        nome: data.nome,
-        descricao: data.descricao || null,
-        codigo_externo: data.codigoExterno || null,
-        imagem_url: data.imagem || null,
-        moeda: data.moeda || 'BRL',
-        created_by: user?.id || null,
-      };
+      const payload = data.id ? data : { ...data, id: crypto.randomUUID() };
+      await unidadesRepository.save(payload, user?.id);
 
       if (editingItem) {
-        const { error } = await supabase
-          .from('unidades_negocio')
-          .update(dbData)
-          .eq('id', data.id);
-
-        if (error) throw error;
         toast({ title: t('common.success'), description: t('businessUnits.updated') });
       } else {
-        const { id, ...insertData } = { id: data.id, ...dbData };
-        const { error } = await supabase
-          .from('unidades_negocio')
-          .insert({ id: data.id, ...insertData });
-
-        if (error) throw error;
         toast({ title: t('common.success'), description: t('businessUnits.saved') });
       }
 
       await fetchData();
       setEditingItem(null);
-    } catch (err) {
-      console.error('Error saving unidade:', err);
+    } catch (error) {
+      console.error('Error saving unidade:', error);
       toast({
         title: 'Erro',
-        description: `Erro ao salvar: ${(err as Error).message}`,
+        description: `Erro ao salvar: ${(error as Error).message}`,
         variant: 'destructive',
       });
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm(t('common.confirm.delete'))) {
-      try {
-        const { error } = await supabase
-          .from('unidades_negocio')
-          .delete()
-          .eq('id', id);
+    if (!confirm(t('common.confirm.delete'))) return;
 
-        if (error) throw error;
-
-        toast({ title: t('common.success'), description: t('businessUnits.deleted') });
-        await fetchData();
-      } catch (err) {
-        console.error('Error deleting unidade:', err);
-        toast({
-          title: 'Erro',
-          description: `Erro ao excluir: ${(err as Error).message}`,
-          variant: 'destructive',
-        });
-      }
+    try {
+      await unidadesRepository.remove(id);
+      toast({ title: t('common.success'), description: t('businessUnits.deleted') });
+      await fetchData();
+    } catch (error) {
+      console.error('Error deleting unidade:', error);
+      toast({
+        title: 'Erro',
+        description: `Erro ao excluir: ${(error as Error).message}`,
+        variant: 'destructive',
+      });
     }
   };
 
@@ -158,7 +95,7 @@ const UnidadesNegocio = () => {
   const filteredItems = items.filter(
     (item) =>
       item.nome.toLowerCase().includes(search.toLowerCase()) ||
-      item.codigoExterno?.toLowerCase().includes(search.toLowerCase())
+      item.codigoExterno?.toLowerCase().includes(search.toLowerCase()),
   );
 
   const columns: Column<UnidadeNegocio & { actions?: never }>[] = [
@@ -177,9 +114,7 @@ const UnidadesNegocio = () => {
       key: 'descricao',
       label: t('common.description'),
       className: 'hidden md:table-cell',
-      render: (item) => (
-        <span className="text-muted-foreground max-w-xs truncate block">{item.descricao || '-'}</span>
-      ),
+      render: (item) => <span className="text-muted-foreground max-w-xs truncate block">{item.descricao || '-'}</span>,
     },
     {
       key: 'dataCadastro',
@@ -224,13 +159,16 @@ const UnidadesNegocio = () => {
 
   return (
     <div>
-      <PageHeader
-        title={t('businessUnits.title')}
-        description={t('businessUnits.description')}
-      />
+      <PageHeader title={t('businessUnits.title')} description={t('businessUnits.description')} />
 
       <ListActionBar>
-        <NewButton tooltip={t('businessUnits.new')} onClick={() => { setEditingItem(null); setIsModalOpen(true); }} />
+        <NewButton
+          tooltip={t('businessUnits.new')}
+          onClick={() => {
+            setEditingItem(null);
+            setIsModalOpen(true);
+          }}
+        />
         <div className="flex-1" />
         <SearchBar value={search} onChange={setSearch} placeholder={t('common.search')} />
       </ListActionBar>

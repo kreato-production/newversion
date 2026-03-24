@@ -1,23 +1,16 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
 import { ListActionBar } from '@/components/shared/ListActionBar';
 import { EquipeFormModal } from '@/components/recursos/EquipeFormModal';
-import { SortableTable, Column } from '@/components/shared/SortableTable';
+import { SortableTable, type Column } from '@/components/shared/SortableTable';
 import { Edit, Trash2, UsersRound, Loader2 } from 'lucide-react';
 import { NewButton } from '@/components/shared/NewButton';
 import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { usePermissions } from '@/hooks/usePermissions';
-import { supabase } from '@/integrations/supabase/client';
-
-interface Equipe {
-  id: string;
-  codigo: string;
-  descricao: string;
-  membrosCount: number;
-  dataCadastro: string;
-}
+import { equipesRepository } from '@/modules/equipes/equipes.repository';
+import type { Equipe, EquipeInput } from '@/modules/equipes/equipes.types';
 
 const Equipes = () => {
   const { toast } = useToast();
@@ -32,21 +25,7 @@ const Equipes = () => {
   const fetchEquipes = async () => {
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('equipes')
-        .select('*, equipe_membros(id)')
-        .order('codigo');
-
-      if (error) throw error;
-      setItems(
-        (data || []).map((eq: any) => ({
-          id: eq.id,
-          codigo: eq.codigo,
-          descricao: eq.descricao,
-          membrosCount: eq.equipe_membros?.length || 0,
-          dataCadastro: eq.created_at ? new Date(eq.created_at).toLocaleDateString('pt-BR') : '',
-        }))
-      );
+      setItems(await equipesRepository.list());
     } catch (error) {
       console.error('Error fetching equipes:', error);
       toast({ title: t('common.error'), description: t('teams.loadError'), variant: 'destructive' });
@@ -59,22 +38,16 @@ const Equipes = () => {
     fetchEquipes();
   }, []);
 
-  const handleSave = async (data: { id?: string; codigo: string; descricao: string }) => {
+  const handleSave = async (data: EquipeInput) => {
     try {
       if (editingItem) {
-        const { error } = await supabase
-          .from('equipes')
-          .update({ codigo: data.codigo, descricao: data.descricao })
-          .eq('id', editingItem.id);
-        if (error) throw error;
+        await equipesRepository.update(editingItem.id, data);
         toast({ title: t('common.success'), description: t('teams.updated') });
       } else {
-        const { error } = await supabase
-          .from('equipes')
-          .insert({ codigo: data.codigo, descricao: data.descricao });
-        if (error) throw error;
+        await equipesRepository.create(data);
         toast({ title: t('common.success'), description: t('teams.created') });
       }
+
       await fetchEquipes();
       setEditingItem(null);
     } catch (error) {
@@ -84,16 +57,15 @@ const Equipes = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm(t('common.confirm.delete'))) {
-      try {
-        const { error } = await supabase.from('equipes').delete().eq('id', id);
-        if (error) throw error;
-        toast({ title: t('common.deleted'), description: t('teams.deleted') });
-        await fetchEquipes();
-      } catch (error) {
-        console.error('Error deleting equipe:', error);
-        toast({ title: t('common.error'), description: t('teams.deleteError'), variant: 'destructive' });
-      }
+    if (!confirm(t('common.confirm.delete'))) return;
+
+    try {
+      await equipesRepository.remove(id);
+      toast({ title: t('common.deleted'), description: t('teams.deleted') });
+      await fetchEquipes();
+    } catch (error) {
+      console.error('Error deleting equipe:', error);
+      toast({ title: t('common.error'), description: t('teams.deleteError'), variant: 'destructive' });
     }
   };
 
@@ -105,7 +77,7 @@ const Equipes = () => {
   const filteredItems = items.filter(
     (item) =>
       item.codigo.toLowerCase().includes(search.toLowerCase()) ||
-      item.descricao.toLowerCase().includes(search.toLowerCase())
+      item.descricao.toLowerCase().includes(search.toLowerCase()),
   );
 
   const columns: Column<Equipe & { actions?: never }>[] = [
@@ -129,9 +101,7 @@ const Equipes = () => {
       key: 'membrosCount',
       label: t('teams.members'),
       className: 'w-32 text-center',
-      render: (item) => (
-        <span className="text-muted-foreground">{item.membrosCount}</span>
-      ),
+      render: (item) => <span className="text-muted-foreground">{item.membrosCount}</span>,
     },
     {
       key: 'dataCadastro',
@@ -163,13 +133,16 @@ const Equipes = () => {
 
   return (
     <div>
-      <PageHeader
-        title={t('teams.title')}
-        description={t('teams.description')}
-      />
+      <PageHeader title={t('teams.title')} description={t('teams.description')} />
 
       <ListActionBar>
-        <NewButton tooltip={t('teams.new')} onClick={() => { setEditingItem(null); setIsModalOpen(true); }} />
+        <NewButton
+          tooltip={t('teams.new')}
+          onClick={() => {
+            setEditingItem(null);
+            setIsModalOpen(true);
+          }}
+        />
         <div className="flex-1" />
         <SearchBar value={search} onChange={setSearch} placeholder={t('common.search')} />
       </ListActionBar>
