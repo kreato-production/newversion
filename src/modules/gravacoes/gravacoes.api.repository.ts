@@ -4,7 +4,8 @@ import type { GravacoesRepository } from './gravacoes.repository';
 
 export class ApiGravacoesRepository implements GravacoesRepository {
   async list(): Promise<Gravacao[]> {
-    return apiRequest<Gravacao[]>('/gravacoes');
+    const response = await apiRequest<{ data: Gravacao[] }>('/gravacoes');
+    return response.data;
   }
 
   async save(input: GravacaoInput): Promise<void> {

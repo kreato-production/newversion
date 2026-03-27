@@ -9,6 +9,9 @@ import { createLoggerOptions } from './config/logger.js';
 import { PrismaAuthRepository } from './modules/auth/auth.repository.js';
 import { AuthService } from './modules/auth/auth.service.js';
 import { createAuthRoutes } from './modules/auth/routes/index.js';
+import { PrismaConteudosRepository } from './modules/conteudos/conteudos.repository.js';
+import { createConteudosRoutes } from './modules/conteudos/routes/index.js';
+import { ConteudosService } from './modules/conteudos/conteudos.service.js';
 import { PrismaEquipesRepository } from './modules/equipes/equipes.repository.js';
 import { createEquipesRoutes } from './modules/equipes/routes/index.js';
 import { EquipesService } from './modules/equipes/equipes.service.js';
@@ -34,6 +37,7 @@ import type { HealthService } from './routes/health/health.presenter.js';
 
 type BuildAppOptions = {
   authService?: AuthService;
+  conteudosService?: ConteudosService;
   equipesService?: EquipesService;
   gravacoesService?: GravacoesService;
   programasService?: ProgramasService;
@@ -46,6 +50,7 @@ type BuildAppOptions = {
 export async function buildApp(options: BuildAppOptions = {}) {
   const app = Fastify({ logger: createLoggerOptions() });
   const authService = options.authService ?? new AuthService(new PrismaAuthRepository());
+  const conteudosService = options.conteudosService ?? new ConteudosService(new PrismaConteudosRepository());
   const equipesService = options.equipesService ?? new EquipesService(new PrismaEquipesRepository());
   const gravacoesService = options.gravacoesService ?? new GravacoesService(new PrismaGravacoesRepository());
   const programasService = options.programasService ?? new ProgramasService(new PrismaProgramasRepository());
@@ -88,6 +93,7 @@ export async function buildApp(options: BuildAppOptions = {}) {
 
   await app.register(createHealthRoutes(options.healthService));
   await app.register(createAuthRoutes(authService));
+  await app.register(createConteudosRoutes(authService, conteudosService));
   await app.register(createEquipesRoutes(authService, equipesService));
   await app.register(createGravacoesRoutes(authService, gravacoesService));
   await app.register(createProgramasRoutes(authService, programasService));

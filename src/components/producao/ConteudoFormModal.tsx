@@ -20,7 +20,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useToast } from '@/hooks/use-toast';
 import { usePermissions } from '@/hooks/usePermissions';
-import { type Conteudo, generateCodigoConteudo } from '@/pages/producao/Conteudo';
 import { type Gravacao } from '@/pages/producao/GravacaoList';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -42,11 +41,18 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
+import { conteudosRepository } from '@/modules/conteudos/conteudos.repository.provider';
+import {
+  generateCodigoConteudo,
+  type Conteudo,
+  type ConteudoInput,
+} from '@/modules/conteudos/conteudos.types';
+import { gravacoesRepository } from '@/modules/gravacoes/gravacoes.repository.provider';
 
 interface ConteudoFormModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (data: Conteudo) => void;
+  onSave: (data: ConteudoInput) => Promise<void>;
   data?: Conteudo | null;
   readOnly?: boolean;
 }
@@ -82,42 +88,60 @@ export const ConteudoFormModal = ({
     frequenciaDiasSemana: [] as number[],
   });
 
-  const [centrosLucro, setCentrosLucro] = useState<{ id: string; nome: string; parentId: string | null; status: string }[]>([]);
-  const [filteredCentrosLucro, setFilteredCentrosLucro] = useState<{ id: string; nome: string; parentId: string | null; status: string }[]>([]);
-  const [unidades, setUnidades] = useState<{ id: string; nome: string; moeda?: string | null }[]>([]);
+  const [centrosLucro, setCentrosLucro] = useState<
+    { id: string; nome: string; parentId: string | null; status: string }[]
+  >([]);
+  const [filteredCentrosLucro, setFilteredCentrosLucro] = useState<
+    { id: string; nome: string; parentId: string | null; status: string }[]
+  >([]);
+  const [unidades, setUnidades] = useState<{ id: string; nome: string; moeda?: string | null }[]>(
+    [],
+  );
   const [tipos, setTipos] = useState<{ id: string; nome: string }[]>([]);
   const [classificacoes, setClassificacoes] = useState<{ id: string; nome: string }[]>([]);
   const [gravacoes, setGravacoes] = useState<Gravacao[]>([]);
   const [statusList, setStatusList] = useState<{ id: string; nome: string; cor: string }[]>([]);
-  const [centroLucroUnidades, setCentroLucroUnidades] = useState<{ centro_lucro_id: string; unidade_negocio_id: string }[]>([]);
-  const [tabelasPreco, setTabelasPreco] = useState<{ id: string; nome: string; unidadeNegocioId: string | null }[]>([]);
-  const [filteredTabelasPreco, setFilteredTabelasPreco] = useState<{ id: string; nome: string }[]>([]);
-  const [programas, setProgramas] = useState<{ id: string; nome: string; unidadeNegocioId: string | null }[]>([]);
+  const [centroLucroUnidades, setCentroLucroUnidades] = useState<
+    { centro_lucro_id: string; unidade_negocio_id: string }[]
+  >([]);
+  const [tabelasPreco, setTabelasPreco] = useState<
+    { id: string; nome: string; unidadeNegocioId: string | null }[]
+  >([]);
+  const [filteredTabelasPreco, setFilteredTabelasPreco] = useState<{ id: string; nome: string }[]>(
+    [],
+  );
+  const [programas, setProgramas] = useState<
+    { id: string; nome: string; unidadeNegocioId: string | null }[]
+  >([]);
   const [filteredProgramas, setFilteredProgramas] = useState<{ id: string; nome: string }[]>([]);
 
   const getSelectedCurrency = () => {
     if (!formData.unidadeNegocio) return null;
-    const unidade = unidades.find(u => u.nome === formData.unidadeNegocio);
+    const unidade = unidades.find((u) => u.nome === formData.unidadeNegocio);
     return unidade?.moeda || 'BRL';
   };
 
   const selectedCurrency = getSelectedCurrency();
 
-  const buildHierarchy = (items: typeof centrosLucro, parentId: string | null = null, level: number = 0): { id: string; nome: string; displayName: string; level: number }[] => {
+  const buildHierarchy = (
+    items: typeof centrosLucro,
+    parentId: string | null = null,
+    level: number = 0,
+  ): { id: string; nome: string; displayName: string; level: number }[] => {
     const result: { id: string; nome: string; displayName: string; level: number }[] = [];
-    const children = items.filter(item => item.parentId === parentId);
-    
+    const children = items.filter((item) => item.parentId === parentId);
+
     for (const child of children) {
       const prefix = level > 0 ? '│ '.repeat(level - 1) + '├─ ' : '';
       result.push({
         id: child.id,
         nome: child.nome,
         displayName: `${prefix}${child.nome}`,
-        level
+        level,
       });
       result.push(...buildHierarchy(items, child.id, level + 1));
     }
-    
+
     return result;
   };
 
@@ -128,15 +152,15 @@ export const ConteudoFormModal = ({
       setFilteredCentrosLucro([]);
       return;
     }
-    const unidadeSelecionada = unidades.find(u => u.nome === formData.unidadeNegocio);
+    const unidadeSelecionada = unidades.find((u) => u.nome === formData.unidadeNegocio);
     if (!unidadeSelecionada) {
       setFilteredCentrosLucro([]);
       return;
     }
     const centrosAssociados = centroLucroUnidades
-      .filter(clu => clu.unidade_negocio_id === unidadeSelecionada.id)
-      .map(clu => clu.centro_lucro_id);
-    const centrosFiltrados = centrosLucro.filter(cl => centrosAssociados.includes(cl.id));
+      .filter((clu) => clu.unidade_negocio_id === unidadeSelecionada.id)
+      .map((clu) => clu.centro_lucro_id);
+    const centrosFiltrados = centrosLucro.filter((cl) => centrosAssociados.includes(cl.id));
     setFilteredCentrosLucro(centrosFiltrados);
   }, [formData.unidadeNegocio, unidades, centroLucroUnidades, centrosLucro]);
 
@@ -145,52 +169,50 @@ export const ConteudoFormModal = ({
       setFilteredTabelasPreco([]);
       return;
     }
-    const unidadeSelecionada = unidades.find(u => u.nome === formData.unidadeNegocio);
+    const unidadeSelecionada = unidades.find((u) => u.nome === formData.unidadeNegocio);
     if (!unidadeSelecionada) {
       setFilteredTabelasPreco([]);
       return;
     }
-    const filtered = tabelasPreco.filter(tp => tp.unidadeNegocioId === unidadeSelecionada.id);
+    const filtered = tabelasPreco.filter((tp) => tp.unidadeNegocioId === unidadeSelecionada.id);
     setFilteredTabelasPreco(filtered);
   }, [formData.unidadeNegocio, unidades, tabelasPreco]);
 
   // Filter programas by selected unidade
   useEffect(() => {
-    if (!formData.unidadeNegocio) { setFilteredProgramas([]); return; }
-    const unidadeSelecionada = unidades.find(u => u.nome === formData.unidadeNegocio);
-    if (!unidadeSelecionada) { setFilteredProgramas([]); return; }
-    setFilteredProgramas(programas.filter(p => p.unidadeNegocioId === unidadeSelecionada.id));
+    if (!formData.unidadeNegocio) {
+      setFilteredProgramas([]);
+      return;
+    }
+    const unidadeSelecionada = unidades.find((u) => u.nome === formData.unidadeNegocio);
+    if (!unidadeSelecionada) {
+      setFilteredProgramas([]);
+      return;
+    }
+    setFilteredProgramas(programas.filter((p) => p.unidadeNegocioId === unidadeSelecionada.id));
   }, [formData.unidadeNegocio, unidades, programas]);
 
   const loadOptions = useCallback(async () => {
     try {
-      const [centrosRes, statusRes, unidadesRes, tiposRes, classificacoesRes, centroLucroUnidadesRes, tabelasPrecoRes, programasRes] = await Promise.all([
-        supabase.from('centros_lucro').select('id, nome, parent_id, status').eq('status', 'Ativo').order('nome'),
-        supabase.from('status_gravacao').select('id, nome, cor').order('nome'),
-        (() => {
-          let q = supabase.from('unidades_negocio').select('id, nome, moeda');
-          if (user?.unidadeIds && user.unidadeIds.length > 0) q = q.in('id', user.unidadeIds);
-          return q.order('nome');
-        })(),
-        supabase.from('tipos_gravacao').select('id, nome').order('nome'),
-        supabase.from('classificacoes').select('id, nome').order('nome'),
-        supabase.from('centro_lucro_unidades').select('centro_lucro_id, unidade_negocio_id'),
-        (supabase as any).from('tabelas_preco').select('id, nome, unidade_negocio_id').eq('status', 'Ativo').order('nome'),
-        supabase.from('programas').select('id, nome, unidade_negocio_id').order('nome'),
-      ]);
+      const options = await conteudosRepository.listOptions(user?.unidadeIds);
 
-      setCentrosLucro((centrosRes.data || []).map(c => ({ id: c.id, nome: c.nome, parentId: c.parent_id, status: c.status || 'Ativo' })));
-      setStatusList((statusRes.data || []).map(s => ({ id: s.id, nome: s.nome, cor: s.cor || '#888888' })));
-      setUnidades((unidadesRes.data || []).map(u => ({ id: u.id, nome: u.nome, moeda: u.moeda })));
-      setTipos(tiposRes.data || []);
-      setClassificacoes(classificacoesRes.data || []);
-      setCentroLucroUnidades(centroLucroUnidadesRes.data || []);
-      setTabelasPreco((tabelasPrecoRes.data || []).map((tp: any) => ({ id: tp.id, nome: tp.nome, unidadeNegocioId: tp.unidade_negocio_id })));
-      setProgramas((programasRes.data || []).map((p: any) => ({ id: p.id, nome: p.nome, unidadeNegocioId: p.unidade_negocio_id })));
+      setCentrosLucro(options.centrosLucro);
+      setStatusList(options.statusList);
+      setUnidades(options.unidades);
+      setTipos(options.tipos);
+      setClassificacoes(options.classificacoes);
+      setCentroLucroUnidades(
+        options.centroLucroUnidades.map((item) => ({
+          centro_lucro_id: item.centroLucroId,
+          unidade_negocio_id: item.unidadeNegocioId,
+        })),
+      );
+      setTabelasPreco(options.tabelasPreco);
+      setProgramas(options.programas);
     } catch (err) {
       console.error('Error loading options:', err);
     }
-  }, []);
+  }, [user?.unidadeIds]);
 
   useEffect(() => {
     if (isOpen) {
@@ -198,9 +220,21 @@ export const ConteudoFormModal = ({
     }
   }, [isOpen, loadOptions]);
 
+  const loadGravacoes = useCallback(
+    async (conteudoId: string) => {
+      try {
+        const items = await gravacoesRepository.list(user?.unidadeIds);
+        setGravacoes(items.filter((gravacao) => gravacao.conteudoId === conteudoId));
+      } catch (err) {
+        console.error('Error loading gravacoes:', err);
+      }
+    },
+    [user?.unidadeIds],
+  );
+
   useEffect(() => {
     if (!isOpen) return;
-    
+
     if (data) {
       setFormData({
         codigoExterno: data.codigoExterno || '',
@@ -213,13 +247,13 @@ export const ConteudoFormModal = ({
         classificacao: data.classificacao || '',
         anoProducao: data.anoProducao || '',
         sinopse: data.sinopse || '',
-        orcamento: String((data as any).orcamento || ''),
+        orcamento: String(data.orcamento || ''),
         tabelaPrecoId: data.tabelaPrecoId || '',
         frequenciaDataInicio: data.frequenciaDataInicio || '',
         frequenciaDataFim: data.frequenciaDataFim || '',
         frequenciaDiasSemana: data.frequenciaDiasSemana || [],
       });
-      loadGravacoes(data.id);
+      void loadGravacoes(data.id);
     } else {
       const novoCodigo = generateCodigoConteudo();
       setFormData({
@@ -241,87 +275,45 @@ export const ConteudoFormModal = ({
       });
       setGravacoes([]);
     }
-  }, [data, isOpen]);
-
-  const loadGravacoes = async (conteudoId: string) => {
-    try {
-      const { data: gData, error } = await supabase
-        .from('gravacoes')
-        .select('*, status_gravacao:status_id(id, nome, cor)')
-        .eq('conteudo_id', conteudoId)
-        .order('codigo');
-
-      if (error) throw error;
-
-      // Auto-fix: assign initial status to recordings missing one
-      const semStatus = (gData || []).filter((g: any) => !g.status_id);
-      if (semStatus.length > 0) {
-        const { data: statusInicial } = await supabase
-          .from('status_gravacao')
-          .select('id, nome, cor')
-          .eq('is_inicial', true)
-          .maybeSingle();
-        
-        if (statusInicial) {
-          await Promise.all(
-            semStatus.map((g: any) =>
-              supabase.from('gravacoes').update({ status_id: statusInicial.id }).eq('id', g.id)
-            )
-          );
-          // Update local data with the assigned status
-          for (const g of semStatus) {
-            g.status_id = statusInicial.id;
-            g.status_gravacao = { id: statusInicial.id, nome: statusInicial.nome, cor: statusInicial.cor };
-          }
-        }
-      }
-
-      const mapped: Gravacao[] = (gData || []).map((g: any) => ({
-        id: g.id,
-        codigo: g.codigo,
-        codigoExterno: g.codigo_externo || '',
-        nome: g.nome,
-        unidadeNegocio: g.unidade_negocio_id || '',
-        centroLucro: g.centro_lucro_id || '',
-        classificacao: g.classificacao_id || '',
-        tipoConteudo: g.tipo_conteudo_id || '',
-        descricao: g.descricao || '',
-        status: g.status_gravacao?.nome || '',
-        dataPrevista: g.data_prevista || '',
-        dataCadastro: g.created_at ? new Date(g.created_at).toLocaleDateString('pt-BR') : '',
-        usuarioCadastro: '',
-      }));
-      setGravacoes(mapped);
-    } catch (err) {
-      console.error('Error loading gravacoes:', err);
-    }
-  };
+  }, [data, isOpen, loadGravacoes]);
 
   // Calculate dates from weekly frequency
-  const calculateFrequencyDates = useCallback((startStr: string, endStr: string, days: number[]): string[] => {
-    if (!startStr || !endStr || days.length === 0) return [];
-    const start = parseISO(startStr);
-    const end = parseISO(endStr);
-    const dates: string[] = [];
-    const totalDays = differenceInDays(end, start);
-    for (let i = 0; i <= totalDays; i++) {
-      const current = addDays(start, i);
-      // getDay: 0=Sun, 1=Mon... same as our array convention
-      if (days.includes(getDay(current))) {
-        dates.push(format(current, 'yyyy-MM-dd'));
+  const calculateFrequencyDates = useCallback(
+    (startStr: string, endStr: string, days: number[]): string[] => {
+      if (!startStr || !endStr || days.length === 0) return [];
+      const start = parseISO(startStr);
+      const end = parseISO(endStr);
+      const dates: string[] = [];
+      const totalDays = differenceInDays(end, start);
+      for (let i = 0; i <= totalDays; i++) {
+        const current = addDays(start, i);
+        // getDay: 0=Sun, 1=Mon... same as our array convention
+        if (days.includes(getDay(current))) {
+          dates.push(format(current, 'yyyy-MM-dd'));
+        }
       }
-    }
-    return dates;
-  }, []);
+      return dates;
+    },
+    [],
+  );
 
   // Auto-calculate episodes when frequency changes
   const frequencyDates = useMemo(() => {
-    return calculateFrequencyDates(formData.frequenciaDataInicio, formData.frequenciaDataFim, formData.frequenciaDiasSemana);
-  }, [formData.frequenciaDataInicio, formData.frequenciaDataFim, formData.frequenciaDiasSemana, calculateFrequencyDates]);
+    return calculateFrequencyDates(
+      formData.frequenciaDataInicio,
+      formData.frequenciaDataFim,
+      formData.frequenciaDiasSemana,
+    );
+  }, [
+    formData.frequenciaDataInicio,
+    formData.frequenciaDataFim,
+    formData.frequenciaDiasSemana,
+    calculateFrequencyDates,
+  ]);
 
   useEffect(() => {
     if (frequencyDates.length > 0) {
-      setFormData(prev => ({ ...prev, quantidadeEpisodios: String(frequencyDates.length) }));
+      setFormData((prev) => ({ ...prev, quantidadeEpisodios: String(frequencyDates.length) }));
     }
   }, [frequencyDates]);
 
@@ -336,28 +328,39 @@ export const ConteudoFormModal = ({
   ];
 
   const conteudoFieldLabels: Record<string, string> = {
-    codigoExterno: 'Código Externo', descricao: 'Descrição', quantidadeEpisodios: 'Qtd. Episódios',
-    unidadeNegocio: 'Unidade de Negócio', centroLucro: 'Centro de Custos', tipoConteudo: 'Tipo de Conteúdo',
-    classificacao: 'Classificação', anoProducao: 'Ano de Produção', sinopse: 'Sinopse', orcamento: 'Orçamento',
+    codigoExterno: 'Código Externo',
+    descricao: 'Descrição',
+    quantidadeEpisodios: 'Qtd. Episódios',
+    unidadeNegocio: 'Unidade de Negócio',
+    centroLucro: 'Centro de Custos',
+    tipoConteudo: 'Tipo de Conteúdo',
+    classificacao: 'Classificação',
+    anoProducao: 'Ano de Produção',
+    sinopse: 'Sinopse',
+    orcamento: 'Orçamento',
     tabelaPrecoId: 'Tabela de Preço',
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    const missing = validateRequired(formData as any, conteudoFieldLabels);
+
+    const missing = validateRequired(formData as Record<string, unknown>, conteudoFieldLabels);
     if (missing.length > 0) {
       showValidationError(missing);
       return;
     }
 
     if (!formData.descricao.trim()) {
-      toast({ title: t('common.error'), description: t('field.descriptionRequired'), variant: 'destructive' });
+      toast({
+        title: t('common.error'),
+        description: t('field.descriptionRequired'),
+        variant: 'destructive',
+      });
       return;
     }
 
-    const conteudo: Conteudo = {
-      id: data?.id || crypto.randomUUID(),
+    const conteudo: ConteudoInput = {
+      id: data?.id,
       codigoExterno: formData.codigoExterno,
       descricao: formData.descricao,
       quantidadeEpisodios: parseInt(formData.quantidadeEpisodios) || 0,
@@ -372,18 +375,21 @@ export const ConteudoFormModal = ({
       classificacaoId: data?.classificacaoId,
       anoProducao: formData.anoProducao,
       sinopse: formData.sinopse,
-      usuarioCadastro: data?.usuarioCadastro || user?.nome || 'Admin',
-      dataCadastro: data?.dataCadastro || new Date().toLocaleDateString('pt-BR'),
       tabelaPrecoId: formData.tabelaPrecoId || undefined,
       frequenciaDataInicio: formData.frequenciaDataInicio || undefined,
       frequenciaDataFim: formData.frequenciaDataFim || undefined,
-      frequenciaDiasSemana: formData.frequenciaDiasSemana.length > 0 ? formData.frequenciaDiasSemana : undefined,
+      frequenciaDiasSemana:
+        formData.frequenciaDiasSemana.length > 0 ? formData.frequenciaDiasSemana : undefined,
     };
-    
-    (conteudo as any).orcamento = parseFloat(formData.orcamento) || 0;
 
-    onSave(conteudo);
-    onClose();
+    conteudo.orcamento = parseFloat(formData.orcamento) || 0;
+
+    try {
+      await onSave(conteudo);
+      onClose();
+    } catch {
+      // Keep the modal open so the user can correct the form after a save failure.
+    }
   };
 
   const handleGenerateGravacoes = async () => {
@@ -421,12 +427,11 @@ export const ConteudoFormModal = ({
       const novasGravacoes = [];
       const startEpisode = gravacoes.length + 1;
       const numGravacoesGeradas = quantidade - gravacoes.length;
-      
+
       const orcamentoTotal = parseFloat(formData.orcamento) || 0;
-      const orcamentoPorGravacao = orcamentoTotal > 0 && numGravacoesGeradas > 0 
-        ? orcamentoTotal / quantidade
-        : 0;
-      
+      const orcamentoPorGravacao =
+        orcamentoTotal > 0 && numGravacoesGeradas > 0 ? orcamentoTotal / quantidade : 0;
+
       // Fetch initial status - try is_inicial first, fallback to first status
       let statusInicialId: string | null = null;
       const { data: statusInicial } = await supabase
@@ -434,7 +439,7 @@ export const ConteudoFormModal = ({
         .select('id')
         .eq('is_inicial', true)
         .maybeSingle();
-      
+
       if (statusInicial?.id) {
         statusInicialId = statusInicial.id;
       } else {
@@ -447,28 +452,35 @@ export const ConteudoFormModal = ({
           .maybeSingle();
         statusInicialId = fallbackStatus?.id || null;
       }
-      
+
       if (!statusInicialId) {
         console.error('Nenhum status de gravação encontrado no sistema');
       }
 
-      const unidadeSelecionada = unidades.find(u => u.nome === formData.unidadeNegocio);
-      const centroSelecionado = centrosLucro.find(c => c.nome === formData.centroLucro);
-      const classificacaoSelecionada = classificacoes.find(c => c.nome === formData.classificacao);
-      const tipoSelecionado = tipos.find(t => t.nome === formData.tipoConteudo);
+      const unidadeSelecionada = unidades.find((u) => u.nome === formData.unidadeNegocio);
+      const centroSelecionado = centrosLucro.find((c) => c.nome === formData.centroLucro);
+      const classificacaoSelecionada = classificacoes.find(
+        (c) => c.nome === formData.classificacao,
+      );
+      const tipoSelecionado = tipos.find((t) => t.nome === formData.tipoConteudo);
 
-      const unidadeNegocioId = unidadeSelecionada?.id || (data as any)?.unidadeNegocioId || null;
-      const centroLucroId = centroSelecionado?.id || (data as any)?.centroLucroId || null;
-      const classificacaoId = classificacaoSelecionada?.id || (data as any)?.classificacaoId || null;
-      const tipoConteudoId = tipoSelecionado?.id || (data as any)?.tipoConteudoId || null;
+      const unidadeNegocioId = unidadeSelecionada?.id || data?.unidadeNegocioId || null;
+      const centroLucroId = centroSelecionado?.id || data?.centroLucroId || null;
+      const classificacaoId = classificacaoSelecionada?.id || data?.classificacaoId || null;
+      const tipoConteudoId = tipoSelecionado?.id || data?.tipoConteudoId || null;
 
       // Calculate dates for each episode from frequency
-      const allFreqDates = calculateFrequencyDates(formData.frequenciaDataInicio, formData.frequenciaDataFim, formData.frequenciaDiasSemana);
+      const allFreqDates = calculateFrequencyDates(
+        formData.frequenciaDataInicio,
+        formData.frequenciaDataFim,
+        formData.frequenciaDiasSemana,
+      );
 
       for (let i = startEpisode; i <= quantidade; i++) {
         // Assign data_prevista from frequency dates (index i-1 for zero-based)
-        const dataPrevista = allFreqDates.length > 0 && (i - 1) < allFreqDates.length ? allFreqDates[i - 1] : null;
-        
+        const dataPrevista =
+          allFreqDates.length > 0 && i - 1 < allFreqDates.length ? allFreqDates[i - 1] : null;
+
         const insertData = {
           nome: `${formData.descricao} - Episódio ${i}`,
           unidade_negocio_id: unidadeNegocioId,
@@ -482,7 +494,7 @@ export const ConteudoFormModal = ({
           data_prevista: dataPrevista,
         };
 
-        const { data: inserted, error } = await (supabase as any)
+        const { data: inserted, error } = await supabase
           .from('gravacoes')
           .insert(insertData)
           .select()
@@ -502,7 +514,9 @@ export const ConteudoFormModal = ({
             descricao: inserted.descricao || '',
             status: '',
             dataPrevista: inserted.data_prevista || '',
-            dataCadastro: inserted.created_at ? new Date(inserted.created_at).toLocaleDateString('pt-BR') : '',
+            dataCadastro: inserted.created_at
+              ? new Date(inserted.created_at).toLocaleDateString('pt-BR')
+              : '',
             usuarioCadastro: user?.nome || '',
           } as Gravacao);
         }
@@ -512,8 +526,14 @@ export const ConteudoFormModal = ({
       if (novasGravacoes.length > 0 && data?.id) {
         try {
           const [rtRes, rfRes] = await Promise.all([
-            (supabase as any).from('conteudo_recursos_tecnicos').select('recurso_tecnico_id, quantidade, quantidade_horas').eq('conteudo_id', data.id),
-            (supabase as any).from('conteudo_recursos_fisicos').select('recurso_fisico_id, quantidade, quantidade_horas').eq('conteudo_id', data.id),
+            supabase
+              .from('conteudo_recursos_tecnicos')
+              .select('recurso_tecnico_id, quantidade, quantidade_horas')
+              .eq('conteudo_id', data.id),
+            supabase
+              .from('conteudo_recursos_fisicos')
+              .select('recurso_fisico_id, quantidade, quantidade_horas')
+              .eq('conteudo_id', data.id),
           ]);
 
           const recursosTecnicos = rtRes.data || [];
@@ -529,7 +549,7 @@ export const ConteudoFormModal = ({
           };
 
           for (const gravacao of novasGravacoes) {
-            const inserts: any[] = [];
+            const inserts: Array<Record<string, string | null>> = [];
 
             for (const rt of recursosTecnicos) {
               const qty = rt.quantidade || 1;
@@ -560,9 +580,7 @@ export const ConteudoFormModal = ({
             }
 
             if (inserts.length > 0) {
-              const { error: resError } = await (supabase as any)
-                .from('gravacao_recursos')
-                .insert(inserts);
+              const { error: resError } = await supabase.from('gravacao_recursos').insert(inserts);
               if (resError) {
                 console.error('Error copying resources to gravacao:', resError);
               }
@@ -600,12 +618,18 @@ export const ConteudoFormModal = ({
     { value: 'dadosGerais', label: t('contentTab.generalData') },
   ];
   if (data) {
-    if (isVisible('Produção', 'Conteúdo', '-', 'Tabulador "Gravações"')) visibleTabs.push({ value: 'gravacoes', label: t('field.recordings') });
-    if (isVisible('Produção', 'Conteúdo', '-', 'Tabulador "Elenco"')) visibleTabs.push({ value: 'elenco', label: t('field.cast') });
-    if (isVisible('Produção', 'Conteúdo', '-', 'Tabulador "Recursos Técnicos"')) visibleTabs.push({ value: 'recursosTecnicos', label: t('contentTab.technicalResources') });
-    if (isVisible('Produção', 'Conteúdo', '-', 'Tabulador "Recursos Físicos"')) visibleTabs.push({ value: 'recursosFisicos', label: t('contentTab.physicalResources') });
-    if (isVisible('Produção', 'Conteúdo', '-', 'Tabulador "Terceiros"')) visibleTabs.push({ value: 'terceiros', label: t('contentTab.thirdParties') });
-    if (isVisible('Produção', 'Conteúdo', '-', 'Tabulador "Custos"')) visibleTabs.push({ value: 'custos', label: t('field.costs') });
+    if (isVisible('Produção', 'Conteúdo', '-', 'Tabulador "Gravações"'))
+      visibleTabs.push({ value: 'gravacoes', label: t('field.recordings') });
+    if (isVisible('Produção', 'Conteúdo', '-', 'Tabulador "Elenco"'))
+      visibleTabs.push({ value: 'elenco', label: t('field.cast') });
+    if (isVisible('Produção', 'Conteúdo', '-', 'Tabulador "Recursos Técnicos"'))
+      visibleTabs.push({ value: 'recursosTecnicos', label: t('contentTab.technicalResources') });
+    if (isVisible('Produção', 'Conteúdo', '-', 'Tabulador "Recursos Físicos"'))
+      visibleTabs.push({ value: 'recursosFisicos', label: t('contentTab.physicalResources') });
+    if (isVisible('Produção', 'Conteúdo', '-', 'Tabulador "Terceiros"'))
+      visibleTabs.push({ value: 'terceiros', label: t('contentTab.thirdParties') });
+    if (isVisible('Produção', 'Conteúdo', '-', 'Tabulador "Custos"'))
+      visibleTabs.push({ value: 'custos', label: t('field.costs') });
   }
 
   return (
@@ -620,36 +644,52 @@ export const ConteudoFormModal = ({
 
         <form onSubmit={handleSubmit} className="space-y-4 mt-4">
           <Tabs defaultValue="dadosGerais" className="w-full">
-            <TabsList className={`grid w-full`} style={{ gridTemplateColumns: `repeat(${visibleTabs.length}, minmax(0, 1fr))` }}>
+            <TabsList
+              className={`grid w-full`}
+              style={{ gridTemplateColumns: `repeat(${visibleTabs.length}, minmax(0, 1fr))` }}
+            >
               {visibleTabs.map((tab) => (
-                <TabsTrigger key={tab.value} value={tab.value}>{tab.label}</TabsTrigger>
+                <TabsTrigger key={tab.value} value={tab.value}>
+                  {tab.label}
+                </TabsTrigger>
               ))}
             </TabsList>
 
             <TabsContent value="dadosGerais" className="mt-4 space-y-4">
               <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="codigoExterno">{t('common.externalCode')} <FieldAsterisk type={getAsterisk('codigoExterno')} /></Label>
+                  <Label htmlFor="codigoExterno">
+                    {t('common.externalCode')} <FieldAsterisk type={getAsterisk('codigoExterno')} />
+                  </Label>
                   <Input
                     id="codigoExterno"
                     value={formData.codigoExterno}
-                    onChange={(e) => setFormData({ ...formData, codigoExterno: e.target.value.slice(0, 10) })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, codigoExterno: e.target.value.slice(0, 10) })
+                    }
                     maxLength={10}
                     placeholder="Máx. 10 caracteres"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="descricao">{t('common.description')} <FieldAsterisk type={getAsterisk('descricao')} /></Label>
+                  <Label htmlFor="descricao">
+                    {t('common.description')} <FieldAsterisk type={getAsterisk('descricao')} />
+                  </Label>
                   <Input
                     id="descricao"
                     value={formData.descricao}
-                    onChange={(e) => setFormData({ ...formData, descricao: e.target.value.slice(0, 100) })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, descricao: e.target.value.slice(0, 100) })
+                    }
                     maxLength={100}
                     required
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="quantidadeEpisodios">{t('content.episodes')} <FieldAsterisk type={getAsterisk('quantidadeEpisodios')} /></Label>
+                  <Label htmlFor="quantidadeEpisodios">
+                    {t('content.episodes')}{' '}
+                    <FieldAsterisk type={getAsterisk('quantidadeEpisodios')} />
+                  </Label>
                   <Input
                     id="quantidadeEpisodios"
                     type="number"
@@ -666,43 +706,69 @@ export const ConteudoFormModal = ({
                     className={frequencyDates.length > 0 ? 'bg-muted' : ''}
                   />
                   {frequencyDates.length > 0 && (
-                    <p className="text-xs text-muted-foreground">Calculado automaticamente pela frequência semanal</p>
+                    <p className="text-xs text-muted-foreground">
+                      Calculado automaticamente pela frequência semanal
+                    </p>
                   )}
                 </div>
               </div>
 
               <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label>{t('recordings.businessUnit')} <FieldAsterisk type={getAsterisk('unidadeNegocio')} /></Label>
+                  <Label>
+                    {t('recordings.businessUnit')}{' '}
+                    <FieldAsterisk type={getAsterisk('unidadeNegocio')} />
+                  </Label>
                   <SearchableSelect
-                    options={unidades.map(u => ({ value: u.nome, label: u.nome }))}
+                    options={unidades.map((u) => ({ value: u.nome, label: u.nome }))}
                     value={formData.unidadeNegocio}
                     onValueChange={(value) => {
-                      setFormData({ ...formData, unidadeNegocio: value, centroLucro: '', tabelaPrecoId: '', programaId: '' });
+                      setFormData({
+                        ...formData,
+                        unidadeNegocio: value,
+                        centroLucro: '',
+                        tabelaPrecoId: '',
+                        programaId: '',
+                      });
                     }}
                     placeholder={t('common.select')}
                     searchPlaceholder="Pesquisar unidade..."
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>{t('recordings.profitCenter')} <FieldAsterisk type={getAsterisk('centroLucro')} /></Label>
+                  <Label>
+                    {t('recordings.profitCenter')}{' '}
+                    <FieldAsterisk type={getAsterisk('centroLucro')} />
+                  </Label>
                   <SearchableSelect
-                    options={centrosLucroHierarquicos.map(cl => ({ value: cl.nome, label: cl.nome, displayLabel: cl.displayName }))}
+                    options={centrosLucroHierarquicos.map((cl) => ({
+                      value: cl.nome,
+                      label: cl.nome,
+                      displayLabel: cl.displayName,
+                    }))}
                     value={formData.centroLucro}
                     onValueChange={(value) => setFormData({ ...formData, centroLucro: value })}
                     disabled={!formData.unidadeNegocio}
-                    placeholder={!formData.unidadeNegocio ? t('field.selectUnitFirst') : t('common.select')}
+                    placeholder={
+                      !formData.unidadeNegocio ? t('field.selectUnitFirst') : t('common.select')
+                    }
                     searchPlaceholder="Pesquisar centro de custos..."
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Tabela de Preço <FieldAsterisk type={getAsterisk('tabelaPrecoId')} /></Label>
+                  <Label>
+                    Tabela de Preço <FieldAsterisk type={getAsterisk('tabelaPrecoId')} />
+                  </Label>
                   <SearchableSelect
-                    options={filteredTabelasPreco.map(tp => ({ value: tp.id, label: tp.nome }))}
+                    options={filteredTabelasPreco.map((tp) => ({ value: tp.id, label: tp.nome }))}
                     value={formData.tabelaPrecoId}
                     onValueChange={(value) => setFormData({ ...formData, tabelaPrecoId: value })}
                     disabled={!formData.unidadeNegocio}
-                    placeholder={!formData.unidadeNegocio ? 'Selecione uma Unidade de Negócio primeiro' : t('common.select')}
+                    placeholder={
+                      !formData.unidadeNegocio
+                        ? 'Selecione uma Unidade de Negócio primeiro'
+                        : t('common.select')
+                    }
                     searchPlaceholder="Pesquisar tabela de preço..."
                   />
                 </div>
@@ -710,20 +776,28 @@ export const ConteudoFormModal = ({
 
               <div className="grid grid-cols-4 gap-4">
                 <div className="space-y-2">
-                  <Label>Programa <FieldAsterisk type={getAsterisk('programaId')} /></Label>
+                  <Label>
+                    Programa <FieldAsterisk type={getAsterisk('programaId')} />
+                  </Label>
                   <SearchableSelect
-                    options={filteredProgramas.map(p => ({ value: p.id, label: p.nome }))}
+                    options={filteredProgramas.map((p) => ({ value: p.id, label: p.nome }))}
                     value={formData.programaId}
                     onValueChange={(value) => setFormData({ ...formData, programaId: value })}
                     disabled={!formData.unidadeNegocio}
-                    placeholder={!formData.unidadeNegocio ? 'Selecione uma Unidade de Negócio primeiro' : t('common.select')}
+                    placeholder={
+                      !formData.unidadeNegocio
+                        ? 'Selecione uma Unidade de Negócio primeiro'
+                        : t('common.select')
+                    }
                     searchPlaceholder="Pesquisar programa..."
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>{t('content.contentType')} <FieldAsterisk type={getAsterisk('tipoConteudo')} /></Label>
+                  <Label>
+                    {t('content.contentType')} <FieldAsterisk type={getAsterisk('tipoConteudo')} />
+                  </Label>
                   <SearchableSelect
-                    options={tipos.map(t => ({ value: t.nome, label: t.nome }))}
+                    options={tipos.map((t) => ({ value: t.nome, label: t.nome }))}
                     value={formData.tipoConteudo}
                     onValueChange={(value) => setFormData({ ...formData, tipoConteudo: value })}
                     placeholder={t('common.select')}
@@ -731,9 +805,12 @@ export const ConteudoFormModal = ({
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>{t('content.classification')} <FieldAsterisk type={getAsterisk('classificacao')} /></Label>
+                  <Label>
+                    {t('content.classification')}{' '}
+                    <FieldAsterisk type={getAsterisk('classificacao')} />
+                  </Label>
                   <SearchableSelect
-                    options={classificacoes.map(c => ({ value: c.nome, label: c.nome }))}
+                    options={classificacoes.map((c) => ({ value: c.nome, label: c.nome }))}
                     value={formData.classificacao}
                     onValueChange={(value) => setFormData({ ...formData, classificacao: value })}
                     placeholder={t('common.select')}
@@ -741,7 +818,10 @@ export const ConteudoFormModal = ({
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="anoProducao">{t('content.productionYear')} <FieldAsterisk type={getAsterisk('anoProducao')} /></Label>
+                  <Label htmlFor="anoProducao">
+                    {t('content.productionYear')}{' '}
+                    <FieldAsterisk type={getAsterisk('anoProducao')} />
+                  </Label>
                   <Input
                     id="anoProducao"
                     value={formData.anoProducao}
@@ -759,7 +839,9 @@ export const ConteudoFormModal = ({
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="sinopse">{t('content.synopsis')} <FieldAsterisk type={getAsterisk('sinopse')} /></Label>
+                  <Label htmlFor="sinopse">
+                    {t('content.synopsis')} <FieldAsterisk type={getAsterisk('sinopse')} />
+                  </Label>
                   <Textarea
                     id="sinopse"
                     value={formData.sinopse}
@@ -770,7 +852,10 @@ export const ConteudoFormModal = ({
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="orcamento">
-                    {t('field.budget')} {selectedCurrency && `(${getCurrencyByCode(selectedCurrency)?.symbol || selectedCurrency})`} <FieldAsterisk type={getAsterisk('orcamento')} />
+                    {t('field.budget')}{' '}
+                    {selectedCurrency &&
+                      `(${getCurrencyByCode(selectedCurrency)?.symbol || selectedCurrency})`}{' '}
+                    <FieldAsterisk type={getAsterisk('orcamento')} />
                   </Label>
                   <Input
                     id="orcamento"
@@ -779,14 +864,16 @@ export const ConteudoFormModal = ({
                     onChange={(e) => setFormData({ ...formData, orcamento: e.target.value })}
                     disabled={!formData.unidadeNegocio}
                     className={!formData.unidadeNegocio ? 'opacity-50 cursor-not-allowed' : ''}
-                    placeholder={!formData.unidadeNegocio ? t('field.selectUnitFirst') : t('field.budgetPlaceholder')}
+                    placeholder={
+                      !formData.unidadeNegocio
+                        ? t('field.selectUnitFirst')
+                        : t('field.budgetPlaceholder')
+                    }
                     step="0.01"
                     min="0"
                   />
                   {!formData.unidadeNegocio && (
-                    <p className="text-xs text-muted-foreground">
-                      {t('field.selectUnitToEnable')}
-                    </p>
+                    <p className="text-xs text-muted-foreground">{t('field.selectUnitToEnable')}</p>
                   )}
                 </div>
               </div>
@@ -795,22 +882,38 @@ export const ConteudoFormModal = ({
                   <Label className="text-sm font-semibold">Frequência Semanal</Label>
                   <div className="grid grid-cols-3 gap-4">
                     <div className="space-y-2">
-                      <Label className="text-xs">Data Início <FieldAsterisk type={getAsterisk('frequenciaDataInicio')} /></Label>
+                      <Label className="text-xs">
+                        Data Início <FieldAsterisk type={getAsterisk('frequenciaDataInicio')} />
+                      </Label>
                       <Popover>
                         <PopoverTrigger asChild>
                           <Button
                             variant="outline"
-                            className={cn("w-full justify-start text-left font-normal h-8 text-xs", !formData.frequenciaDataInicio && "text-muted-foreground")}
+                            className={cn(
+                              'w-full justify-start text-left font-normal h-8 text-xs',
+                              !formData.frequenciaDataInicio && 'text-muted-foreground',
+                            )}
                           >
                             <CalendarIcon className="mr-2 h-3 w-3" />
-                            {formData.frequenciaDataInicio ? format(parseISO(formData.frequenciaDataInicio), 'dd/MM/yyyy') : 'Selecione'}
+                            {formData.frequenciaDataInicio
+                              ? format(parseISO(formData.frequenciaDataInicio), 'dd/MM/yyyy')
+                              : 'Selecione'}
                           </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0" align="start">
                           <Calendar
                             mode="single"
-                            selected={formData.frequenciaDataInicio ? parseISO(formData.frequenciaDataInicio) : undefined}
-                            onSelect={(date) => setFormData({ ...formData, frequenciaDataInicio: date ? format(date, 'yyyy-MM-dd') : '' })}
+                            selected={
+                              formData.frequenciaDataInicio
+                                ? parseISO(formData.frequenciaDataInicio)
+                                : undefined
+                            }
+                            onSelect={(date) =>
+                              setFormData({
+                                ...formData,
+                                frequenciaDataInicio: date ? format(date, 'yyyy-MM-dd') : '',
+                              })
+                            }
                             initialFocus
                             className="p-3 pointer-events-auto"
                             locale={ptBR}
@@ -819,23 +922,43 @@ export const ConteudoFormModal = ({
                       </Popover>
                     </div>
                     <div className="space-y-2">
-                      <Label className="text-xs">Data Fim <FieldAsterisk type={getAsterisk('frequenciaDataFim')} /></Label>
+                      <Label className="text-xs">
+                        Data Fim <FieldAsterisk type={getAsterisk('frequenciaDataFim')} />
+                      </Label>
                       <Popover>
                         <PopoverTrigger asChild>
                           <Button
                             variant="outline"
-                            className={cn("w-full justify-start text-left font-normal h-8 text-xs", !formData.frequenciaDataFim && "text-muted-foreground")}
+                            className={cn(
+                              'w-full justify-start text-left font-normal h-8 text-xs',
+                              !formData.frequenciaDataFim && 'text-muted-foreground',
+                            )}
                           >
                             <CalendarIcon className="mr-2 h-3 w-3" />
-                            {formData.frequenciaDataFim ? format(parseISO(formData.frequenciaDataFim), 'dd/MM/yyyy') : 'Selecione'}
+                            {formData.frequenciaDataFim
+                              ? format(parseISO(formData.frequenciaDataFim), 'dd/MM/yyyy')
+                              : 'Selecione'}
                           </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0" align="start">
                           <Calendar
                             mode="single"
-                            selected={formData.frequenciaDataFim ? parseISO(formData.frequenciaDataFim) : undefined}
-                            onSelect={(date) => setFormData({ ...formData, frequenciaDataFim: date ? format(date, 'yyyy-MM-dd') : '' })}
-                            disabled={(date) => formData.frequenciaDataInicio ? date < parseISO(formData.frequenciaDataInicio) : false}
+                            selected={
+                              formData.frequenciaDataFim
+                                ? parseISO(formData.frequenciaDataFim)
+                                : undefined
+                            }
+                            onSelect={(date) =>
+                              setFormData({
+                                ...formData,
+                                frequenciaDataFim: date ? format(date, 'yyyy-MM-dd') : '',
+                              })
+                            }
+                            disabled={(date) =>
+                              formData.frequenciaDataInicio
+                                ? date < parseISO(formData.frequenciaDataInicio)
+                                : false
+                            }
                             initialFocus
                             className="p-3 pointer-events-auto"
                             locale={ptBR}
@@ -844,7 +967,9 @@ export const ConteudoFormModal = ({
                       </Popover>
                     </div>
                     <div className="space-y-2">
-                      <Label className="text-xs">Dias da Semana <FieldAsterisk type={getAsterisk('frequenciaDiasSemana')} /></Label>
+                      <Label className="text-xs">
+                        Dias da Semana <FieldAsterisk type={getAsterisk('frequenciaDiasSemana')} />
+                      </Label>
                       <div className="flex gap-2 flex-wrap pt-1">
                         {DAY_LABELS.map((day) => (
                           <label key={day.value} className="flex items-center gap-1 cursor-pointer">
@@ -853,7 +978,7 @@ export const ConteudoFormModal = ({
                               onCheckedChange={(checked) => {
                                 const newDays = checked
                                   ? [...formData.frequenciaDiasSemana, day.value].sort()
-                                  : formData.frequenciaDiasSemana.filter(d => d !== day.value);
+                                  : formData.frequenciaDiasSemana.filter((d) => d !== day.value);
                                 setFormData({ ...formData, frequenciaDiasSemana: newDays });
                               }}
                             />
@@ -924,12 +1049,12 @@ export const ConteudoFormModal = ({
                   <div className="border rounded-lg overflow-hidden max-h-[300px] overflow-y-auto">
                     <Table>
                       <TableHeader>
-                         <TableRow>
-                           <TableHead className="w-32">{t('common.code')}</TableHead>
-                           <TableHead>{t('common.name')}</TableHead>
-                           <TableHead className="w-32">{t('common.status')}</TableHead>
-                           <TableHead className="w-32">Data Prevista</TableHead>
-                           <TableHead className="w-32">{t('common.registrationDate')}</TableHead>
+                        <TableRow>
+                          <TableHead className="w-32">{t('common.code')}</TableHead>
+                          <TableHead>{t('common.name')}</TableHead>
+                          <TableHead className="w-32">{t('common.status')}</TableHead>
+                          <TableHead className="w-32">Data Prevista</TableHead>
+                          <TableHead className="w-32">{t('common.registrationDate')}</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -942,7 +1067,7 @@ export const ConteudoFormModal = ({
                               </TableCell>
                               <TableCell className="font-medium">{gravacao.nome}</TableCell>
                               <TableCell>
-                                <Badge 
+                                <Badge
                                   style={cor ? { backgroundColor: cor } : undefined}
                                   className={cor ? 'text-white' : 'bg-muted text-muted-foreground'}
                                 >
@@ -950,7 +1075,9 @@ export const ConteudoFormModal = ({
                                 </Badge>
                               </TableCell>
                               <TableCell>
-                                {gravacao.dataPrevista ? format(parseISO(gravacao.dataPrevista), 'dd/MM/yyyy') : '-'}
+                                {gravacao.dataPrevista
+                                  ? format(parseISO(gravacao.dataPrevista), 'dd/MM/yyyy')
+                                  : '-'}
                               </TableCell>
                               <TableCell>{gravacao.dataCadastro}</TableCell>
                             </TableRow>
@@ -968,7 +1095,7 @@ export const ConteudoFormModal = ({
                 <ElencoTab entityId={data.id} storagePrefix="conteudo" />
               </TabsContent>
             )}
-            
+
             {data && isVisible('Produção', 'Conteúdo', '-', 'Tabulador "Recursos Técnicos"') && (
               <TabsContent value="recursosTecnicos" className="mt-4">
                 <ConteudoRecursosTab
