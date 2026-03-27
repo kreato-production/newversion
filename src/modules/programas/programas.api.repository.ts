@@ -13,7 +13,8 @@ export function normalizeProgramaInput(input: ProgramaInput): ProgramaInput {
 
 export class ApiProgramasRepository {
   async list(): Promise<Programa[]> {
-    return apiRequest<Programa[]>('/programas');
+    const response = await apiRequest<{ data: Programa[] }>('/programas');
+    return response.data;
   }
 
   async save(input: ProgramaInput, _userId?: string): Promise<void> {
@@ -30,4 +31,3 @@ export class ApiProgramasRepository {
     await apiRequest(`/programas/${id}`, { method: 'DELETE' });
   }
 }
-

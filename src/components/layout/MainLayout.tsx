@@ -1,4 +1,4 @@
-import { Navigate, Outlet } from 'react-router-dom';
+import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/hooks/use-theme';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -16,16 +16,22 @@ import {
   DropdownMenuSubContent,
 } from '@/components/ui/dropdown-menu';
 import { languageLabels, Language } from '@/contexts/LanguageContext';
+import { PageLoader } from '@/components/shared/PageLoader';
 
 const MainLayout = () => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const { language, setLanguage, t } = useLanguage();
+  const location = useLocation();
 
   const languages: Language[] = ['pt', 'en', 'es'];
 
+  if (isLoading) {
+    return <PageLoader />;
+  }
+
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/login" replace state={{ from: location }} />;
   }
 
   return (
@@ -56,9 +62,9 @@ const MainLayout = () => {
                   </>
                 )}
               </DropdownMenuItem>
-              
+
               <DropdownMenuSeparator />
-              
+
               {/* Language Selector */}
               <DropdownMenuSub>
                 <DropdownMenuSubTrigger className="gap-2">
