@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -18,8 +18,10 @@ import {
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
+import { getBackendAccessToken, isBackendDataProviderEnabled } from '@/lib/api/http';
+import { ApiTenantsRepository } from '@/modules/tenants/tenants.api.repository';
 import { useToast } from '@/hooks/use-toast';
-import { Tenant } from '@/pages/admin/Tenants';
+import type { Tenant } from '@/pages/admin/Tenants';
 import { Loader2 } from 'lucide-react';
 import { TenantLicencasTab } from './TenantLicencasTab';
 import { TenantModulosTab } from './TenantModulosTab';
@@ -32,8 +34,14 @@ interface TenantFormModalProps {
   data: Tenant | null;
 }
 
+const apiRepository = new ApiTenantsRepository();
+
 export const TenantFormModal = ({ isOpen, onClose, onSave, data }: TenantFormModalProps) => {
   const { toast } = useToast();
+  const shouldUseBackend = useMemo(
+    () => isBackendDataProviderEnabled() || Boolean(getBackendAccessToken()),
+    [],
+  );
   const [activeTab, setActiveTab] = useState('dados');
   const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState({
@@ -43,35 +51,44 @@ export const TenantFormModal = ({ isOpen, onClose, onSave, data }: TenantFormMod
     notas: '',
   });
 
-  // Reset form when opening modal
   useEffect(() => {
-    if (isOpen) {
-      if (data) {
-        setFormData({
-          nome: data.nome,
-          plano: data.plano,
-          status: data.status,
-          notas: data.notas,
-        });
-      } else {
-        setFormData({
-          nome: '',
-          plano: 'Mensal',
-          status: 'Ativo',
-          notas: '',
-        });
-      }
-      setActiveTab('dados');
+    if (!isOpen) {
+      return;
     }
+
+    if (data) {
+      setFormData({
+        nome: data.nome,
+        plano: data.plano,
+        status: data.status,
+        notas: data.notas,
+      });
+    } else {
+      setFormData({
+        nome: '',
+        plano: 'Mensal',
+        status: 'Ativo',
+        notas: '',
+      });
+    }
+
+    setActiveTab('dados');
   }, [isOpen, data]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
     setIsSaving(true);
 
     try {
-      if (data) {
-        // Update
+      if (shouldUseBackend) {
+        await apiRepository.save({
+          id: data?.id,
+          nome: formData.nome,
+          plano: formData.plano as 'Mensal' | 'Anual',
+          status: formData.status as 'Ativo' | 'Inativo' | 'Bloqueado',
+          notas: formData.notas,
+        });
+      } else if (data) {
         const { error } = await supabase
           .from('tenants')
           .update({
@@ -82,10 +99,10 @@ export const TenantFormModal = ({ isOpen, onClose, onSave, data }: TenantFormMod
           })
           .eq('id', data.id);
 
-        if (error) throw error;
-        toast({ title: 'Sucesso', description: 'Tenant atualizado com sucesso!' });
+        if (error) {
+          throw error;
+        }
       } else {
-        // Create
         const { error } = await supabase
           .from('tenants')
           .insert({
@@ -95,17 +112,23 @@ export const TenantFormModal = ({ isOpen, onClose, onSave, data }: TenantFormMod
             notas: formData.notas,
           });
 
-        if (error) throw error;
-        toast({ title: 'Sucesso', description: 'Tenant criado com sucesso!' });
+        if (error) {
+          throw error;
+        }
       }
+
+      toast({
+        title: 'Sucesso',
+        description: data ? 'Tenant atualizado com sucesso!' : 'Tenant criado com sucesso!',
+      });
       onSave();
       onClose();
     } catch (error) {
       console.error('Error saving tenant:', error);
-      toast({ 
-        title: 'Erro', 
-        description: 'Erro ao salvar tenant. Tente novamente.', 
-        variant: 'destructive' 
+      toast({
+        title: 'Erro',
+        description: 'Erro ao salvar tenant. Tente novamente.',
+        variant: 'destructive',
       });
     } finally {
       setIsSaving(false);
@@ -124,9 +147,9 @@ export const TenantFormModal = ({ isOpen, onClose, onSave, data }: TenantFormMod
             <div className="px-6 pt-4 border-b">
               <TabsList className="grid w-full grid-cols-4">
                 <TabsTrigger value="dados">Dados Gerais</TabsTrigger>
-                <TabsTrigger value="licencas" disabled={!data}>Licenças</TabsTrigger>
-                <TabsTrigger value="unidades" disabled={!data}>Unidades de Negócio</TabsTrigger>
-                <TabsTrigger value="modulos" disabled={!data}>Módulos</TabsTrigger>
+                <TabsTrigger value="licencas" disabled={!data}>Licencas</TabsTrigger>
+                <TabsTrigger value="unidades" disabled={!data}>Unidades de Negocio</TabsTrigger>
+                <TabsTrigger value="modulos" disabled={!data}>Modulos</TabsTrigger>
               </TabsList>
             </div>
 
@@ -140,7 +163,7 @@ export const TenantFormModal = ({ isOpen, onClose, onSave, data }: TenantFormMod
                         <Input value={data.id} disabled className="bg-muted font-mono" />
                       </div>
                       <div className="space-y-2">
-                        <Label>Data de Criação</Label>
+                        <Label>Data de Criacao</Label>
                         <Input value={new Date(data.createdAt).toLocaleString()} disabled className="bg-muted" />
                       </div>
                     </div>
@@ -151,7 +174,7 @@ export const TenantFormModal = ({ isOpen, onClose, onSave, data }: TenantFormMod
                     <Input
                       id="nome"
                       value={formData.nome}
-                      onChange={(e) => setFormData(prev => ({ ...prev, nome: e.target.value }))}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, nome: e.target.value }))}
                       required
                       maxLength={100}
                     />
@@ -160,9 +183,9 @@ export const TenantFormModal = ({ isOpen, onClose, onSave, data }: TenantFormMod
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="plano">Plano <span className="text-destructive">*</span></Label>
-                      <Select 
-                        value={formData.plano} 
-                        onValueChange={(val) => setFormData(prev => ({ ...prev, plano: val }))}
+                      <Select
+                        value={formData.plano}
+                        onValueChange={(value) => setFormData((prev) => ({ ...prev, plano: value }))}
                       >
                         <SelectTrigger>
                           <SelectValue />
@@ -176,9 +199,9 @@ export const TenantFormModal = ({ isOpen, onClose, onSave, data }: TenantFormMod
 
                     <div className="space-y-2">
                       <Label htmlFor="status">Status <span className="text-destructive">*</span></Label>
-                      <Select 
-                        value={formData.status} 
-                        onValueChange={(val) => setFormData(prev => ({ ...prev, status: val }))}
+                      <Select
+                        value={formData.status}
+                        onValueChange={(value) => setFormData((prev) => ({ ...prev, status: value }))}
                       >
                         <SelectTrigger>
                           <SelectValue />
@@ -197,7 +220,7 @@ export const TenantFormModal = ({ isOpen, onClose, onSave, data }: TenantFormMod
                     <Textarea
                       id="notas"
                       value={formData.notas}
-                      onChange={(e) => setFormData(prev => ({ ...prev, notas: e.target.value }))}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, notas: e.target.value }))}
                       className="min-h-[100px]"
                     />
                   </div>

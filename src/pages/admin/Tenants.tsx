@@ -1,13 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
 import { ListActionBar } from '@/components/shared/ListActionBar';
-import { Edit, Trash2, Building2, Loader2, Calendar, LayoutGrid } from 'lucide-react';
+import { Edit, Trash2, Building2, Loader2, Calendar } from 'lucide-react';
 import { NewButton } from '@/components/shared/NewButton';
 import { useToast } from '@/hooks/use-toast';
-import { SortableTable, Column } from '@/components/shared/SortableTable';
+import { SortableTable, type Column } from '@/components/shared/SortableTable';
 import { supabase } from '@/integrations/supabase/client';
+import { getBackendAccessToken, isBackendDataProviderEnabled } from '@/lib/api/http';
+import { ApiTenantsRepository } from '@/modules/tenants/tenants.api.repository';
 import { TenantFormModal } from '@/components/admin/TenantFormModal';
 import { format } from 'date-fns';
 
@@ -21,8 +23,14 @@ export interface Tenant {
   licencaFim?: string;
 }
 
+const apiRepository = new ApiTenantsRepository();
+
 const Tenants = () => {
   const { toast } = useToast();
+  const shouldUseBackend = useMemo(
+    () => isBackendDataProviderEnabled() || Boolean(getBackendAccessToken()),
+    [],
+  );
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Tenant | null>(null);
@@ -31,7 +39,24 @@ const Tenants = () => {
 
   const fetchData = async () => {
     setIsLoading(true);
+
     try {
+      if (shouldUseBackend) {
+        const data = await apiRepository.list();
+        setItems(
+          data.map((item) => ({
+            id: item.id,
+            nome: item.nome,
+            plano: item.plano,
+            status: item.status,
+            notas: item.notas || '',
+            createdAt: item.createdAt,
+            licencaFim: item.licencaFim || undefined,
+          })),
+        );
+        return;
+      }
+
       const { data, error } = await supabase
         .from('tenants')
         .select(`
@@ -42,25 +67,28 @@ const Tenants = () => {
         `)
         .order('nome');
 
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
 
-      setItems((data || []).map((item: any) => {
-        // Find latest license end date
-        const licenses = item.tenant_licencas || [];
-        const latestLicense = licenses.sort((a: any, b: any) => 
-          new Date(b.data_fim).getTime() - new Date(a.data_fim).getTime()
-        )[0];
+      setItems(
+        (data || []).map((item: any) => {
+          const licenses = item.tenant_licencas || [];
+          const latestLicense = licenses.sort(
+            (a: any, b: any) => new Date(b.data_fim).getTime() - new Date(a.data_fim).getTime(),
+          )[0];
 
-        return {
-          id: item.id,
-          nome: item.nome,
-          plano: item.plano,
-          status: item.status,
-          notas: item.notas || '',
-          createdAt: item.created_at,
-          licencaFim: latestLicense?.data_fim
-        };
-      }));
+          return {
+            id: item.id,
+            nome: item.nome,
+            plano: item.plano,
+            status: item.status,
+            notas: item.notas || '',
+            createdAt: item.created_at,
+            licencaFim: latestLicense?.data_fim,
+          } satisfies Tenant;
+        }),
+      );
     } catch (err) {
       console.error('Error fetching tenants:', err);
       toast({
@@ -74,35 +102,37 @@ const Tenants = () => {
   };
 
   useEffect(() => {
-    fetchData();
+    void fetchData();
   }, []);
 
   const handleDelete = async (id: string) => {
-    if (confirm('ATENÇÃO: Excluir um tenant removerá TODOS os dados associados (usuários, gravações, etc). Esta ação é irreversível. Deseja continuar?')) {
-      try {
-        const { error } = await supabase
-          .from('tenants')
-          .delete()
-          .eq('id', id);
+    if (!confirm('ATENCAO: Excluir um tenant removera todos os dados associados. Esta acao e irreversivel. Deseja continuar?')) {
+      return;
+    }
 
-        if (error) throw error;
-
-        toast({ title: 'Sucesso', description: 'Tenant excluído com sucesso' });
-        fetchData();
-      } catch (err) {
-        console.error('Error deleting tenant:', err);
-        toast({
-          title: 'Erro',
-          description: 'Erro ao excluir tenant',
-          variant: 'destructive',
-        });
+    try {
+      if (shouldUseBackend) {
+        await apiRepository.remove(id);
+      } else {
+        const { error } = await supabase.from('tenants').delete().eq('id', id);
+        if (error) {
+          throw error;
+        }
       }
+
+      toast({ title: 'Sucesso', description: 'Tenant excluido com sucesso' });
+      void fetchData();
+    } catch (err) {
+      console.error('Error deleting tenant:', err);
+      toast({
+        title: 'Erro',
+        description: 'Erro ao excluir tenant',
+        variant: 'destructive',
+      });
     }
   };
 
-  const filteredItems = items.filter(
-    (item) => item.nome.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredItems = items.filter((item) => item.nome.toLowerCase().includes(search.toLowerCase()));
 
   const columns: Column<Tenant>[] = [
     {
@@ -117,7 +147,7 @@ const Tenants = () => {
     },
     {
       key: 'licencaFim',
-      label: 'Licença Até',
+      label: 'Licenca Ate',
       className: 'w-32',
       render: (item) => (
         <div className="flex items-center gap-1.5 text-sm">
@@ -131,21 +161,18 @@ const Tenants = () => {
       label: 'Status',
       className: 'w-24',
       render: (item) => {
-        const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
-          'Ativo': 'default',
-          'Inativo': 'secondary',
-          'Bloqueado': 'destructive'
+        const variants: Record<Tenant['status'], 'default' | 'secondary' | 'destructive' | 'outline'> = {
+          Ativo: 'default',
+          Inativo: 'secondary',
+          Bloqueado: 'destructive',
         };
-        return (
-          <Badge variant={variants[item.status] || 'outline'}>
-            {item.status}
-          </Badge>
-        );
+
+        return <Badge variant={variants[item.status]}>{item.status}</Badge>;
       },
     },
     {
       key: 'acoes',
-      label: 'Ações',
+      label: 'Acoes',
       className: 'w-24 text-right',
       sortable: false,
       render: (item) => (
@@ -153,8 +180,8 @@ const Tenants = () => {
           <Button
             size="icon"
             variant="ghost"
-            onClick={(e) => {
-              e.stopPropagation();
+            onClick={(event) => {
+              event.stopPropagation();
               setEditingItem(item);
               setIsModalOpen(true);
             }}
@@ -164,9 +191,9 @@ const Tenants = () => {
           <Button
             size="icon"
             variant="ghost"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleDelete(item.id);
+            onClick={(event) => {
+              event.stopPropagation();
+              void handleDelete(item.id);
             }}
             className="text-destructive hover:text-destructive"
           >
@@ -189,7 +216,7 @@ const Tenants = () => {
     <div>
       <PageHeader
         title="Tenants"
-        description="Gerencie as organizações e licenças do sistema"
+        description="Gerencie as organizacoes e licencas do sistema"
       />
 
       <ListActionBar>
@@ -202,7 +229,7 @@ const Tenants = () => {
         {filteredItems.length === 0 ? (
           <EmptyState
             title="Nenhum tenant cadastrado"
-            description="Adicione organizações para começar a usar o sistema."
+            description="Adicione organizacoes para comecar a usar o sistema."
             icon={Building2}
             onAction={() => setIsModalOpen(true)}
             actionLabel="Adicionar Tenant"
@@ -223,7 +250,7 @@ const Tenants = () => {
           setIsModalOpen(false);
           setEditingItem(null);
         }}
-        onSave={fetchData}
+        onSave={() => void fetchData()}
         data={editingItem}
       />
     </div>
