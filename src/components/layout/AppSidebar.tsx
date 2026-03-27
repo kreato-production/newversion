@@ -67,7 +67,7 @@ const AppSidebar = () => {
   const { isVisible } = usePermissions();
   const location = useLocation();
 
-  const isGlobalAdmin = user?.email?.includes('admin_global') || user?.usuario === 'admin_global';
+  const isGlobalAdmin = user?.role === 'GLOBAL_ADMIN';
   const moduleItems = getModuleItems(isGlobalAdmin);
 
   const checkPermission = (modulo: string): boolean => {

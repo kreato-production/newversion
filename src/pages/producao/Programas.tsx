@@ -8,30 +8,10 @@ import { useToast } from '@/hooks/use-toast';
 import { SortableTable, Column } from '@/components/shared/SortableTable';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { usePermissions } from '@/hooks/usePermissions';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { ProgramaFormModal } from '@/components/producao/ProgramaFormModal';
-
-interface ProgramaDB {
-  id: string;
-  codigo_externo: string | null;
-  nome: string;
-  descricao: string | null;
-  unidade_negocio_id: string | null;
-  created_at: string | null;
-  created_by: string | null;
-  unidade_negocio?: { nome: string } | null;
-}
-
-export interface Programa {
-  id: string;
-  codigoExterno: string;
-  nome: string;
-  descricao: string;
-  unidadeNegocioId: string;
-  unidadeNegocio: string;
-  dataCadastro: string;
-}
+import { programasRepository } from '@/modules/programas/programas.repository.provider';
+import type { Programa, ProgramaInput } from '@/modules/programas/programas.types';
 
 const Programas = () => {
   const { toast } = useToast();
@@ -39,26 +19,25 @@ const Programas = () => {
   const { user, session } = useAuth();
   const { canIncluir, canAlterar, canExcluir } = usePermissions();
 
-  const podeIncluir = canIncluir('ProduÃ§Ã£o', 'Programas');
-  const podeAlterar = canAlterar('ProduÃ§Ã£o', 'Programas');
-  const podeExcluir = canExcluir('ProduÃ§Ã£o', 'Programas');
+  const podeIncluir = canIncluir('Produção', 'Programas');
+  const podeAlterar = canAlterar('Produção', 'Programas');
+  const podeExcluir = canExcluir('Produção', 'Programas');
 
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Programa | null>(null);
-  const [items, setItems] = useState<ProgramaDB[]>([]);
+  const [items, setItems] = useState<Programa[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchData = useCallback(async () => {
-    if (!session) { setIsLoading(false); return; }
+    if (!session) {
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('programas')
-        .select('*, unidade_negocio:unidade_negocio_id(nome)')
-        .order('nome');
-      if (error) throw error;
-      setItems(data || []);
+      setItems(await programasRepository.list());
     } catch (err) {
       console.error('Error fetching programas:', err);
       toast({ title: t('common.error'), description: `Erro ao carregar programas: ${(err as Error).message}`, variant: 'destructive' });
@@ -67,38 +46,17 @@ const Programas = () => {
     }
   }, [session, toast, t]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
-  const toFormFormat = (item: ProgramaDB): Programa => ({
-    id: item.id,
-    codigoExterno: item.codigo_externo || '',
-    nome: item.nome,
-    descricao: item.descricao || '',
-    unidadeNegocioId: item.unidade_negocio_id || '',
-    unidadeNegocio: item.unidade_negocio?.nome || '',
-    dataCadastro: item.created_at ? new Date(item.created_at).toLocaleDateString('pt-BR') : '',
-  });
-
-  const handleSave = async (data: Programa) => {
+  const handleSave = async (data: ProgramaInput) => {
     try {
-      const unidadeId = data.unidadeNegocioId || null;
-      const recordData = {
-        codigo_externo: data.codigoExterno || null,
-        nome: data.nome,
-        descricao: data.descricao || null,
-        unidade_negocio_id: unidadeId,
-        created_by: user?.id || null,
-      };
-
-      if (editingItem) {
-        const { error } = await supabase.from('programas').update(recordData).eq('id', data.id);
-        if (error) throw error;
-        toast({ title: t('common.success'), description: 'Programa atualizado!' });
-      } else {
-        const { error } = await supabase.from('programas').insert(recordData);
-        if (error) throw error;
-        toast({ title: t('common.success'), description: 'Programa criado!' });
-      }
+      await programasRepository.save({
+        ...data,
+        tenantId: user?.tenantId ?? null,
+      }, user?.id);
+      toast({ title: t('common.success'), description: editingItem ? 'Programa atualizado!' : 'Programa criado!' });
       await fetchData();
       setEditingItem(null);
     } catch (err) {
@@ -108,36 +66,38 @@ const Programas = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm(t('common.confirm.delete'))) {
-      try {
-        const { error } = await supabase.from('programas').delete().eq('id', id);
-        if (error) throw error;
-        toast({ title: t('common.deleted'), description: 'Programa excluÃ­do!' });
-        await fetchData();
-      } catch (err) {
-        console.error('Error deleting programa:', err);
-        toast({ title: t('common.error'), description: `Erro ao excluir: ${(err as Error).message}`, variant: 'destructive' });
-      }
+    if (!confirm(t('common.confirm.delete'))) return;
+
+    try {
+      await programasRepository.remove(id);
+      toast({ title: t('common.deleted'), description: 'Programa excluído!' });
+      await fetchData();
+    } catch (err) {
+      console.error('Error deleting programa:', err);
+      toast({ title: t('common.error'), description: `Erro ao excluir: ${(err as Error).message}`, variant: 'destructive' });
     }
   };
 
   const filteredItems = items.filter(
     (item) =>
-      item.nome?.toLowerCase().includes(search.toLowerCase()) ||
-      (item.codigo_externo || '').toLowerCase().includes(search.toLowerCase())
+      item.nome.toLowerCase().includes(search.toLowerCase()) ||
+      item.codigoExterno.toLowerCase().includes(search.toLowerCase()),
   );
 
-  const columns: Column<ProgramaDB>[] = [
-    { key: 'codigo_externo', label: t('common.externalCode'), className: 'w-24', render: (item) => <span className="font-mono text-sm">{item.codigo_externo || '-'}</span> },
+  const columns: Column<Programa>[] = [
+    { key: 'codigoExterno', label: t('common.externalCode'), className: 'w-24', render: (item) => <span className="font-mono text-sm">{item.codigoExterno || '-'}</span> },
     { key: 'nome', label: t('common.name'), render: (item) => <span className="font-medium">{item.nome}</span> },
-    { key: 'unidade_negocio_id', label: t('recordings.businessUnit') || 'Unidade de NegÃ³cio', render: (item) => item.unidade_negocio?.nome || '-' },
+    { key: 'unidadeNegocio', label: t('recordings.businessUnit') || 'Unidade de Negócio', render: (item) => item.unidadeNegocio || '-' },
     { key: 'descricao', label: t('common.description'), className: 'hidden md:table-cell', render: (item) => <span className="text-muted-foreground max-w-xs truncate block">{item.descricao || '-'}</span> },
-    { key: 'created_at', label: t('common.registrationDate'), className: 'w-32', render: (item) => item.created_at ? new Date(item.created_at).toLocaleDateString('pt-BR') : '-' },
+    { key: 'dataCadastro', label: t('common.registrationDate'), className: 'w-32' },
     {
-      key: 'acoes', label: t('common.actions'), className: 'w-24 text-right', sortable: false,
+      key: 'acoes',
+      label: t('common.actions'),
+      className: 'w-24 text-right',
+      sortable: false,
       render: (item) => (
         <div className="flex justify-end gap-1">
-          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => { setEditingItem(toFormFormat(item)); setIsModalOpen(true); }}>
+          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => { setEditingItem(item); setIsModalOpen(true); }}>
             <Edit className="w-3.5 h-3.5" />
           </Button>
           {podeExcluir && (
@@ -156,7 +116,7 @@ const Programas = () => {
 
   return (
     <div>
-      <PageHeader title="Programas" description="Gerencie os programas de produÃ§Ã£o" />
+      <PageHeader title="Programas" description="Gerencie os programas de produção" />
       <ListActionBar>
         {podeIncluir && <NewButton tooltip="Novo Programa" onClick={() => { setEditingItem(null); setIsModalOpen(true); }} />}
         <div className="flex-1" />

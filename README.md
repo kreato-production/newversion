@@ -1,73 +1,174 @@
-# Welcome to your Lovable project
+# Kreato — Sistema de Gestão de Produção
 
-## Project info
+Sistema web para gestão de gravações, programas, equipes e recursos de produção audiovisual.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+[![CI](https://github.com/seu-org/kreatoproduction/actions/workflows/ci.yml/badge.svg)](https://github.com/seu-org/kreatoproduction/actions/workflows/ci.yml)
 
-## How can I edit this code?
+## Arquitetura
 
-There are several ways of editing your application.
+```
+┌─────────────────────┐     ┌────────────────────────┐     ┌──────────────┐
+│  Frontend (React 18) │────▶│  Backend (Fastify 5)   │────▶│  PostgreSQL  │
+│  Vite + TypeScript   │     │  Prisma ORM + Zod       │     │  (Docker)    │
+│  TanStack Query      │     │  JWT + httpOnly Cookies │     │              │
+└─────────────────────┘     └────────────────────────┘     └──────────────┘
+```
 
-**Use Lovable**
+- **Frontend**: React 18, TypeScript, Vite, shadcn/ui, TanStack Query, React Router v6
+- **Backend**: Fastify 5, Prisma 6, PostgreSQL, Zod, JWT (HMAC-SHA256)
+- **Auth**: httpOnly cookies, refresh token rotation, multi-tenancy
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+## Pré-requisitos
 
-Changes made via Lovable will be committed automatically to this repo.
+- Node.js 22+
+- Docker e Docker Compose
+- npm 10+
 
-**Use your preferred IDE**
+## Setup local
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
+### 1. Clone e instale as dependências
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+git clone <URL_DO_REPO>
+cd kreatoproduction
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+# Dependências do frontend
+npm install
 
-# Step 3: Install the necessary dependencies.
-npm i
+# Dependências do backend
+cd backend && npm install && cd ..
+```
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+### 2. Configure as variáveis de ambiente
+
+```sh
+# Banco de dados e backend
+cp backend/.env.example backend/.env
+# Edite backend/.env com suas chaves JWT e configurações
+```
+
+Variáveis obrigatórias em `backend/.env`:
+
+| Variável | Descrição |
+|---|---|
+| `DATABASE_URL` | URL de conexão PostgreSQL |
+| `JWT_ACCESS_SECRET` | Segredo HMAC para access tokens (mín. 32 chars) |
+| `JWT_REFRESH_SECRET` | Segredo HMAC para refresh tokens (mín. 32 chars) |
+| `NODE_ENV` | `development` \| `production` \| `test` |
+| `CORS_ORIGIN` | Origem permitida para CORS (ex: `http://localhost:8080`) |
+
+Variáveis opcionais no `.env` da raiz (frontend):
+
+| Variável | Padrão | Descrição |
+|---|---|---|
+| `VITE_BACKEND_API_URL` | `http://localhost:3333` | URL da API backend |
+| `VITE_DATA_PROVIDER` | `backend` | `backend` ou `supabase` |
+| `VITE_AUTH_PROVIDER` | `backend` | `backend` ou `supabase` |
+
+### 3. Suba o banco de dados
+
+```sh
+docker compose up postgres -d
+```
+
+### 4. Aplique o schema do banco
+
+```sh
+npm run backend:prisma:push
+# ou para criar migrations rastreadas:
+cd backend && npm run prisma:migrate
+```
+
+### 5. Inicie o ambiente de desenvolvimento
+
+```sh
+# Terminal 1 — Backend
+npm run backend:dev
+
+# Terminal 2 — Frontend
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+- Frontend: http://localhost:8080
+- Backend: http://localhost:3333
+- API Docs (Swagger): http://localhost:3333/docs
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## Comandos disponíveis
 
-**Use GitHub Codespaces**
+### Frontend (raiz)
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+| Comando | Descrição |
+|---|---|
+| `npm run dev` | Inicia o servidor de desenvolvimento Vite |
+| `npm run build` | Build de produção |
+| `npm run lint` | ESLint em todo o projeto |
+| `npm test` | Executa os testes com Vitest |
+| `npm run test:coverage` | Testes com relatório de cobertura |
 
-## What technologies are used for this project?
+### Backend (`backend/`)
 
-This project is built with:
+| Comando | Descrição |
+|---|---|
+| `npm run dev` | Inicia o backend com hot-reload (tsx watch) |
+| `npm run build` | Compila TypeScript para `dist/` |
+| `npm start` | Inicia o servidor compilado |
+| `npm test` | Executa os testes Vitest |
+| `npm run test:coverage` | Testes com cobertura |
+| `npm run prisma:migrate` | Executa migrations do Prisma |
+| `npm run prisma:generate` | Regenera o Prisma Client |
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+### Via raiz (atalhos)
 
-## How can I deploy this project?
+| Comando | Descrição |
+|---|---|
+| `npm run backend:dev` | Inicia o backend |
+| `npm run backend:test` | Testa o backend |
+| `npm run backend:prisma:push` | Aplica schema sem migration |
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+## Docker (produção)
 
-## Can I connect a custom domain to my Lovable project?
+```sh
+# Build e iniciar tudo
+docker compose up -d
 
-Yes, you can!
+# Apenas o backend
+docker build -t kreato-backend ./backend
+docker run -p 3333:3333 --env-file backend/.env kreato-backend
+```
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+## Estrutura do projeto
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+```
+kreatoproduction/
+├── src/                        # Frontend React
+│   ├── components/             # Componentes reutilizáveis
+│   ├── contexts/               # Contextos React (Auth, Language)
+│   ├── hooks/                  # Custom hooks
+│   ├── modules/                # Módulos de negócio (repositórios, tipos)
+│   ├── pages/                  # Páginas da aplicação
+│   └── lib/api/                # Camada HTTP / comunicação com backend
+├── backend/
+│   ├── src/
+│   │   ├── modules/            # Módulos: auth, gravacoes, programas, ...
+│   │   ├── plugins/            # Plugins Fastify (auth, observability)
+│   │   ├── routes/             # Rotas utilitárias (health, ready)
+│   │   ├── config/             # Configuração de ambiente e logger
+│   │   └── lib/                # Utilitários (prisma, security)
+│   └── prisma/
+│       └── schema.prisma       # Schema do banco de dados
+├── docs/                       # Documentação técnica e sprints
+├── docker-compose.yml
+└── .github/workflows/ci.yml    # Pipeline CI/CD
+```
+
+## Testes
+
+```sh
+# Frontend (37 testes)
+npm test
+
+# Backend (28 testes)
+npm run backend:test
+```
+
+Os testes do backend não requerem banco de dados — usam repositórios in-memory e `app.inject()`.

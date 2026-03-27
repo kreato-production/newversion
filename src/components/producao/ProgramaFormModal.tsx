@@ -7,28 +7,31 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { SearchableSelect } from '@/components/shared/SearchableSelect';
-import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { supabase } from '@/integrations/supabase/client';
-import type { Programa } from '@/pages/producao/Programas';
+import { unidadesRepository } from '@/modules/unidades/unidades.repository';
+import type { Programa, ProgramaInput } from '@/modules/programas/programas.types';
 
 interface ProgramaFormModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (data: Programa) => void;
+  onSave: (data: ProgramaInput) => void;
   data?: Programa | null;
   readOnly?: boolean;
 }
 
 export const ProgramaFormModal = ({ isOpen, onClose, onSave, data, readOnly = false }: ProgramaFormModalProps) => {
-  const { user } = useAuth();
   const { t } = useLanguage();
   const [formData, setFormData] = useState({ codigoExterno: '', nome: '', descricao: '', unidadeNegocioId: '' });
   const [unidades, setUnidades] = useState<{ id: string; nome: string }[]>([]);
 
   const fetchUnidades = useCallback(async () => {
-    const { data: uData } = await supabase.from('unidades_negocio').select('id, nome').order('nome');
-    setUnidades(uData || []);
+    try {
+      const data = await unidadesRepository.list('');
+      setUnidades(data.map((item) => ({ id: item.id, nome: item.nome })));
+    } catch (error) {
+      console.error('Error fetching unidades for programa modal:', error);
+      setUnidades([]);
+    }
   }, []);
 
   useEffect(() => {
@@ -45,15 +48,12 @@ export const ProgramaFormModal = ({ isOpen, onClose, onSave, data, readOnly = fa
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.nome.trim()) return;
-    const unidade = unidades.find(u => u.id === formData.unidadeNegocioId);
     onSave({
-      id: data?.id || crypto.randomUUID(),
+      id: data?.id,
       codigoExterno: formData.codigoExterno,
       nome: formData.nome,
       descricao: formData.descricao,
       unidadeNegocioId: formData.unidadeNegocioId,
-      unidadeNegocio: unidade?.nome || '',
-      dataCadastro: data?.dataCadastro || new Date().toLocaleDateString('pt-BR'),
     });
     onClose();
   };
@@ -79,7 +79,7 @@ export const ProgramaFormModal = ({ isOpen, onClose, onSave, data, readOnly = fa
           <div className="space-y-2">
             <Label>Unidade de Negócio</Label>
             <SearchableSelect
-              options={unidades.map(u => ({ value: u.id, label: u.nome }))}
+              options={unidades.map((u) => ({ value: u.id, label: u.nome }))}
               value={formData.unidadeNegocioId}
               onValueChange={(value) => setFormData({ ...formData, unidadeNegocioId: value })}
               placeholder={t('common.select')}

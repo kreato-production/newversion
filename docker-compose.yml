@@ -1,0 +1,40 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: kreato-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: kreato_local
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d kreato_local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: kreato-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/kreato_local
+      NODE_ENV: production
+      PORT: 3333
+      HOST: 0.0.0.0
+    env_file:
+      - ./backend/.env
+    ports:
+      - "3333:3333"
+
+volumes:
+  postgres_data:

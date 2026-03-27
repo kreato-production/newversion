@@ -1,5 +1,9 @@
 import Fastify from 'fastify';
+import cookie from '@fastify/cookie';
 import cors from '@fastify/cors';
+import rateLimit from '@fastify/rate-limit';
+import swagger from '@fastify/swagger';
+import swaggerUi from '@fastify/swagger-ui';
 import { env } from './config/env.js';
 import { createLoggerOptions } from './config/logger.js';
 import { PrismaAuthRepository } from './modules/auth/auth.repository.js';
@@ -52,6 +56,31 @@ export async function buildApp(options: BuildAppOptions = {}) {
   app.setErrorHandler(authErrorHandler);
 
   await observabilityPlugin(app, {});
+  await app.register(cookie);
+  await app.register(rateLimit, { global: false });
+
+  if (env.NODE_ENV !== 'production') {
+    await app.register(swagger, {
+      openapi: {
+        info: {
+          title: 'Kreato API',
+          description: 'API do sistema Kreato de gestão de produção',
+          version: env.APP_VERSION,
+        },
+        components: {
+          securitySchemes: {
+            cookieAuth: {
+              type: 'apiKey',
+              in: 'cookie',
+              name: 'kreato_access_token',
+            },
+          },
+        },
+      },
+    });
+    await app.register(swaggerUi, { routePrefix: '/docs' });
+  }
+
   await app.register(cors, {
     origin: env.CORS_ORIGIN,
     credentials: true,

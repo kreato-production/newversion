@@ -50,3 +50,33 @@ Subir a fundacao da nova stack backend e do banco local.
 - testes do escopo da sprint criados
 - testes executados ao final da sprint
 
+## Status da execucao
+
+- status atual: concluida com restricao operacional local
+- backend base criado em `backend/`
+- infraestrutura local preparada com `docker-compose.yml`
+- schema inicial Prisma criado com foco em tenancy, usuarios, unidades e equipes
+
+## Evidencias da entrega
+
+- `backend/package.json` com scripts de desenvolvimento, build, testes e Prisma
+- `backend/src/app.ts` com bootstrap Fastify
+- `backend/src/routes/health/index.ts` com rota `GET /health`
+- `backend/prisma/schema.prisma` com schema inicial PostgreSQL
+- `backend/.env.example` com variaveis de ambiente da API
+- `docker-compose.yml` com servico PostgreSQL local
+- `backend/README.md` com instrucoes operacionais
+
+## Resultado dos testes e validacoes
+
+- instalacao de dependencias do backend: `npm install` executado com sucesso em 25/03/2026
+- testes do backend: `npm run test` executado com sucesso em 25/03/2026
+- resultado de testes: 2 arquivos aprovados, 3 testes aprovados
+- build do backend: `npm run build` executado com sucesso em 25/03/2026
+- validacao do Prisma: `npm run prisma:generate` executado com sucesso em 25/03/2026
+- validacao do Docker: nao foi possivel executar `docker compose config` porque o comando `docker` nao esta disponivel neste ambiente local
+
+## Observacoes
+
+- a infraestrutura para PostgreSQL local foi entregue, mas a subida real do container depende de Docker instalado na maquina
+- a rota de healthcheck foi implementada, porem a execucao da API depende de copiar `backend/.env.example` para `backend/.env`

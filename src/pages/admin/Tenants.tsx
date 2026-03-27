@@ -8,7 +8,7 @@ import { NewButton } from '@/components/shared/NewButton';
 import { useToast } from '@/hooks/use-toast';
 import { SortableTable, type Column } from '@/components/shared/SortableTable';
 import { supabase } from '@/integrations/supabase/client';
-import { getBackendAccessToken, isBackendDataProviderEnabled } from '@/lib/api/http';
+import { isBackendDataProviderEnabled } from '@/lib/api/http';
 import { ApiTenantsRepository } from '@/modules/tenants/tenants.api.repository';
 import { TenantFormModal } from '@/components/admin/TenantFormModal';
 import { format } from 'date-fns';
@@ -27,10 +27,7 @@ const apiRepository = new ApiTenantsRepository();
 
 const Tenants = () => {
   const { toast } = useToast();
-  const shouldUseBackend = useMemo(
-    () => isBackendDataProviderEnabled() || Boolean(getBackendAccessToken()),
-    [],
-  );
+  const shouldUseBackend = useMemo(() => isBackendDataProviderEnabled(), []);
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Tenant | null>(null);

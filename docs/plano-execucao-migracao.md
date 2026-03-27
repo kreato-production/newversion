@@ -55,7 +55,8 @@ Ao final do ciclo de migracao, o projeto deve operar com:
 4. subir PostgreSQL local
 5. migrar modulo piloto
 6. migrar modulos centrais
-7. desligar dependencias do Supabase
+7. endurecer qualidade e operacao
+8. desligar dependencias do Supabase
 
 ---
 
@@ -70,6 +71,8 @@ As sprints detalhadas deste plano estao nos arquivos:
 - [SPRINT-05](/c:/Projetos/Kreato_Local/kreatoproduction/docs/sprints/SPRINT-05-modulo-piloto-equipes-usuarios-unidades.md)
 - [SPRINT-06](/c:/Projetos/Kreato_Local/kreatoproduction/docs/sprints/SPRINT-06-migracao-dos-modulos-centrais.md)
 - [SPRINT-07](/c:/Projetos/Kreato_Local/kreatoproduction/docs/sprints/SPRINT-07-testes-observabilidade-e-hardening.md)
+- [SPRINT-08](/c:/Projetos/Kreato_Local/kreatoproduction/docs/sprints/SPRINT-08-sessao-frontend-e-gravacoes.md)
+- [SPRINT-09](/c:/Projetos/Kreato_Local/kreatoproduction/docs/sprints/SPRINT-09-autorizacao-perfis-e-desligamento-hibrido.md)
 
 ---
 
@@ -82,6 +85,8 @@ As sprints detalhadas deste plano estao nos arquivos:
 5. SPRINT-05
 6. SPRINT-06
 7. SPRINT-07
+8. SPRINT-08
+9. SPRINT-09
 
 ---
 
@@ -109,5 +114,3 @@ As sprints detalhadas deste plano estao nos arquivos:
 ## Encerramento
 
 Este plano deve ser usado como referencia principal de execucao. A documentacao de analise continua sendo o insumo estrategico, enquanto este arquivo e os arquivos de sprint funcionam como guia tatico de implementacao.
-
-

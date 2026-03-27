@@ -176,17 +176,22 @@ export class PrismaTenantsRepository implements TenantsRepository {
 
   private async generateUniqueSlug(nome: string, currentId?: string): Promise<string> {
     const base = slugify(nome);
-    let candidate = base;
+
+    const rows = await prisma.$queryRaw<{ slug: string; id: string }[]>(Prisma.sql`
+      SELECT slug, id FROM "Tenant"
+      WHERE slug = ${base} OR slug LIKE ${`${base}-%`}
+    `);
+
+    const taken = new Set(
+      rows.filter((r) => r.id !== currentId).map((r) => r.slug),
+    );
+
+    if (!taken.has(base)) return base;
+
     let counter = 2;
-
-    while (true) {
-      const existing = await this.findBySlug(candidate);
-      if (!existing || existing.id === currentId) {
-        return candidate;
-      }
-
-      candidate = `${base}-${counter}`;
-      counter += 1;
+    while (taken.has(`${base}-${counter}`)) {
+      counter++;
     }
+    return `${base}-${counter}`;
   }
 }

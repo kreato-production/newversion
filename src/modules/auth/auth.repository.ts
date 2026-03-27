@@ -1,6 +1,7 @@
-import type { Session, SupabaseClient, User as SupabaseUser } from '@supabase/supabase-js';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
-import type { AuthSessionState, AuthUserProfile, LoginResult, TenantLicenseValidation, UserProfileResult } from './auth.types';
+import { apiRequest, isBackendAuthProviderEnabled, logoutBackendSession, refreshBackendSession } from '@/lib/api/http';
+import type { AuthSession, AuthSessionState, AuthSessionUser, AuthUserProfile, LoginResult, TenantLicenseValidation, UserProfileResult } from './auth.types';
 
 type ProfileRow = {
   id: string;
@@ -18,11 +19,31 @@ type ProfileRow = {
 type UnidadeRow = { unidade_id: string };
 type LicenseRow = { data_fim: string };
 
+type BackendProfilePayload = {
+  id: string;
+  tenantId: string | null;
+  nome: string;
+  email: string;
+  usuario: string;
+  role: string;
+  perfil: string;
+  tipoAcesso: string;
+  unidadeIds: string[];
+  enabledModules: string[];
+  permissions: AuthUserProfile['permissions'];
+};
+
+type BackendSessionPayload = {
+  user: BackendProfilePayload;
+  accessToken: string;
+  refreshToken: string;
+};
+
 export interface AuthRepository {
   usernameToEmail(username: string): string;
   validateTenantLicense(tenantId: string): Promise<TenantLicenseValidation>;
   fetchUserProfile(userId: string): Promise<UserProfileResult>;
-  signInWithPassword(usuario: string, password: string): Promise<{ session: Session | null; user: SupabaseUser | null; error?: string }>;
+  signInWithPassword(usuario: string, password: string): Promise<{ session: AuthSession | null; user: AuthSessionUser | null; error?: string }>;
   signOut(): Promise<void>;
   getSession(): Promise<AuthSessionState>;
   onAuthStateChange(callback: (state: AuthSessionState) => void): { unsubscribe: () => void };
@@ -45,8 +66,38 @@ function mapProfileRow(profile: ProfileRow, unidadeIds: string[]): AuthUserProfi
   };
 }
 
+function mapBackendProfile(user: BackendProfilePayload): AuthUserProfile {
+  return {
+    id: user.id,
+    nome: user.nome,
+    email: user.email,
+    usuario: user.usuario,
+    perfil: user.perfil,
+    tenantId: user.tenantId || undefined,
+    tipoAcesso: user.tipoAcesso,
+    unidadeIds: user.unidadeIds,
+    role: user.role,
+    enabledModules: user.enabledModules,
+    permissions: user.permissions || [],
+  };
+}
+
+function mapBackendSession(payload: BackendSessionPayload): AuthSession {
+  return {
+    accessToken: payload.accessToken,
+    refreshToken: payload.refreshToken,
+    user: {
+      id: payload.user.id,
+      email: payload.user.email,
+      usuario: payload.user.usuario,
+      tenantId: payload.user.tenantId,
+      role: payload.user.role,
+    },
+  };
+}
+
 export class SupabaseAuthRepository implements AuthRepository {
-  constructor(private readonly client: SupabaseClient = supabase) {}
+  constructor(protected readonly client: SupabaseClient = supabase) {}
 
   usernameToEmail(username: string): string {
     return `${username.toLowerCase()}@kreato.app`;
@@ -155,7 +206,7 @@ export class SupabaseAuthRepository implements AuthRepository {
   async signInWithPassword(
     usuario: string,
     password: string,
-  ): Promise<{ session: Session | null; user: SupabaseUser | null; error?: string }> {
+  ): Promise<{ session: AuthSession | null; user: AuthSessionUser | null; error?: string }> {
     const email = this.usernameToEmail(usuario);
 
     const { data, error } = await this.client.auth.signInWithPassword({
@@ -173,9 +224,14 @@ export class SupabaseAuthRepository implements AuthRepository {
       };
     }
 
+    const user: AuthSessionUser | null = data.user ? {
+      id: data.user.id,
+      email: data.user.email,
+    } : null;
+
     return {
-      session: data.session,
-      user: data.user,
+      session: user ? { user } : null,
+      user,
     };
   }
 
@@ -185,17 +241,27 @@ export class SupabaseAuthRepository implements AuthRepository {
 
   async getSession(): Promise<AuthSessionState> {
     const { data } = await this.client.auth.getSession();
+    const user = data.session?.user ? {
+      id: data.session.user.id,
+      email: data.session.user.email,
+    } : null;
+
     return {
-      session: data.session,
-      supabaseUser: data.session?.user ?? null,
+      session: user ? { user } : null,
+      supabaseUser: user,
     };
   }
 
   onAuthStateChange(callback: (state: AuthSessionState) => void): { unsubscribe: () => void } {
     const { data } = this.client.auth.onAuthStateChange((_event, session) => {
+      const user = session?.user ? {
+        id: session.user.id,
+        email: session.user.email,
+      } : null;
+
       callback({
-        session,
-        supabaseUser: session?.user ?? null,
+        session: user ? { user } : null,
+        supabaseUser: user,
       });
     });
 
@@ -205,7 +271,108 @@ export class SupabaseAuthRepository implements AuthRepository {
   }
 }
 
-export const authRepository = new SupabaseAuthRepository();
+export class BackendAuthRepository extends SupabaseAuthRepository {
+  private readonly listeners = new Set<(state: AuthSessionState) => void>();
+
+  private emit(state: AuthSessionState) {
+    this.listeners.forEach((listener) => listener(state));
+  }
+
+  override async fetchUserProfile(_userId: string): Promise<UserProfileResult> {
+    try {
+      const payload = await apiRequest<{ user: BackendProfilePayload }>('/auth/me');
+      return {
+        profile: mapBackendProfile(payload.user),
+        status: 'Ativo',
+      };
+    } catch (error) {
+      return {
+        profile: null,
+        status: null,
+        error: error instanceof Error ? error.message : 'Erro ao carregar perfil',
+      };
+    }
+  }
+
+  async signInWithPassword(
+    usuario: string,
+    password: string,
+  ): Promise<{ session: AuthSession | null; user: AuthSessionUser | null; error?: string }> {
+    try {
+      const payload = await apiRequest<BackendSessionPayload>('/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ usuario, password }),
+      });
+
+      const session = mapBackendSession(payload);
+      this.emit({ session, supabaseUser: session.user });
+      return { session, user: session.user };
+    } catch (error) {
+      return {
+        session: null,
+        user: null,
+        error: error instanceof Error ? error.message : 'Erro ao autenticar',
+      };
+    }
+  }
+
+  async signOut(): Promise<void> {
+    await logoutBackendSession();
+    this.emit({ session: null, supabaseUser: null });
+  }
+
+  async getSession(): Promise<AuthSessionState> {
+    try {
+      const payload = await apiRequest<{ user: BackendProfilePayload }>('/auth/me');
+      const session: AuthSession = {
+        user: {
+          id: payload.user.id,
+          email: payload.user.email,
+          usuario: payload.user.usuario,
+          tenantId: payload.user.tenantId,
+          role: payload.user.role,
+        },
+      };
+
+      return { session, supabaseUser: session.user };
+    } catch {
+      const refreshed = await refreshBackendSession();
+      if (!refreshed) {
+        return { session: null, supabaseUser: null };
+      }
+
+      try {
+        const payload = await apiRequest<{ user: BackendProfilePayload }>('/auth/me');
+        const session: AuthSession = {
+          user: {
+            id: payload.user.id,
+            email: payload.user.email,
+            usuario: payload.user.usuario,
+            tenantId: payload.user.tenantId,
+            role: payload.user.role,
+          },
+        };
+
+        return { session, supabaseUser: session.user };
+      } catch {
+        return { session: null, supabaseUser: null };
+      }
+    }
+  }
+
+  onAuthStateChange(callback: (state: AuthSessionState) => void): { unsubscribe: () => void } {
+    this.listeners.add(callback);
+    return {
+      unsubscribe: () => {
+        this.listeners.delete(callback);
+      },
+    };
+  }
+}
+
+export const authRepository = isBackendAuthProviderEnabled()
+  ? new BackendAuthRepository()
+  : new SupabaseAuthRepository();
 
 export function mapLoginError(result: { error?: string | null }): LoginResult {
   return result.error ? { success: false, error: result.error } : { success: true };

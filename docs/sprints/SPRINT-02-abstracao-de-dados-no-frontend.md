@@ -46,3 +46,22 @@ Criar uma camada de abstracao para impedir que o frontend continue dependente di
 - testes do escopo da sprint criados
 - testes executados ao final da sprint
 
+## Status da execucao
+
+- status atual: concluida
+- modulos piloto implementados: `auth`, `equipes`, `unidades`
+- pontos refatorados: `AuthContext`, telas e modais piloto de `equipes` e `unidades`
+
+## Evidencias da entrega
+
+- repositorios criados em `src/modules`
+- dependencias diretas do Supabase removidas dos modulos piloto do frontend
+- contratos tipados publicados por dominio
+- testes unitarios criados para os mapeadores e regras centrais da camada de abstracao
+
+## Resultado dos testes
+
+- validacao de tipos: `npx tsc --noEmit` executado com sucesso em 24/03/2026
+- testes da sprint: `npm run test -- src/modules/auth/auth.repository.test.ts src/modules/equipes/equipes.repository.test.ts src/modules/unidades/unidades.repository.test.ts`
+- resultado: 3 arquivos de teste aprovados, 8 testes aprovados em 24/03/2026
+- observacao operacional: a execucao do Vitest exigiu sair do sandbox por erro `spawn EPERM` no ambiente restrito

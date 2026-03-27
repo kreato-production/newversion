@@ -12,6 +12,8 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { isBackendDataProviderEnabled } from '@/lib/api/http';
+import { BackendGravacaoList } from '@/components/producao/BackendGravacaoList';
 
 // Legacy format used by the form modal and other components
 export interface Gravacao {
@@ -68,6 +70,9 @@ export const generateCodigoGravacao = (): string => {
 };
 
 const GravacaoList = () => {
+  if (isBackendDataProviderEnabled()) {
+    return <BackendGravacaoList />;
+  }
   const { toast } = useToast();
   const { t } = useLanguage();
   const { user, session } = useAuth();
@@ -478,3 +483,4 @@ const GravacaoList = () => {
 };
 
 export default GravacaoList;
+

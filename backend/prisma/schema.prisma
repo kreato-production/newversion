@@ -1,0 +1,170 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Tenant {
+  id          String          @id @default(uuid())
+  nome        String
+  slug        String          @unique
+  status      TenantStatus    @default(ATIVO)
+  plano       String?
+  notas       String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  users       User[]
+  unidades    UnidadeNegocio[]
+  equipes     Equipe[]
+  programas   Programa[]
+  gravacoes   Gravacao[]
+  licencas    TenantLicense[]
+}
+
+model User {
+  id              String         @id @default(uuid())
+  tenantId        String?
+  codigoExterno   String?
+  nome            String
+  email           String         @unique
+  usuario         String         @unique
+  passwordHash    String?
+  fotoUrl         String?
+  perfil          String?
+  descricao       String?
+  role            UserRole       @default(USER)
+  status          UserStatus     @default(ATIVO)
+  tipoAcesso      String         @default("Operacional")
+  recursoHumanoId String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  tenant          Tenant?        @relation(fields: [tenantId], references: [id])
+  refreshTokens   RefreshToken[]
+
+  @@index([tenantId])
+}
+
+model RefreshToken {
+  id          String             @id @default(uuid())
+  userId      String
+  tokenHash   String             @unique
+  expiresAt   DateTime
+  createdAt   DateTime           @default(now())
+  revokedAt   DateTime?
+  user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model TenantLicense {
+  id          String    @id @default(uuid())
+  tenantId    String
+  dataInicio  DateTime
+  dataFim     DateTime
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([dataInicio, dataFim])
+}
+
+model UnidadeNegocio {
+  id            String     @id @default(uuid())
+  tenantId      String
+  codigoExterno String?
+  nome          String
+  descricao     String?
+  imagemUrl     String?
+  moeda         String     @default("BRL")
+  createdByName String?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  tenant        Tenant     @relation(fields: [tenantId], references: [id])
+  programas     Programa[]
+  gravacoes     Gravacao[]
+
+  @@index([tenantId])
+}
+
+model Equipe {
+  id          String   @id @default(uuid())
+  tenantId    String
+  codigo      String
+  descricao   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, codigo])
+  @@index([tenantId])
+}
+
+model Programa {
+  id               String          @id @default(uuid())
+  tenantId         String
+  codigoExterno    String?
+  nome             String
+  descricao        String?
+  unidadeNegocioId String?
+  createdById      String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  tenant           Tenant          @relation(fields: [tenantId], references: [id])
+  unidadeNegocio   UnidadeNegocio? @relation(fields: [unidadeNegocioId], references: [id])
+  gravacoes        Gravacao[]
+
+  @@index([tenantId])
+  @@index([unidadeNegocioId])
+}
+
+model Gravacao {
+  id               String          @id @default(uuid())
+  tenantId         String
+  codigo           String
+  codigoExterno    String?
+  nome             String
+  descricao        String?
+  unidadeNegocioId String?
+  centroLucro      String?
+  classificacao    String?
+  tipoConteudo     String?
+  status           String?
+  dataPrevista     DateTime?
+  conteudoId       String?
+  orcamento        Decimal         @default(0) @db.Decimal(12, 2)
+  programaId       String?
+  createdById      String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  tenant           Tenant          @relation(fields: [tenantId], references: [id])
+  unidadeNegocio   UnidadeNegocio? @relation(fields: [unidadeNegocioId], references: [id])
+  programa         Programa?       @relation(fields: [programaId], references: [id])
+
+  @@index([tenantId])
+  @@index([unidadeNegocioId])
+  @@index([programaId])
+  @@unique([tenantId, codigo])
+}
+
+enum TenantStatus {
+  ATIVO
+  BLOQUEADO
+  INATIVO
+}
+
+enum UserRole {
+  GLOBAL_ADMIN
+  TENANT_ADMIN
+  USER
+}
+
+enum UserStatus {
+  ATIVO
+  INATIVO
+  BLOQUEADO
+}

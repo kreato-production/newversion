@@ -1,16 +1,15 @@
 import React, { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import type { Session, User as SupabaseUser } from '@supabase/supabase-js';
 import { clearKreatoLocalStorage } from '@/hooks/useSupabaseData';
 import { useToast } from '@/hooks/use-toast';
 import { authRepository } from '@/modules/auth/auth.repository';
-import type { AuthUserProfile } from '@/modules/auth/auth.types';
+import type { AuthSession, AuthSessionUser, AuthUserProfile } from '@/modules/auth/auth.types';
 
 export type User = AuthUserProfile;
 
 interface AuthContextType {
   user: User | null;
-  supabaseUser: SupabaseUser | null;
-  session: Session | null;
+  supabaseUser: AuthSessionUser | null;
+  session: AuthSession | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (usuario: string, password: string) => Promise<{ success: boolean; error?: string }>;
@@ -21,71 +20,48 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [supabaseUser, setSupabaseUser] = useState<SupabaseUser | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
+  const [supabaseUser, setSupabaseUser] = useState<AuthSessionUser | null>(null);
+  const [session, setSession] = useState<AuthSession | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
   useEffect(() => {
-    const subscription = authRepository.onAuthStateChange(async ({ session: nextSession, supabaseUser: nextSupabaseUser }) => {
+    const syncProfile = async (nextSession: AuthSession | null, nextSupabaseUser: AuthSessionUser | null) => {
       setSession(nextSession);
       setSupabaseUser(nextSupabaseUser);
 
-      if (nextSession?.user) {
-        setTimeout(async () => {
-          const { profile, status, error } = await authRepository.fetchUserProfile(nextSession.user.id);
+      if (nextSession?.user?.id) {
+        const { profile, status, error } = await authRepository.fetchUserProfile(nextSession.user.id);
 
-          if (profile === null && status === null) {
-            setIsLoading(false);
-            return;
-          }
-
-          if (status === 'TenantBloqueado') {
-            await authRepository.signOut();
-            setUser(null);
-            toast({ title: 'Acesso Bloqueado', description: error, variant: 'destructive' });
-          } else if (status === 'Ativo') {
-            setUser(profile);
-          } else if (status === 'Inativo') {
-            await authRepository.signOut();
-            setUser(null);
-          }
-
+        if (profile === null && status === null) {
+          setUser(null);
           setIsLoading(false);
-        }, 0);
+          return;
+        }
+
+        if (status === 'TenantBloqueado') {
+          await authRepository.signOut();
+          setUser(null);
+          toast({ title: 'Acesso Bloqueado', description: error, variant: 'destructive' });
+        } else if (status === 'Ativo') {
+          setUser(profile);
+        } else if (status === 'Inativo') {
+          await authRepository.signOut();
+          setUser(null);
+        }
       } else {
         setUser(null);
-        setIsLoading(false);
       }
+
+      setIsLoading(false);
+    };
+
+    const subscription = authRepository.onAuthStateChange(async ({ session: nextSession, supabaseUser: nextSupabaseUser }) => {
+      await syncProfile(nextSession, nextSupabaseUser);
     });
 
-    authRepository.getSession().then(({ session: existingSession, supabaseUser: existingSupabaseUser }) => {
-      setSession(existingSession);
-      setSupabaseUser(existingSupabaseUser);
-
-      if (existingSession?.user) {
-        authRepository.fetchUserProfile(existingSession.user.id).then(({ profile, status, error }) => {
-          if (profile === null && status === null) {
-            setIsLoading(false);
-            return;
-          }
-
-          if (status === 'TenantBloqueado') {
-            authRepository.signOut();
-            setUser(null);
-            toast({ title: 'Acesso Bloqueado', description: error, variant: 'destructive' });
-          } else if (status === 'Ativo') {
-            setUser(profile);
-          } else if (status === 'Inativo') {
-            authRepository.signOut();
-            setUser(null);
-          }
-
-          setIsLoading(false);
-        });
-      } else {
-        setIsLoading(false);
-      }
+    authRepository.getSession().then(async ({ session: existingSession, supabaseUser: existingSupabaseUser }) => {
+      await syncProfile(existingSession, existingSupabaseUser);
     });
 
     return () => subscription.unsubscribe();

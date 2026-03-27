@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
-import { getBackendAccessToken, isBackendDataProviderEnabled } from '@/lib/api/http';
+import { isBackendDataProviderEnabled } from '@/lib/api/http';
 import { ApiTenantsRepository } from '@/modules/tenants/tenants.api.repository';
 import { useToast } from '@/hooks/use-toast';
 import type { Tenant } from '@/pages/admin/Tenants';
@@ -38,10 +38,7 @@ const apiRepository = new ApiTenantsRepository();
 
 export const TenantFormModal = ({ isOpen, onClose, onSave, data }: TenantFormModalProps) => {
   const { toast } = useToast();
-  const shouldUseBackend = useMemo(
-    () => isBackendDataProviderEnabled() || Boolean(getBackendAccessToken()),
-    [],
-  );
+  const shouldUseBackend = useMemo(() => isBackendDataProviderEnabled(), []);
   const [activeTab, setActiveTab] = useState('dados');
   const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState({
