@@ -12,17 +12,23 @@ interface PageHeaderProps {
   children?: ReactNode;
 }
 
-export const PageHeader = ({ title, description, onAdd, addLabel = 'Adicionar', children }: PageHeaderProps) => (
-  <div className="rounded-lg mb-4 overflow-hidden shadow-sm">
-    <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 p-2 bg-gradient-to-r from-kreato-cyan via-primary to-kreato-orange">
+export const PageHeader = ({
+  title,
+  description,
+  onAdd,
+  addLabel = 'Adicionar',
+  children,
+}: PageHeaderProps) => (
+  <div className="flex flex-col gap-1 mb-6">
+    <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
       <div>
-        <h1 className="text-2xl font-bold text-white">{title}</h1>
-        {description && <p className="text-white/80 mt-1">{description}</p>}
+        <h1 className="text-2xl font-bold tracking-tight text-foreground">{title}</h1>
+        {description && <p className="text-sm text-muted-foreground mt-0.5">{description}</p>}
       </div>
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2">
         {children}
         {onAdd && (
-          <Button onClick={onAdd} variant="secondary" className="bg-white text-primary hover:bg-white/90">
+          <Button onClick={onAdd}>
             <Plus className="w-4 h-4 mr-2" />
             {addLabel}
           </Button>
@@ -69,7 +75,13 @@ interface EmptyStateProps {
   actionLabel?: string;
 }
 
-export const EmptyState = ({ title, description, icon: Icon, onAction, actionLabel }: EmptyStateProps) => (
+export const EmptyState = ({
+  title,
+  description,
+  icon: Icon,
+  onAction,
+  actionLabel,
+}: EmptyStateProps) => (
   <div className="flex flex-col items-center justify-center py-12 text-center">
     {Icon && (
       <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">

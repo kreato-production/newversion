@@ -1,18 +1,21 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { Settings, Sun, Moon, Globe } from 'lucide-react';
+import { Sun, Moon, Globe } from 'lucide-react';
 import AppSidebar from './AppSidebar';
+import { AppBreadcrumb } from './AppBreadcrumb';
+import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
+import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
-  DropdownMenuTrigger,
   DropdownMenuSub,
   DropdownMenuSubTrigger,
   DropdownMenuSubContent,
+  DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useTheme } from '@/hooks/use-theme';
 import { useLanguage, languageLabels, type Language } from '@/contexts/LanguageContext';
@@ -24,60 +27,56 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { language, setLanguage, t } = useLanguage();
 
   return (
-    <div className="flex h-screen bg-background">
+    <SidebarProvider>
       <AppSidebar />
-      <main className="flex-1 overflow-auto relative">
-        {/* Settings dropdown — top right */}
-        <div className="absolute top-4 right-4 z-50">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-9 w-9">
-                <Settings className="h-5 w-5" />
-                <span className="sr-only">{t('settings')}</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem onClick={toggleTheme} className="cursor-pointer gap-2">
-                {theme === 'light' ? (
-                  <>
-                    <Moon className="h-4 w-4" />
-                    {t('theme.dark')}
-                  </>
-                ) : (
-                  <>
-                    <Sun className="h-4 w-4" />
-                    {t('theme.light')}
-                  </>
-                )}
-              </DropdownMenuItem>
+      <SidebarInset>
+        {/* Top header bar */}
+        <header className="flex h-14 shrink-0 items-center gap-2 border-b bg-background px-4">
+          <SidebarTrigger className="-ml-1" />
+          <Separator orientation="vertical" className="mr-2 h-4" />
+          <AppBreadcrumb />
 
-              <DropdownMenuSeparator />
-
-              <DropdownMenuSub>
-                <DropdownMenuSubTrigger className="gap-2">
+          {/* Settings: theme + language */}
+          <div className="ml-auto flex items-center gap-1">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8">
                   <Globe className="h-4 w-4" />
-                  <span>{t('language')}</span>
-                  <span className="ml-auto">{languageLabels[language].flag}</span>
-                </DropdownMenuSubTrigger>
-                <DropdownMenuSubContent className="w-40">
-                  {LANGUAGES.map((lang) => (
-                    <DropdownMenuItem
-                      key={lang}
-                      onClick={() => setLanguage(lang)}
-                      className={`cursor-pointer gap-2 ${language === lang ? 'bg-accent' : ''}`}
-                    >
-                      <span className="text-lg">{languageLabels[lang].flag}</span>
-                      <span>{languageLabels[lang].name}</span>
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuSubContent>
-              </DropdownMenuSub>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+                  <span className="sr-only">{t('language')}</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-40">
+                {LANGUAGES.map((lang) => (
+                  <DropdownMenuItem
+                    key={lang}
+                    onClick={() => setLanguage(lang)}
+                    className={`cursor-pointer gap-2 ${language === lang ? 'bg-accent' : ''}`}
+                  >
+                    <span className="text-base">{languageLabels[lang].flag}</span>
+                    <span>{languageLabels[lang].name}</span>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
 
-        <div className="p-6 animate-fade-in">{children}</div>
-      </main>
-    </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={toggleTheme}
+              title={theme === 'light' ? t('theme.dark') : t('theme.light')}
+            >
+              {theme === 'light' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+              <span className="sr-only">
+                {theme === 'light' ? t('theme.dark') : t('theme.light')}
+              </span>
+            </Button>
+          </div>
+        </header>
+
+        {/* Page content */}
+        <div className="flex-1 overflow-auto p-6 animate-fade-in">{children}</div>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }

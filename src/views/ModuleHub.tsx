@@ -428,7 +428,7 @@ const ModuleHub = () => {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold text-primary">{moduleTitle}</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-foreground">{moduleTitle}</h1>
       </div>
 
       {config.groups.map((group, groupIdx) => {
@@ -463,7 +463,7 @@ const ModuleHub = () => {
                         <Icon className="w-5 h-5 text-primary" />
                       ) : null}
                     </div>
-                    <span className="text-xs font-medium text-center text-foreground group-hover:text-white leading-tight transition-colors">
+                    <span className="text-xs font-medium text-center text-foreground group-hover:text-accent-foreground leading-tight transition-colors">
                       {label}
                     </span>
                   </Link>
