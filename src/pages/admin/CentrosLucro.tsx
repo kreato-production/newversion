@@ -2,18 +2,26 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
 import { ListActionBar } from '@/components/shared/ListActionBar';
-import { Edit, Trash2, Landmark, ChevronRight, ChevronDown, FolderTree, Loader2 } from 'lucide-react';
+import {
+  Edit,
+  Trash2,
+  Landmark,
+  ChevronRight,
+  ChevronDown,
+  FolderTree,
+  Loader2,
+} from 'lucide-react';
 import { NewButton } from '@/components/shared/NewButton';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { CentroLucroFormModal, CentroLucro } from '@/components/admin/CentroLucroFormModal';
+import { CentroLucroFormModal, type CentroLucro } from '@/components/admin/CentroLucroFormModal';
 import { cn } from '@/lib/utils';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
+import { ApiParametrizacoesRepository } from '@/modules/parametrizacoes/parametrizacoes.api.repository';
+
+const repository = new ApiParametrizacoesRepository();
 
 const CentrosLucro = () => {
   const { toast } = useToast();
-  const { session, user } = useAuth();
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<CentroLucro | null>(null);
@@ -22,28 +30,10 @@ const CentrosLucro = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchData = useCallback(async () => {
-    if (!session) return;
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('centros_lucro')
-        .select('*')
-        .order('nome');
-
-      if (error) throw error;
-
-      setItems(
-        (data || []).map((item) => ({
-          id: item.id,
-          codigoExterno: item.codigo_externo || '',
-          nome: item.nome,
-          descricao: item.descricao || '',
-          status: (item.status as 'Ativo' | 'Inativo') || 'Ativo',
-          parentId: item.parent_id || null,
-          dataCadastro: item.created_at ? new Date(item.created_at).toLocaleDateString('pt-BR') : '',
-          usuarioCadastro: user?.nome || '',
-        }))
-      );
+      const response = await repository.listCentrosLucro();
+      setItems(response.data);
     } catch (err) {
       console.error('Error fetching centros lucro:', err);
       toast({
@@ -54,38 +44,27 @@ const CentrosLucro = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [session, user, toast]);
+  }, [toast]);
 
   useEffect(() => {
-    fetchData();
+    void fetchData();
   }, [fetchData]);
 
   const handleSave = async (data: CentroLucro) => {
     try {
-      const dbData = {
-        codigo_externo: data.codigoExterno || null,
+      await repository.saveCentroLucro({
+        ...(editingItem ? { id: data.id } : {}),
+        codigoExterno: data.codigoExterno || '',
         nome: data.nome,
-        descricao: data.descricao || null,
+        descricao: data.descricao || '',
         status: data.status,
-        parent_id: data.parentId || null,
-        created_by: user?.id || null,
-      };
+        parentId: data.parentId,
+      });
 
-      if (editingItem) {
-        const { error } = await supabase
-          .from('centros_lucro')
-          .update(dbData)
-          .eq('id', data.id);
-
-        if (error) throw error;
-        toast({ title: 'Sucesso', description: 'Centro de Custos atualizado!' });
-      } else {
-        const { error } = await supabase.from('centros_lucro').insert(dbData);
-
-        if (error) throw error;
-        toast({ title: 'Sucesso', description: 'Centro de Custos cadastrado!' });
-      }
-
+      toast({
+        title: 'Sucesso',
+        description: editingItem ? 'Centro de Custos atualizado!' : 'Centro de Custos cadastrado!',
+      });
       await fetchData();
       setEditingItem(null);
     } catch (err) {
@@ -95,6 +74,7 @@ const CentrosLucro = () => {
         description: `Erro ao salvar: ${(err as Error).message}`,
         variant: 'destructive',
       });
+      throw err;
     }
   };
 
@@ -102,28 +82,28 @@ const CentrosLucro = () => {
     const hasChildren = items.some((item) => item.parentId === id);
     if (hasChildren) {
       toast({
-        title: 'Não é possível excluir',
+        title: 'Nao e possivel excluir',
         description: 'Este centro de custos possui itens filhos. Exclua-os primeiro.',
         variant: 'destructive',
       });
       return;
     }
 
-    if (confirm('Deseja realmente excluir este centro de custos?')) {
-      try {
-        const { error } = await supabase.from('centros_lucro').delete().eq('id', id);
+    if (!confirm('Deseja realmente excluir este centro de custos?')) {
+      return;
+    }
 
-        if (error) throw error;
-        await fetchData();
-        toast({ title: 'Excluído', description: 'Centro de Custos removido!' });
-      } catch (err) {
-        console.error('Error deleting centro lucro:', err);
-        toast({
-          title: 'Erro',
-          description: `Erro ao excluir: ${(err as Error).message}`,
-          variant: 'destructive',
-        });
-      }
+    try {
+      await repository.removeCentroLucro(id);
+      await fetchData();
+      toast({ title: 'Excluido', description: 'Centro de Custos removido!' });
+    } catch (err) {
+      console.error('Error deleting centro lucro:', err);
+      toast({
+        title: 'Erro',
+        description: `Erro ao excluir: ${(err as Error).message}`,
+        variant: 'destructive',
+      });
     }
   };
 
@@ -142,19 +122,15 @@ const CentrosLucro = () => {
     return items.filter(
       (item) =>
         item.nome.toLowerCase().includes(search.toLowerCase()) ||
-        item.codigoExterno?.toLowerCase().includes(search.toLowerCase())
+        item.codigoExterno.toLowerCase().includes(search.toLowerCase()),
     );
   }, [items, search]);
 
-  const getChildren = (parentId: string | null): CentroLucro[] => {
-    return filteredItems.filter((item) => item.parentId === parentId);
-  };
+  const getChildren = (parentId: string | null): CentroLucro[] =>
+    filteredItems.filter((item) => item.parentId === parentId);
+  const hasChildren = (id: string): boolean => items.some((item) => item.parentId === id);
 
-  const hasChildren = (id: string): boolean => {
-    return items.some((item) => item.parentId === id);
-  };
-
-  const renderItem = (item: CentroLucro, level: number = 0) => {
+  const renderItem = (item: CentroLucro, level = 0) => {
     const children = getChildren(item.id);
     const isExpanded = expandedItems.has(item.id);
     const hasChildItems = hasChildren(item.id);
@@ -164,7 +140,7 @@ const CentrosLucro = () => {
         <div
           className={cn(
             'flex items-center gap-2 px-4 py-3 border-b hover:bg-muted/50 transition-colors',
-            level > 0 && 'bg-muted/20'
+            level > 0 && 'bg-muted/20',
           )}
           style={{ paddingLeft: `${16 + level * 24}px` }}
         >
@@ -201,11 +177,11 @@ const CentrosLucro = () => {
             )}
           </div>
 
-          <Badge variant={item.status === 'Ativo' ? 'default' : 'secondary'}>
-            {item.status}
-          </Badge>
+          <Badge variant={item.status === 'Ativo' ? 'default' : 'secondary'}>{item.status}</Badge>
 
-          <span className="text-xs text-muted-foreground w-24">{item.dataCadastro}</span>
+          <span className="text-xs text-muted-foreground w-24">
+            {item.dataCadastro ? new Date(item.dataCadastro).toLocaleDateString('pt-BR') : '-'}
+          </span>
 
           <div className="flex gap-1">
             <Button
@@ -221,7 +197,7 @@ const CentrosLucro = () => {
             <Button
               size="icon"
               variant="ghost"
-              onClick={() => handleDelete(item.id)}
+              onClick={() => void handleDelete(item.id)}
               className="text-destructive hover:text-destructive"
             >
               <Trash2 className="w-4 h-4" />
@@ -250,11 +226,17 @@ const CentrosLucro = () => {
     <div>
       <PageHeader
         title="Centro de Custos"
-        description="Gerencie os centros de custos hierárquicos"
+        description="Gerencie os centros de custos hierarquicos"
       />
 
       <ListActionBar>
-        <NewButton tooltip="Novo Centro de Custos" onClick={() => { setEditingItem(null); setIsModalOpen(true); }} />
+        <NewButton
+          tooltip="Novo Centro de Custos"
+          onClick={() => {
+            setEditingItem(null);
+            setIsModalOpen(true);
+          }}
+        />
         <div className="flex-1" />
         <SearchBar value={search} onChange={setSearch} />
       </ListActionBar>
@@ -263,7 +245,7 @@ const CentrosLucro = () => {
         {items.length === 0 ? (
           <EmptyState
             title="Nenhum centro de custos cadastrado"
-            description="Adicione centros de custos para organizar suas operações."
+            description="Adicione centros de custos para organizar suas operacoes."
             icon={FolderTree}
             onAction={() => setIsModalOpen(true)}
             actionLabel="Adicionar Centro de Custos"
@@ -282,7 +264,7 @@ const CentrosLucro = () => {
               <div className="flex-1">Nome</div>
               <div className="w-16">Status</div>
               <div className="w-24">Data</div>
-              <div className="w-20">Ações</div>
+              <div className="w-20">Acoes</div>
             </div>
             {rootItems.map((item) => renderItem(item))}
           </div>

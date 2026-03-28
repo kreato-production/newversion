@@ -21,180 +21,122 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
-
-interface Pessoa {
-  id: string;
-  nome: string;
-  sobrenome: string;
-  nomeTrabalho?: string;
-  foto?: string;
-  classificacao?: string;
-  telefone?: string;
-  email?: string;
-  status?: string;
-}
-
-interface ConvidadoAlocado {
-  id: string;
-  pessoaId: string;
-  nome: string;
-  nomeTrabalho?: string;
-  foto?: string;
-  classificacao?: string;
-  telefone?: string;
-  email?: string;
-  observacoes?: string;
-}
+import { useToast } from '@/hooks/use-toast';
+import {
+  gravacoesRelacionamentosApi,
+  type GravacaoConvidadoItem,
+  type GravacaoConvidadoPessoa,
+} from '@/modules/gravacoes/gravacoes-relacionamentos.api';
 
 interface ConvidadosTabProps {
   gravacaoId: string;
 }
 
 export const ConvidadosTab = ({ gravacaoId }: ConvidadosTabProps) => {
-  const { session } = useAuth();
-  const [convidados, setConvidados] = useState<ConvidadoAlocado[]>([]);
-  const [pessoas, setPessoas] = useState<Pessoa[]>([]);
+  const { toast } = useToast();
+  const [convidados, setConvidados] = useState<GravacaoConvidadoItem[]>([]);
+  const [pessoas, setPessoas] = useState<GravacaoConvidadoPessoa[]>([]);
   const [selectedPessoa, setSelectedPessoa] = useState('');
   const [observacoes, setObservacoes] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
 
   const fetchData = useCallback(async () => {
-    if (!session) return;
-
     try {
-      // Fetch convidados from Supabase
-      const { data: convidadosData } = await supabase
-        .from('gravacao_convidados')
-        .select('*, pessoas:pessoa_id(id, nome, sobrenome, nome_trabalho, foto_url, telefone, email)')
-        .eq('gravacao_id', gravacaoId);
-
-      setConvidados((convidadosData || []).map((c: any) => ({
-        id: c.id,
-        pessoaId: c.pessoa_id,
-        nome: `${c.pessoas?.nome || ''} ${c.pessoas?.sobrenome || ''}`.trim(),
-        nomeTrabalho: c.pessoas?.nome_trabalho,
-        foto: c.pessoas?.foto_url,
-        telefone: c.pessoas?.telefone,
-        email: c.pessoas?.email,
-        observacoes: c.observacao,
-      })));
-
-      // Fetch pessoas ativas
-      const { data: pessoasData } = await supabase
-        .from('pessoas')
-        .select('id, nome, sobrenome, nome_trabalho, foto_url, telefone, email, status')
-        .eq('status', 'Ativo')
-        .order('nome');
-
-      setPessoas((pessoasData || []).map((p: any) => ({
-        id: p.id,
-        nome: p.nome,
-        sobrenome: p.sobrenome,
-        nomeTrabalho: p.nome_trabalho,
-        foto: p.foto_url,
-        telefone: p.telefone,
-        email: p.email,
-        status: p.status,
-      })));
-    } catch (err) {
-      console.error('Error fetching convidados data:', err);
+      const response = await gravacoesRelacionamentosApi.listConvidados(gravacaoId);
+      setConvidados(response.items);
+      setPessoas(response.pessoas);
+    } catch (error) {
+      console.error('Error fetching convidados from backend:', error);
+      toast({
+        title: 'Erro',
+        description: `Erro ao carregar convidados: ${(error as Error).message}`,
+        variant: 'destructive',
+      });
     }
-  }, [session, gravacaoId]);
+  }, [gravacaoId, toast]);
 
   useEffect(() => {
-    fetchData();
+    void fetchData();
   }, [fetchData]);
 
   const handleAddConvidado = async () => {
     if (!selectedPessoa) return;
 
-    const pessoa = pessoas.find((p) => p.id === selectedPessoa);
+    const pessoa = pessoas.find((item) => item.id === selectedPessoa);
     if (!pessoa) return;
 
-    // Verificar se já está na lista
-    const exists = convidados.find((c) => c.pessoaId === selectedPessoa);
-    if (exists) return;
-
-    const { data: insertedData, error } = await supabase
-      .from('gravacao_convidados')
-      .insert({
-        gravacao_id: gravacaoId,
-        pessoa_id: selectedPessoa,
-        observacao: observacoes || null,
-      })
-      .select()
-      .single();
-
-    if (error) {
-      console.error('Error adding convidado:', error);
+    const exists = convidados.find((item) => item.pessoaId === selectedPessoa);
+    if (exists) {
+      toast({
+        title: 'Atencao',
+        description: 'Esta pessoa ja foi adicionada como convidada.',
+        variant: 'destructive',
+      });
       return;
     }
 
-    const novoConvidado: ConvidadoAlocado = {
-      id: insertedData.id,
-      pessoaId: pessoa.id,
-      nome: `${pessoa.nome} ${pessoa.sobrenome}`.trim(),
-      nomeTrabalho: pessoa.nomeTrabalho,
-      foto: pessoa.foto,
-      telefone: pessoa.telefone,
-      email: pessoa.email,
-      observacoes: observacoes,
-    };
+    try {
+      const inserted = await gravacoesRelacionamentosApi.addConvidado(gravacaoId, {
+        pessoaId: selectedPessoa,
+        observacao: observacoes,
+      });
 
-    setConvidados([...convidados, novoConvidado]);
-    setSelectedPessoa('');
-    setObservacoes('');
+      setConvidados((current) => [...current, inserted]);
+      setSelectedPessoa('');
+      setObservacoes('');
+    } catch (error) {
+      console.error('Error adding convidado from backend:', error);
+      toast({
+        title: 'Erro',
+        description: `Erro ao adicionar convidado: ${(error as Error).message}`,
+        variant: 'destructive',
+      });
+    }
   };
 
   const handleRemoveConvidado = async (id: string) => {
-    const { error } = await supabase
-      .from('gravacao_convidados')
-      .delete()
-      .eq('id', id);
-
-    if (error) {
-      console.error('Error removing convidado:', error);
-      return;
+    try {
+      await gravacoesRelacionamentosApi.removeConvidado(gravacaoId, id);
+      setConvidados((current) => current.filter((item) => item.id !== id));
+    } catch (error) {
+      console.error('Error removing convidado from backend:', error);
+      toast({
+        title: 'Erro',
+        description: `Erro ao remover convidado: ${(error as Error).message}`,
+        variant: 'destructive',
+      });
     }
-
-    setConvidados(convidados.filter((c) => c.id !== id));
   };
 
-  // Filtrar pessoas que ainda não foram adicionadas
   const pessoasDisponiveis = pessoas.filter(
-    (p) => !convidados.find((c) => c.pessoaId === p.id)
+    (item) => !convidados.find((convidado) => convidado.pessoaId === item.id),
   );
 
-  // Filtrar por termo de busca
-  const pessoasFiltradas = pessoasDisponiveis.filter((p) => {
+  const pessoasFiltradas = pessoasDisponiveis.filter((item) => {
     const searchLower = searchTerm.toLowerCase();
     return (
-      p.nome.toLowerCase().includes(searchLower) ||
-      p.sobrenome.toLowerCase().includes(searchLower) ||
-      (p.nomeTrabalho && p.nomeTrabalho.toLowerCase().includes(searchLower))
+      item.nome.toLowerCase().includes(searchLower) ||
+      item.sobrenome.toLowerCase().includes(searchLower) ||
+      item.nomeTrabalho.toLowerCase().includes(searchLower)
     );
   });
 
-  const getInitials = (nome: string) => {
-    return nome
+  const getInitials = (nome: string) =>
+    nome
       .split(' ')
-      .map((n) => n[0])
+      .map((parte) => parte[0])
       .join('')
       .toUpperCase()
       .slice(0, 2);
-  };
 
   return (
     <div className="space-y-6 mt-4">
-      {/* Formulário de adição */}
       <div className="border rounded-lg p-4 bg-muted/30">
         <h4 className="font-medium mb-4 flex items-center gap-2">
           <User className="h-4 w-4" />
           Adicionar Convidado
         </h4>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <div className="space-y-2 lg:col-span-2">
             <Label>Pessoa *</Label>
@@ -216,18 +158,16 @@ export const ConvidadosTab = ({ gravacaoId }: ConvidadosTabProps) => {
                     Nenhuma pessoa encontrada
                   </div>
                 ) : (
-                  pessoasFiltradas.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
+                  pessoasFiltradas.map((item) => (
+                    <SelectItem key={item.id} value={item.id}>
                       <div className="flex items-center gap-2">
                         <Avatar className="h-6 w-6">
-                          <AvatarImage src={p.foto} />
+                          <AvatarImage src={item.foto} />
                           <AvatarFallback className="text-[10px]">
-                            {getInitials(`${p.nome} ${p.sobrenome}`)}
+                            {getInitials(`${item.nome} ${item.sobrenome}`)}
                           </AvatarFallback>
                         </Avatar>
-                        <span>
-                          {p.nomeTrabalho || `${p.nome} ${p.sobrenome}`}
-                        </span>
+                        <span>{item.nomeTrabalho || `${item.nome} ${item.sobrenome}`}</span>
                       </div>
                     </SelectItem>
                   ))
@@ -239,7 +179,7 @@ export const ConvidadosTab = ({ gravacaoId }: ConvidadosTabProps) => {
           <div className="flex items-end">
             <Button
               type="button"
-              onClick={handleAddConvidado}
+              onClick={() => void handleAddConvidado()}
               disabled={!selectedPessoa}
               className="w-full"
             >
@@ -250,9 +190,9 @@ export const ConvidadosTab = ({ gravacaoId }: ConvidadosTabProps) => {
         </div>
 
         <div className="mt-4 space-y-2">
-          <Label>Observações</Label>
+          <Label>Observacoes</Label>
           <Textarea
-            placeholder="Observações sobre o convidado..."
+            placeholder="Observacoes sobre o convidado..."
             value={observacoes}
             onChange={(e) => setObservacoes(e.target.value)}
             rows={2}
@@ -260,7 +200,6 @@ export const ConvidadosTab = ({ gravacaoId }: ConvidadosTabProps) => {
         </div>
       </div>
 
-      {/* Lista de convidados */}
       <div className="border rounded-lg">
         <Table>
           <TableHeader>
@@ -268,7 +207,7 @@ export const ConvidadosTab = ({ gravacaoId }: ConvidadosTabProps) => {
               <TableHead className="w-12"></TableHead>
               <TableHead>Nome</TableHead>
               <TableHead>Contato</TableHead>
-              <TableHead>Observações</TableHead>
+              <TableHead>Observacoes</TableHead>
               <TableHead className="w-12"></TableHead>
             </TableRow>
           </TableHeader>
@@ -285,20 +224,14 @@ export const ConvidadosTab = ({ gravacaoId }: ConvidadosTabProps) => {
                   <TableCell>
                     <Avatar className="h-10 w-10">
                       <AvatarImage src={convidado.foto} />
-                      <AvatarFallback>
-                        {getInitials(convidado.nome)}
-                      </AvatarFallback>
+                      <AvatarFallback>{getInitials(convidado.nome)}</AvatarFallback>
                     </Avatar>
                   </TableCell>
                   <TableCell>
                     <div>
-                      <div className="font-medium">
-                        {convidado.nomeTrabalho || convidado.nome}
-                      </div>
+                      <div className="font-medium">{convidado.nomeTrabalho || convidado.nome}</div>
                       {convidado.nomeTrabalho && (
-                        <div className="text-xs text-muted-foreground">
-                          {convidado.nome}
-                        </div>
+                        <div className="text-xs text-muted-foreground">{convidado.nome}</div>
                       )}
                     </div>
                   </TableCell>
@@ -323,7 +256,7 @@ export const ConvidadosTab = ({ gravacaoId }: ConvidadosTabProps) => {
                       variant="ghost"
                       size="icon"
                       className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                      onClick={() => handleRemoveConvidado(convidado.id)}
+                      onClick={() => void handleRemoveConvidado(convidado.id)}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -335,7 +268,6 @@ export const ConvidadosTab = ({ gravacaoId }: ConvidadosTabProps) => {
         </Table>
       </div>
 
-      {/* Resumo */}
       {convidados.length > 0 && (
         <div className="flex justify-end">
           <Badge variant="outline" className="text-sm">

@@ -3,16 +3,19 @@ import type { UnidadeNegocio } from './unidades.types';
 
 export class ApiUnidadesRepository {
   async list(): Promise<UnidadeNegocio[]> {
-    return apiRequest<UnidadeNegocio[]>('/unidades');
+    const response = await apiRequest<{ data: UnidadeNegocio[] }>('/unidades?limit=200&offset=0');
+    return response.data;
   }
 
   async save(data: UnidadeNegocio): Promise<void> {
-    const path = data.id ? `/unidades/${data.id}` : '/unidades';
-    const method = data.id ? 'PUT' : 'POST';
+    const normalizedId = data.id || undefined;
+    const payload = normalizedId ? data : { ...data, id: undefined };
+    const path = normalizedId ? `/unidades/${normalizedId}` : '/unidades';
+    const method = normalizedId ? 'PUT' : 'POST';
 
     await apiRequest(path, {
       method,
-      body: JSON.stringify(data),
+      body: JSON.stringify(payload),
     });
   }
 
@@ -20,5 +23,9 @@ export class ApiUnidadesRepository {
     await apiRequest(`/unidades/${id}`, {
       method: 'DELETE',
     });
+  }
+
+  async uploadLogo(): Promise<string | null> {
+    return null;
   }
 }

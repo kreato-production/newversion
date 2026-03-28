@@ -1,8 +1,23 @@
 import { useState, useMemo } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Cell,
+} from 'recharts';
 import { format, startOfWeek, getISOWeek, parseISO } from 'date-fns';
 import { ptBR, enUS, es } from 'date-fns/locale';
 
@@ -19,20 +34,21 @@ export const IncidenciaChartModal = ({ isOpen, onClose, items }: IncidenciaChart
   const locale = language === 'pt' ? ptBR : language === 'es' ? es : enUS;
 
   const chartData = useMemo(() => {
-    const validItems = items.filter(i => i.data_incidencia);
+    const validItems = items.filter((i) => i.data_incidencia);
     const grouped: Record<string, number> = {};
 
-    validItems.forEach(item => {
+    validItems.forEach((item) => {
       const date = parseISO(item.data_incidencia!);
       let key = '';
       switch (granularity) {
         case 'day':
           key = format(date, 'dd/MM/yyyy');
           break;
-        case 'week':
+        case 'week': {
           const weekStart = startOfWeek(date, { locale });
           key = `S${getISOWeek(date)} - ${format(weekStart, 'dd/MM', { locale })}`;
           break;
+        }
         case 'month':
           key = format(date, 'MMM/yyyy', { locale });
           break;
@@ -49,19 +65,37 @@ export const IncidenciaChartModal = ({ isOpen, onClose, items }: IncidenciaChart
   }, [items, granularity, locale]);
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
       <DialogContent className="max-w-4xl max-h-[85vh]">
         <DialogHeader>
           <DialogTitle>{t('incident.chartTitle')}</DialogTitle>
-          <DialogDescription>{t('incident.totalIncidents')}: {items.filter(i => i.data_incidencia).length}</DialogDescription>
+          <DialogDescription>
+            {t('incident.totalIncidents')}: {items.filter((i) => i.data_incidencia).length}
+          </DialogDescription>
         </DialogHeader>
 
-        <Tabs value={granularity} onValueChange={(v) => setGranularity(v as any)}>
+        <Tabs
+          value={granularity}
+          onValueChange={(v) => setGranularity(v as 'day' | 'week' | 'month' | 'year')}
+        >
           <TabsList className="w-full">
-            <TabsTrigger value="day" className="flex-1">{t('incident.byDay')}</TabsTrigger>
-            <TabsTrigger value="week" className="flex-1">{t('incident.byWeek')}</TabsTrigger>
-            <TabsTrigger value="month" className="flex-1">{t('incident.byMonth')}</TabsTrigger>
-            <TabsTrigger value="year" className="flex-1">{t('incident.byYear')}</TabsTrigger>
+            <TabsTrigger value="day" className="flex-1">
+              {t('incident.byDay')}
+            </TabsTrigger>
+            <TabsTrigger value="week" className="flex-1">
+              {t('incident.byWeek')}
+            </TabsTrigger>
+            <TabsTrigger value="month" className="flex-1">
+              {t('incident.byMonth')}
+            </TabsTrigger>
+            <TabsTrigger value="year" className="flex-1">
+              {t('incident.byYear')}
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value={granularity} className="mt-4">
@@ -81,9 +115,18 @@ export const IncidenciaChartModal = ({ isOpen, onClose, items }: IncidenciaChart
                     tick={{ fontSize: 11 }}
                     className="fill-muted-foreground"
                   />
-                  <YAxis allowDecimals={false} tick={{ fontSize: 11 }} className="fill-muted-foreground" />
+                  <YAxis
+                    allowDecimals={false}
+                    tick={{ fontSize: 11 }}
+                    className="fill-muted-foreground"
+                  />
                   <Tooltip
-                    contentStyle={{ backgroundColor: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))', borderRadius: '8px', color: 'hsl(var(--popover-foreground))' }}
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--popover))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px',
+                      color: 'hsl(var(--popover-foreground))',
+                    }}
                   />
                   <Bar dataKey="total" name={t('incident.totalIncidents')} radius={[4, 4, 0, 0]}>
                     {chartData.map((_, index) => (

@@ -1,61 +1,50 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, Trash2, User, Search, Image as ImageIcon, Shirt } from 'lucide-react';
+import { Plus, Trash2, User, Search, Shirt } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Figurino } from '@/pages/recursos/Figurinos';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
-
-interface Pessoa {
-  id: string;
-  nome: string;
-  sobrenome: string;
-  nomeTrabalho?: string;
-  foto?: string;
-  classificacao?: string;
-  telefone?: string;
-  email?: string;
-  status?: string;
-}
-
-interface FigurinoElenco {
-  figurinoId: string;
-  codigoFigurino: string;
-  descricao: string;
-  imagemPrincipal?: string;
-}
-
-interface ElencoMembro {
-  id: string;
-  pessoaId: string;
-  nome: string;
-  nomeTrabalho?: string;
-  foto?: string;
-  classificacao?: string;
-  personagem: string;
-  descricaoPersonagem: string;
-  figurinos: FigurinoElenco[];
-}
+import { useToast } from '@/hooks/use-toast';
+import {
+  elencoApi,
+  type ElencoEntityType,
+  type ElencoFigurinoOption,
+  type ElencoMembro,
+  type ElencoPessoa,
+} from '@/modules/elenco/elenco.api';
 
 interface ElencoTabProps {
-  entityId: string; // pode ser gravacaoId ou conteudoId
-  storagePrefix?: string; // 'gravacao' ou 'conteudo'
+  entityId: string;
+  storagePrefix?: string;
 }
 
 export const ElencoTab = ({ entityId, storagePrefix = 'gravacao' }: ElencoTabProps) => {
-  const { session } = useAuth();
+  const { toast } = useToast();
+  const entityType: ElencoEntityType = storagePrefix === 'conteudo' ? 'conteudo' : 'gravacao';
+
   const [elenco, setElenco] = useState<ElencoMembro[]>([]);
-  const [pessoas, setPessoas] = useState<Pessoa[]>([]);
-  const [figurinos, setFigurinos] = useState<Figurino[]>([]);
-  
+  const [pessoas, setPessoas] = useState<ElencoPessoa[]>([]);
+  const [figurinos, setFigurinos] = useState<ElencoFigurinoOption[]>([]);
+
   const [selectedPessoa, setSelectedPessoa] = useState('');
   const [personagem, setPersonagem] = useState('');
   const [descricaoPersonagem, setDescricaoPersonagem] = useState('');
@@ -64,197 +53,146 @@ export const ElencoTab = ({ entityId, storagePrefix = 'gravacao' }: ElencoTabPro
   const [searchFigurino, setSearchFigurino] = useState('');
 
   const fetchData = useCallback(async () => {
-    if (!session) return;
-
     try {
-      // Fetch pessoas ativas
-      const { data: pessoasData } = await supabase
-        .from('pessoas')
-        .select('id, nome, sobrenome, nome_trabalho, foto_url, status')
-        .eq('status', 'Ativo')
-        .order('nome');
-
-      setPessoas((pessoasData || []).map((p: any) => ({
-        id: p.id,
-        nome: p.nome,
-        sobrenome: p.sobrenome,
-        nomeTrabalho: p.nome_trabalho,
-        foto: p.foto_url,
-        status: p.status,
-      })));
-
-      // Fetch figurinos
-      const { data: figurinosData } = await supabase
-        .from('figurinos')
-        .select('*, figurino_imagens(*)')
-        .order('codigo_figurino');
-
-      setFigurinos((figurinosData || []).map((f: any) => ({
-        id: f.id,
-        codigoFigurino: f.codigo_figurino,
-        descricao: f.descricao,
-        codigoExterno: f.codigo_externo || '',
-        dataCadastro: f.created_at || new Date().toISOString(),
-        usuarioCadastro: f.created_by || '',
-        imagens: (f.figurino_imagens || []).map((img: any) => ({
-          id: img.id,
-          url: img.url,
-          isPrincipal: img.is_principal,
-        })),
-      })));
-
-      // Fetch elenco from gravacao_elenco table
-      const { data: elencoData } = await supabase
-        .from('gravacao_elenco')
-        .select('*, pessoas:pessoa_id(id, nome, sobrenome, nome_trabalho, foto_url)')
-        .eq(storagePrefix === 'gravacao' ? 'gravacao_id' : 'conteudo_id', entityId);
-
-      setElenco((elencoData || []).map((e: any) => ({
-        id: e.id,
-        pessoaId: e.pessoa_id,
-        nome: `${e.pessoas?.nome || ''} ${e.pessoas?.sobrenome || ''}`.trim(),
-        nomeTrabalho: e.pessoas?.nome_trabalho,
-        foto: e.pessoas?.foto_url,
-        personagem: e.personagem || '',
-        descricaoPersonagem: '',
-        figurinos: [],
-      })));
-    } catch (err) {
-      console.error('Error fetching elenco data:', err);
+      const response = await elencoApi.list(entityType, entityId);
+      setPessoas(response.pessoas);
+      setFigurinos(response.figurinos);
+      setElenco(response.items);
+    } catch (error) {
+      console.error('Error fetching elenco from backend:', error);
+      toast({
+        title: 'Erro',
+        description: `Erro ao carregar elenco: ${(error as Error).message}`,
+        variant: 'destructive',
+      });
     }
-  }, [session, entityId, storagePrefix]);
+  }, [entityId, entityType, toast]);
 
   useEffect(() => {
-    fetchData();
+    void fetchData();
   }, [fetchData]);
 
-  const getImagemPrincipal = (figurino: Figurino): string | undefined => {
-    const principal = figurino.imagens?.find(img => img.isPrincipal);
-    return principal?.url || figurino.imagens?.[0]?.url;
+  const getImagemPrincipal = (figurino: ElencoFigurinoOption): string | undefined => {
+    const principal = figurino.imagens.find((img) => img.isPrincipal);
+    return principal?.url || figurino.imagens[0]?.url;
   };
 
-  const getInitials = (nome: string) => {
-    return nome
+  const getInitials = (nome: string) =>
+    nome
       .split(' ')
-      .map((n) => n[0])
+      .map((parte) => parte[0])
       .join('')
       .toUpperCase()
       .slice(0, 2);
-  };
 
   const handleAddMembro = async () => {
     if (!selectedPessoa || !personagem.trim()) return;
 
-    const pessoa = pessoas.find((p) => p.id === selectedPessoa);
+    const pessoa = pessoas.find((item) => item.id === selectedPessoa);
     if (!pessoa) return;
 
-    const exists = elenco.find((e) => e.pessoaId === selectedPessoa);
-    if (exists) return;
-
-    const figurinosElenco: FigurinoElenco[] = selectedFigurinos
-      .map(id => {
-        const figurino = figurinos.find(f => f.id === id);
-        if (!figurino) return null;
-        return {
-          figurinoId: figurino.id,
-          codigoFigurino: figurino.codigoFigurino,
-          descricao: figurino.descricao,
-          imagemPrincipal: getImagemPrincipal(figurino),
-        } as FigurinoElenco;
-      })
-      .filter((f): f is FigurinoElenco => f !== null);
-
-    const novoMembro: ElencoMembro = {
-      id: crypto.randomUUID(),
-      pessoaId: pessoa.id,
-      nome: `${pessoa.nome} ${pessoa.sobrenome}`.trim(),
-      nomeTrabalho: pessoa.nomeTrabalho,
-      foto: pessoa.foto,
-      classificacao: pessoa.classificacao,
-      personagem: personagem,
-      descricaoPersonagem: descricaoPersonagem,
-      figurinos: figurinosElenco,
-    };
-
-    // Save to Supabase
-    const insertData = {
-      pessoa_id: novoMembro.pessoaId,
-      personagem: novoMembro.personagem,
-      ...(storagePrefix === 'gravacao' ? { gravacao_id: entityId } : { conteudo_id: entityId }),
-    };
-    
-    const { data: insertedData, error } = await supabase.from('gravacao_elenco').insert(insertData).select().single();
-    if (!error && insertedData) {
-      setElenco([...elenco, { ...novoMembro, id: insertedData.id }]);
+    const exists = elenco.find((item) => item.pessoaId === selectedPessoa);
+    if (exists) {
+      toast({
+        title: 'Atencao',
+        description: 'Essa pessoa ja foi adicionada ao elenco.',
+        variant: 'destructive',
+      });
+      return;
     }
-    resetForm();
-  };
 
-  const resetForm = () => {
-    setSelectedPessoa('');
-    setPersonagem('');
-    setDescricaoPersonagem('');
-    setSelectedFigurinos([]);
-    setSearchPessoa('');
-    setSearchFigurino('');
+    try {
+      const inserted = await elencoApi.add(entityType, entityId, {
+        pessoaId: pessoa.id,
+        personagem,
+        descricaoPersonagem,
+        figurinoIds: selectedFigurinos,
+      });
+
+      setElenco((current) => [...current, inserted]);
+      setSelectedPessoa('');
+      setPersonagem('');
+      setDescricaoPersonagem('');
+      setSelectedFigurinos([]);
+      setSearchPessoa('');
+      setSearchFigurino('');
+    } catch (error) {
+      console.error('Error adding elenco member from backend:', error);
+      toast({
+        title: 'Erro',
+        description: `Erro ao adicionar ao elenco: ${(error as Error).message}`,
+        variant: 'destructive',
+      });
+    }
   };
 
   const handleRemoveMembro = async (id: string) => {
-    await supabase.from('gravacao_elenco').delete().eq('id', id);
-    setElenco(elenco.filter((e) => e.id !== id));
-  };
-
-  const handleUpdateMembro = async (id: string, field: keyof ElencoMembro, value: any) => {
-    const updated = elenco.map((e) =>
-      e.id === id ? { ...e, [field]: value } : e
-    );
-    setElenco(updated);
-    
-    // Map field to database column
-    const dbFieldMap: Record<string, string> = {
-      personagem: 'personagem',
-    };
-    
-    if (dbFieldMap[field]) {
-      await supabase.from('gravacao_elenco').update({ [dbFieldMap[field]]: value }).eq('id', id);
+    try {
+      await elencoApi.remove(entityType, entityId, id);
+      setElenco((current) => current.filter((item) => item.id !== id));
+    } catch (error) {
+      console.error('Error removing elenco member from backend:', error);
+      toast({
+        title: 'Erro',
+        description: `Erro ao remover membro do elenco: ${(error as Error).message}`,
+        variant: 'destructive',
+      });
     }
   };
 
-  const toggleFigurino = (figurinoId: string) => {
-    setSelectedFigurinos(prev =>
-      prev.includes(figurinoId)
-        ? prev.filter(id => id !== figurinoId)
-        : [...prev, figurinoId]
+  const handleUpdateMembro = async (membro: ElencoMembro) => {
+    try {
+      const updated = await elencoApi.update(entityType, entityId, membro.id, {
+        personagem: membro.personagem,
+        descricaoPersonagem: membro.descricaoPersonagem,
+        figurinoIds: membro.figurinos.map((item) => item.figurinoId),
+      });
+      setElenco((current) => current.map((item) => (item.id === membro.id ? updated : item)));
+    } catch (error) {
+      console.error('Error updating elenco member from backend:', error);
+      toast({
+        title: 'Erro',
+        description: `Erro ao atualizar membro do elenco: ${(error as Error).message}`,
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const toggleFormFigurino = (figurinoId: string) => {
+    setSelectedFigurinos((current) =>
+      current.includes(figurinoId)
+        ? current.filter((id) => id !== figurinoId)
+        : [...current, figurinoId],
     );
   };
 
   const pessoasDisponiveis = pessoas.filter(
-    (p) => !elenco.find((e) => e.pessoaId === p.id)
+    (item) => !elenco.find((membro) => membro.pessoaId === item.id),
   );
 
-  const pessoasFiltradas = pessoasDisponiveis.filter((p) => {
-    const searchLower = searchPessoa.toLowerCase();
+  const pessoasFiltradas = pessoasDisponiveis.filter((item) => {
+    const term = searchPessoa.toLowerCase();
     return (
-      p.nome.toLowerCase().includes(searchLower) ||
-      p.sobrenome.toLowerCase().includes(searchLower) ||
-      (p.nomeTrabalho && p.nomeTrabalho.toLowerCase().includes(searchLower))
+      item.nome.toLowerCase().includes(term) ||
+      item.sobrenome.toLowerCase().includes(term) ||
+      item.nomeTrabalho.toLowerCase().includes(term)
     );
   });
 
-  const figurinosFiltrados = figurinos.filter(f =>
-    f.descricao?.toLowerCase().includes(searchFigurino.toLowerCase()) ||
-    f.codigoFigurino?.toLowerCase().includes(searchFigurino.toLowerCase())
+  const figurinosFiltrados = figurinos.filter(
+    (item) =>
+      item.descricao.toLowerCase().includes(searchFigurino.toLowerCase()) ||
+      item.codigoFigurino.toLowerCase().includes(searchFigurino.toLowerCase()),
   );
 
   return (
     <div className="space-y-6 mt-4">
-      {/* Formulário de adição */}
       <div className="border rounded-lg p-4 bg-muted/30">
         <h4 className="font-medium mb-4 flex items-center gap-2">
           <User className="h-4 w-4" />
           Adicionar ao Elenco
         </h4>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label>Pessoa *</Label>
@@ -276,21 +214,19 @@ export const ElencoTab = ({ entityId, storagePrefix = 'gravacao' }: ElencoTabPro
                     Nenhuma pessoa encontrada
                   </div>
                 ) : (
-                  pessoasFiltradas.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
+                  pessoasFiltradas.map((item) => (
+                    <SelectItem key={item.id} value={item.id}>
                       <div className="flex items-center gap-2">
                         <Avatar className="h-6 w-6">
-                          <AvatarImage src={p.foto} />
+                          <AvatarImage src={item.foto} />
                           <AvatarFallback className="text-[10px]">
-                            {getInitials(`${p.nome} ${p.sobrenome}`)}
+                            {getInitials(`${item.nome} ${item.sobrenome}`)}
                           </AvatarFallback>
                         </Avatar>
-                        <span>
-                          {p.nomeTrabalho || `${p.nome} ${p.sobrenome}`}
-                        </span>
-                        {p.classificacao && (
+                        <span>{item.nomeTrabalho || `${item.nome} ${item.sobrenome}`}</span>
+                        {item.classificacao && (
                           <Badge variant="outline" className="text-[10px] ml-1">
-                            {p.classificacao}
+                            {item.classificacao}
                           </Badge>
                         )}
                       </div>
@@ -312,9 +248,9 @@ export const ElencoTab = ({ entityId, storagePrefix = 'gravacao' }: ElencoTabPro
         </div>
 
         <div className="mt-4 space-y-2">
-          <Label>Descrição do Personagem</Label>
+          <Label>Descricao do Personagem</Label>
           <Textarea
-            placeholder="Breve descrição sobre o personagem..."
+            placeholder="Breve descricao sobre o personagem..."
             value={descricaoPersonagem}
             onChange={(e) => setDescricaoPersonagem(e.target.value)}
             rows={2}
@@ -347,11 +283,11 @@ export const ElencoTab = ({ entityId, storagePrefix = 'gravacao' }: ElencoTabPro
                     <div
                       key={figurino.id}
                       className="flex items-center gap-2 p-2 hover:bg-muted rounded cursor-pointer"
-                      onClick={() => toggleFigurino(figurino.id)}
+                      onClick={() => toggleFormFigurino(figurino.id)}
                     >
                       <Checkbox
                         checked={selectedFigurinos.includes(figurino.id)}
-                        onCheckedChange={() => toggleFigurino(figurino.id)}
+                        onCheckedChange={() => toggleFormFigurino(figurino.id)}
                       />
                       {getImagemPrincipal(figurino) ? (
                         <img
@@ -380,7 +316,8 @@ export const ElencoTab = ({ entityId, storagePrefix = 'gravacao' }: ElencoTabPro
             {selectedFigurinos.length > 0 && (
               <div className="mt-2 pt-2 border-t">
                 <Badge variant="secondary">
-                  {selectedFigurinos.length} figurino{selectedFigurinos.length !== 1 ? 's' : ''} selecionado{selectedFigurinos.length !== 1 ? 's' : ''}
+                  {selectedFigurinos.length} figurino{selectedFigurinos.length !== 1 ? 's' : ''}{' '}
+                  selecionado{selectedFigurinos.length !== 1 ? 's' : ''}
                 </Badge>
               </div>
             )}
@@ -390,7 +327,7 @@ export const ElencoTab = ({ entityId, storagePrefix = 'gravacao' }: ElencoTabPro
         <div className="mt-4 flex justify-end">
           <Button
             type="button"
-            onClick={handleAddMembro}
+            onClick={() => void handleAddMembro()}
             disabled={!selectedPessoa || !personagem.trim()}
           >
             <Plus className="h-4 w-4 mr-2" />
@@ -399,7 +336,6 @@ export const ElencoTab = ({ entityId, storagePrefix = 'gravacao' }: ElencoTabPro
         </div>
       </div>
 
-      {/* Lista do Elenco */}
       <div className="border rounded-lg">
         <Table>
           <TableHeader>
@@ -407,7 +343,7 @@ export const ElencoTab = ({ entityId, storagePrefix = 'gravacao' }: ElencoTabPro
               <TableHead className="w-12"></TableHead>
               <TableHead>Ator/Atriz</TableHead>
               <TableHead>Personagem</TableHead>
-              <TableHead>Descrição</TableHead>
+              <TableHead>Descricao</TableHead>
               <TableHead>Figurinos</TableHead>
               <TableHead className="w-12"></TableHead>
             </TableRow>
@@ -425,20 +361,14 @@ export const ElencoTab = ({ entityId, storagePrefix = 'gravacao' }: ElencoTabPro
                   <TableCell>
                     <Avatar className="h-10 w-10">
                       <AvatarImage src={membro.foto} />
-                      <AvatarFallback>
-                        {getInitials(membro.nome)}
-                      </AvatarFallback>
+                      <AvatarFallback>{getInitials(membro.nome)}</AvatarFallback>
                     </Avatar>
                   </TableCell>
                   <TableCell>
                     <div>
-                      <div className="font-medium">
-                        {membro.nomeTrabalho || membro.nome}
-                      </div>
+                      <div className="font-medium">{membro.nomeTrabalho || membro.nome}</div>
                       {membro.nomeTrabalho && (
-                        <div className="text-xs text-muted-foreground">
-                          {membro.nome}
-                        </div>
+                        <div className="text-xs text-muted-foreground">{membro.nome}</div>
                       )}
                       {membro.classificacao && (
                         <Badge variant="outline" className="text-[10px] mt-1">
@@ -450,9 +380,20 @@ export const ElencoTab = ({ entityId, storagePrefix = 'gravacao' }: ElencoTabPro
                   <TableCell>
                     <Input
                       value={membro.personagem}
-                      onChange={(e) =>
-                        handleUpdateMembro(membro.id, 'personagem', e.target.value)
-                      }
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setElenco((current) =>
+                          current.map((item) =>
+                            item.id === membro.id ? { ...item, personagem: value } : item,
+                          ),
+                        );
+                      }}
+                      onBlur={() => {
+                        const current = elenco.find((item) => item.id === membro.id);
+                        if (current) {
+                          void handleUpdateMembro(current);
+                        }
+                      }}
                       placeholder="Personagem..."
                       className="h-8 text-sm font-medium"
                     />
@@ -460,26 +401,37 @@ export const ElencoTab = ({ entityId, storagePrefix = 'gravacao' }: ElencoTabPro
                   <TableCell>
                     <Input
                       value={membro.descricaoPersonagem}
-                      onChange={(e) =>
-                        handleUpdateMembro(membro.id, 'descricaoPersonagem', e.target.value)
-                      }
-                      placeholder="Descrição..."
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setElenco((current) =>
+                          current.map((item) =>
+                            item.id === membro.id ? { ...item, descricaoPersonagem: value } : item,
+                          ),
+                        );
+                      }}
+                      onBlur={() => {
+                        const current = elenco.find((item) => item.id === membro.id);
+                        if (current) {
+                          void handleUpdateMembro(current);
+                        }
+                      }}
+                      placeholder="Descricao..."
                       className="h-8 text-sm min-w-40"
                     />
                   </TableCell>
                   <TableCell>
                     {membro.figurinos.length > 0 ? (
                       <div className="flex items-center gap-1 flex-wrap">
-                        {membro.figurinos.slice(0, 3).map((fig) => (
+                        {membro.figurinos.slice(0, 3).map((figurino) => (
                           <div
-                            key={fig.figurinoId}
+                            key={figurino.figurinoId}
                             className="relative group"
-                            title={`${fig.codigoFigurino} - ${fig.descricao}`}
+                            title={`${figurino.codigoFigurino} - ${figurino.descricao}`}
                           >
-                            {fig.imagemPrincipal ? (
+                            {figurino.imagemPrincipal ? (
                               <img
-                                src={fig.imagemPrincipal}
-                                alt={fig.descricao}
+                                src={figurino.imagemPrincipal}
+                                alt={figurino.descricao}
                                 className="w-8 h-8 rounded object-cover border"
                               />
                             ) : (
@@ -505,7 +457,7 @@ export const ElencoTab = ({ entityId, storagePrefix = 'gravacao' }: ElencoTabPro
                       variant="ghost"
                       size="icon"
                       className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                      onClick={() => handleRemoveMembro(membro.id)}
+                      onClick={() => void handleRemoveMembro(membro.id)}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -517,7 +469,6 @@ export const ElencoTab = ({ entityId, storagePrefix = 'gravacao' }: ElencoTabPro
         </Table>
       </div>
 
-      {/* Resumo */}
       {elenco.length > 0 && (
         <div className="flex justify-end gap-2">
           <Badge variant="outline" className="text-sm">

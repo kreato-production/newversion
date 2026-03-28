@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,23 +11,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Plus, Trash2, Package, Edit, Upload, X, Loader2, Image as ImageIcon } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { Plus, Trash2, Package, Edit, Upload, X, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-
-export interface EstoqueItem {
-  id: string;
-  numerador: number;
-  codigo: string;
-  nome: string;
-  descricao: string;
-  imagemUrl?: string;
-}
+import type { EstoqueItem } from '@/modules/recursos-fisicos/recursos-fisicos.types';
 
 interface EstoqueTabProps {
-  recursoFisicoId?: string;
   itens: EstoqueItem[];
   onItensChange: (itens: EstoqueItem[]) => void;
+  readOnly?: boolean;
 }
 
 interface ItemFormData {
@@ -37,9 +28,17 @@ interface ItemFormData {
   imagemUrl: string;
 }
 
-export const EstoqueTab = ({ recursoFisicoId, itens, onItensChange }: EstoqueTabProps) => {
+async function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = () => reject(new Error('Falha ao ler imagem'));
+    reader.readAsDataURL(file);
+  });
+}
+
+export const EstoqueTab = ({ itens, onItensChange, readOnly = false }: EstoqueTabProps) => {
   const { toast } = useToast();
-  const [isLoading, setIsLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<EstoqueItem | null>(null);
@@ -50,46 +49,9 @@ export const EstoqueTab = ({ recursoFisicoId, itens, onItensChange }: EstoqueTab
     imagemUrl: '',
   });
 
-  useEffect(() => {
-    if (recursoFisicoId) {
-      fetchItens();
-    }
-  }, [recursoFisicoId]);
-
-  const fetchItens = async () => {
-    if (!recursoFisicoId) return;
-    
-    setIsLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('rf_estoque_itens')
-        .select('*')
-        .eq('recurso_fisico_id', recursoFisicoId)
-        .order('numerador');
-
-      if (error) throw error;
-
-      const mappedItens: EstoqueItem[] = (data || []).map(item => ({
-        id: item.id,
-        numerador: item.numerador,
-        codigo: item.codigo || '',
-        nome: item.nome,
-        descricao: item.descricao || '',
-        imagemUrl: item.imagem_url || '',
-      }));
-
-      onItensChange(mappedItens);
-    } catch (error) {
-      console.error('Error fetching estoque:', error);
-      toast({ title: 'Erro', description: 'Erro ao carregar itens de estoque', variant: 'destructive' });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const getNextNumerador = () => {
     if (itens.length === 0) return 1;
-    return Math.max(...itens.map(i => i.numerador)) + 1;
+    return Math.max(...itens.map((item) => item.numerador)) + 1;
   };
 
   const handleOpenAddModal = () => {
@@ -113,7 +75,6 @@ export const EstoqueTab = ({ recursoFisicoId, itens, onItensChange }: EstoqueTab
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate file type
     if (!file.type.startsWith('image/')) {
       toast({
         title: 'Erro',
@@ -123,11 +84,10 @@ export const EstoqueTab = ({ recursoFisicoId, itens, onItensChange }: EstoqueTab
       return;
     }
 
-    // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
       toast({
         title: 'Erro',
-        description: 'A imagem deve ter no máximo 5MB.',
+        description: 'A imagem deve ter no maximo 5MB.',
         variant: 'destructive',
       });
       return;
@@ -135,24 +95,11 @@ export const EstoqueTab = ({ recursoFisicoId, itens, onItensChange }: EstoqueTab
 
     setIsUploading(true);
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${crypto.randomUUID()}.${fileExt}`;
-      const filePath = `${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('estoque-itens')
-        .upload(filePath, file);
-
-      if (uploadError) throw uploadError;
-
-      const { data: publicUrl } = supabase.storage
-        .from('estoque-itens')
-        .getPublicUrl(filePath);
-
-      setFormData({ ...formData, imagemUrl: publicUrl.publicUrl });
+      const imageDataUrl = await readFileAsDataUrl(file);
+      setFormData({ ...formData, imagemUrl: imageDataUrl });
       toast({ title: 'Sucesso', description: 'Imagem carregada com sucesso!' });
     } catch (error) {
-      console.error('Error uploading image:', error);
+      console.error('Error loading image:', error);
       toast({
         title: 'Erro',
         description: 'Erro ao carregar imagem. Tente novamente.',
@@ -177,26 +124,26 @@ export const EstoqueTab = ({ recursoFisicoId, itens, onItensChange }: EstoqueTab
     if (!formData.nome.trim()) {
       toast({
         title: 'Erro',
-        description: 'O nome do item é obrigatório.',
+        description: 'O nome do item e obrigatorio.',
         variant: 'destructive',
       });
       return;
     }
 
     if (editingItem) {
-      // Editar item existente
-      onItensChange(itens.map(item => {
-        if (item.id !== editingItem.id) return item;
-        return {
-          ...item,
-          codigo: formData.codigo,
-          nome: formData.nome,
-          descricao: formData.descricao,
-          imagemUrl: formData.imagemUrl,
-        };
-      }));
+      onItensChange(
+        itens.map((item) => {
+          if (item.id !== editingItem.id) return item;
+          return {
+            ...item,
+            codigo: formData.codigo,
+            nome: formData.nome,
+            descricao: formData.descricao,
+            imagemUrl: formData.imagemUrl,
+          };
+        }),
+      );
     } else {
-      // Adicionar novo item
       const novoItem: EstoqueItem = {
         id: crypto.randomUUID(),
         numerador: getNextNumerador(),
@@ -212,7 +159,7 @@ export const EstoqueTab = ({ recursoFisicoId, itens, onItensChange }: EstoqueTab
   };
 
   const handleRemoveItem = (id: string) => {
-    onItensChange(itens.filter(i => i.id !== id));
+    onItensChange(itens.filter((item) => item.id !== id));
   };
 
   return (
@@ -222,21 +169,18 @@ export const EstoqueTab = ({ recursoFisicoId, itens, onItensChange }: EstoqueTab
           <Package className="w-4 h-4" />
           Itens de Estoque
         </Label>
-        <Button type="button" variant="outline" size="sm" onClick={handleOpenAddModal}>
-          <Plus className="w-4 h-4 mr-1" />
-          Adicionar Item
-        </Button>
+        {!readOnly && (
+          <Button type="button" variant="outline" size="sm" onClick={handleOpenAddModal}>
+            <Plus className="w-4 h-4 mr-1" />
+            Adicionar Item
+          </Button>
+        )}
       </div>
 
       {itens.length === 0 ? (
         <div className="text-center py-6 border rounded-lg border-dashed bg-muted/20">
           <Package className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
-          <p className="text-sm text-muted-foreground">
-            Nenhum item de estoque cadastrado.
-          </p>
-          <p className="text-xs text-muted-foreground mt-1">
-            Clique em "Adicionar Item" para incluir itens ao estoque.
-          </p>
+          <p className="text-sm text-muted-foreground">Nenhum item de estoque cadastrado.</p>
         </div>
       ) : (
         <div className="border rounded-lg overflow-hidden">
@@ -244,9 +188,9 @@ export const EstoqueTab = ({ recursoFisicoId, itens, onItensChange }: EstoqueTab
             <thead className="bg-muted/50">
               <tr>
                 <th className="text-left px-3 py-2 w-16">#</th>
-                <th className="text-left px-3 py-2 w-32">Código</th>
+                <th className="text-left px-3 py-2 w-32">Codigo</th>
                 <th className="text-left px-3 py-2">Nome</th>
-                <th className="text-right px-3 py-2 w-24">Ações</th>
+                <th className="text-right px-3 py-2 w-24">Acoes</th>
               </tr>
             </thead>
             <tbody>
@@ -257,27 +201,16 @@ export const EstoqueTab = ({ recursoFisicoId, itens, onItensChange }: EstoqueTab
                       {item.numerador}
                     </span>
                   </td>
-                  <td className="px-3 py-2 font-mono text-sm">
-                    {item.codigo || '-'}
-                  </td>
+                  <td className="px-3 py-2 font-mono text-sm">{item.codigo || '-'}</td>
                   <td className="px-3 py-2">
                     <div className="flex items-center gap-2">
                       {item.imagemUrl && (
                         <div className="relative group/img">
-                          <img 
-                            src={item.imagemUrl} 
+                          <img
+                            src={item.imagemUrl}
                             alt={item.nome}
                             className="w-8 h-8 rounded object-cover cursor-pointer transition-transform duration-200 group-hover/img:scale-150 group-hover/img:z-10 group-hover/img:relative group-hover/img:shadow-xl"
                           />
-                          <div className="fixed inset-0 z-[100] hidden group-hover/img:flex items-center justify-center pointer-events-none">
-                            <div className="bg-background/95 p-2 rounded-xl shadow-2xl border-2 animate-scale-in pointer-events-auto">
-                              <img 
-                                src={item.imagemUrl} 
-                                alt={item.nome}
-                                className="max-w-[400px] max-h-[400px] rounded-lg object-contain"
-                              />
-                            </div>
-                          </div>
                         </div>
                       )}
                       <span>{item.nome}</span>
@@ -285,24 +218,28 @@ export const EstoqueTab = ({ recursoFisicoId, itens, onItensChange }: EstoqueTab
                   </td>
                   <td className="px-3 py-2 text-right">
                     <div className="flex justify-end gap-1">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleOpenEditModal(item)}
-                        className="h-8 w-8 p-0"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleRemoveItem(item.id)}
-                        className="text-destructive hover:text-destructive h-8 w-8 p-0"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                      {!readOnly && (
+                        <>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleOpenEditModal(item)}
+                            className="h-8 w-8 p-0"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleRemoveItem(item.id)}
+                            className="text-destructive hover:text-destructive h-8 w-8 p-0"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -312,25 +249,22 @@ export const EstoqueTab = ({ recursoFisicoId, itens, onItensChange }: EstoqueTab
         </div>
       )}
 
-      {/* Modal de Adicionar/Editar Item */}
       <Dialog open={isModalOpen} onOpenChange={handleCloseModal}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle>
-              {editingItem ? 'Editar Item' : 'Novo Item de Estoque'}
-            </DialogTitle>
+            <DialogTitle>{editingItem ? 'Editar Item' : 'Novo Item de Estoque'}</DialogTitle>
             <DialogDescription>
               Preencha os campos para {editingItem ? 'editar' : 'adicionar'} o item.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="item-codigo">Código</Label>
+              <Label htmlFor="item-codigo">Codigo</Label>
               <Input
                 id="item-codigo"
                 value={formData.codigo}
                 onChange={(e) => setFormData({ ...formData, codigo: e.target.value })}
-                placeholder="Código do item"
+                placeholder="Codigo do item"
                 maxLength={50}
               />
             </div>
@@ -346,24 +280,24 @@ export const EstoqueTab = ({ recursoFisicoId, itens, onItensChange }: EstoqueTab
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="item-descricao">Descrição</Label>
+              <Label htmlFor="item-descricao">Descricao</Label>
               <Textarea
                 id="item-descricao"
                 value={formData.descricao}
                 onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
-                placeholder="Descrição detalhada do item"
+                placeholder="Descricao detalhada do item"
                 rows={3}
                 className="resize-none"
               />
             </div>
-            
+
             <div className="space-y-2">
               <Label>Imagem</Label>
               {formData.imagemUrl ? (
                 <div className="relative inline-block">
-                  <img 
-                    src={formData.imagemUrl} 
-                    alt="Preview" 
+                  <img
+                    src={formData.imagemUrl}
+                    alt="Preview"
                     className="w-32 h-32 object-cover rounded-lg border"
                   />
                   <Button
@@ -403,7 +337,7 @@ export const EstoqueTab = ({ recursoFisicoId, itens, onItensChange }: EstoqueTab
                 </div>
               )}
               <p className="text-xs text-muted-foreground">
-                Formatos aceitos: JPG, PNG, GIF. Tamanho máximo: 5MB.
+                Formatos aceitos: JPG, PNG, GIF. Tamanho maximo: 5MB.
               </p>
             </div>
           </div>
@@ -411,7 +345,11 @@ export const EstoqueTab = ({ recursoFisicoId, itens, onItensChange }: EstoqueTab
             <Button type="button" variant="outline" onClick={handleCloseModal}>
               Cancelar
             </Button>
-            <Button type="button" onClick={handleSaveItem} className="gradient-primary hover:opacity-90">
+            <Button
+              type="button"
+              onClick={handleSaveItem}
+              className="gradient-primary hover:opacity-90"
+            >
               Salvar
             </Button>
           </DialogFooter>

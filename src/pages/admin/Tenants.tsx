@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
@@ -7,8 +7,6 @@ import { Edit, Trash2, Building2, Loader2, Calendar } from 'lucide-react';
 import { NewButton } from '@/components/shared/NewButton';
 import { useToast } from '@/hooks/use-toast';
 import { SortableTable, type Column } from '@/components/shared/SortableTable';
-import { supabase } from '@/integrations/supabase/client';
-import { isBackendDataProviderEnabled } from '@/lib/api/http';
 import { ApiTenantsRepository } from '@/modules/tenants/tenants.api.repository';
 import { TenantFormModal } from '@/components/admin/TenantFormModal';
 import { format } from 'date-fns';
@@ -27,7 +25,6 @@ const apiRepository = new ApiTenantsRepository();
 
 const Tenants = () => {
   const { toast } = useToast();
-  const shouldUseBackend = useMemo(() => isBackendDataProviderEnabled(), []);
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Tenant | null>(null);
@@ -38,53 +35,17 @@ const Tenants = () => {
     setIsLoading(true);
 
     try {
-      if (shouldUseBackend) {
-        const data = await apiRepository.list();
-        setItems(
-          data.map((item) => ({
-            id: item.id,
-            nome: item.nome,
-            plano: item.plano,
-            status: item.status,
-            notas: item.notas || '',
-            createdAt: item.createdAt,
-            licencaFim: item.licencaFim || undefined,
-          })),
-        );
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from('tenants')
-        .select(`
-          *,
-          tenant_licencas (
-            data_fim
-          )
-        `)
-        .order('nome');
-
-      if (error) {
-        throw error;
-      }
-
+      const data = await apiRepository.list();
       setItems(
-        (data || []).map((item: any) => {
-          const licenses = item.tenant_licencas || [];
-          const latestLicense = licenses.sort(
-            (a: any, b: any) => new Date(b.data_fim).getTime() - new Date(a.data_fim).getTime(),
-          )[0];
-
-          return {
-            id: item.id,
-            nome: item.nome,
-            plano: item.plano,
-            status: item.status,
-            notas: item.notas || '',
-            createdAt: item.created_at,
-            licencaFim: latestLicense?.data_fim,
-          } satisfies Tenant;
-        }),
+        data.map((item) => ({
+          id: item.id,
+          nome: item.nome,
+          plano: item.plano,
+          status: item.status,
+          notas: item.notas || '',
+          createdAt: item.createdAt,
+          licencaFim: item.licencaFim || undefined,
+        })),
       );
     } catch (err) {
       console.error('Error fetching tenants:', err);
@@ -103,19 +64,16 @@ const Tenants = () => {
   }, []);
 
   const handleDelete = async (id: string) => {
-    if (!confirm('ATENCAO: Excluir um tenant removera todos os dados associados. Esta acao e irreversivel. Deseja continuar?')) {
+    if (
+      !confirm(
+        'ATENCAO: Excluir um tenant removera todos os dados associados. Esta acao e irreversivel. Deseja continuar?',
+      )
+    ) {
       return;
     }
 
     try {
-      if (shouldUseBackend) {
-        await apiRepository.remove(id);
-      } else {
-        const { error } = await supabase.from('tenants').delete().eq('id', id);
-        if (error) {
-          throw error;
-        }
-      }
+      await apiRepository.remove(id);
 
       toast({ title: 'Sucesso', description: 'Tenant excluido com sucesso' });
       void fetchData();
@@ -129,7 +87,9 @@ const Tenants = () => {
     }
   };
 
-  const filteredItems = items.filter((item) => item.nome.toLowerCase().includes(search.toLowerCase()));
+  const filteredItems = items.filter((item) =>
+    item.nome.toLowerCase().includes(search.toLowerCase()),
+  );
 
   const columns: Column<Tenant>[] = [
     {
@@ -158,7 +118,10 @@ const Tenants = () => {
       label: 'Status',
       className: 'w-24',
       render: (item) => {
-        const variants: Record<Tenant['status'], 'default' | 'secondary' | 'destructive' | 'outline'> = {
+        const variants: Record<
+          Tenant['status'],
+          'default' | 'secondary' | 'destructive' | 'outline'
+        > = {
           Ativo: 'default',
           Inativo: 'secondary',
           Bloqueado: 'destructive',
@@ -211,13 +174,16 @@ const Tenants = () => {
 
   return (
     <div>
-      <PageHeader
-        title="Tenants"
-        description="Gerencie as organizacoes e licencas do sistema"
-      />
+      <PageHeader title="Tenants" description="Gerencie as organizacoes e licencas do sistema" />
 
       <ListActionBar>
-        <NewButton tooltip="Novo Tenant" onClick={() => { setEditingItem(null); setIsModalOpen(true); }} />
+        <NewButton
+          tooltip="Novo Tenant"
+          onClick={() => {
+            setEditingItem(null);
+            setIsModalOpen(true);
+          }}
+        />
         <div className="flex-1" />
         <SearchBar value={search} onChange={setSearch} />
       </ListActionBar>

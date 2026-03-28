@@ -21,9 +21,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Trash2, Building2, DollarSign } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
 import { formatCurrency as formatCurrencyUtil } from '@/lib/currencies';
+import { conteudosRelacionamentosApi } from '@/modules/conteudos/conteudos-relacionamentos.api';
 
 interface Servico {
   id: string;
@@ -43,149 +42,142 @@ interface ConteudoTerceirosTabProps {
   readOnly?: boolean;
 }
 
-export const ConteudoTerceirosTab = ({ conteudoId, moeda = 'BRL', readOnly = false }: ConteudoTerceirosTabProps) => {
+export const ConteudoTerceirosTab = ({
+  conteudoId,
+  moeda = 'BRL',
+  readOnly = false,
+}: ConteudoTerceirosTabProps) => {
   const { toast } = useToast();
-  const { session } = useAuth();
   const [terceiros, setTerceiros] = useState<ConteudoTerceiro[]>([]);
   const [servicosDisponiveis, setServicosDisponiveis] = useState<Servico[]>([]);
   const [isAdding, setIsAdding] = useState(false);
   const [selectedServicoId, setSelectedServicoId] = useState('');
   const [valorPrevisto, setValorPrevisto] = useState('');
 
-  const formatCurrency = useCallback((value: number) => {
-    return formatCurrencyUtil(value, moeda);
-  }, [moeda]);
+  const formatCurrency = useCallback((value: number) => formatCurrencyUtil(value, moeda), [moeda]);
 
   const fetchData = useCallback(async () => {
-    if (!session) return;
-
     try {
-      // Fetch conteudo_terceiros
-      const { data: ctData } = await (supabase as any)
-        .from('conteudo_terceiros')
-        .select('id, servico_id, valor_previsto, servicos:servico_id(id, nome)')
-        .eq('conteudo_id', conteudoId);
+      const response = await conteudosRelacionamentosApi.listTerceiros(conteudoId);
 
-      setTerceiros((ctData || []).map((ct: any) => ({
-        id: ct.id,
-        servicoId: ct.servico_id,
-        servicoNome: ct.servicos?.nome || '',
-        valorPrevisto: Number(ct.valor_previsto) || 0,
-      })));
-
-      // Fetch all services
-      const { data: servicosData } = await supabase
-        .from('servicos')
-        .select('id, nome')
-        .order('nome');
-
-      setServicosDisponiveis(servicosData || []);
-    } catch (err) {
-      console.error('Error fetching conteudo terceiros:', err);
+      setTerceiros(
+        response.items.map((item) => ({
+          id: item.id,
+          servicoId: item.servicoId,
+          servicoNome: item.servicoNome,
+          valorPrevisto: Number(item.valorPrevisto) || 0,
+        })),
+      );
+      setServicosDisponiveis(response.servicos);
+    } catch (error) {
+      console.error('Error fetching conteudo terceiros:', error);
+      toast({
+        title: 'Erro',
+        description: 'Erro ao carregar serviÃ§os do conteÃºdo.',
+        variant: 'destructive',
+      });
     }
-  }, [session, conteudoId]);
+  }, [conteudoId, toast]);
 
   useEffect(() => {
-    fetchData();
+    void fetchData();
   }, [fetchData]);
 
   const servicosNaoSelecionados = servicosDisponiveis.filter(
-    (s) => !terceiros.some((t) => t.servicoId === s.id)
+    (servico) => !terceiros.some((item) => item.servicoId === servico.id),
   );
 
   const handleAdd = async () => {
     if (!selectedServicoId) return;
 
     const valor = parseFloat(valorPrevisto.replace(',', '.')) || 0;
-    const servico = servicosDisponiveis.find(s => s.id === selectedServicoId);
+    const servico = servicosDisponiveis.find((item) => item.id === selectedServicoId);
     if (!servico) return;
 
-    const { data: inserted, error } = await (supabase as any)
-      .from('conteudo_terceiros')
-      .insert({
-        conteudo_id: conteudoId,
-        servico_id: selectedServicoId,
-        valor_previsto: valor,
-        created_by: session?.user?.id || null,
-      })
-      .select()
-      .single();
+    try {
+      const inserted = await conteudosRelacionamentosApi.addTerceiro(conteudoId, {
+        servicoId: selectedServicoId,
+        valorPrevisto: valor,
+      });
 
-    if (error) {
-      toast({ title: 'Erro', description: 'Erro ao adicionar serviço.', variant: 'destructive' });
-      return;
+      setTerceiros((prev) => [
+        ...prev,
+        {
+          id: inserted.id,
+          servicoId: inserted.servicoId,
+          servicoNome: inserted.servicoNome,
+          valorPrevisto: Number(inserted.valorPrevisto) || 0,
+        },
+      ]);
+
+      setSelectedServicoId('');
+      setValorPrevisto('');
+      setIsAdding(false);
+      toast({ title: 'ServiÃ§o adicionado', description: `${servico.nome} foi adicionado.` });
+    } catch (error) {
+      console.error(error);
+      toast({ title: 'Erro', description: 'Erro ao adicionar serviÃ§o.', variant: 'destructive' });
     }
-
-    setTerceiros([...terceiros, {
-      id: inserted.id,
-      servicoId: selectedServicoId,
-      servicoNome: servico.nome,
-      valorPrevisto: valor,
-    }]);
-
-    setSelectedServicoId('');
-    setValorPrevisto('');
-    setIsAdding(false);
-    toast({ title: 'Serviço adicionado', description: `${servico.nome} foi adicionado.` });
   };
 
   const handleRemove = async (id: string) => {
-    const { error } = await (supabase as any)
-      .from('conteudo_terceiros')
-      .delete()
-      .eq('id', id);
-
-    if (error) {
-      toast({ title: 'Erro', description: 'Erro ao remover serviço.', variant: 'destructive' });
-      return;
+    try {
+      await conteudosRelacionamentosApi.removeTerceiro(conteudoId, id);
+      setTerceiros((prev) => prev.filter((item) => item.id !== id));
+      toast({ title: 'ServiÃ§o removido', description: 'O serviÃ§o foi removido.' });
+    } catch (error) {
+      console.error(error);
+      toast({ title: 'Erro', description: 'Erro ao remover serviÃ§o.', variant: 'destructive' });
     }
-
-    setTerceiros(terceiros.filter(t => t.id !== id));
-    toast({ title: 'Serviço removido', description: 'O serviço foi removido.' });
   };
 
   const handleUpdateValor = async (id: string, novoValor: string) => {
     const valor = parseFloat(novoValor.replace(',', '.')) || 0;
 
-    const { error } = await (supabase as any)
-      .from('conteudo_terceiros')
-      .update({ valor_previsto: valor })
-      .eq('id', id);
+    try {
+      const updated = await conteudosRelacionamentosApi.updateTerceiro(conteudoId, id, {
+        valorPrevisto: valor,
+      });
 
-    if (error) {
+      setTerceiros((prev) =>
+        prev.map((item) =>
+          item.id === id ? { ...item, valorPrevisto: Number(updated.valorPrevisto) || 0 } : item,
+        ),
+      );
+    } catch (error) {
+      console.error(error);
       toast({ title: 'Erro', description: 'Erro ao atualizar valor.', variant: 'destructive' });
-      return;
     }
-
-    setTerceiros(terceiros.map(t => t.id === id ? { ...t, valorPrevisto: valor } : t));
   };
 
-  const totalPrevisto = useMemo(() => {
-    return terceiros.reduce((acc, t) => acc + t.valorPrevisto, 0);
-  }, [terceiros]);
+  const totalPrevisto = useMemo(
+    () => terceiros.reduce((accumulator, item) => accumulator + item.valorPrevisto, 0),
+    [terceiros],
+  );
 
   return (
     <div className="space-y-6 py-4">
-      {/* Add button */}
       {!readOnly && (
         <div className="flex justify-end">
           {!isAdding ? (
             <Button onClick={() => setIsAdding(true)} className="gradient-primary hover:opacity-90">
               <Plus className="h-4 w-4 mr-2" />
-              Adicionar Serviço
+              Adicionar ServiÃ§o
             </Button>
           ) : (
             <div className="w-full p-4 border rounded-lg bg-muted/30 space-y-3">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
                 <div className="space-y-2">
-                  <Label>Serviço</Label>
+                  <Label>ServiÃ§o</Label>
                   <Select value={selectedServicoId} onValueChange={setSelectedServicoId}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Selecione um serviço..." />
+                      <SelectValue placeholder="Selecione um serviÃ§o..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {servicosNaoSelecionados.map((s) => (
-                        <SelectItem key={s.id} value={s.id}>{s.nome}</SelectItem>
+                      {servicosNaoSelecionados.map((servico) => (
+                        <SelectItem key={servico.id} value={servico.id}>
+                          {servico.nome}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -195,15 +187,26 @@ export const ConteudoTerceirosTab = ({ conteudoId, moeda = 'BRL', readOnly = fal
                   <Input
                     type="text"
                     value={valorPrevisto}
-                    onChange={(e) => setValorPrevisto(e.target.value)}
+                    onChange={(event) => setValorPrevisto(event.target.value)}
                     placeholder="0,00"
                   />
                 </div>
                 <div className="flex gap-2">
-                  <Button onClick={handleAdd} disabled={!selectedServicoId} className="gradient-primary hover:opacity-90">
+                  <Button
+                    onClick={() => void handleAdd()}
+                    disabled={!selectedServicoId}
+                    className="gradient-primary hover:opacity-90"
+                  >
                     Salvar
                   </Button>
-                  <Button variant="outline" onClick={() => { setIsAdding(false); setSelectedServicoId(''); setValorPrevisto(''); }}>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setIsAdding(false);
+                      setSelectedServicoId('');
+                      setValorPrevisto('');
+                    }}
+                  >
                     Cancelar
                   </Button>
                 </div>
@@ -213,22 +216,23 @@ export const ConteudoTerceirosTab = ({ conteudoId, moeda = 'BRL', readOnly = fal
         </div>
       )}
 
-      {/* List */}
       {terceiros.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-12 text-center">
           <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
             <Building2 className="w-8 h-8 text-muted-foreground" />
           </div>
-          <h3 className="text-lg font-semibold text-foreground mb-1">Nenhum serviço de terceiro adicionado</h3>
+          <h3 className="text-lg font-semibold text-foreground mb-1">
+            Nenhum serviÃ§o de terceiro adicionado
+          </h3>
           <p className="text-sm text-muted-foreground max-w-sm">
-            Adicione serviços de terceiros com valor previsto para este conteúdo.
+            Adicione serviÃ§os de terceiros com valor previsto para este conteÃºdo.
           </p>
         </div>
       ) : (
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
-              Serviços de Terceiros
+              ServiÃ§os de Terceiros
               <Badge variant="secondary" className="ml-2">
                 {terceiros.length} item(s)
               </Badge>
@@ -238,24 +242,24 @@ export const ConteudoTerceirosTab = ({ conteudoId, moeda = 'BRL', readOnly = fal
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Serviço</TableHead>
+                  <TableHead>ServiÃ§o</TableHead>
                   <TableHead className="text-right w-[200px]">Valor Previsto</TableHead>
-                  {!readOnly && <TableHead className="w-[80px]"></TableHead>}
+                  {!readOnly && <TableHead className="w-[80px]" />}
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {terceiros.map(t => (
-                  <TableRow key={t.id}>
-                    <TableCell className="font-medium">{t.servicoNome}</TableCell>
+                {terceiros.map((item) => (
+                  <TableRow key={item.id}>
+                    <TableCell className="font-medium">{item.servicoNome}</TableCell>
                     <TableCell className="text-right">
                       {readOnly ? (
-                        formatCurrency(t.valorPrevisto)
+                        formatCurrency(item.valorPrevisto)
                       ) : (
                         <Input
                           type="text"
                           className="text-right w-[150px] ml-auto"
-                          defaultValue={t.valorPrevisto.toString()}
-                          onBlur={(e) => handleUpdateValor(t.id, e.target.value)}
+                          defaultValue={item.valorPrevisto.toString()}
+                          onBlur={(event) => void handleUpdateValor(item.id, event.target.value)}
                         />
                       )}
                     </TableCell>
@@ -265,7 +269,7 @@ export const ConteudoTerceirosTab = ({ conteudoId, moeda = 'BRL', readOnly = fal
                           size="icon"
                           variant="ghost"
                           className="text-destructive hover:text-destructive"
-                          onClick={() => handleRemove(t.id)}
+                          onClick={() => void handleRemove(item.id)}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -275,8 +279,10 @@ export const ConteudoTerceirosTab = ({ conteudoId, moeda = 'BRL', readOnly = fal
                 ))}
                 <TableRow className="bg-muted/50">
                   <TableCell className="font-medium">Total</TableCell>
-                  <TableCell className="text-right font-bold">{formatCurrency(totalPrevisto)}</TableCell>
-                  {!readOnly && <TableCell></TableCell>}
+                  <TableCell className="text-right font-bold">
+                    {formatCurrency(totalPrevisto)}
+                  </TableCell>
+                  {!readOnly && <TableCell />}
                 </TableRow>
               </TableBody>
             </Table>
@@ -284,7 +290,6 @@ export const ConteudoTerceirosTab = ({ conteudoId, moeda = 'BRL', readOnly = fal
         </Card>
       )}
 
-      {/* Summary card */}
       {terceiros.length > 0 && (
         <Card className="border-primary">
           <CardContent className="pt-6">
@@ -295,7 +300,7 @@ export const ConteudoTerceirosTab = ({ conteudoId, moeda = 'BRL', readOnly = fal
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Total Previsto com Terceiros</p>
-                  <p className="text-sm text-muted-foreground">{terceiros.length} serviço(s)</p>
+                  <p className="text-sm text-muted-foreground">{terceiros.length} serviÃ§o(s)</p>
                 </div>
               </div>
               <div className="text-right">

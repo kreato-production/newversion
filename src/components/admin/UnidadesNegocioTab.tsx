@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Select,
@@ -16,19 +16,23 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Plus, Trash2, Loader2 } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { ApiUsuariosRepository } from '@/modules/usuarios/usuarios.api.repository';
 
 interface UnidadesNegocioTabProps {
   usuarioId: string;
 }
 
+const apiRepository = new ApiUsuariosRepository();
+
 export const UnidadesNegocioTab = ({ usuarioId }: UnidadesNegocioTabProps) => {
   const { session } = useAuth();
   const { toast } = useToast();
   const [unidades, setUnidades] = useState<{ id: string; nome: string }[]>([]);
-  const [unidadesDisponiveis, setUnidadesDisponiveis] = useState<{ id: string; nome: string }[]>([]);
+  const [unidadesDisponiveis, setUnidadesDisponiveis] = useState<{ id: string; nome: string }[]>(
+    [],
+  );
   const [selectedUnidade, setSelectedUnidade] = useState('');
   const [isLoading, setIsLoading] = useState(true);
 
@@ -37,33 +41,14 @@ export const UnidadesNegocioTab = ({ usuarioId }: UnidadesNegocioTabProps) => {
 
     setIsLoading(true);
     try {
-      // Fetch all available units
-      const { data: allUnidades, error: allError } = await supabase
-        .from('unidades_negocio')
-        .select('id, nome')
-        .order('nome');
-
-      if (allError) throw allError;
-      setUnidadesDisponiveis(allUnidades || []);
-
-      // Fetch user's linked units
-      const { data: linkedUnidades, error: linkedError } = await supabase
-        .from('usuario_unidades')
-        .select('unidade_id, unidades_negocio:unidade_id(id, nome)')
-        .eq('usuario_id', usuarioId);
-
-      if (linkedError) throw linkedError;
-
-      const userUnidades = (linkedUnidades || [])
-        .map((item: any) => item.unidades_negocio)
-        .filter(Boolean);
-      
-      setUnidades(userUnidades);
-    } catch (err) {
-      console.error('Error fetching unidades:', err);
+      const data = await apiRepository.listUnidades(usuarioId);
+      setUnidades(data.vinculadas);
+      setUnidadesDisponiveis(data.disponiveis);
+    } catch (error) {
+      console.error('Error fetching unidades:', error);
       toast({
         title: 'Erro',
-        description: 'Erro ao carregar unidades de negócio',
+        description: 'Erro ao carregar unidades de negocio',
         variant: 'destructive',
       });
     } finally {
@@ -72,30 +57,23 @@ export const UnidadesNegocioTab = ({ usuarioId }: UnidadesNegocioTabProps) => {
   }, [session, usuarioId, toast]);
 
   useEffect(() => {
-    fetchData();
+    void fetchData();
   }, [fetchData]);
 
   const handleAdd = async () => {
     if (!selectedUnidade) return;
 
-    const unidade = unidadesDisponiveis.find((u) => u.id === selectedUnidade);
-    if (!unidade || unidades.find((u) => u.id === selectedUnidade)) return;
+    const unidade = unidadesDisponiveis.find((item) => item.id === selectedUnidade);
+    if (!unidade || unidades.find((item) => item.id === selectedUnidade)) return;
 
     try {
-      const { error } = await supabase
-        .from('usuario_unidades')
-        .insert({
-          usuario_id: usuarioId,
-          unidade_id: selectedUnidade,
-        });
+      await apiRepository.addUnidade(usuarioId, selectedUnidade);
 
-      if (error) throw error;
-
-      setUnidades([...unidades, unidade]);
+      setUnidades((current) => [...current, unidade]);
       setSelectedUnidade('');
       toast({ title: 'Sucesso', description: 'Unidade vinculada com sucesso' });
-    } catch (err) {
-      console.error('Error adding unidade:', err);
+    } catch (error) {
+      console.error('Error adding unidade:', error);
       toast({
         title: 'Erro',
         description: 'Erro ao vincular unidade',
@@ -106,18 +84,12 @@ export const UnidadesNegocioTab = ({ usuarioId }: UnidadesNegocioTabProps) => {
 
   const handleRemove = async (id: string) => {
     try {
-      const { error } = await supabase
-        .from('usuario_unidades')
-        .delete()
-        .eq('usuario_id', usuarioId)
-        .eq('unidade_id', id);
+      await apiRepository.removeUnidade(usuarioId, id);
 
-      if (error) throw error;
-
-      setUnidades(unidades.filter((u) => u.id !== id));
+      setUnidades((current) => current.filter((item) => item.id !== id));
       toast({ title: 'Sucesso', description: 'Unidade desvinculada com sucesso' });
-    } catch (err) {
-      console.error('Error removing unidade:', err);
+    } catch (error) {
+      console.error('Error removing unidade:', error);
       toast({
         title: 'Erro',
         description: 'Erro ao desvincular unidade',
@@ -138,16 +110,18 @@ export const UnidadesNegocioTab = ({ usuarioId }: UnidadesNegocioTabProps) => {
     <div className="space-y-4 mt-4">
       <div className="flex gap-3 items-end">
         <div className="flex-1 space-y-1">
-          <label className="text-sm text-muted-foreground">Adicionar Unidade de Negócio</label>
+          <label className="text-sm text-muted-foreground">Adicionar Unidade de Negocio</label>
           <Select value={selectedUnidade} onValueChange={setSelectedUnidade}>
             <SelectTrigger>
               <SelectValue placeholder="Selecione uma unidade..." />
             </SelectTrigger>
             <SelectContent>
               {unidadesDisponiveis
-                .filter((u) => !unidades.find((uu) => uu.id === u.id))
-                .map((u) => (
-                  <SelectItem key={u.id} value={u.id}>{u.nome}</SelectItem>
+                .filter((item) => !unidades.find((selected) => selected.id === item.id))
+                .map((item) => (
+                  <SelectItem key={item.id} value={item.id}>
+                    {item.nome}
+                  </SelectItem>
                 ))}
             </SelectContent>
           </Select>
@@ -161,7 +135,7 @@ export const UnidadesNegocioTab = ({ usuarioId }: UnidadesNegocioTabProps) => {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Unidade de Negócio</TableHead>
+              <TableHead>Unidade de Negocio</TableHead>
               <TableHead className="w-16"></TableHead>
             </TableRow>
           </TableHeader>
@@ -173,7 +147,7 @@ export const UnidadesNegocioTab = ({ usuarioId }: UnidadesNegocioTabProps) => {
                   <Button
                     size="icon"
                     variant="ghost"
-                    onClick={() => handleRemove(unidade.id)}
+                    onClick={() => void handleRemove(unidade.id)}
                     className="h-8 w-8 text-destructive hover:text-destructive"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -185,7 +159,7 @@ export const UnidadesNegocioTab = ({ usuarioId }: UnidadesNegocioTabProps) => {
         </Table>
       ) : (
         <div className="text-center py-8 text-muted-foreground">
-          <p>Nenhuma unidade de negócio vinculada.</p>
+          <p>Nenhuma unidade de negocio vinculada.</p>
           <p className="text-sm">Adicione unidades acima.</p>
         </div>
       )}

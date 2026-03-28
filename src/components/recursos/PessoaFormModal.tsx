@@ -1,44 +1,60 @@
-import { useState, useEffect } from 'react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { useEffect, useMemo, useState } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { useAuth } from '@/contexts/AuthContext';
-import { Pessoa } from '@/pages/recursos/Pessoas';
-import { Camera } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
-import { PessoaGravacoesTab } from './PessoaGravacoesTab';
-import { useFormFieldConfig, FieldAsterisk } from '@/hooks/useFormFieldConfig';
 import { SearchableSelect } from '@/components/shared/SearchableSelect';
+import { PessoaGravacoesTab } from './PessoaGravacoesTab';
+import { Camera } from 'lucide-react';
+import { pessoasRepository } from '@/modules/pessoas/pessoas.repository.provider';
+import type {
+  ClassificacaoPessoaOption,
+  Pessoa,
+  PessoaInput,
+} from '@/modules/pessoas/pessoas.types';
 
 interface PessoaFormModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (data: Pessoa) => void;
+  onSave: (data: PessoaInput) => Promise<void>;
   data?: Pessoa | null;
   readOnly?: boolean;
 }
 
-interface Classificacao {
-  id: string;
-  nome: string;
-}
-
 const estadosBrasileiros = [
-  'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA',
-  'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN',
-  'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'
+  'AC',
+  'AL',
+  'AP',
+  'AM',
+  'BA',
+  'CE',
+  'DF',
+  'ES',
+  'GO',
+  'MA',
+  'MT',
+  'MS',
+  'MG',
+  'PA',
+  'PB',
+  'PR',
+  'PE',
+  'PI',
+  'RJ',
+  'RN',
+  'RS',
+  'RO',
+  'RR',
+  'SC',
+  'SP',
+  'SE',
+  'TO',
 ];
 
-const emptyFormData: Omit<Pessoa, 'id' | 'dataCadastro' | 'usuarioCadastro'> = {
+const emptyFormData: PessoaInput = {
   codigoExterno: '',
   nome: '',
   sobrenome: '',
@@ -66,85 +82,87 @@ export const PessoaFormModal = ({
   data,
   readOnly = false,
 }: PessoaFormModalProps) => {
-  const { user } = useAuth();
-  const [formData, setFormData] = useState<Omit<Pessoa, 'id' | 'dataCadastro' | 'usuarioCadastro'>>(emptyFormData);
-  const [classificacoes, setClassificacoes] = useState<Classificacao[]>([]);
-  const { getAsterisk, validateRequired, showValidationError } = useFormFieldConfig('pessoa');
+  const [formData, setFormData] = useState<PessoaInput>(emptyFormData);
+  const [classificacoes, setClassificacoes] = useState<ClassificacaoPessoaOption[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    if (isOpen) {
-      const fetchClassificacoes = async () => {
-        const { data: cats } = await supabase
-          .from('classificacoes_pessoa')
-          .select('id, nome')
-          .order('nome');
-        setClassificacoes(cats || []);
-      };
-      fetchClassificacoes();
-
-      if (data) {
-        setFormData({
-          codigoExterno: data.codigoExterno,
-          nome: data.nome,
-          sobrenome: data.sobrenome,
-          nomeTrabalho: data.nomeTrabalho || '',
-          foto: data.foto || '',
-          dataNascimento: data.dataNascimento,
-          sexo: data.sexo,
-          telefone: data.telefone,
-          email: data.email,
-          classificacao: data.classificacao,
-          classificacaoId: data.classificacaoId || '',
-          documento: data.documento,
-          endereco: data.endereco,
-          cidade: data.cidade,
-          estado: data.estado,
-          cep: data.cep,
-          observacoes: data.observacoes,
-          status: data.status,
-        });
-      } else {
-        setFormData({ ...emptyFormData });
+    const loadOptions = async () => {
+      if (!isOpen) {
+        return;
       }
-    }
-  }, [isOpen, data]);
 
-  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setFormData({ ...formData, foto: reader.result as string });
-      };
-      reader.readAsDataURL(file);
-    }
-  };
+      const options = await pessoasRepository.listOptions();
+      setClassificacoes(options.classificacoes);
+    };
 
-  const fieldLabels: Record<string, string> = {
-    codigoExterno: 'Código Externo', classificacao: 'Classificação', nome: 'Nome', sobrenome: 'Sobrenome',
-    nomeTrabalho: 'Nome de Trabalho', dataNascimento: 'Data de Nascimento', sexo: 'Sexo',
-    documento: 'Documento', email: 'E-mail', telefone: 'Telefone', endereco: 'Endereço',
-    cidade: 'Cidade', estado: 'Estado', cep: 'CEP', observacoes: 'Observações', status: 'Status',
-  };
+    void loadOptions();
+  }, [isOpen]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    const missing = validateRequired(formData as any, fieldLabels);
-    if (missing.length > 0) {
-      showValidationError(missing);
+  useEffect(() => {
+    if (!isOpen) {
       return;
     }
 
-    const pessoaData: Pessoa = {
-      id: data?.id || crypto.randomUUID(),
-      ...formData,
-      dataCadastro: data?.dataCadastro || new Date().toISOString(),
-      usuarioCadastro: data?.usuarioCadastro || user?.nome || 'Sistema',
-    };
+    if (data) {
+      setFormData({
+        id: data.id,
+        codigoExterno: data.codigoExterno,
+        nome: data.nome,
+        sobrenome: data.sobrenome,
+        nomeTrabalho: data.nomeTrabalho || '',
+        foto: data.foto || '',
+        dataNascimento: data.dataNascimento,
+        sexo: data.sexo,
+        telefone: data.telefone,
+        email: data.email,
+        classificacao: data.classificacao,
+        classificacaoId: data.classificacaoId || '',
+        documento: data.documento,
+        endereco: data.endereco,
+        cidade: data.cidade,
+        estado: data.estado,
+        cep: data.cep,
+        observacoes: data.observacoes,
+        status: data.status,
+      });
+      return;
+    }
 
-    await onSave(pessoaData);
-    onClose();
+    setFormData(emptyFormData);
+  }, [data, isOpen]);
+
+  const estadoOptions = useMemo(
+    () => estadosBrasileiros.map((uf) => ({ value: uf, label: uf })),
+    [],
+  );
+
+  const handlePhotoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setFormData((current) => ({ ...current, foto: reader.result as string }));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (readOnly || isSubmitting) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await onSave(formData);
+      onClose();
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -156,101 +174,124 @@ export const PessoaFormModal = ({
 
         <Tabs defaultValue="dados" className="w-full">
           <TabsList className="flex w-full">
-            <TabsTrigger value="dados" className="flex-1">Dados Gerais</TabsTrigger>
-            <TabsTrigger value="gravacoes" disabled={!data} className="flex-1">Gravações</TabsTrigger>
+            <TabsTrigger value="dados" className="flex-1">
+              Dados Gerais
+            </TabsTrigger>
+            <TabsTrigger value="gravacoes" disabled={!data} className="flex-1">
+              Gravações
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="dados">
             <form onSubmit={handleSubmit} className="space-y-6 mt-4">
-              {/* Photo */}
               <div className="flex justify-center">
                 <div className="relative">
                   <Avatar className="w-24 h-24">
                     <AvatarImage src={formData.foto} />
                     <AvatarFallback className="text-xl gradient-brand text-primary-foreground">
-                      {formData.nome?.charAt(0) || 'P'}{formData.sobrenome?.charAt(0) || ''}
+                      {formData.nome?.charAt(0) || 'P'}
+                      {formData.sobrenome?.charAt(0) || ''}
                     </AvatarFallback>
                   </Avatar>
-                  <label className="absolute bottom-0 right-0 p-1.5 bg-primary rounded-full cursor-pointer hover:bg-primary/90 transition-colors">
-                    <Camera className="w-4 h-4 text-primary-foreground" />
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handlePhotoChange}
-                      className="hidden"
-                    />
-                  </label>
+                  {!readOnly && (
+                    <label className="absolute bottom-0 right-0 p-1.5 bg-primary rounded-full cursor-pointer hover:bg-primary/90 transition-colors">
+                      <Camera className="w-4 h-4 text-primary-foreground" />
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handlePhotoChange}
+                        className="hidden"
+                      />
+                    </label>
+                  )}
                 </div>
               </div>
 
-              {/* Basic Info */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="codigoExterno">Código Externo <FieldAsterisk type={getAsterisk('codigoExterno')} /></Label>
+                  <Label htmlFor="codigoExterno">Código Externo</Label>
                   <Input
                     id="codigoExterno"
                     value={formData.codigoExterno}
-                    onChange={(e) => setFormData({ ...formData, codigoExterno: e.target.value })}
+                    disabled={readOnly}
+                    onChange={(event) =>
+                      setFormData({ ...formData, codigoExterno: event.target.value })
+                    }
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="classificacao">Classificação <FieldAsterisk type={getAsterisk('classificacao')} /></Label>
+                  <Label htmlFor="classificacao">Classificação</Label>
                   <SearchableSelect
-                    options={classificacoes.map(c => ({ value: c.id, label: c.nome }))}
+                    options={classificacoes.map((item) => ({ value: item.id, label: item.nome }))}
                     value={formData.classificacaoId || ''}
                     onValueChange={(value) => {
-                      const selected = classificacoes.find(c => c.id === value);
-                      setFormData({ ...formData, classificacaoId: value, classificacao: selected?.nome || '' });
+                      const selected = classificacoes.find((item) => item.id === value);
+                      setFormData({
+                        ...formData,
+                        classificacaoId: value,
+                        classificacao: selected?.nome || '',
+                      });
                     }}
                     placeholder="Selecione a classificação"
                     searchPlaceholder="Pesquisar classificação..."
+                    disabled={readOnly}
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="nome">Nome <FieldAsterisk type={getAsterisk('nome')} /></Label>
+                  <Label htmlFor="nome">Nome</Label>
                   <Input
                     id="nome"
                     value={formData.nome}
-                    onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
                     required
+                    disabled={readOnly}
+                    onChange={(event) => setFormData({ ...formData, nome: event.target.value })}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="sobrenome">Sobrenome <FieldAsterisk type={getAsterisk('sobrenome')} /></Label>
+                  <Label htmlFor="sobrenome">Sobrenome</Label>
                   <Input
                     id="sobrenome"
                     value={formData.sobrenome}
-                    onChange={(e) => setFormData({ ...formData, sobrenome: e.target.value })}
                     required
+                    disabled={readOnly}
+                    onChange={(event) =>
+                      setFormData({ ...formData, sobrenome: event.target.value })
+                    }
                   />
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="nomeTrabalho">Nome de Trabalho <FieldAsterisk type={getAsterisk('nomeTrabalho')} /></Label>
+                <Label htmlFor="nomeTrabalho">Nome de Trabalho</Label>
                 <Input
                   id="nomeTrabalho"
                   value={formData.nomeTrabalho}
-                  onChange={(e) => setFormData({ ...formData, nomeTrabalho: e.target.value })}
+                  disabled={readOnly}
                   placeholder="Nome artístico ou de trabalho"
+                  onChange={(event) =>
+                    setFormData({ ...formData, nomeTrabalho: event.target.value })
+                  }
                 />
               </div>
 
               <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="dataNascimento">Data de Nascimento <FieldAsterisk type={getAsterisk('dataNascimento')} /></Label>
+                  <Label htmlFor="dataNascimento">Data de Nascimento</Label>
                   <Input
                     id="dataNascimento"
                     type="date"
                     value={formData.dataNascimento}
-                    onChange={(e) => setFormData({ ...formData, dataNascimento: e.target.value })}
+                    disabled={readOnly}
+                    onChange={(event) =>
+                      setFormData({ ...formData, dataNascimento: event.target.value })
+                    }
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="sexo">Sexo <FieldAsterisk type={getAsterisk('sexo')} /></Label>
+                  <Label htmlFor="sexo">Sexo</Label>
                   <SearchableSelect
                     options={[
                       { value: 'Masculino', label: 'Masculino' },
@@ -261,110 +302,121 @@ export const PessoaFormModal = ({
                     onValueChange={(value) => setFormData({ ...formData, sexo: value })}
                     placeholder="Selecione"
                     searchPlaceholder="Pesquisar..."
+                    disabled={readOnly}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="documento">CPF/Documento <FieldAsterisk type={getAsterisk('documento')} /></Label>
+                  <Label htmlFor="documento">CPF/Documento</Label>
                   <Input
                     id="documento"
                     value={formData.documento}
-                    onChange={(e) => setFormData({ ...formData, documento: e.target.value })}
+                    disabled={readOnly}
+                    onChange={(event) =>
+                      setFormData({ ...formData, documento: event.target.value })
+                    }
                   />
                 </div>
               </div>
 
-              {/* Contact */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="email">E-mail <FieldAsterisk type={getAsterisk('email')} /></Label>
+                  <Label htmlFor="email">E-mail</Label>
                   <Input
                     id="email"
                     type="email"
                     value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    disabled={readOnly}
+                    onChange={(event) => setFormData({ ...formData, email: event.target.value })}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="telefone">Telefone <FieldAsterisk type={getAsterisk('telefone')} /></Label>
+                  <Label htmlFor="telefone">Telefone</Label>
                   <Input
                     id="telefone"
                     value={formData.telefone}
-                    onChange={(e) => setFormData({ ...formData, telefone: e.target.value })}
+                    disabled={readOnly}
+                    onChange={(event) => setFormData({ ...formData, telefone: event.target.value })}
                   />
                 </div>
               </div>
 
-              {/* Address */}
               <div className="space-y-2">
-                <Label htmlFor="endereco">Endereço <FieldAsterisk type={getAsterisk('endereco')} /></Label>
+                <Label htmlFor="endereco">Endereço</Label>
                 <Input
                   id="endereco"
                   value={formData.endereco}
-                  onChange={(e) => setFormData({ ...formData, endereco: e.target.value })}
+                  disabled={readOnly}
+                  onChange={(event) => setFormData({ ...formData, endereco: event.target.value })}
                 />
               </div>
 
               <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="cidade">Cidade <FieldAsterisk type={getAsterisk('cidade')} /></Label>
+                  <Label htmlFor="cidade">Cidade</Label>
                   <Input
                     id="cidade"
                     value={formData.cidade}
-                    onChange={(e) => setFormData({ ...formData, cidade: e.target.value })}
+                    disabled={readOnly}
+                    onChange={(event) => setFormData({ ...formData, cidade: event.target.value })}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="estado">Estado <FieldAsterisk type={getAsterisk('estado')} /></Label>
+                  <Label htmlFor="estado">Estado</Label>
                   <SearchableSelect
-                    options={estadosBrasileiros.map(uf => ({ value: uf, label: uf }))}
+                    options={estadoOptions}
                     value={formData.estado}
                     onValueChange={(value) => setFormData({ ...formData, estado: value })}
                     placeholder="Selecione"
                     searchPlaceholder="Pesquisar estado..."
+                    disabled={readOnly}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="cep">CEP <FieldAsterisk type={getAsterisk('cep')} /></Label>
+                  <Label htmlFor="cep">CEP</Label>
                   <Input
                     id="cep"
                     value={formData.cep}
-                    onChange={(e) => setFormData({ ...formData, cep: e.target.value })}
+                    disabled={readOnly}
+                    onChange={(event) => setFormData({ ...formData, cep: event.target.value })}
                   />
                 </div>
               </div>
 
-              {/* Status */}
               <div className="space-y-2">
-                <Label htmlFor="status">Status <FieldAsterisk type={getAsterisk('status')} /></Label>
+                <Label htmlFor="status">Status</Label>
                 <SearchableSelect
                   options={[
                     { value: 'Ativo', label: 'Ativo' },
                     { value: 'Inativo', label: 'Inativo' },
                   ]}
                   value={formData.status}
-                  onValueChange={(value) => setFormData({ ...formData, status: value as 'Ativo' | 'Inativo' })}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, status: value as 'Ativo' | 'Inativo' })
+                  }
                   placeholder="Selecione"
+                  disabled={readOnly}
                 />
               </div>
 
-              {/* Observations */}
               <div className="space-y-2">
-                <Label htmlFor="observacoes">Observações <FieldAsterisk type={getAsterisk('observacoes')} /></Label>
+                <Label htmlFor="observacoes">Observações</Label>
                 <Textarea
                   id="observacoes"
-                  value={formData.observacoes}
-                  onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })}
                   rows={3}
+                  value={formData.observacoes}
+                  disabled={readOnly}
+                  onChange={(event) =>
+                    setFormData({ ...formData, observacoes: event.target.value })
+                  }
                 />
               </div>
 
-              {/* Actions */}
               <div className="flex justify-end gap-3">
                 <Button type="button" variant="outline" onClick={onClose}>
                   {readOnly ? 'Fechar' : 'Cancelar'}
                 </Button>
                 {!readOnly && (
-                  <Button type="submit">
+                  <Button type="submit" disabled={isSubmitting}>
                     {data ? 'Salvar' : 'Cadastrar'}
                   </Button>
                 )}

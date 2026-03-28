@@ -1,297 +1,139 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
 import { ListActionBar } from '@/components/shared/ListActionBar';
-import { Edit, Trash2, Users, UserX, Calendar, Loader2, Clock } from 'lucide-react';
+import { SortableTable, Column } from '@/components/shared/SortableTable';
 import { NewButton } from '@/components/shared/NewButton';
-import { Badge } from '@/components/ui/badge';
-import { useToast } from '@/hooks/use-toast';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { RecursoHumanoFormModal } from '@/components/recursos/RecursoHumanoFormModal';
 import { MapaEscalasModal } from '@/components/recursos/MapaEscalasModal';
 import { MapaOciosidadeModal } from '@/components/recursos/MapaOciosidadeModal';
-import { parseISO, isWithinInterval, startOfDay } from 'date-fns';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { SortableTable, Column } from '@/components/shared/SortableTable';
-import { supabase } from '@/integrations/supabase/client';
-import type { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
+import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { usePermissions } from '@/hooks/usePermissions';
-
-type RecursoHumanoDB = Tables<'recursos_humanos'>;
-
-export interface Anexo {
-  id: string;
-  nome: string;
-  tipo: string;
-  tamanho: number;
-  dataUrl: string;
-}
-
-export interface Ausencia {
-  id: string;
-  motivo: 'Férias' | 'Folga' | 'Licença Maternidade' | 'Licença Paternidade' | 'Curso Externo' | 'Viagem de Trabalho';
-  dataInicio: string;
-  dataFim: string;
-  dias: number;
-}
-
-export interface Escala {
-  id: string;
-  dataInicio: string;
-  horaInicio: string;
-  dataFim: string;
-  horaFim: string;
-  diasSemana: number[];
-}
-
-export interface RecursoHumano {
-  id: string;
-  codigoExterno: string;
-  nome: string;
-  sobrenome: string;
-  foto?: string;
-  dataNascimento: string;
-  sexo: string;
-  telefone: string;
-  email: string;
-  departamento: string;
-  departamentoId?: string;
-  funcao: string;
-  funcaoId?: string;
-  custoHora: number;
-  dataContratacao: string;
-  status: 'Ativo' | 'Inativo';
-  dataCadastro: string;
-  usuarioCadastro: string;
-  anexos?: Anexo[];
-  ausencias?: Ausencia[];
-  escalas?: Escala[];
-}
-
-const mapDbToRecursoHumano = (
-  db: RecursoHumanoDB & { 
-    departamentos?: { nome: string } | null; 
-    funcoes?: { nome: string } | null;
-  },
-  ausencias: Ausencia[] = [],
-  escalas: Escala[] = [],
-  anexos: Anexo[] = []
-): RecursoHumano => ({
-  id: db.id,
-  codigoExterno: db.codigo_externo || '',
-  nome: db.nome,
-  sobrenome: db.sobrenome,
-  foto: db.foto_url || undefined,
-  dataNascimento: db.data_nascimento || '',
-  sexo: db.sexo || '',
-  telefone: db.telefone || '',
-  email: db.email || '',
-  departamento: db.departamentos?.nome || '',
-  departamentoId: db.departamento_id || undefined,
-  funcao: db.funcoes?.nome || '',
-  funcaoId: db.funcao_id || undefined,
-  custoHora: db.custo_hora || 0,
-  dataContratacao: db.data_contratacao || '',
-  status: db.status || 'Ativo',
-  dataCadastro: db.created_at ? new Date(db.created_at).toLocaleDateString('pt-BR') : '',
-  usuarioCadastro: '',
-  ausencias,
-  escalas,
-  anexos,
-});
+import { parseISO, isWithinInterval, startOfDay } from 'date-fns';
+import { Edit, Trash2, Users, UserX, Calendar, Loader2, Clock } from 'lucide-react';
+import { recursosHumanosRepository } from '@/modules/recursos-humanos/recursos-humanos.repository.provider';
+import type {
+  Ausencia,
+  RecursoHumano,
+  RecursoHumanoInput,
+} from '@/modules/recursos-humanos/recursos-humanos.types';
 
 const RecursosHumanos = () => {
   const { toast } = useToast();
   const { t } = useLanguage();
-  const { canAlterar } = usePermissions();
+  const { user, session } = useAuth();
+  const { canIncluir, canAlterar, canExcluir } = usePermissions();
+  const podeIncluir = canIncluir('Recursos', 'Recursos Humanos');
+  const podeAlterar = canAlterar('Recursos', 'Recursos Humanos');
+  const podeExcluir = canExcluir('Recursos', 'Recursos Humanos');
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isMapaOpen, setIsMapaOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<RecursoHumano | null>(null);
   const [isMapaOciosidadeOpen, setIsMapaOciosidadeOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<RecursoHumano | null>(null);
   const [items, setItems] = useState<RecursoHumano[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const fetchRecursosHumanos = async () => {
+  const fetchRecursosHumanos = useCallback(async () => {
+    if (!session) {
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     try {
-      const { data: recursosData, error: recursosError } = await supabase
-        .from('recursos_humanos')
-        .select('*, departamentos:departamento_id(nome), funcoes:funcao_id(nome)')
-        .order('nome');
-
-      if (recursosError) throw recursosError;
-
-      const recursosWithDetails = await Promise.all(
-        (recursosData || []).map(async (rh) => {
-          const [ausenciasRes, escalasRes, anexosRes] = await Promise.all([
-            supabase.from('rh_ausencias').select('*').eq('recurso_humano_id', rh.id),
-            supabase.from('rh_escalas').select('*').eq('recurso_humano_id', rh.id),
-            supabase.from('rh_anexos').select('*').eq('recurso_humano_id', rh.id),
-          ]);
-
-          const ausencias: Ausencia[] = (ausenciasRes.data || []).map((a) => ({
-            id: a.id,
-            motivo: a.motivo as Ausencia['motivo'],
-            dataInicio: a.data_inicio,
-            dataFim: a.data_fim,
-            dias: a.dias,
-          }));
-
-          const escalas: Escala[] = (escalasRes.data || []).map((e) => ({
-            id: e.id,
-            dataInicio: e.data_inicio,
-            horaInicio: e.hora_inicio,
-            dataFim: e.data_fim,
-            horaFim: e.hora_fim,
-            diasSemana: e.dias_semana || [1, 2, 3, 4, 5],
-          }));
-
-          const anexos: Anexo[] = (anexosRes.data || []).map((a) => ({
-            id: a.id,
-            nome: a.nome,
-            tipo: a.tipo || '',
-            tamanho: a.tamanho || 0,
-            dataUrl: a.url,
-          }));
-
-          return mapDbToRecursoHumano(rh, ausencias, escalas, anexos);
-        })
-      );
-
-      setItems(recursosWithDetails);
+      setItems(await recursosHumanosRepository.list());
     } catch (error) {
       console.error('Error fetching recursos humanos:', error);
-      toast({ title: t('common.error'), description: t('common.error'), variant: 'destructive' });
+      toast({
+        title: t('common.error'),
+        description: `Erro ao carregar recursos humanos: ${(error as Error).message}`,
+        variant: 'destructive',
+      });
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [session, t, toast]);
 
   useEffect(() => {
     fetchRecursosHumanos();
-  }, []);
+  }, [fetchRecursosHumanos]);
 
-  const handleSave = async (data: RecursoHumano, isUpdateFromMap: boolean = false) => {
+  const handleSave = async (data: RecursoHumanoInput) => {
     try {
-      const validSexoValues = ['Masculino', 'Feminino', 'Outro'];
-      const sexoValue = data.sexo && validSexoValues.includes(data.sexo) 
-        ? (data.sexo as 'Masculino' | 'Feminino' | 'Outro') 
-        : null;
-
-      const dbData: TablesInsert<'recursos_humanos'> = {
-        id: data.id || undefined,
-        codigo_externo: data.codigoExterno || null,
-        nome: data.nome,
-        sobrenome: data.sobrenome,
-        foto_url: data.foto || null,
-        data_nascimento: data.dataNascimento || null,
-        sexo: sexoValue,
-        telefone: data.telefone || null,
-        email: data.email || null,
-        departamento_id: data.departamentoId || null,
-        funcao_id: data.funcaoId || null,
-        custo_hora: data.custoHora || 0,
-        data_contratacao: data.dataContratacao || null,
-        status: data.status as 'Ativo' | 'Inativo',
-      };
-
-      let recursoId = data.id;
-      const isUpdate = editingItem || (isUpdateFromMap && data.id);
-
-      if (isUpdate) {
-        const { error } = await supabase
-          .from('recursos_humanos')
-          .update(dbData as TablesUpdate<'recursos_humanos'>)
-          .eq('id', data.id);
-        if (error) throw error;
-      } else {
-        const insertData = { ...dbData };
-        delete insertData.id;
-        
-        const { data: inserted, error } = await supabase
-          .from('recursos_humanos')
-          .insert(insertData)
-          .select()
-          .single();
-        if (error) throw error;
-        recursoId = inserted.id;
-      }
-
-      if (data.escalas) {
-        await supabase.from('rh_escalas').delete().eq('recurso_humano_id', recursoId);
-        if (data.escalas.length > 0) {
-          const escalasData = data.escalas.map((e) => ({
-            recurso_humano_id: recursoId,
-            data_inicio: e.dataInicio,
-            hora_inicio: e.horaInicio,
-            data_fim: e.dataFim,
-            hora_fim: e.horaFim,
-            dias_semana: e.diasSemana,
-          }));
-          await supabase.from('rh_escalas').insert(escalasData);
-        }
-      }
-
-      if (data.ausencias) {
-        await supabase.from('rh_ausencias').delete().eq('recurso_humano_id', recursoId);
-        if (data.ausencias.length > 0) {
-          const ausenciasData = data.ausencias.map((a) => ({
-            recurso_humano_id: recursoId,
-            motivo: a.motivo,
-            data_inicio: a.dataInicio,
-            data_fim: a.dataFim,
-            dias: a.dias,
-          }));
-          await supabase.from('rh_ausencias').insert(ausenciasData);
-        }
-      }
-
-      toast({ title: t('common.success'), description: editingItem ? t('common.success') : t('common.success') });
+      await recursosHumanosRepository.save({
+        ...data,
+        tenantId: user?.tenantId ?? null,
+      });
+      toast({
+        title: t('common.success'),
+        description: editingItem ? 'Colaborador atualizado!' : 'Colaborador criado!',
+      });
       await fetchRecursosHumanos();
       setEditingItem(null);
     } catch (error) {
       console.error('Error saving recurso humano:', error);
-      toast({ title: t('common.error'), description: t('common.error'), variant: 'destructive' });
+      toast({
+        title: t('common.error'),
+        description: `Erro ao salvar: ${(error as Error).message}`,
+        variant: 'destructive',
+      });
+      throw error;
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm(t('common.confirm.delete'))) {
-      try {
-        const { error } = await supabase.from('recursos_humanos').delete().eq('id', id);
-        if (error) throw error;
-        toast({ title: t('common.deleted'), description: t('common.deleted') });
-        await fetchRecursosHumanos();
-      } catch (error) {
-        console.error('Error deleting recurso humano:', error);
-        toast({ title: t('common.error'), description: t('common.error'), variant: 'destructive' });
-      }
+    if (!confirm(t('common.confirm.delete'))) {
+      return;
+    }
+
+    try {
+      await recursosHumanosRepository.remove(id);
+      toast({ title: t('common.deleted'), description: t('common.deleted') });
+      await fetchRecursosHumanos();
+    } catch (error) {
+      console.error('Error deleting recurso humano:', error);
+      toast({
+        title: t('common.error'),
+        description: `Erro ao excluir: ${(error as Error).message}`,
+        variant: 'destructive',
+      });
     }
   };
 
-  const formatCustoHora = (value: number) =>
-    new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
+  const hoje = useMemo(() => startOfDay(new Date()), []);
+
+  const getAusenciaHoje = (item: RecursoHumano): Ausencia | null => {
+    return (
+      item.ausencias.find((ausencia) => {
+        try {
+          const inicio = startOfDay(parseISO(ausencia.dataInicio));
+          const fim = startOfDay(parseISO(ausencia.dataFim));
+          return isWithinInterval(hoje, { start: inicio, end: fim });
+        } catch {
+          return false;
+        }
+      }) ?? null
+    );
+  };
 
   const filteredItems = items.filter(
     (item) =>
-      item.nome.toLowerCase().includes(search.toLowerCase()) ||
-      item.sobrenome.toLowerCase().includes(search.toLowerCase()) ||
-      item.email.toLowerCase().includes(search.toLowerCase())
+      `${item.nome} ${item.sobrenome}`.toLowerCase().includes(search.toLowerCase()) ||
+      item.email.toLowerCase().includes(search.toLowerCase()) ||
+      item.departamento.toLowerCase().includes(search.toLowerCase()) ||
+      item.funcao.toLowerCase().includes(search.toLowerCase()),
   );
 
-  const hoje = useMemo(() => startOfDay(new Date()), []);
-
-  const getAusenciaHoje = (item: RecursoHumano) => {
-    if (!item.ausencias || item.ausencias.length === 0) return null;
-    
-    return item.ausencias.find((ausencia) => {
-      const inicio = startOfDay(parseISO(ausencia.dataInicio));
-      const fim = startOfDay(parseISO(ausencia.dataFim));
-      return isWithinInterval(hoje, { start: inicio, end: fim });
-    });
-  };
+  const formatCustoHora = (value: number) =>
+    new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(
+      value,
+    );
 
   const columns: Column<RecursoHumano>[] = [
     {
@@ -306,7 +148,8 @@ const RecursosHumanos = () => {
             <Avatar className="w-8 h-8">
               <AvatarImage src={item.foto} />
               <AvatarFallback className="text-xs gradient-brand text-primary-foreground">
-                {item.nome.charAt(0)}{item.sobrenome.charAt(0)}
+                {item.nome.charAt(0)}
+                {item.sobrenome.charAt(0)}
               </AvatarFallback>
             </Avatar>
             {ausenciaHoje && (
@@ -325,12 +168,17 @@ const RecursosHumanos = () => {
         const ausenciaHoje = getAusenciaHoje(item);
         return (
           <div className="flex items-center gap-2">
-            <span className="font-medium">{item.nome} {item.sobrenome}</span>
+            <span className="font-medium">
+              {item.nome} {item.sobrenome}
+            </span>
             {ausenciaHoje && (
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Badge variant="outline" className="text-xs bg-amber-500/10 text-amber-600 border-amber-500/30">
+                    <Badge
+                      variant="outline"
+                      className="text-xs bg-amber-500/10 text-amber-600 border-amber-500/30"
+                    >
                       {ausenciaHoje.motivo}
                     </Badge>
                   </TooltipTrigger>
@@ -347,6 +195,7 @@ const RecursosHumanos = () => {
     {
       key: 'email',
       label: t('common.email'),
+      render: (item) => item.email || '-',
     },
     {
       key: 'departamento',
@@ -367,9 +216,7 @@ const RecursosHumanos = () => {
       key: 'status',
       label: t('common.status'),
       render: (item) => (
-        <Badge variant={item.status === 'Ativo' ? 'default' : 'secondary'}>
-          {item.status}
-        </Badge>
+        <Badge variant={item.status === 'Ativo' ? 'default' : 'secondary'}>{item.status}</Badge>
       ),
     },
     {
@@ -382,6 +229,7 @@ const RecursosHumanos = () => {
           <Button
             size="icon"
             variant="ghost"
+            disabled={!podeAlterar}
             onClick={(e) => {
               e.stopPropagation();
               setEditingItem(item);
@@ -390,17 +238,19 @@ const RecursosHumanos = () => {
           >
             <Edit className="w-4 h-4" />
           </Button>
-          <Button
-            size="icon"
-            variant="ghost"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleDelete(item.id);
-            }}
-            className="text-destructive hover:text-destructive"
-          >
-            <Trash2 className="w-4 h-4" />
-          </Button>
+          {podeExcluir && (
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDelete(item.id);
+              }}
+              className="text-destructive hover:text-destructive"
+            >
+              <Trash2 className="w-4 h-4" />
+            </Button>
+          )}
         </div>
       ),
     },
@@ -408,13 +258,18 @@ const RecursosHumanos = () => {
 
   return (
     <div>
-      <PageHeader
-        title={t('humanResources.title')}
-        description={t('field.manageCollaborators')}
-      />
+      <PageHeader title={t('humanResources.title')} description={t('field.manageCollaborators')} />
 
       <ListActionBar>
-        <NewButton tooltip={t('field.newCollaborator')} onClick={() => { setEditingItem(null); setIsModalOpen(true); }} />
+        {podeIncluir && (
+          <NewButton
+            tooltip={t('field.newCollaborator')}
+            onClick={() => {
+              setEditingItem(null);
+              setIsModalOpen(true);
+            }}
+          />
+        )}
         <div className="flex-1" />
         <SearchBar value={search} onChange={setSearch} />
         <Button
@@ -447,7 +302,7 @@ const RecursosHumanos = () => {
             title={t('field.noCollaboratorRegistered')}
             description={t('field.manageCollaboratorsTeam')}
             icon={Users}
-            onAction={() => setIsModalOpen(true)}
+            onAction={podeIncluir ? () => setIsModalOpen(true) : undefined}
             actionLabel={t('field.addCollaborator')}
           />
         ) : (
@@ -468,16 +323,14 @@ const RecursosHumanos = () => {
         }}
         onSave={handleSave}
         data={editingItem}
-        readOnly={!!editingItem && !canAlterar('Recursos', 'Recursos Humanos')}
+        readOnly={!!editingItem && !podeAlterar}
       />
 
       <MapaEscalasModal
         isOpen={isMapaOpen}
         onClose={() => setIsMapaOpen(false)}
         recursos={items}
-        onUpdateRecurso={async (updatedRecurso) => {
-          await handleSave(updatedRecurso, true);
-        }}
+        onUpdateRecurso={podeAlterar ? handleSave : undefined}
       />
 
       <MapaOciosidadeModal

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
 import { ListActionBar } from '@/components/shared/ListActionBar';
 import { Settings, Edit, Trash2, Loader2, Star } from 'lucide-react';
@@ -37,24 +37,24 @@ import { Textarea } from '@/components/ui/textarea';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { toast } from 'sonner';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
+import { ApiParametrizacoesRepository } from '@/modules/parametrizacoes/parametrizacoes.api.repository';
 
 interface StatusTarefaItem {
   id: string;
   codigo: string;
   nome: string;
-  cor: string | null;
-  descricao: string | null;
-  is_inicial: boolean;
-  created_at: string | null;
-  created_by: string | null;
+  cor: string;
+  descricao: string;
+  isInicial: boolean;
+  dataCadastro: string;
+  usuarioCadastro: string;
 }
+
+const repository = new ApiParametrizacoesRepository();
 
 const StatusTarefa = () => {
   const { t } = useLanguage();
-  const { user } = useAuth();
   const { canAlterar } = usePermissions();
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -66,42 +66,18 @@ const StatusTarefa = () => {
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('status_tarefa')
-        .select('*')
-        .order('nome', { ascending: true });
-
-      if (error) throw error;
-
-      // If no data exists, seed with default values
-      if (!data || data.length === 0) {
-        const defaultData = [
-          { codigo: 'PEND', nome: 'Pendente', cor: '#f59e0b', descricao: 'Tarefa aguardando início', created_by: user?.id },
-          { codigo: 'PROG', nome: 'Em Progresso', cor: '#3b82f6', descricao: 'Tarefa em andamento', created_by: user?.id },
-          { codigo: 'CONC', nome: 'Concluída', cor: '#22c55e', descricao: 'Tarefa finalizada', created_by: user?.id },
-          { codigo: 'CANC', nome: 'Cancelada', cor: '#ef4444', descricao: 'Tarefa cancelada', created_by: user?.id },
-        ];
-
-        const { data: insertedData, error: insertError } = await supabase
-          .from('status_tarefa')
-          .insert(defaultData)
-          .select();
-
-        if (insertError) throw insertError;
-        setItems(insertedData || []);
-      } else {
-        setItems(data);
-      }
+      const response = await repository.listStatusTarefa();
+      setItems(response.data);
     } catch (err) {
       console.error('Error fetching status_tarefa:', err);
       toast.error('Erro ao carregar dados');
     } finally {
       setIsLoading(false);
     }
-  }, [user?.id]);
+  }, []);
 
   useEffect(() => {
-    fetchData();
+    void fetchData();
   }, [fetchData]);
 
   const handleOpenModal = (item?: StatusTarefaItem) => {
@@ -110,7 +86,7 @@ const StatusTarefa = () => {
       setFormData(item);
     } else {
       setEditingItem(null);
-      setFormData({});
+      setFormData({ cor: '#888888' });
     }
     setIsModalOpen(true);
   };
@@ -122,34 +98,16 @@ const StatusTarefa = () => {
     }
 
     try {
-      if (editingItem) {
-        const { error } = await supabase
-          .from('status_tarefa')
-          .update({
-            codigo: formData.codigo,
-            nome: formData.nome,
-            cor: formData.cor || '#888888',
-            descricao: formData.descricao || null,
-          })
-          .eq('id', editingItem.id);
+      await repository.saveStatusTarefa({
+        ...(editingItem ? { id: editingItem.id } : {}),
+        codigo: formData.codigo,
+        nome: formData.nome,
+        cor: formData.cor || '#888888',
+        descricao: formData.descricao || '',
+        isInicial: editingItem?.isInicial || false,
+      });
 
-        if (error) throw error;
-        toast.success(t('common.savedSuccessfully'));
-      } else {
-        const { error } = await supabase
-          .from('status_tarefa')
-          .insert({
-            codigo: formData.codigo,
-            nome: formData.nome,
-            cor: formData.cor || '#888888',
-            descricao: formData.descricao || null,
-            created_by: user?.id,
-          });
-
-        if (error) throw error;
-        toast.success(t('common.savedSuccessfully'));
-      }
-
+      toast.success(t('common.savedSuccessfully'));
       await fetchData();
       setIsModalOpen(false);
       setEditingItem(null);
@@ -162,13 +120,7 @@ const StatusTarefa = () => {
 
   const handleDelete = async (id: string) => {
     try {
-      const { error } = await supabase
-        .from('status_tarefa')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
-
+      await repository.removeStatusTarefa(id);
       toast.success(t('common.deleted'));
       await fetchData();
     } catch (err) {
@@ -179,12 +131,7 @@ const StatusTarefa = () => {
 
   const handleToggleInicial = async (id: string, value: boolean) => {
     try {
-      const { error } = await supabase
-        .from('status_tarefa')
-        .update({ is_inicial: value })
-        .eq('id', id);
-
-      if (error) throw error;
+      await repository.toggleStatusTarefaInicial(id, value);
       toast.success(value ? 'Status definido como inicial' : 'Status inicial removido');
       await fetchData();
     } catch (err) {
@@ -193,9 +140,10 @@ const StatusTarefa = () => {
     }
   };
 
-  const filteredItems = items.filter(item =>
-    item.nome.toLowerCase().includes(search.toLowerCase()) ||
-    item.codigo.toLowerCase().includes(search.toLowerCase())
+  const filteredItems = items.filter(
+    (item) =>
+      item.nome.toLowerCase().includes(search.toLowerCase()) ||
+      item.codigo.toLowerCase().includes(search.toLowerCase()),
   );
 
   if (isLoading) {
@@ -216,11 +164,7 @@ const StatusTarefa = () => {
       <ListActionBar>
         <NewButton tooltip={t('common.new')} onClick={() => handleOpenModal()} />
         <div className="flex-1" />
-        <SearchBar
-          value={search}
-          onChange={setSearch}
-          placeholder={t('common.search')}
-        />
+        <SearchBar value={search} onChange={setSearch} placeholder={t('common.search')} />
       </ListActionBar>
 
       {filteredItems.length === 0 ? (
@@ -232,7 +176,7 @@ const StatusTarefa = () => {
           actionLabel={t('common.add')}
         />
       ) : (
-         <DataCard>
+        <DataCard>
           <Table>
             <TableHeader>
               <TableRow>
@@ -245,13 +189,13 @@ const StatusTarefa = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredItems.map(item => (
+              {filteredItems.map((item) => (
                 <TableRow key={item.id}>
                   <TableCell className="font-medium">{item.codigo}</TableCell>
                   <TableCell>{item.nome}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      <div 
+                      <div
                         className="w-6 h-6 rounded border"
                         style={{ backgroundColor: item.cor || '#888' }}
                       />
@@ -267,24 +211,22 @@ const StatusTarefa = () => {
                             variant="ghost"
                             size="icon"
                             className="h-7 w-7"
-                            onClick={() => handleToggleInicial(item.id, !item.is_inicial)}
+                            onClick={() => void handleToggleInicial(item.id, !item.isInicial)}
                           >
-                            <Star className={`h-4 w-4 ${item.is_inicial ? 'fill-yellow-400 text-yellow-400' : 'text-muted-foreground'}`} />
+                            <Star
+                              className={`h-4 w-4 ${item.isInicial ? 'fill-yellow-400 text-yellow-400' : 'text-muted-foreground'}`}
+                            />
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent>
-                          {item.is_inicial ? 'Status inicial ativo' : 'Definir como status inicial'}
+                          {item.isInicial ? 'Status inicial ativo' : 'Definir como status inicial'}
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
                   </TableCell>
                   <TableCell>
                     <div className="flex gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleOpenModal(item)}
-                      >
+                      <Button variant="ghost" size="icon" onClick={() => handleOpenModal(item)}>
                         <Edit className="h-4 w-4" />
                       </Button>
                       <AlertDialog>
@@ -302,7 +244,7 @@ const StatusTarefa = () => {
                           </AlertDialogHeader>
                           <AlertDialogFooter>
                             <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => handleDelete(item.id)}>
+                            <AlertDialogAction onClick={() => void handleDelete(item.id)}>
                               {t('common.delete')}
                             </AlertDialogAction>
                           </AlertDialogFooter>
@@ -323,9 +265,7 @@ const StatusTarefa = () => {
             <DialogTitle>
               {editingItem ? t('common.edit') : t('common.new')} {t('parameters.taskStatus')}
             </DialogTitle>
-            <DialogDescription>
-              {t('parameters.taskStatusDescription')}
-            </DialogDescription>
+            <DialogDescription>{t('parameters.taskStatusDescription')}</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
@@ -336,7 +276,9 @@ const StatusTarefa = () => {
                 value={formData.codigo || ''}
                 onChange={(e) => setFormData({ ...formData, codigo: e.target.value })}
                 required
-                disabled={!!editingItem && !canAlterar('Produção', 'Parametrizações', 'Status Tarefa')}
+                disabled={
+                  !!editingItem && !canAlterar('ProduÃ§Ã£o', 'ParametrizaÃ§Ãµes', 'Status Tarefa')
+                }
               />
             </div>
 
@@ -347,7 +289,9 @@ const StatusTarefa = () => {
                 value={formData.nome || ''}
                 onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
                 required
-                disabled={!!editingItem && !canAlterar('Produção', 'Parametrizações', 'Status Tarefa')}
+                disabled={
+                  !!editingItem && !canAlterar('ProduÃ§Ã£o', 'ParametrizaÃ§Ãµes', 'Status Tarefa')
+                }
               />
             </div>
 
@@ -360,14 +304,18 @@ const StatusTarefa = () => {
                   value={formData.cor || '#888888'}
                   onChange={(e) => setFormData({ ...formData, cor: e.target.value })}
                   className="w-16 h-10 p-1"
-                  disabled={!!editingItem && !canAlterar('Produção', 'Parametrizações', 'Status Tarefa')}
+                  disabled={
+                    !!editingItem && !canAlterar('ProduÃ§Ã£o', 'ParametrizaÃ§Ãµes', 'Status Tarefa')
+                  }
                 />
                 <Input
                   value={formData.cor || ''}
                   onChange={(e) => setFormData({ ...formData, cor: e.target.value })}
                   placeholder="#000000"
                   className="flex-1"
-                  disabled={!!editingItem && !canAlterar('Produção', 'Parametrizações', 'Status Tarefa')}
+                  disabled={
+                    !!editingItem && !canAlterar('ProduÃ§Ã£o', 'ParametrizaÃ§Ãµes', 'Status Tarefa')
+                  }
                 />
               </div>
             </div>
@@ -379,17 +327,21 @@ const StatusTarefa = () => {
                 value={formData.descricao || ''}
                 onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
                 rows={3}
-                disabled={!!editingItem && !canAlterar('Produção', 'Parametrizações', 'Status Tarefa')}
+                disabled={
+                  !!editingItem && !canAlterar('ProduÃ§Ã£o', 'ParametrizaÃ§Ãµes', 'Status Tarefa')
+                }
               />
             </div>
           </div>
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsModalOpen(false)}>
-              {editingItem && !canAlterar('Produção', 'Parametrizações', 'Status Tarefa') ? t('common.close') : t('common.cancel')}
+              {editingItem && !canAlterar('ProduÃ§Ã£o', 'ParametrizaÃ§Ãµes', 'Status Tarefa')
+                ? t('common.close')
+                : t('common.cancel')}
             </Button>
-            {!(editingItem && !canAlterar('Produção', 'Parametrizações', 'Status Tarefa')) && (
-              <Button onClick={handleSave} className="gradient-primary">
+            {!(editingItem && !canAlterar('ProduÃ§Ã£o', 'ParametrizaÃ§Ãµes', 'Status Tarefa')) && (
+              <Button onClick={() => void handleSave()} className="gradient-primary">
                 {t('common.save')}
               </Button>
             )}

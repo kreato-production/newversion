@@ -1,10 +1,5 @@
 import { useState, useMemo } from 'react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -40,13 +35,17 @@ import {
 import { ptBR } from 'date-fns/locale';
 import { getDateLocale, getDayAbbreviations } from '@/lib/dateLocale';
 import { useLanguage } from '@/contexts/LanguageContext';
-import type { RecursoHumano, Escala} from '@/pages/recursos/RecursosHumanos';
+import type {
+  RecursoHumano,
+  RecursoHumanoInput,
+  Escala,
+} from '@/modules/recursos-humanos/recursos-humanos.types';
 
 interface MapaEscalasModalProps {
   isOpen: boolean;
   onClose: () => void;
   recursos: RecursoHumano[];
-  onUpdateRecurso?: (recurso: RecursoHumano) => void;
+  onUpdateRecurso?: (recurso: RecursoHumanoInput) => void;
 }
 
 type ViewMode = 'semana' | 'mes' | 'periodo';
@@ -71,7 +70,7 @@ export const MapaEscalasModal = ({
   // Agrupar recursos por departamento
   const recursosPorDepartamento = useMemo(() => {
     const grupos: Record<string, RecursoHumano[]> = {};
-    
+
     recursos.forEach((recurso) => {
       const dept = recurso.departamento || 'Sem Departamento';
       if (!grupos[dept]) {
@@ -137,7 +136,7 @@ export const MapaEscalasModal = ({
           const inicio = parseISO(escala.dataInicio);
           const fim = parseISO(escala.dataFim);
           const dentroDoIntervalo = isWithinInterval(dia, { start: inicio, end: fim });
-          
+
           if (!dentroDoIntervalo) return false;
 
           // Se tem dias da semana definidos, verificar se o dia atual está incluído
@@ -349,14 +348,14 @@ export const MapaEscalasModal = ({
                         const diaSemana = getDay(dia);
                         const isFimDeSemana = diaSemana === 0 || diaSemana === 6;
                         const isEditable = status !== 'AU';
-                        
+
                         const handleStatusChange = (newStatus: StatusType) => {
                           if (!onUpdateRecurso || newStatus === status) return;
-                          
+
                           const diaStr = format(dia, 'yyyy-MM-dd');
                           const diaNum = getDay(dia);
-                          let updatedRecurso = { ...recurso };
-                          
+                          const updatedRecurso = { ...recurso };
+
                           if (newStatus === 'DI') {
                             // Adicionar escala para este dia específico
                             const novaEscala: Escala = {
@@ -374,34 +373,37 @@ export const MapaEscalasModal = ({
                               try {
                                 const inicio = parseISO(escala.dataInicio);
                                 const fim = parseISO(escala.dataFim);
-                                const dentroIntervalo = isWithinInterval(dia, { start: inicio, end: fim });
-                                
+                                const dentroIntervalo = isWithinInterval(dia, {
+                                  start: inicio,
+                                  end: fim,
+                                });
+
                                 if (!dentroIntervalo) return true;
-                                
+
                                 // Se é exatamente este dia, remover completamente
                                 if (escala.dataInicio === diaStr && escala.dataFim === diaStr) {
                                   return false;
                                 }
-                                
+
                                 // Se tem o dia da semana incluído, remover o dia da semana
                                 if (escala.diasSemana?.includes(diaNum)) {
-                                  escala.diasSemana = escala.diasSemana.filter(d => d !== diaNum);
+                                  escala.diasSemana = escala.diasSemana.filter((d) => d !== diaNum);
                                   return escala.diasSemana.length > 0;
                                 }
-                                
+
                                 return true;
                               } catch {
                                 return true;
                               }
                             });
                           }
-                          
+
                           onUpdateRecurso(updatedRecurso);
                         };
-                        
+
                         return (
-                          <div 
-                            key={dia.toISOString()} 
+                          <div
+                            key={dia.toISOString()}
                             className={`w-10 min-w-10 p-0.5 border-r flex items-center justify-center ${isFimDeSemana ? 'bg-orange-100' : ''}`}
                           >
                             {isEditable && onUpdateRecurso ? (
@@ -413,8 +415,11 @@ export const MapaEscalasModal = ({
                                     {config.label}
                                   </button>
                                 </DropdownMenuTrigger>
-                                <DropdownMenuContent align="center" className="min-w-[100px] bg-background z-50">
-                                  <DropdownMenuItem 
+                                <DropdownMenuContent
+                                  align="center"
+                                  className="min-w-[100px] bg-background z-50"
+                                >
+                                  <DropdownMenuItem
                                     onClick={() => handleStatusChange('DI')}
                                     className={`flex items-center gap-2 cursor-pointer ${status === 'DI' ? 'bg-muted' : ''}`}
                                   >
@@ -423,7 +428,7 @@ export const MapaEscalasModal = ({
                                     </span>
                                     <span className="text-xs">Disponível</span>
                                   </DropdownMenuItem>
-                                  <DropdownMenuItem 
+                                  <DropdownMenuItem
                                     onClick={() => handleStatusChange('FG')}
                                     className={`flex items-center gap-2 cursor-pointer ${status === 'FG' ? 'bg-muted' : ''}`}
                                   >

@@ -1,11 +1,66 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Users, MapPin, Wrench, Calculator, Clock, DollarSign, Building2, Loader2 } from 'lucide-react';
+import {
+  Users,
+  MapPin,
+  Wrench,
+  Calculator,
+  Clock,
+  DollarSign,
+  Building2,
+  Loader2,
+} from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { supabase } from '@/integrations/supabase/client';
+import { ApiAlocacoesRepository } from '@/modules/alocacoes/alocacoes.api';
+import { gravacoesRepository } from '@/modules/gravacoes/gravacoes.repository.provider';
+import { ApiUnidadesRepository } from '@/modules/unidades/unidades.api.repository';
+import { ApiRecursosHumanosRepository } from '@/modules/recursos-humanos/recursos-humanos.api.repository';
+import { ApiRecursosFisicosRepository } from '@/modules/recursos-fisicos/recursos-fisicos.api.repository';
+import { gravacoesRelacionamentosApi } from '@/modules/gravacoes/gravacoes-relacionamentos.api';
 import { formatCurrency as formatCurrencyUtil } from '@/lib/currencies';
+
+interface AlocacaoItem {
+  id: string;
+  gravacaoId: string;
+  recursoHumanoId?: string;
+  recursoFisicoId?: string;
+  parentRecursoId?: string;
+  horaInicio?: string;
+  horaFim?: string;
+  recursoHumanoNome?: string;
+  recursoHumanoSobrenome?: string;
+  recursoFisicoNome?: string;
+  recursoTecnicoNome?: string;
+}
+
+interface RecursoHumanoItem {
+  id: string;
+  nome?: string;
+  sobrenome?: string;
+  custoHora?: number | string;
+}
+
+interface RecursoFisicoItem {
+  id: string;
+  nome?: string;
+  custoHora?: number | string;
+}
+
+interface TerceiroItem {
+  custo?: number | string;
+  fornecedorNome?: string;
+  servicoNome?: string;
+  observacao?: string;
+}
 
 interface CustoItem {
   categoria: string;
@@ -21,98 +76,63 @@ interface CustosTabProps {
   gravacaoId: string;
 }
 
+const alocacoesRepository = new ApiAlocacoesRepository();
+const unidadesRepository = new ApiUnidadesRepository();
+const recursosHumanosRepository = new ApiRecursosHumanosRepository();
+const recursosFisicosRepository = new ApiRecursosFisicosRepository();
+
 const calcularHorasEntreTempo = (inicio: string, fim: string): number => {
   if (!inicio || !fim) return 0;
-  
+
   const [horaInicio, minInicio] = inicio.split(':').map(Number);
   const [horaFim, minFim] = fim.split(':').map(Number);
-  
+
   const totalMinutosInicio = horaInicio * 60 + minInicio;
   const totalMinutosFim = horaFim * 60 + minFim;
-  
   const diferencaMinutos = totalMinutosFim - totalMinutosInicio;
+
   return diferencaMinutos > 0 ? diferencaMinutos / 60 : 0;
 };
 
 export const CustosTab = ({ gravacaoId }: CustosTabProps) => {
   const { t } = useLanguage();
   const [isLoading, setIsLoading] = useState(true);
-  const [recursos, setRecursos] = useState<any[]>([]);
-  const [recursosHumanos, setRecursosHumanos] = useState<any[]>([]);
-  const [recursosFisicos, setRecursosFisicos] = useState<any[]>([]);
-  const [terceiros, setTerceiros] = useState<any[]>([]);
+  const [alocacoes, setAlocacoes] = useState<AlocacaoItem[]>([]);
+  const [recursosHumanos, setRecursosHumanos] = useState<RecursoHumanoItem[]>([]);
+  const [recursosFisicos, setRecursosFisicos] = useState<RecursoFisicoItem[]>([]);
+  const [terceiros, setTerceiros] = useState<TerceiroItem[]>([]);
   const [moeda, setMoeda] = useState<string>('BRL');
 
-  // Custom currency formatter based on business unit
-  const formatCurrency = useCallback((value: number) => {
-    return formatCurrencyUtil(value, moeda);
-  }, [moeda]);
+  const formatCurrency = useCallback((value: number) => formatCurrencyUtil(value, moeda), [moeda]);
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
-      // First, fetch the gravação to get the unidade_negocio_id
-      const { data: gravacaoData } = await supabase
-        .from('gravacoes')
-        .select('unidade_negocio_id')
-        .eq('id', gravacaoId)
-        .single();
+      const [overview, gravacoes, unidades, rhData, rfData, terceirosData] = await Promise.all([
+        alocacoesRepository.listOverview(),
+        gravacoesRepository.list(),
+        unidadesRepository.list(),
+        recursosHumanosRepository.list(),
+        recursosFisicosRepository.list(),
+        gravacoesRelacionamentosApi.listTerceiros(gravacaoId),
+      ]);
 
-      // If there's a business unit, fetch its currency preference
-      if (gravacaoData?.unidade_negocio_id) {
-        const { data: unidadeData } = await supabase
-          .from('unidades_negocio')
-          .select('moeda')
-          .eq('id', gravacaoData.unidade_negocio_id)
-          .single();
-        
-        if (unidadeData?.moeda) {
-          setMoeda(unidadeData.moeda);
-        }
+      const gravacao = gravacoes.find((item) => item.id === gravacaoId);
+      const unidade = unidades.find((item) => item.id === gravacao?.unidadeNegocioId);
+      if (unidade?.moeda) {
+        setMoeda(unidade.moeda);
+      } else {
+        setMoeda('BRL');
       }
 
-      // Buscar recursos alocados na gravação (incluindo alocações de RH em recursos técnicos)
-      const { data: recursosData } = await supabase
-        .from('gravacao_recursos')
-        .select(`
-          id,
-          hora_inicio,
-          hora_fim,
-          recurso_humano_id,
-          recurso_fisico_id,
-          recurso_tecnico_id,
-          recursos_humanos:recurso_humano_id(id, nome, sobrenome, custo_hora),
-          recursos_fisicos:recurso_fisico_id(id, nome, custo_hora),
-          recursos_tecnicos:recurso_tecnico_id(id, nome)
-        `)
-        .eq('gravacao_id', gravacaoId);
-
-      setRecursos(recursosData || []);
-
-      // Buscar cadastro de recursos humanos
-      const { data: rhData } = await supabase
-        .from('recursos_humanos')
-        .select('id, nome, sobrenome, custo_hora');
-      setRecursosHumanos(rhData || []);
-
-      // Buscar cadastro de recursos físicos
-      const { data: rfData } = await supabase
-        .from('recursos_fisicos')
-        .select('id, nome, custo_hora');
-      setRecursosFisicos(rfData || []);
-
-      // Buscar terceiros alocados
-      const { data: terceirosData } = await supabase
-        .from('gravacao_terceiros')
-        .select(`
-          id,
-          valor,
-          observacao,
-          fornecedor:fornecedor_id(id, nome),
-          servico:servico_id(id, nome)
-        `)
-        .eq('gravacao_id', gravacaoId);
-      setTerceiros(terceirosData || []);
+      setAlocacoes(
+        (overview.alocacoes || []).filter(
+          (item) => item.gravacaoId === gravacaoId,
+        ) as AlocacaoItem[],
+      );
+      setRecursosHumanos((rhData || []) as RecursoHumanoItem[]);
+      setRecursosFisicos((rfData || []) as RecursoFisicoItem[]);
+      setTerceiros((terceirosData.items || []) as TerceiroItem[]);
     } catch (err) {
       console.error('Erro ao carregar dados de custos:', err);
     } finally {
@@ -121,40 +141,35 @@ export const CustosTab = ({ gravacaoId }: CustosTabProps) => {
   }, [gravacaoId]);
 
   useEffect(() => {
-    fetchData();
+    void fetchData();
   }, [fetchData]);
 
   const custos = useMemo(() => {
     const itens: CustoItem[] = [];
-    const rhProcessados = new Set<string>(); // Evitar duplicatas de RH
-    const rfProcessados = new Set<string>(); // Evitar duplicatas de RF
+    const recursosById = new Map(alocacoes.map((item) => [item.id, item]));
+    const rhById = new Map(recursosHumanos.map((item) => [item.id, item]));
+    const rfById = new Map(recursosFisicos.map((item) => [item.id, item]));
 
-    // Processar recursos alocados
-    recursos.forEach((recurso) => {
-      // Processar recursos humanos alocados (seja diretamente ou via recurso técnico)
-      // Este caso trata:
-      //   - RH alocado diretamente (recurso_humano_id + sem recurso_tecnico_id)
-      //   - RH associado a recurso técnico (recurso_humano_id + recurso_tecnico_id)
-      if (recurso.recurso_humano_id && recurso.recursos_humanos) {
-        const rh = recurso.recursos_humanos;
-        const custoHora = rh.custo_hora || 0;
-        const horas = calcularHorasEntreTempo(recurso.hora_inicio, recurso.hora_fim);
-        
-        // Criar chave única incluindo recurso técnico para evitar conflito mas manter cada alocação
-        const rhKey = `${recurso.recurso_humano_id}_${recurso.recurso_tecnico_id || 'direct'}_${recurso.hora_inicio}_${recurso.hora_fim}`;
-        
-        if (horas > 0 && !rhProcessados.has(rhKey)) {
-          rhProcessados.add(rhKey);
-          
-          // Identificar se está associado a um recurso técnico
-          const recursoTecnico = recurso.recurso_tecnico_id ? recurso.recursos_tecnicos : null;
-          const descricao = recursoTecnico 
-            ? `${horas.toFixed(1)}h operando ${recursoTecnico.nome}`
-            : `${horas.toFixed(1)}h de trabalho`;
-          
+    alocacoes.forEach((alocacao) => {
+      if (alocacao.recursoHumanoId) {
+        const rh = rhById.get(alocacao.recursoHumanoId);
+        const custoHora = Number(rh?.custoHora || 0);
+        const horas = calcularHorasEntreTempo(
+          alocacao.horaInicio?.substring(0, 5) || '',
+          alocacao.horaFim?.substring(0, 5) || '',
+        );
+        const recursoPai = alocacao.parentRecursoId
+          ? recursosById.get(alocacao.parentRecursoId)
+          : null;
+        const descricao = recursoPai?.recursoTecnicoNome
+          ? `${horas.toFixed(1)}h operando ${recursoPai.recursoTecnicoNome}`
+          : `${horas.toFixed(1)}h de trabalho`;
+
+        if (horas > 0) {
           itens.push({
             categoria: t('costsTab.humanResources'),
-            recurso: `${rh.nome} ${rh.sobrenome || ''}`.trim(),
+            recurso:
+              `${rh?.nome || alocacao.recursoHumanoNome || ''} ${rh?.sobrenome || alocacao.recursoHumanoSobrenome || ''}`.trim(),
             descricao,
             horas,
             custoUnitario: custoHora,
@@ -162,22 +177,21 @@ export const CustosTab = ({ gravacaoId }: CustosTabProps) => {
             tipo: 'humano',
           });
         }
+        return;
       }
 
-      // Processar recursos físicos - cada alocação separadamente
-      if (recurso.recurso_fisico_id && recurso.recursos_fisicos) {
-        const rf = recurso.recursos_fisicos;
-        const custoHora = rf.custo_hora || 0;
-        const horas = calcularHorasEntreTempo(recurso.hora_inicio, recurso.hora_fim);
-        
-        // Usar ID do registro como chave única (permite múltiplas alocações do mesmo RF em horários diferentes)
-        const rfKey = recurso.id;
+      if (alocacao.recursoFisicoId) {
+        const rf = rfById.get(alocacao.recursoFisicoId);
+        const custoHora = Number(rf?.custoHora || 0);
+        const horas = calcularHorasEntreTempo(
+          alocacao.horaInicio?.substring(0, 5) || '',
+          alocacao.horaFim?.substring(0, 5) || '',
+        );
 
-        if (horas > 0 && !rfProcessados.has(rfKey)) {
-          rfProcessados.add(rfKey);
+        if (horas > 0) {
           itens.push({
             categoria: t('costsTab.physicalResources'),
-            recurso: rf.nome,
+            recurso: rf?.nome || alocacao.recursoFisicoNome || '',
             descricao: `${horas.toFixed(1)}h de ocupação`,
             horas,
             custoUnitario: custoHora,
@@ -188,13 +202,12 @@ export const CustosTab = ({ gravacaoId }: CustosTabProps) => {
       }
     });
 
-    // Adicionar custos de terceiros
     terceiros.forEach((terceiro) => {
-      const valor = terceiro.valor || 0;
+      const valor = Number(terceiro.custo || 0);
       itens.push({
         categoria: t('thirdParties.title'),
-        recurso: terceiro.fornecedor?.nome || 'Fornecedor',
-        descricao: terceiro.servico?.nome || terceiro.observacao || 'Serviço',
+        recurso: terceiro.fornecedorNome || 'Fornecedor',
+        descricao: terceiro.servicoNome || terceiro.observacao || 'Serviço',
         horas: 0,
         custoUnitario: valor,
         custoTotal: valor,
@@ -203,7 +216,7 @@ export const CustosTab = ({ gravacaoId }: CustosTabProps) => {
     });
 
     return itens;
-  }, [recursos, terceiros, t]);
+  }, [alocacoes, recursosHumanos, recursosFisicos, terceiros, t]);
 
   const custosPorCategoria = useMemo(() => {
     const categorias: Record<string, CustoItem[]> = {};
@@ -227,12 +240,13 @@ export const CustosTab = ({ gravacaoId }: CustosTabProps) => {
     return totais;
   }, [custosPorCategoria]);
 
-  const totalGeral = useMemo(() => {
-    return {
+  const totalGeral = useMemo(
+    () => ({
       horas: custos.reduce((acc, item) => acc + item.horas, 0),
       custo: custos.reduce((acc, item) => acc + item.custoTotal, 0),
-    };
-  }, [custos]);
+    }),
+    [custos],
+  );
 
   const getIconCategoria = (categoria: string) => {
     if (categoria === t('costsTab.humanResources')) return <Users className="h-4 w-4" />;
@@ -256,16 +270,13 @@ export const CustosTab = ({ gravacaoId }: CustosTabProps) => {
           <Calculator className="w-8 h-8 text-muted-foreground" />
         </div>
         <h3 className="text-lg font-semibold text-foreground mb-1">{t('costsTab.noCosts')}</h3>
-        <p className="text-sm text-muted-foreground max-w-sm">
-          {t('costsTab.noCostsDescription')}
-        </p>
+        <p className="text-sm text-muted-foreground max-w-sm">{t('costsTab.noCostsDescription')}</p>
       </div>
     );
   }
 
   return (
     <div className="space-y-6 py-4">
-      {/* Cards de resumo */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -284,7 +295,9 @@ export const CustosTab = ({ gravacaoId }: CustosTabProps) => {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-primary">{formatCurrency(totalGeral.custo)}</div>
+            <div className="text-2xl font-bold text-primary">
+              {formatCurrency(totalGeral.custo)}
+            </div>
             <p className="text-xs text-muted-foreground">{t('costsTab.estimatedCost')}</p>
           </CardContent>
         </Card>
@@ -301,7 +314,6 @@ export const CustosTab = ({ gravacaoId }: CustosTabProps) => {
         </Card>
       </div>
 
-      {/* Tabela de custos por categoria */}
       {Object.entries(custosPorCategoria).map(([categoria, itens]) => (
         <Card key={categoria}>
           <CardHeader className="pb-3">
@@ -336,10 +348,14 @@ export const CustosTab = ({ gravacaoId }: CustosTabProps) => {
                     {categoria !== t('thirdParties.title') && (
                       <>
                         <TableCell className="text-right">{item.horas.toFixed(1)}h</TableCell>
-                        <TableCell className="text-right">{formatCurrency(item.custoUnitario)}</TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(item.custoUnitario)}
+                        </TableCell>
                       </>
                     )}
-                    <TableCell className="text-right font-medium">{formatCurrency(item.custoTotal)}</TableCell>
+                    <TableCell className="text-right font-medium">
+                      {formatCurrency(item.custoTotal)}
+                    </TableCell>
                   </TableRow>
                 ))}
                 <TableRow className="bg-muted/50">
@@ -364,7 +380,6 @@ export const CustosTab = ({ gravacaoId }: CustosTabProps) => {
         </Card>
       ))}
 
-      {/* Total Geral */}
       <Card className="border-primary">
         <CardContent className="pt-6">
           <div className="flex items-center justify-between">

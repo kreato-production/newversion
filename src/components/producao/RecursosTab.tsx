@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+﻿import { useState, useEffect, useMemo, useCallback } from 'react';
 import { parseISO, isWithinInterval } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,19 +16,17 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Trash2, Users, X, Clock, AlertTriangle, Ban, CheckCircle2 } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useRecursoFisicoDisponibilidade } from '@/hooks/useRecursoFisicoDisponibilidade';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
+import { ApiAlocacoesRepository } from '@/modules/alocacoes/alocacoes.api';
+import { ApiGravacoesRepository } from '@/modules/gravacoes/gravacoes.api.repository';
+import { ApiRecursosFisicosRepository } from '@/modules/recursos-fisicos/recursos-fisicos.api.repository';
+import { ApiRecursosHumanosRepository } from '@/modules/recursos-humanos/recursos-humanos.api.repository';
+import { ApiRecursosTecnicosRepository } from '@/modules/recursos-tecnicos/recursos-tecnicos.api.repository';
 
 interface RecursoHumanoAlocado {
   id: string;
@@ -79,11 +77,25 @@ interface RecursoHumano {
   funcao?: string;
   departamento?: string;
   ausencias?: Ausencia[];
+  escalas?: Array<{
+    id: string;
+    dataInicio: string;
+    horaInicio: string;
+    dataFim: string;
+    horaFim: string;
+    diasSemana: number[];
+  }>;
 }
 
 interface RecursosTabProps {
   gravacaoId: string;
 }
+
+const alocacoesRepository = new ApiAlocacoesRepository();
+const gravacoesRepository = new ApiGravacoesRepository();
+const recursosTecnicosRepository = new ApiRecursosTecnicosRepository();
+const recursosFisicosRepository = new ApiRecursosFisicosRepository();
+const recursosHumanosRepository = new ApiRecursosHumanosRepository();
 
 // Convert decimal hours to HH:MM time string (duration from 00:00)
 const hoursToTimeRange = (hours: number): { horaInicio: string; horaFim: string } => {
@@ -100,20 +112,22 @@ const timeRangeToHours = (inicio: string | null, fim: string | null): number => 
   if (!inicio || !fim) return 0;
   const [h1, m1] = inicio.split(':').map(Number);
   const [h2, m2] = fim.split(':').map(Number);
-  return ((h2 * 60 + m2) - (h1 * 60 + m1)) / 60;
+  return (h2 * 60 + m2 - (h1 * 60 + m1)) / 60;
 };
 
 export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
   const { toast } = useToast();
-  const { session } = useAuth();
-  const { verificarDisponibilidade, getFaixasDisponiveis, getOcupacoesRecurso } = useRecursoFisicoDisponibilidade();
-  
+  const { verificarDisponibilidade, getFaixasDisponiveis, getOcupacoesRecurso } =
+    useRecursoFisicoDisponibilidade();
+
   const [mesAno, setMesAno] = useState<string>('');
   const [gravacaoDataPrevista, setGravacaoDataPrevista] = useState<string | null>(null);
 
   const [recursos, setRecursos] = useState<RecursoAlocado[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [recursosTecnicos, setRecursosTecnicos] = useState<{ id: string; nome: string; funcaoOperador?: string }[]>([]);
+  const [recursosTecnicos, setRecursosTecnicos] = useState<
+    { id: string; nome: string; funcaoOperador?: string }[]
+  >([]);
   const [recursosFisicos, setRecursosFisicos] = useState<{ id: string; nome: string }[]>([]);
   const [recursosHumanos, setRecursosHumanos] = useState<RecursoHumano[]>([]);
   const [selectedTipo, setSelectedTipo] = useState<'tecnico' | 'fisico'>('tecnico');
@@ -122,7 +136,7 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
   const [estoqueItens, setEstoqueItens] = useState<EstoqueItem[]>([]);
   const [gravacaoInfo, setGravacaoInfo] = useState<{ nome: string; codigo: string } | null>(null);
 
-  // Modal de recursos humanos (para recursos técnicos)
+  // Modal de recursos humanos (para recursos tÃ©cnicos)
   const [rhModalOpen, setRhModalOpen] = useState(false);
   const [rhModalRecurso, setRhModalRecurso] = useState<RecursoAlocado | null>(null);
   const [rhModalDia, setRhModalDia] = useState('');
@@ -130,7 +144,7 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
   const [horaInicio, setHoraInicio] = useState('08:00');
   const [horaFim, setHoraFim] = useState('18:00');
 
-  // Modal de horário de ocupação (para recursos físicos)
+  // Modal de horÃ¡rio de ocupaÃ§Ã£o (para recursos fÃ­sicos)
   const [horarioModalOpen, setHorarioModalOpen] = useState(false);
   const [horarioModalRecurso, setHorarioModalRecurso] = useState<RecursoAlocado | null>(null);
   const [horarioModalDia, setHorarioModalDia] = useState('');
@@ -140,21 +154,24 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
   // Fetch gravacao info and set initial month
   useEffect(() => {
     const fetchGravacao = async () => {
-      const { data } = await supabase
-        .from('gravacoes')
-        .select('nome, codigo, data_prevista')
-        .eq('id', gravacaoId)
-        .single();
-      if (data) {
-        setGravacaoInfo(data);
-        setGravacaoDataPrevista(data.data_prevista);
-        if (data.data_prevista) {
-          const [ano, mes] = data.data_prevista.split('-');
+      try {
+        const gravacoes = await gravacoesRepository.list();
+        const data = gravacoes.find((item) => item.id === gravacaoId);
+        if (!data) {
+          return;
+        }
+
+        setGravacaoInfo({ nome: data.nome, codigo: data.codigo });
+        setGravacaoDataPrevista(data.dataPrevista || null);
+        if (data.dataPrevista) {
+          const [ano, mes] = data.dataPrevista.split('-');
           setMesAno(`${ano}-${mes}`);
         } else {
           const now = new Date();
           setMesAno(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`);
         }
+      } catch (error) {
+        console.error('Error fetching gravacao info:', error);
       }
     };
     fetchGravacao();
@@ -163,67 +180,45 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
   // Fetch resources from Supabase
   useEffect(() => {
     const fetchResources = async () => {
-      if (!session) return;
+      try {
+        const [tecnicosData, fisicosData, humanosData] = await Promise.all([
+          recursosTecnicosRepository.list(),
+          recursosFisicosRepository.list(),
+          recursosHumanosRepository.list(),
+        ]);
 
-      const { data: tecnicosData } = await supabase
-        .from('recursos_tecnicos')
-        .select('id, nome, funcao_operador_id, funcoes:funcao_operador_id(nome)')
-        .order('nome');
-      
-      setRecursosTecnicos(
-        (tecnicosData || []).map((t: any) => ({
-          id: t.id,
-          nome: t.nome,
-          funcaoOperador: t.funcoes?.nome,
-        }))
-      );
+        setRecursosTecnicos(
+          tecnicosData.map((item) => ({
+            id: item.id,
+            nome: item.nome,
+            funcaoOperador: item.funcaoOperador || undefined,
+          })),
+        );
 
-      const { data: fisicosData } = await supabase
-        .from('recursos_fisicos')
-        .select('id, nome, rf_estoque_itens(id)')
-        .order('nome');
-      
-      const fisicosComEstoque = (fisicosData || [])
-        .filter((r: any) => r.rf_estoque_itens && r.rf_estoque_itens.length > 0)
-        .map((r: any) => ({ id: r.id, nome: r.nome }));
-      setRecursosFisicos(fisicosComEstoque);
+        setRecursosFisicos(
+          fisicosData
+            .filter((item) => (item.estoqueItens || []).length > 0)
+            .map((item) => ({ id: item.id, nome: item.nome })),
+        );
 
-      const { data: humanosData } = await supabase
-        .from('recursos_humanos')
-        .select('id, nome, sobrenome, funcao_id, funcoes:funcao_id(nome), departamento_id, departamentos:departamento_id(nome)')
-        .eq('status', 'Ativo')
-        .order('nome');
-
-      const humanIds = (humanosData || []).map((h: any) => h.id);
-      const { data: ausenciasData } = await supabase
-        .from('rh_ausencias')
-        .select('*')
-        .in('recurso_humano_id', humanIds);
-
-      const ausenciasByRH: Record<string, Ausencia[]> = {};
-      (ausenciasData || []).forEach((a: any) => {
-        if (!ausenciasByRH[a.recurso_humano_id]) ausenciasByRH[a.recurso_humano_id] = [];
-        ausenciasByRH[a.recurso_humano_id].push({
-          id: a.id,
-          motivo: a.motivo,
-          dataInicio: a.data_inicio,
-          dataFim: a.data_fim,
-          dias: a.dias,
-        });
-      });
-
-      setRecursosHumanos(
-        (humanosData || []).map((h: any) => ({
-          id: h.id,
-          nome: `${h.nome} ${h.sobrenome}`,
-          funcao: h.funcoes?.nome,
-          departamento: h.departamentos?.nome,
-          ausencias: ausenciasByRH[h.id] || [],
-        }))
-      );
+        setRecursosHumanos(
+          humanosData
+            .filter((item) => item.status === 'Ativo')
+            .map((item) => ({
+              id: item.id,
+              nome: `${item.nome} ${item.sobrenome}`.trim(),
+              funcao: item.funcao || undefined,
+              departamento: item.departamento || undefined,
+              ausencias: item.ausencias || [],
+              escalas: item.escalas || [],
+            })),
+        );
+      } catch (error) {
+        console.error('Error fetching resource options:', error);
+      }
     };
     fetchResources();
-  }, [session]);
+  }, []);
 
   // Fetch stock items when a physical resource is selected
   useEffect(() => {
@@ -234,13 +229,21 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
         return;
       }
 
-      const { data } = await supabase
-        .from('rf_estoque_itens')
-        .select('id, nome, codigo, numerador')
-        .eq('recurso_fisico_id', selectedRecurso)
-        .order('numerador');
-
-      setEstoqueItens(data || []);
+      try {
+        const fisicosData = await recursosFisicosRepository.list();
+        const recurso = fisicosData.find((item) => item.id === selectedRecurso);
+        setEstoqueItens(
+          (recurso?.estoqueItens || []).map((item) => ({
+            id: item.id,
+            nome: item.nome,
+            codigo: item.codigo || null,
+            numerador: item.numerador,
+          })),
+        );
+      } catch (error) {
+        console.error('Error fetching estoque itens:', error);
+        setEstoqueItens([]);
+      }
       setSelectedEstoqueItem('');
     };
     fetchEstoqueItens();
@@ -248,112 +251,20 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
 
   // Fetch allocated resources - each anchor = one row
   const fetchAlocacoes = useCallback(async () => {
-    if (!session || !gravacaoId) return;
+    if (!gravacaoId) return;
 
     setIsLoading(true);
     try {
-      const { data: gravacaoData } = await supabase
-        .from('gravacoes')
-        .select('data_prevista')
-        .eq('id', gravacaoId)
-        .single();
-      
-      const dataPrevista = gravacaoData?.data_prevista;
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data: alocacoesData } = await (supabase as any)
-        .from('gravacao_recursos')
-        .select(`
-          id,
-          hora_inicio,
-          hora_fim,
-          recurso_tecnico_id,
-          recurso_fisico_id,
-          recurso_humano_id,
-          parent_recurso_id,
-          recursos_tecnicos:recurso_tecnico_id(id, nome, funcao_operador_id, funcoes:funcao_operador_id(nome)),
-          recursos_fisicos:recurso_fisico_id(id, nome),
-          recursos_humanos:recurso_humano_id(id, nome, sobrenome)
-        `)
-        .eq('gravacao_id', gravacaoId);
-
-      const entries: RecursoAlocado[] = [];
-      const rhByAnchor: Record<string, RecursoHumanoAlocado[]> = {};
-
-      // First pass: collect anchors and RH rows
-      (alocacoesData || []).forEach((aloc: any) => {
-        const isTecnicoAnchor = !!aloc.recurso_tecnico_id && !aloc.recurso_humano_id;
-        const isTecnicoRH = !!aloc.recurso_tecnico_id && !!aloc.recurso_humano_id;
-        const isFisicoAnchor = !!aloc.recurso_fisico_id && !aloc.recurso_tecnico_id;
-
-        if (isTecnicoAnchor && aloc.recursos_tecnicos) {
-          const hours = timeRangeToHours(
-            aloc.hora_inicio?.substring(0, 5) || null,
-            aloc.hora_fim?.substring(0, 5) || null
-          );
-          const entry: RecursoAlocado = {
-            id: aloc.id,
-            anchorDbId: aloc.id,
-            tipo: 'tecnico',
-            recursoId: aloc.recurso_tecnico_id,
-            recursoNome: aloc.recursos_tecnicos.nome,
-            funcaoOperador: aloc.recursos_tecnicos.funcoes?.nome,
-            horas: dataPrevista ? { [dataPrevista]: hours } : {},
-            recursosHumanos: {},
-            horarios: {},
-          };
-          entries.push(entry);
-        } else if (isFisicoAnchor && aloc.recursos_fisicos) {
-          const hours = timeRangeToHours(
-            aloc.hora_inicio?.substring(0, 5) || null,
-            aloc.hora_fim?.substring(0, 5) || null
-          );
-          const entry: RecursoAlocado = {
-            id: aloc.id,
-            anchorDbId: aloc.id,
-            tipo: 'fisico',
-            recursoId: aloc.recurso_fisico_id,
-            recursoNome: aloc.recursos_fisicos.nome,
-            horas: dataPrevista ? { [dataPrevista]: hours } : {},
-            recursosHumanos: {},
-            horarios: dataPrevista && aloc.hora_inicio && aloc.hora_fim ? {
-              [dataPrevista]: {
-                horaInicio: aloc.hora_inicio.substring(0, 5),
-                horaFim: aloc.hora_fim.substring(0, 5),
-              }
-            } : {},
-          };
-          entries.push(entry);
-        } else if (isTecnicoRH && aloc.recursos_humanos) {
-          const parentId = aloc.parent_recurso_id;
-          if (parentId) {
-            if (!rhByAnchor[parentId]) rhByAnchor[parentId] = [];
-            rhByAnchor[parentId].push({
-              id: aloc.id,
-              recursoHumanoId: aloc.recurso_humano_id,
-              nome: `${aloc.recursos_humanos.nome} ${aloc.recursos_humanos.sobrenome}`,
-              horaInicio: aloc.hora_inicio?.substring(0, 5) || '08:00',
-              horaFim: aloc.hora_fim?.substring(0, 5) || '18:00',
-            });
-          }
-        }
-      });
-
-      // Second pass: attach RH to anchors
-      entries.forEach(entry => {
-        if (entry.tipo === 'tecnico' && rhByAnchor[entry.anchorDbId]) {
-          const dataPrevistaVal = Object.keys(entry.horas)[0] || dataPrevista || '';
-          entry.recursosHumanos[dataPrevistaVal] = rhByAnchor[entry.anchorDbId];
-        }
-      });
-
-      setRecursos(entries);
+      const response = await alocacoesRepository.listByGravacao(gravacaoId);
+      setGravacaoInfo({ nome: response.gravacao.nome, codigo: response.gravacao.codigo });
+      setGravacaoDataPrevista(response.gravacao.dataPrevista || null);
+      setRecursos(response.data as RecursoAlocado[]);
     } catch (error) {
       console.error('Error fetching allocations:', error);
     } finally {
       setIsLoading(false);
     }
-  }, [session, gravacaoId]);
+  }, [gravacaoId]);
 
   useEffect(() => {
     fetchAlocacoes();
@@ -362,28 +273,21 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
   // Conflict detection
   const [conflitosCache, setConflitosCache] = useState<Record<string, Record<string, string>>>({});
 
-  const getConflitosRecurso = useCallback(async (recursoId: string, tipo: 'tecnico' | 'fisico'): Promise<Record<string, string>> => {
-    const conflitos: Record<string, string> = {};
-    const column = tipo === 'tecnico' ? 'recurso_tecnico_id' : 'recurso_fisico_id';
-    
-    const { data } = await supabase
-      .from('gravacao_recursos')
-      .select(`
-        gravacao_id,
-        gravacoes:gravacao_id(nome, codigo, data_prevista)
-      `)
-      .eq(column, recursoId)
-      .neq('gravacao_id', gravacaoId);
+  const getConflitosRecurso = useCallback(
+    async (recursoId: string, tipo: 'tecnico' | 'fisico'): Promise<Record<string, string>> => {
+      const conflitos: Record<string, string> = {};
+      const response = await alocacoesRepository.listConflicts(gravacaoId, tipo, recursoId);
 
-    for (const item of data || []) {
-      const gravacao = item.gravacoes as any;
-      if (gravacao?.data_prevista) {
-        conflitos[gravacao.data_prevista] = gravacao.nome || gravacao.codigo;
+      for (const item of response.data || []) {
+        if (item.dataPrevista) {
+          conflitos[item.dataPrevista] = item.gravacaoNome;
+        }
       }
-    }
-    
-    return conflitos;
-  }, [gravacaoId]);
+
+      return conflitos;
+    },
+    [gravacaoId],
+  );
 
   useEffect(() => {
     const loadConflitos = async () => {
@@ -405,7 +309,7 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
     const [ano, mes] = mesAno.split('-').map(Number);
     const ultimoDia = new Date(ano, mes, 0).getDate();
     const dias: { dia: number; diaSemana: number; isWeekend: boolean; dataKey: string }[] = [];
-    
+
     for (let d = 1; d <= ultimoDia; d++) {
       const data = new Date(ano, mes - 1, d);
       const diaSemana = data.getDay();
@@ -422,119 +326,52 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
   // Add resource - always creates a new anchor (allows duplicates)
   const handleAddRecurso = async () => {
     if (!selectedRecurso) return;
-    
+
     const lista = selectedTipo === 'tecnico' ? recursosTecnicos : recursosFisicos;
     const recurso = lista.find((r) => r.id === selectedRecurso);
     if (!recurso) return;
 
-    const estoqueItem = selectedEstoqueItem ? estoqueItens.find((e) => e.id === selectedEstoqueItem) : undefined;
-
-    // Fetch default hours from content resources if gravação has a conteúdo
-    let defaultHours = 0;
     try {
-      const { data: gravData } = await supabase
-        .from('gravacoes')
-        .select('conteudo_id')
-        .eq('id', gravacaoId)
-        .single();
+      const novoRecurso = await alocacoesRepository.addAnchor(gravacaoId, {
+        tipo: selectedTipo,
+        recursoId: selectedRecurso,
+        estoqueItemId: selectedEstoqueItem || null,
+      });
 
-      if (gravData?.conteudo_id) {
-        const tableName = selectedTipo === 'tecnico' ? 'conteudo_recursos_tecnicos' : 'conteudo_recursos_fisicos';
-        const colName = selectedTipo === 'tecnico' ? 'recurso_tecnico_id' : 'recurso_fisico_id';
-        const { data: contentRes } = await (supabase as any)
-          .from(tableName)
-          .select('quantidade_horas')
-          .eq('conteudo_id', gravData.conteudo_id)
-          .eq(colName, selectedRecurso)
-          .maybeSingle();
-        if (contentRes?.quantidade_horas) {
-          defaultHours = Number(contentRes.quantidade_horas);
-        }
-      }
-    } catch (err) {
-      console.error('Error fetching default hours from content:', err);
-    }
-
-    // Always create a new anchor row in the database
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const insertData: any = {
-      gravacao_id: gravacaoId,
-    };
-
-    if (selectedTipo === 'tecnico') {
-      insertData.recurso_tecnico_id = selectedRecurso;
-    } else {
-      insertData.recurso_fisico_id = selectedRecurso;
-    }
-
-    // Set default hours if available
-    if (defaultHours > 0) {
-      const { horaInicio: hi, horaFim: hf } = hoursToTimeRange(defaultHours);
-      insertData.hora_inicio = hi;
-      insertData.hora_fim = hf;
-    }
-
-    const { data: newRow, error } = await supabase
-      .from('gravacao_recursos')
-      .insert(insertData)
-      .select('id')
-      .single();
-
-    if (error || !newRow) {
+      setRecursos([...recursos, novoRecurso as RecursoAlocado]);
+      setSelectedRecurso('');
+      setSelectedEstoqueItem('');
+    } catch (error) {
+      console.error('Error adding resource allocation:', error);
       toast({
         title: 'Erro',
         description: 'Erro ao adicionar recurso.',
         variant: 'destructive',
       });
-      return;
     }
-
-    const novoRecurso: RecursoAlocado = {
-      id: newRow.id,
-      anchorDbId: newRow.id,
-      tipo: selectedTipo,
-      recursoId: selectedRecurso,
-      recursoNome: recurso.nome,
-      funcaoOperador: selectedTipo === 'tecnico' ? (recurso as any).funcaoOperador : undefined,
-      estoqueItemId: estoqueItem?.id,
-      estoqueItemNome: estoqueItem ? `#${estoqueItem.numerador} - ${estoqueItem.nome}${estoqueItem.codigo ? ` (${estoqueItem.codigo})` : ''}` : undefined,
-      horas: gravacaoDataPrevista && defaultHours > 0 ? { [gravacaoDataPrevista]: defaultHours } : {},
-      recursosHumanos: {},
-      horarios: {},
-    };
-
-    setRecursos([...recursos, novoRecurso]);
-    setSelectedRecurso('');
-    setSelectedEstoqueItem('');
   };
 
   const handleRemoveRecurso = async (recursoLocalId: string) => {
     const recurso = recursos.find((r) => r.id === recursoLocalId);
     if (!recurso) return;
 
-    // For technical resources, remove associated tasks
-    if (recurso.tipo === 'tecnico') {
-      const rhList = Object.values(recurso.recursosHumanos).flat();
-      for (const rh of rhList) {
-        await removeTaskForRH(rh.recursoHumanoId, recurso.recursoId);
-      }
+    try {
+      await alocacoesRepository.removeAllocation(gravacaoId, recurso.anchorDbId);
+      setRecursos(recursos.filter((r) => r.id !== recursoLocalId));
+    } catch (error) {
+      console.error('Error removing resource allocation:', error);
+      toast({
+        title: 'Erro',
+        description: 'Erro ao remover recurso.',
+        variant: 'destructive',
+      });
     }
-
-    // Delete the anchor and all children (CASCADE via parent_recurso_id)
-    await supabase
-      .from('gravacao_recursos')
-      .delete()
-      .eq('id', recurso.anchorDbId);
-
-    setRecursos(recursos.filter((r) => r.id !== recursoLocalId));
   };
 
-  // Handle hours change for a specific instance
   const handleHorasChange = async (recursoLocalId: string, dia: string, horasValue: number) => {
     const recursoAtual = recursos.find((r) => r.id === recursoLocalId);
     if (!recursoAtual) return;
 
-    // Update local state
     const updated = recursos.map((r) => {
       if (r.id === recursoLocalId) {
         return {
@@ -546,13 +383,12 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
     });
     setRecursos(updated);
 
-    // Convert hours to time range and save to DB
     const { horaInicio: hi, horaFim: hf } = hoursToTimeRange(horasValue);
-    
-    await supabase
-      .from('gravacao_recursos')
-      .update({ hora_inicio: hi, hora_fim: hf })
-      .eq('id', recursoAtual.anchorDbId);
+
+    await alocacoesRepository.updateHorario(gravacaoId, recursoAtual.anchorDbId, {
+      horaInicio: hi,
+      horaFim: hf,
+    });
   };
 
   const openRHModal = (recurso: RecursoAlocado, dia: string) => {
@@ -564,28 +400,28 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
     setRhModalOpen(true);
   };
 
-  // Buscar escala do colaborador para preencher horários automaticamente
   const fetchEscalaColaborador = async (rhId: string, dia: string) => {
     if (!rhId || !dia) return null;
-    
+
     const dataObj = parseISO(dia);
     const diaSemana = dataObj.getDay();
+    const colaborador = recursosHumanos.find((item) => item.id === rhId);
+    const escalas = colaborador?.escalas || [];
 
-    const { data: escalas } = await supabase
-      .from('rh_escalas')
-      .select('*')
-      .eq('recurso_humano_id', rhId)
-      .lte('data_inicio', dia)
-      .gte('data_fim', dia);
-
-    if (!escalas || escalas.length === 0) return null;
+    if (escalas.length === 0) return null;
 
     for (const escala of escalas) {
-      const diasSemana = escala.dias_semana || [1, 2, 3, 4, 5];
+      const dataInicio = parseISO(escala.dataInicio);
+      const dataFim = parseISO(escala.dataFim);
+      if (!isWithinInterval(dataObj, { start: dataInicio, end: dataFim })) {
+        continue;
+      }
+
+      const diasSemana = escala.diasSemana || [1, 2, 3, 4, 5];
       if (diasSemana.includes(diaSemana)) {
         return {
-          horaInicio: escala.hora_inicio?.substring(0, 5) || '08:00',
-          horaFim: escala.hora_fim?.substring(0, 5) || '18:00',
+          horaInicio: escala.horaInicio?.substring(0, 5) || '08:00',
+          horaFim: escala.horaFim?.substring(0, 5) || '18:00',
         };
       }
     }
@@ -596,7 +432,7 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
   useEffect(() => {
     const updateHorariosFromEscala = async () => {
       if (!selectedRH || !rhModalDia) return;
-      
+
       const escala = await fetchEscalaColaborador(selectedRH, rhModalDia);
       if (escala) {
         setHoraInicio(escala.horaInicio);
@@ -608,83 +444,11 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
     };
 
     updateHorariosFromEscala();
-  }, [selectedRH, rhModalDia]);
-
-  // Create automatic task for RH
-  const createTaskForRH = async (
-    rhId: string, 
-    rhNome: string, 
-    recursoTecnicoId: string, 
-    recursoTecnicoNome: string, 
-    dia: string,
-    taskHoraInicio: string,
-    taskHoraFim: string
-  ) => {
-    try {
-      const { data: statusData, error: statusError } = await supabase
-        .from('status_tarefa')
-        .select('id')
-        .eq('is_inicial', true)
-        .maybeSingle();
-
-      if (statusError) {
-        console.error('Error fetching initial status for auto-task:', statusError);
-      }
-
-      const { data: existingTask, error: existingError } = await supabase
-        .from('tarefas')
-        .select('id')
-        .eq('gravacao_id', gravacaoId)
-        .eq('recurso_humano_id', rhId)
-        .eq('recurso_tecnico_id', recursoTecnicoId)
-        .eq('data_inicio', dia)
-        .maybeSingle();
-
-      if (existingError) {
-        console.error('Error checking existing task:', existingError);
-      }
-
-      if (existingTask) return;
-
-      const { error: insertError } = await supabase.from('tarefas').insert({
-        gravacao_id: gravacaoId,
-        recurso_humano_id: rhId,
-        recurso_tecnico_id: recursoTecnicoId,
-        titulo: `Operação: ${recursoTecnicoNome}`,
-        descricao: `Tarefa automática criada para operação do recurso técnico "${recursoTecnicoNome}" na gravação "${gravacaoInfo?.nome || gravacaoInfo?.codigo || ''}"`,
-        status_id: statusData?.id || null,
-        prioridade: 'media',
-        data_inicio: dia,
-        data_fim: dia,
-        hora_inicio: taskHoraInicio,
-        hora_fim: taskHoraFim,
-      });
-
-      if (insertError) {
-        console.error('Error creating automatic task:', insertError);
-        toast({
-          title: 'Aviso',
-          description: `Colaborador alocado, mas houve erro ao criar tarefa automática: ${insertError.message}`,
-          variant: 'destructive',
-        });
-      }
-    } catch (err) {
-      console.error('Unexpected error in createTaskForRH:', err);
-    }
-  };
-
-  const removeTaskForRH = async (rhId: string, recursoTecnicoId: string) => {
-    await supabase
-      .from('tarefas')
-      .delete()
-      .eq('gravacao_id', gravacaoId)
-      .eq('recurso_humano_id', rhId)
-      .eq('recurso_tecnico_id', recursoTecnicoId);
-  };
+  }, [selectedRH, rhModalDia, recursosHumanos]);
 
   const handleAddRH = async () => {
     if (!selectedRH || !rhModalRecurso) return;
-    
+
     const rh = recursosHumanos.find((r) => r.id === selectedRH);
     if (!rh) return;
 
@@ -696,7 +460,6 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
       horaFim,
     };
 
-    // Update local state
     const updated = recursos.map((r) => {
       if (r.id === rhModalRecurso.id) {
         const rhAtual = r.recursosHumanos[rhModalDia] || [];
@@ -713,60 +476,58 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
 
     setRecursos(updated);
 
-    // Save to database with parent_recurso_id linking to the anchor
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: newRow } = await (supabase as any).from('gravacao_recursos').insert({
-      gravacao_id: gravacaoId,
-      recurso_tecnico_id: rhModalRecurso.recursoId,
-      recurso_humano_id: selectedRH,
-      hora_inicio: horaInicio,
-      hora_fim: horaFim,
-      parent_recurso_id: rhModalRecurso.anchorDbId,
-    }).select('id').single();
+    try {
+      const saved = await alocacoesRepository.addColaborador(
+        gravacaoId,
+        rhModalRecurso.anchorDbId,
+        {
+          recursoHumanoId: selectedRH,
+          horaInicio,
+          horaFim,
+        },
+      );
 
-    // Update local RH id with DB id
-    if (newRow) {
-      setRecursos(prev => prev.map(r => {
-        if (r.id === rhModalRecurso.id) {
-          const rhList = r.recursosHumanos[rhModalDia] || [];
-          return {
-            ...r,
-            recursosHumanos: {
-              ...r.recursosHumanos,
-              [rhModalDia]: rhList.map(item => item.id === novoRH.id ? { ...item, id: newRow.id } : item),
-            },
-          };
-        }
-        return r;
-      }));
+      setRecursos((prev) =>
+        prev.map((r) => {
+          if (r.id === rhModalRecurso.id) {
+            const rhList = r.recursosHumanos[rhModalDia] || [];
+            return {
+              ...r,
+              recursosHumanos: {
+                ...r.recursosHumanos,
+                [rhModalDia]: rhList.map((item) =>
+                  item.id === novoRH.id ? { ...item, ...saved } : item,
+                ),
+              },
+            };
+          }
+          return r;
+        }),
+      );
+
+      toast({
+        title: 'Colaborador alocado',
+        description: `${rh.nome} foi alocado com sucesso.`,
+      });
+
+      setSelectedRH('');
+      setHoraInicio('08:00');
+      setHoraFim('18:00');
+    } catch (error) {
+      console.error('Error adding resource human allocation:', error);
+      toast({
+        title: 'Erro',
+        description: 'Erro ao alocar colaborador.',
+        variant: 'destructive',
+      });
+      setRecursos(recursos);
     }
-
-    // Create automatic task
-    await createTaskForRH(
-      selectedRH,
-      rh.nome,
-      rhModalRecurso.recursoId,
-      rhModalRecurso.recursoNome,
-      rhModalDia,
-      horaInicio,
-      horaFim
-    );
-
-    toast({
-      title: 'Colaborador alocado',
-      description: `${rh.nome} foi alocado e uma tarefa foi criada automaticamente.`,
-    });
-
-    setSelectedRH('');
-    setHoraInicio('08:00');
-    setHoraFim('18:00');
   };
 
   const handleRemoveRH = async (recursoLocalId: string, dia: string, rhId: string) => {
     const recurso = recursos.find((r) => r.id === recursoLocalId);
     const rhInfo = recurso?.recursosHumanos[dia]?.find((rh) => rh.id === rhId);
 
-    // Update local state
     const updated = recursos.map((r) => {
       if (r.id === recursoLocalId) {
         return {
@@ -781,27 +542,21 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
     });
     setRecursos(updated);
 
-    // Remove from database
     if (rhInfo) {
-      await supabase
-        .from('gravacao_recursos')
-        .delete()
-        .eq('id', rhInfo.id);
-
-      // Check if RH is still allocated to this resource anywhere
-      const aindaAlocado = updated.some((r) => {
-        if (r.recursoId !== recurso?.recursoId) return false;
-        return Object.values(r.recursosHumanos).some((rhList) =>
-          rhList.some((rh) => rh.recursoHumanoId === rhInfo.recursoHumanoId)
-        );
-      });
-
-      if (!aindaAlocado && recurso) {
-        await removeTaskForRH(rhInfo.recursoHumanoId, recurso.recursoId);
+      try {
+        await alocacoesRepository.removeAllocation(gravacaoId, rhInfo.id);
         toast({
           title: 'Colaborador desalocado',
-          description: `${rhInfo.nome} foi removido e a tarefa associada foi excluída.`,
+          description: `${rhInfo.nome} foi removido com sucesso.`,
         });
+      } catch (error) {
+        console.error('Error removing resource human allocation:', error);
+        toast({
+          title: 'Erro',
+          description: 'Erro ao remover colaborador.',
+          variant: 'destructive',
+        });
+        setRecursos(recursos);
       }
     }
   };
@@ -842,20 +597,33 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
       }
 
       const faixas = getFaixasDisponiveis(horarioModalRecurso.recursoId, horarioModalDia);
-      const ocupacoes = await getOcupacoesRecurso(horarioModalRecurso.recursoId, horarioModalDia, gravacaoId);
+      const ocupacoes = await getOcupacoesRecurso(
+        horarioModalRecurso.recursoId,
+        horarioModalDia,
+        gravacaoId,
+      );
       const disponibilidade = verificarDisponibilidade(
         horarioModalRecurso.recursoId,
         horarioModalDia,
         horarioInicio,
         horarioFim,
-        gravacaoId
+        gravacaoId,
       );
 
       setHorarioModalDisponibilidade({ faixas, ocupacoes, disponibilidade });
     };
 
     loadDisponibilidade();
-  }, [horarioModalRecurso, horarioModalDia, horarioInicio, horarioFim, gravacaoId, getFaixasDisponiveis, getOcupacoesRecurso, verificarDisponibilidade]);
+  }, [
+    horarioModalRecurso,
+    horarioModalDia,
+    horarioInicio,
+    horarioFim,
+    gravacaoId,
+    getFaixasDisponiveis,
+    getOcupacoesRecurso,
+    verificarDisponibilidade,
+  ]);
 
   const handleSaveHorario = async () => {
     if (!horarioModalRecurso) return;
@@ -865,13 +633,13 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
       horarioModalDia,
       horarioInicio,
       horarioFim,
-      gravacaoId
+      gravacaoId,
     );
 
     if (!disponibilidade.disponivel) {
       toast({
-        title: 'Horário indisponível',
-        description: disponibilidade.motivo || 'O horário selecionado não está disponível.',
+        title: 'HorÃ¡rio indisponÃ­vel',
+        description: disponibilidade.motivo || 'O horÃ¡rio selecionado nÃ£o estÃ¡ disponÃ­vel.',
         variant: 'destructive',
       });
       return;
@@ -897,10 +665,10 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
     setRecursos(updated);
 
     // Sync with database
-    await supabase
-      .from('gravacao_recursos')
-      .update({ hora_inicio: horarioInicio, hora_fim: horarioFim })
-      .eq('id', horarioModalRecurso.anchorDbId);
+    await alocacoesRepository.updateHorario(gravacaoId, horarioModalRecurso.anchorDbId, {
+      horaInicio: horarioInicio,
+      horaFim: horarioFim,
+    });
 
     setHorarioModalOpen(false);
   };
@@ -919,10 +687,10 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
 
     setRecursos(updated);
 
-    await supabase
-      .from('gravacao_recursos')
-      .update({ hora_inicio: null, hora_fim: null })
-      .eq('id', horarioModalRecurso.anchorDbId);
+    await alocacoesRepository.updateHorario(gravacaoId, horarioModalRecurso.anchorDbId, {
+      horaInicio: null,
+      horaFim: null,
+    });
 
     setHorarioModalOpen(false);
   };
@@ -978,7 +746,7 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
     let filtrados = recursosHumanos;
     if (rhModalRecurso?.funcaoOperador) {
       filtrados = filtrados.filter(
-        (rh) => rh.funcao?.toLowerCase() === rhModalRecurso.funcaoOperador?.toLowerCase()
+        (rh) => rh.funcao?.toLowerCase() === rhModalRecurso.funcaoOperador?.toLowerCase(),
       );
     }
     if (rhModalDia) {
@@ -992,7 +760,7 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
     let filtrados = recursosHumanos;
     if (rhModalRecurso?.funcaoOperador) {
       filtrados = filtrados.filter(
-        (rh) => rh.funcao?.toLowerCase() === rhModalRecurso.funcaoOperador?.toLowerCase()
+        (rh) => rh.funcao?.toLowerCase() === rhModalRecurso.funcaoOperador?.toLowerCase(),
       );
     }
     return filtrados
@@ -1003,7 +771,12 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
       }));
   }, [recursosHumanos, rhModalRecurso?.funcaoOperador, rhModalDia]);
 
-  const renderRecursosTable = (recursosLista: RecursoAlocado[], tipoLabel: string, tipoIcon: string, isTecnico: boolean) => {
+  const renderRecursosTable = (
+    recursosLista: RecursoAlocado[],
+    tipoLabel: string,
+    tipoIcon: string,
+    isTecnico: boolean,
+  ) => {
     if (recursosLista.length === 0) return null;
 
     return (
@@ -1072,7 +845,9 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
                                     </div>
                                   </TooltipTrigger>
                                   <TooltipContent side="top" className="text-xs">
-                                    <p className="font-medium text-destructive">Recurso indisponível</p>
+                                    <p className="font-medium text-destructive">
+                                      Recurso indisponÃ­vel
+                                    </p>
                                     <p className="text-muted-foreground">Alocado em: {conflito}</p>
                                   </TooltipContent>
                                 </Tooltip>
@@ -1102,8 +877,8 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
                                         faltaColaborador
                                           ? 'text-destructive hover:text-destructive'
                                           : rhCount > 0
-                                          ? 'text-primary'
-                                          : 'text-muted-foreground hover:text-foreground'
+                                            ? 'text-primary'
+                                            : 'text-muted-foreground hover:text-foreground'
                                       }`}
                                       onClick={() => openRHModal(recurso, d.dataKey)}
                                     >
@@ -1118,18 +893,20 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
                                   <TooltipContent side="top" className="max-w-xs">
                                     {rhCount > 0 ? (
                                       <div className="space-y-1">
-                                        <p className="font-medium text-xs">{rhCount} colaborador(es):</p>
+                                        <p className="font-medium text-xs">
+                                          {rhCount} colaborador(es):
+                                        </p>
                                         <ul className="text-xs space-y-0.5">
                                           {rhList.map((rh) => (
                                             <li key={rh.id} className="text-muted-foreground">
-                                              • {rh.nome} ({rh.horaInicio} - {rh.horaFim})
+                                              â€¢ {rh.nome} ({rh.horaInicio} - {rh.horaFim})
                                             </li>
                                           ))}
                                         </ul>
                                       </div>
                                     ) : faltaColaborador ? (
                                       <p className="text-xs text-destructive font-medium">
-                                        Atenção: recurso sem colaborador associado!
+                                        AtenÃ§Ã£o: recurso sem colaborador associado!
                                       </p>
                                     ) : (
                                       <p className="text-xs text-muted-foreground">
@@ -1151,8 +928,8 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
                                         faltaHorario
                                           ? 'text-destructive hover:text-destructive'
                                           : horario
-                                          ? 'text-primary'
-                                          : 'text-muted-foreground hover:text-foreground'
+                                            ? 'text-primary'
+                                            : 'text-muted-foreground hover:text-foreground'
                                       }`}
                                       onClick={() => openHorarioModal(recurso, d.dataKey)}
                                     >
@@ -1162,18 +939,20 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
                                   <TooltipContent side="top" className="max-w-xs">
                                     {horario ? (
                                       <div className="space-y-1">
-                                        <p className="font-medium text-xs">Horário de ocupação:</p>
+                                        <p className="font-medium text-xs">
+                                          HorÃ¡rio de ocupaÃ§Ã£o:
+                                        </p>
                                         <p className="text-xs text-muted-foreground">
                                           {horario.horaInicio} - {horario.horaFim}
                                         </p>
                                       </div>
                                     ) : faltaHorario ? (
                                       <p className="text-xs text-destructive font-medium">
-                                        Atenção: defina o horário de ocupação!
+                                        AtenÃ§Ã£o: defina o horÃ¡rio de ocupaÃ§Ã£o!
                                       </p>
                                     ) : (
                                       <p className="text-xs text-muted-foreground">
-                                        Clique para definir horário
+                                        Clique para definir horÃ¡rio
                                       </p>
                                     )}
                                   </TooltipContent>
@@ -1216,7 +995,7 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
     <div className="space-y-4 mt-4">
       <div className="flex flex-wrap gap-3 items-end">
         <div className="space-y-1">
-          <label className="text-sm text-muted-foreground">Mês/Ano</label>
+          <label className="text-sm text-muted-foreground">MÃªs/Ano</label>
           <Select value={mesAno} onValueChange={setMesAno}>
             <SelectTrigger className="w-48">
               <SelectValue />
@@ -1233,13 +1012,16 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
 
         <div className="space-y-1">
           <label className="text-sm text-muted-foreground">Tipo</label>
-          <Select value={selectedTipo} onValueChange={(v) => setSelectedTipo(v as 'tecnico' | 'fisico')}>
+          <Select
+            value={selectedTipo}
+            onValueChange={(v) => setSelectedTipo(v as 'tecnico' | 'fisico')}
+          >
             <SelectTrigger className="w-36">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="tecnico">Técnico</SelectItem>
-              <SelectItem value="fisico">Físico</SelectItem>
+              <SelectItem value="tecnico">TÃ©cnico</SelectItem>
+              <SelectItem value="fisico">FÃ­sico</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -1263,8 +1045,8 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
         {selectedTipo === 'fisico' && selectedRecurso && estoqueItens.length > 0 && (
           <div className="space-y-1 flex-1 min-w-48">
             <label className="text-sm text-muted-foreground">Item de Estoque (opcional)</label>
-            <Select 
-              value={selectedEstoqueItem || '__none__'} 
+            <Select
+              value={selectedEstoqueItem || '__none__'}
               onValueChange={(v) => setSelectedEstoqueItem(v === '__none__' ? '' : v)}
             >
               <SelectTrigger>
@@ -1274,7 +1056,8 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
                 <SelectItem value="__none__">Nenhum (qualquer item)</SelectItem>
                 {estoqueItens.map((item) => (
                   <SelectItem key={item.id} value={item.id}>
-                    #{item.numerador} - {item.nome}{item.codigo ? ` (${item.codigo})` : ''}
+                    #{item.numerador} - {item.nome}
+                    {item.codigo ? ` (${item.codigo})` : ''}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -1289,15 +1072,15 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
 
       {recursos.length > 0 && (
         <div className="space-y-4">
-          {renderRecursosTable(recursosTecnicosAlocados, 'Recursos Técnicos', '🔧', true)}
-          {renderRecursosTable(recursosFisicosAlocados, 'Recursos Físicos', '🏢', false)}
+          {renderRecursosTable(recursosTecnicosAlocados, 'Recursos TÃ©cnicos', 'ðŸ”§', true)}
+          {renderRecursosTable(recursosFisicosAlocados, 'Recursos FÃ­sicos', 'ðŸ¢', false)}
         </div>
       )}
 
       {recursos.length === 0 && (
         <div className="text-center py-8 text-muted-foreground">
           <p>Nenhum recurso adicionado ainda.</p>
-          <p className="text-sm">Adicione recursos técnicos ou físicos acima.</p>
+          <p className="text-sm">Adicione recursos tÃ©cnicos ou fÃ­sicos acima.</p>
         </div>
       )}
 
@@ -1310,7 +1093,8 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
               Recursos Humanos - {rhModalRecurso?.recursoNome}
             </DialogTitle>
             <p className="text-sm text-muted-foreground">
-              Data: {rhModalDia ? new Date(rhModalDia + 'T12:00:00').toLocaleDateString('pt-BR') : ''}
+              Data:{' '}
+              {rhModalDia ? new Date(rhModalDia + 'T12:00:00').toLocaleDateString('pt-BR') : ''}
             </p>
           </DialogHeader>
 
@@ -1322,8 +1106,11 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
                 </p>
                 <div className="space-y-1">
                   {colaboradoresAusentes.map((rh) => (
-                    <div key={rh.id} className="text-xs text-muted-foreground flex items-center gap-2">
-                      <span>• {rh.nome}</span>
+                    <div
+                      key={rh.id}
+                      className="text-xs text-muted-foreground flex items-center gap-2"
+                    >
+                      <span>â€¢ {rh.nome}</span>
                       <span className="bg-amber-500/20 text-amber-600 dark:text-amber-400 px-1.5 py-0.5 rounded text-[10px]">
                         {rh.motivoAusencia}
                       </span>
@@ -1337,7 +1124,8 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
               <Label className="text-sm font-medium">Adicionar Colaborador</Label>
               {rhModalRecurso?.funcaoOperador && (
                 <p className="text-xs text-muted-foreground">
-                  Exibindo colaboradores com função: <strong>{rhModalRecurso.funcaoOperador}</strong>
+                  Exibindo colaboradores com funÃ§Ã£o:{' '}
+                  <strong>{rhModalRecurso.funcaoOperador}</strong>
                 </p>
               )}
               <div className="grid grid-cols-1 gap-3">
@@ -1351,8 +1139,8 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
                       {recursosHumanosFiltrados.length === 0 ? (
                         <div className="px-2 py-4 text-sm text-muted-foreground text-center">
                           {colaboradoresAusentes.length > 0
-                            ? 'Todos os colaboradores estão ausentes nesta data'
-                            : `Nenhum colaborador encontrado${rhModalRecurso?.funcaoOperador ? ` com função "${rhModalRecurso.funcaoOperador}"` : ''}`}
+                            ? 'Todos os colaboradores estÃ£o ausentes nesta data'
+                            : `Nenhum colaborador encontrado${rhModalRecurso?.funcaoOperador ? ` com funÃ§Ã£o "${rhModalRecurso.funcaoOperador}"` : ''}`}
                         </div>
                       ) : (
                         recursosHumanosFiltrados.map((rh) => (
@@ -1366,12 +1154,20 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">Hora Início</Label>
-                    <Input type="time" value={horaInicio} onChange={(e) => setHoraInicio(e.target.value)} />
+                    <Label className="text-xs text-muted-foreground">Hora InÃ­cio</Label>
+                    <Input
+                      type="time"
+                      value={horaInicio}
+                      onChange={(e) => setHoraInicio(e.target.value)}
+                    />
                   </div>
                   <div className="space-y-1">
                     <Label className="text-xs text-muted-foreground">Hora Fim</Label>
-                    <Input type="time" value={horaFim} onChange={(e) => setHoraFim(e.target.value)} />
+                    <Input
+                      type="time"
+                      value={horaFim}
+                      onChange={(e) => setHoraFim(e.target.value)}
+                    />
                   </div>
                 </div>
                 <Button onClick={handleAddRH} disabled={!selectedRH} className="w-full">
@@ -1386,7 +1182,10 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
                 <Label className="text-sm font-medium">Colaboradores Alocados</Label>
                 <div className="space-y-2 max-h-48 overflow-y-auto">
                   {rhAlocadosNoDia.map((rh) => (
-                    <div key={rh.id} className="flex items-center justify-between p-2 border rounded-lg bg-background">
+                    <div
+                      key={rh.id}
+                      className="flex items-center justify-between p-2 border rounded-lg bg-background"
+                    >
                       <div>
                         <p className="font-medium text-sm">{rh.nome}</p>
                         <p className="text-xs text-muted-foreground">
@@ -1428,10 +1227,13 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Clock className="w-5 h-5" />
-              Horário de Ocupação - {horarioModalRecurso?.recursoNome}
+              HorÃ¡rio de OcupaÃ§Ã£o - {horarioModalRecurso?.recursoNome}
             </DialogTitle>
             <p className="text-sm text-muted-foreground">
-              Data: {horarioModalDia ? new Date(horarioModalDia + 'T12:00:00').toLocaleDateString('pt-BR') : ''}
+              Data:{' '}
+              {horarioModalDia
+                ? new Date(horarioModalDia + 'T12:00:00').toLocaleDateString('pt-BR')
+                : ''}
             </p>
           </DialogHeader>
 
@@ -1466,12 +1268,15 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
                   <div className="bg-destructive/5 border border-destructive/20 rounded-lg p-3 space-y-2">
                     <Label className="text-xs font-medium flex items-center gap-1.5 text-destructive">
                       <Ban className="w-3.5 h-3.5" />
-                      Períodos já ocupados
+                      PerÃ­odos jÃ¡ ocupados
                     </Label>
                     <div className="space-y-1">
                       {horarioModalDisponibilidade.ocupacoes.map((oc, idx) => (
                         <div key={idx} className="flex items-center justify-between text-xs">
-                          <span className="text-muted-foreground truncate max-w-[150px]" title={oc.gravacaoNome}>
+                          <span
+                            className="text-muted-foreground truncate max-w-[150px]"
+                            title={oc.gravacaoNome}
+                          >
                             {oc.gravacaoNome}
                           </span>
                           <Badge variant="secondary" className="font-mono text-[10px]">
@@ -1498,12 +1303,20 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">Hora Início</Label>
-                <Input type="time" value={horarioInicio} onChange={(e) => setHorarioInicio(e.target.value)} />
+                <Label className="text-xs text-muted-foreground">Hora InÃ­cio</Label>
+                <Input
+                  type="time"
+                  value={horarioInicio}
+                  onChange={(e) => setHorarioInicio(e.target.value)}
+                />
               </div>
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">Hora Fim</Label>
-                <Input type="time" value={horarioFim} onChange={(e) => setHorarioFim(e.target.value)} />
+                <Input
+                  type="time"
+                  value={horarioFim}
+                  onChange={(e) => setHorarioFim(e.target.value)}
+                />
               </div>
             </div>
           </div>
@@ -1519,7 +1332,10 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
             </Button>
             <Button
               onClick={handleSaveHorario}
-              disabled={horarioModalDisponibilidade && !horarioModalDisponibilidade.disponibilidade.disponivel}
+              disabled={
+                horarioModalDisponibilidade &&
+                !horarioModalDisponibilidade.disponibilidade.disponivel
+              }
             >
               Salvar
             </Button>

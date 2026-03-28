@@ -1,5 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,12 +18,18 @@ import { useAuth } from '@/contexts/AuthContext';
 interface ImpactoIncidenciaFormModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (data: any) => Promise<void>;
-  data?: any;
+  onSave: (data: Record<string, unknown>) => Promise<void>;
+  data?: Record<string, unknown>;
   readOnly?: boolean;
 }
 
-export const ImpactoIncidenciaFormModal = ({ isOpen, onClose, onSave, data, readOnly }: ImpactoIncidenciaFormModalProps) => {
+export const ImpactoIncidenciaFormModal = ({
+  isOpen,
+  onClose,
+  onSave,
+  data,
+  readOnly,
+}: ImpactoIncidenciaFormModalProps) => {
   const { t } = useLanguage();
   const { user } = useAuth();
   const [form, setForm] = useState({ titulo: '', descricao: '', codigo_externo: '' });
@@ -24,7 +37,11 @@ export const ImpactoIncidenciaFormModal = ({ isOpen, onClose, onSave, data, read
 
   useEffect(() => {
     if (data) {
-      setForm({ titulo: data.titulo || '', descricao: data.descricao || '', codigo_externo: data.codigo_externo || '' });
+      setForm({
+        titulo: String(data.titulo || ''),
+        descricao: String(data.descricao || ''),
+        codigo_externo: String(data.codigo_externo || ''),
+      });
     } else {
       setForm({ titulo: '', descricao: '', codigo_externo: '' });
     }
@@ -42,26 +59,51 @@ export const ImpactoIncidenciaFormModal = ({ isOpen, onClose, onSave, data, read
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>{data ? (readOnly ? t('incidentImpact.entity') : `${t('common.edit')} ${t('incidentImpact.entity')}`) : `${t('common.new')} ${t('incidentImpact.entity')}`}</DialogTitle>
+          <DialogTitle>
+            {data
+              ? readOnly
+                ? t('incidentImpact.entity')
+                : `${t('common.edit')} ${t('incidentImpact.entity')}`
+              : `${t('common.new')} ${t('incidentImpact.entity')}`}
+          </DialogTitle>
           <DialogDescription>{t('incidentImpact.formDescription')}</DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label>{t('common.externalCode')}</Label>
-              <Input maxLength={10} value={form.codigo_externo} onChange={(e) => setForm({ ...form, codigo_externo: e.target.value })} disabled={readOnly} />
+              <Input
+                maxLength={10}
+                value={form.codigo_externo}
+                onChange={(e) => setForm({ ...form, codigo_externo: e.target.value })}
+                disabled={readOnly}
+              />
             </div>
             <div>
               <Label>{t('incidentImpact.title')} *</Label>
-              <Input value={form.titulo} onChange={(e) => setForm({ ...form, titulo: e.target.value })} disabled={readOnly} />
+              <Input
+                value={form.titulo}
+                onChange={(e) => setForm({ ...form, titulo: e.target.value })}
+                disabled={readOnly}
+              />
             </div>
           </div>
           <div>
             <Label>{t('common.description')}</Label>
-            <Textarea rows={3} value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} disabled={readOnly} />
+            <Textarea
+              rows={3}
+              value={form.descricao}
+              onChange={(e) => setForm({ ...form, descricao: e.target.value })}
+              disabled={readOnly}
+            />
           </div>
           <div>
             <Label>{t('incidentImpact.user')}</Label>
@@ -70,10 +112,14 @@ export const ImpactoIncidenciaFormModal = ({ isOpen, onClose, onSave, data, read
         </div>
         <DialogFooter>
           {readOnly ? (
-            <Button variant="outline" onClick={onClose}>{t('common.close')}</Button>
+            <Button variant="outline" onClick={onClose}>
+              {t('common.close')}
+            </Button>
           ) : (
             <>
-              <Button variant="outline" onClick={onClose}>{t('common.cancel')}</Button>
+              <Button variant="outline" onClick={onClose}>
+                {t('common.cancel')}
+              </Button>
               <Button onClick={handleSubmit} disabled={saving || !form.titulo.trim()}>
                 {saving && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
                 {t('common.save')}

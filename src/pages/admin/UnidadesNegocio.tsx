@@ -9,7 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { UnidadeNegocioFormModal } from '@/components/admin/UnidadeNegocioFormModal';
 import { useAuth } from '@/contexts/AuthContext';
-import { unidadesRepository } from '@/modules/unidades/unidades.repository';
+import { unidadesRepository } from '@/modules/unidades/unidades.repository.provider';
 import type { UnidadeNegocio } from '@/modules/unidades/unidades.types';
 
 const UnidadesNegocio = () => {
@@ -49,8 +49,7 @@ const UnidadesNegocio = () => {
 
   const handleSave = async (data: UnidadeNegocio) => {
     try {
-      const payload = data.id ? data : { ...data, id: crypto.randomUUID() };
-      await unidadesRepository.save(payload, user?.id);
+      await unidadesRepository.save(data, user?.id);
 
       if (editingItem) {
         toast({ title: t('common.success'), description: t('businessUnits.updated') });
@@ -114,7 +113,11 @@ const UnidadesNegocio = () => {
       key: 'descricao',
       label: t('common.description'),
       className: 'hidden md:table-cell',
-      render: (item) => <span className="text-muted-foreground max-w-xs truncate block">{item.descricao || '-'}</span>,
+      render: (item) => (
+        <span className="text-muted-foreground max-w-xs truncate block">
+          {item.descricao || '-'}
+        </span>
+      ),
     },
     {
       key: 'dataCadastro',

@@ -32,6 +32,18 @@ class InMemoryUsersRepository implements UsersRepository {
   async findByUsername(usuario: string) { return [...this.items.values()].find((item) => item.usuario === usuario) ?? null; }
   async save(input: SaveUserInput) { const item: UserRecord = { id: input.id ?? crypto.randomUUID(), tenantId: input.tenantId, codigoExterno: input.codigoExterno ?? null, nome: input.nome, email: input.email, usuario: input.usuario, fotoUrl: input.fotoUrl ?? null, perfil: input.perfil ?? null, descricao: input.descricao ?? null, status: input.status, tipoAcesso: input.tipoAcesso ?? 'Operacional', recursoHumanoId: input.recursoHumanoId ?? null, role: input.role ?? 'USER', createdAt: new Date('2026-03-25T12:00:00.000Z') }; this.items.set(item.id, item); return item; }
   async remove(id: string) { this.items.delete(id); }
+  async listAvailableUnidades() { return []; }
+  async listUserUnidades() { return []; }
+  async addUserUnidade() {}
+  async removeUserUnidade() {}
+  async listAvailableProgramas() { return []; }
+  async listUserProgramas() { return []; }
+  async addUserPrograma() {}
+  async removeUserPrograma() {}
+  async listAvailableEquipes() { return []; }
+  async listUserEquipes() { return []; }
+  async addUserEquipe() {}
+  async removeUserEquipe() {}
 }
 
 describe('users routes', () => {
@@ -53,4 +65,3 @@ describe('users routes', () => {
     await app.close();
   });
 });
-

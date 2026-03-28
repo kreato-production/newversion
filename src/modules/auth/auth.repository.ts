@@ -1,7 +1,13 @@
-import type { SupabaseClient } from '@supabase/supabase-js';
-import { supabase } from '@/integrations/supabase/client';
-import { apiRequest, isBackendAuthProviderEnabled, logoutBackendSession, refreshBackendSession } from '@/lib/api/http';
-import type { AuthSession, AuthSessionState, AuthSessionUser, AuthUserProfile, LoginResult, TenantLicenseValidation, UserProfileResult } from './auth.types';
+import { apiRequest, logoutBackendSession, refreshBackendSession } from '@/lib/api/http';
+import type {
+  AuthSession,
+  AuthSessionState,
+  AuthSessionUser,
+  AuthUserProfile,
+  LoginResult,
+  TenantLicenseValidation,
+  UserProfileResult,
+} from './auth.types';
 
 type ProfileRow = {
   id: string;
@@ -39,18 +45,66 @@ type BackendSessionPayload = {
   refreshToken: string;
 };
 
+type LegacyAuthUser = {
+  id: string;
+  email?: string;
+};
+
+type LegacyAuthSession = {
+  user?: LegacyAuthUser | null;
+};
+
+type LegacyAuthClient = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  from: (table: string) => any;
+  auth: {
+    signInWithPassword: (params: { email: string; password: string }) => Promise<{
+      data: { user: LegacyAuthUser | null };
+      error: { message: string } | null;
+    }>;
+    signOut: () => Promise<void>;
+    getSession: () => Promise<{ data: { session: LegacyAuthSession | null } }>;
+    onAuthStateChange: (callback: (_event: string, session: LegacyAuthSession | null) => void) => {
+      data: { subscription: { unsubscribe: () => void } };
+    };
+  };
+};
+
 export interface AuthRepository {
   usernameToEmail(username: string): string;
   validateTenantLicense(tenantId: string): Promise<TenantLicenseValidation>;
   fetchUserProfile(userId: string): Promise<UserProfileResult>;
-  signInWithPassword(usuario: string, password: string): Promise<{ session: AuthSession | null; user: AuthSessionUser | null; error?: string }>;
+  signInWithPassword(
+    usuario: string,
+    password: string,
+  ): Promise<{ session: AuthSession | null; user: AuthSessionUser | null; error?: string }>;
   signOut(): Promise<void>;
   getSession(): Promise<AuthSessionState>;
   onAuthStateChange(callback: (state: AuthSessionState) => void): { unsubscribe: () => void };
 }
 
+function createDisabledLegacyAuthClient(): LegacyAuthClient {
+  const disabled = () => {
+    throw new Error(
+      'O caminho legado de autenticacao via Supabase foi desativado. Use a API local.',
+    );
+  };
+
+  return {
+    from: disabled,
+    auth: {
+      signInWithPassword: async () => disabled(),
+      signOut: async () => disabled(),
+      getSession: async () => disabled(),
+      onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => undefined } } }),
+    },
+  };
+}
+
 function mapProfileRow(profile: ProfileRow, unidadeIds: string[]): AuthUserProfile {
-  const perfilData = Array.isArray(profile.perfis_acesso) ? profile.perfis_acesso[0] : profile.perfis_acesso;
+  const perfilData = Array.isArray(profile.perfis_acesso)
+    ? profile.perfis_acesso[0]
+    : profile.perfis_acesso;
 
   return {
     id: profile.id,
@@ -97,7 +151,7 @@ function mapBackendSession(payload: BackendSessionPayload): AuthSession {
 }
 
 export class SupabaseAuthRepository implements AuthRepository {
-  constructor(protected readonly client: SupabaseClient = supabase) {}
+  constructor(protected readonly client: LegacyAuthClient = createDisabledLegacyAuthClient()) {}
 
   usernameToEmail(username: string): string {
     return `${username.toLowerCase()}@kreato.app`;
@@ -144,7 +198,8 @@ export class SupabaseAuthRepository implements AuthRepository {
       const [{ data: profile, error }, { data: unidadesData }] = await Promise.all([
         this.client
           .from('profiles')
-          .select(`
+          .select(
+            `
             id,
             nome,
             email,
@@ -155,13 +210,11 @@ export class SupabaseAuthRepository implements AuthRepository {
             recurso_humano_id,
             tenant_id,
             perfis_acesso:perfil_id (nome)
-          `)
+          `,
+          )
           .eq('id', userId)
           .maybeSingle(),
-        this.client
-          .from('usuario_unidades')
-          .select('unidade_id')
-          .eq('usuario_id', userId),
+        this.client.from('usuario_unidades').select('unidade_id').eq('usuario_id', userId),
       ]);
 
       if (error) {
@@ -181,7 +234,10 @@ export class SupabaseAuthRepository implements AuthRepository {
 
         if (!valid) {
           if (status === 'Licenca Expirada') {
-            await this.client.from('tenants').update({ status: 'Bloqueado' }).eq('id', typedProfile.tenant_id);
+            await this.client
+              .from('tenants')
+              .update({ status: 'Bloqueado' })
+              .eq('id', typedProfile.tenant_id);
           }
 
           return {
@@ -192,7 +248,9 @@ export class SupabaseAuthRepository implements AuthRepository {
         }
       }
 
-      const unidadeIds = ((unidadesData || []) as UnidadeRow[]).map((unidade) => unidade.unidade_id);
+      const unidadeIds = ((unidadesData || []) as UnidadeRow[]).map(
+        (unidade) => unidade.unidade_id,
+      );
       return {
         profile: mapProfileRow(typedProfile, unidadeIds),
         status: typedProfile.status || 'Ativo',
@@ -224,10 +282,12 @@ export class SupabaseAuthRepository implements AuthRepository {
       };
     }
 
-    const user: AuthSessionUser | null = data.user ? {
-      id: data.user.id,
-      email: data.user.email,
-    } : null;
+    const user: AuthSessionUser | null = data.user
+      ? {
+          id: data.user.id,
+          email: data.user.email,
+        }
+      : null;
 
     return {
       session: user ? { user } : null,
@@ -241,27 +301,31 @@ export class SupabaseAuthRepository implements AuthRepository {
 
   async getSession(): Promise<AuthSessionState> {
     const { data } = await this.client.auth.getSession();
-    const user = data.session?.user ? {
-      id: data.session.user.id,
-      email: data.session.user.email,
-    } : null;
+    const user = data.session?.user
+      ? {
+          id: data.session.user.id,
+          email: data.session.user.email,
+        }
+      : null;
 
     return {
       session: user ? { user } : null,
-      supabaseUser: user,
+      sessionUser: user,
     };
   }
 
   onAuthStateChange(callback: (state: AuthSessionState) => void): { unsubscribe: () => void } {
     const { data } = this.client.auth.onAuthStateChange((_event, session) => {
-      const user = session?.user ? {
-        id: session.user.id,
-        email: session.user.email,
-      } : null;
+      const user = session?.user
+        ? {
+            id: session.user.id,
+            email: session.user.email,
+          }
+        : null;
 
       callback({
         session: user ? { user } : null,
-        supabaseUser: user,
+        sessionUser: user,
       });
     });
 
@@ -305,7 +369,7 @@ export class BackendAuthRepository extends SupabaseAuthRepository {
       });
 
       const session = mapBackendSession(payload);
-      this.emit({ session, supabaseUser: session.user });
+      this.emit({ session, sessionUser: session.user });
       return { session, user: session.user };
     } catch (error) {
       return {
@@ -318,7 +382,7 @@ export class BackendAuthRepository extends SupabaseAuthRepository {
 
   async signOut(): Promise<void> {
     await logoutBackendSession();
-    this.emit({ session: null, supabaseUser: null });
+    this.emit({ session: null, sessionUser: null });
   }
 
   async getSession(): Promise<AuthSessionState> {
@@ -334,11 +398,11 @@ export class BackendAuthRepository extends SupabaseAuthRepository {
         },
       };
 
-      return { session, supabaseUser: session.user };
+      return { session, sessionUser: session.user };
     } catch {
       const refreshed = await refreshBackendSession();
       if (!refreshed) {
-        return { session: null, supabaseUser: null };
+        return { session: null, sessionUser: null };
       }
 
       try {
@@ -353,9 +417,9 @@ export class BackendAuthRepository extends SupabaseAuthRepository {
           },
         };
 
-        return { session, supabaseUser: session.user };
+        return { session, sessionUser: session.user };
       } catch {
-        return { session: null, supabaseUser: null };
+        return { session: null, sessionUser: null };
       }
     }
   }
@@ -370,9 +434,7 @@ export class BackendAuthRepository extends SupabaseAuthRepository {
   }
 }
 
-export const authRepository = isBackendAuthProviderEnabled()
-  ? new BackendAuthRepository()
-  : new SupabaseAuthRepository();
+export const authRepository = new BackendAuthRepository();
 
 export function mapLoginError(result: { error?: string | null }): LoginResult {
   return result.error ? { success: false, error: result.error } : { success: true };

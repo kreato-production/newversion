@@ -21,6 +21,35 @@ export type SaveTenantInput = {
   notas?: string | null;
 };
 
+export type TenantLicenseRecord = {
+  id: string;
+  tenantId: string;
+  dataInicio: Date;
+  dataFim: Date;
+};
+
+export type TenantModuleRecord = {
+  modulo: string;
+};
+
+export type TenantUnidadeRecord = {
+  id: string;
+  codigoExterno: string | null;
+  nome: string;
+  descricao: string | null;
+  moeda: string;
+};
+
+export type SaveTenantUnidadeInput = {
+  tenantId: string;
+  codigoExterno?: string | null;
+  nome: string;
+  descricao?: string | null;
+  imagemUrl?: string | null;
+  moeda?: string | null;
+  createdByName?: string | null;
+};
+
 type TenantRow = {
   id: string;
   nome: string;
@@ -38,6 +67,13 @@ export interface TenantsRepository {
   findBySlug(slug: string): Promise<TenantRecord | null>;
   save(input: SaveTenantInput): Promise<TenantRecord>;
   remove(id: string): Promise<void>;
+  listLicencas(tenantId: string): Promise<TenantLicenseRecord[]>;
+  addLicenca(input: { tenantId: string; dataInicio: Date; dataFim: Date }): Promise<TenantLicenseRecord>;
+  removeLicenca(tenantId: string, licencaId: string): Promise<void>;
+  listModulos(tenantId: string): Promise<TenantModuleRecord[]>;
+  setModulo(input: { tenantId: string; modulo: string; enabled: boolean }): Promise<void>;
+  listUnidades(tenantId: string): Promise<TenantUnidadeRecord[]>;
+  createUnidade(input: SaveTenantUnidadeInput): Promise<TenantUnidadeRecord>;
 }
 
 function mapTenant(row: TenantRow): TenantRecord {
@@ -81,7 +117,25 @@ const tenantSelection = Prisma.sql`
   FROM "Tenant" t
 `;
 
+const DEFAULT_TENANT_MODULES = ['Dashboard', 'ProduÃ§Ã£o', 'Recursos', 'AdministraÃ§Ã£o'];
+
+function normalizeModuloName(value: string): string {
+  if (value === 'Produção' || value === 'ProduÃ§Ã£o') return 'ProduÃ§Ã£o';
+  if (value === 'Administração' || value === 'AdministraÃ§Ã£o') return 'AdministraÃ§Ã£o';
+  return value;
+}
+
+function moduloVariants(value: string): string[] {
+  const normalized = normalizeModuloName(value);
+
+  if (normalized === 'ProduÃ§Ã£o') return ['ProduÃ§Ã£o', 'Produção'];
+  if (normalized === 'AdministraÃ§Ã£o') return ['AdministraÃ§Ã£o', 'Administração'];
+  return [normalized];
+}
+
 export class PrismaTenantsRepository implements TenantsRepository {
+  private tenantModulesReady: Promise<void> | null = null;
+
   async list(): Promise<TenantRecord[]> {
     const rows = await prisma.$queryRaw<TenantRow[]>(Prisma.sql`
       ${tenantSelection}
@@ -171,7 +225,127 @@ export class PrismaTenantsRepository implements TenantsRepository {
   }
 
   async remove(id: string): Promise<void> {
-    await prisma.tenant.delete({ where: { id } });
+    await prisma.$transaction(async (tx) => {
+      await tx.$executeRawUnsafe(`DELETE FROM tenant_modulos_backend WHERE tenant_id = $1`, id).catch(() => undefined);
+
+      await tx.tenantLicense.deleteMany({ where: { tenantId: id } });
+      await tx.gravacao.deleteMany({ where: { tenantId: id } });
+      await tx.programa.deleteMany({ where: { tenantId: id } });
+      await tx.equipe.deleteMany({ where: { tenantId: id } });
+      await tx.unidadeNegocio.deleteMany({ where: { tenantId: id } });
+      await tx.user.deleteMany({ where: { tenantId: id } });
+      await tx.tenant.delete({ where: { id } });
+    });
+  }
+
+  async listLicencas(tenantId: string): Promise<TenantLicenseRecord[]> {
+    const items = await prisma.tenantLicense.findMany({
+      where: { tenantId },
+      orderBy: { dataInicio: 'desc' },
+    });
+
+    return items.map((item) => ({
+      id: item.id,
+      tenantId: item.tenantId,
+      dataInicio: item.dataInicio,
+      dataFim: item.dataFim,
+    }));
+  }
+
+  async addLicenca(input: { tenantId: string; dataInicio: Date; dataFim: Date }): Promise<TenantLicenseRecord> {
+    const item = await prisma.tenantLicense.create({
+      data: {
+        tenantId: input.tenantId,
+        dataInicio: input.dataInicio,
+        dataFim: input.dataFim,
+      },
+    });
+
+    return {
+      id: item.id,
+      tenantId: item.tenantId,
+      dataInicio: item.dataInicio,
+      dataFim: item.dataFim,
+    };
+  }
+
+  async removeLicenca(tenantId: string, licencaId: string): Promise<void> {
+    await prisma.tenantLicense.deleteMany({
+      where: { id: licencaId, tenantId },
+    });
+  }
+
+  async listModulos(tenantId: string): Promise<TenantModuleRecord[]> {
+    await this.ensureTenantModulesTable();
+
+    const rows = await prisma.$queryRaw<Array<{ modulo: string }>>`
+      SELECT modulo
+      FROM tenant_modulos_backend
+      WHERE tenant_id = ${tenantId}
+      ORDER BY modulo ASC
+    `;
+
+    const modulos = rows.length > 0 ? rows.map((row) => normalizeModuloName(row.modulo)) : DEFAULT_TENANT_MODULES;
+    return [...new Set(modulos)].map((modulo) => ({ modulo }));
+  }
+
+  async setModulo(input: { tenantId: string; modulo: string; enabled: boolean }): Promise<void> {
+    await this.ensureTenantModulesTable();
+    await this.seedDefaultModulesIfNeeded(input.tenantId);
+    const modulo = normalizeModuloName(input.modulo);
+
+    if (input.enabled) {
+      await prisma.$executeRaw`
+        INSERT INTO tenant_modulos_backend (tenant_id, modulo, created_at)
+        VALUES (${input.tenantId}, ${modulo}, NOW())
+        ON CONFLICT (tenant_id, modulo) DO NOTHING
+      `;
+      return;
+    }
+
+    const variants = moduloVariants(modulo);
+    await prisma.$executeRawUnsafe(
+      `DELETE FROM tenant_modulos_backend WHERE tenant_id = $1 AND modulo = ANY($2::text[])`,
+      input.tenantId,
+      variants,
+    );
+  }
+
+  async listUnidades(tenantId: string): Promise<TenantUnidadeRecord[]> {
+    const items = await prisma.unidadeNegocio.findMany({
+      where: { tenantId },
+      orderBy: { nome: 'asc' },
+    });
+
+    return items.map((item) => ({
+      id: item.id,
+      codigoExterno: item.codigoExterno,
+      nome: item.nome,
+      descricao: item.descricao,
+      moeda: item.moeda,
+    }));
+  }
+
+  async createUnidade(input: SaveTenantUnidadeInput): Promise<TenantUnidadeRecord> {
+    const item = await prisma.unidadeNegocio.create({
+      data: {
+        tenantId: input.tenantId,
+        codigoExterno: input.codigoExterno ?? null,
+        nome: input.nome,
+        descricao: input.descricao ?? null,
+        imagemUrl: input.imagemUrl ?? null,
+        moeda: input.moeda ?? 'BRL',
+        createdByName: input.createdByName ?? null,
+      },
+    });
+
+    return {
+      id: item.id,
+      codigoExterno: item.codigoExterno,
+      nome: item.nome,
+      descricao: item.descricao,
+      moeda: item.moeda,
+    };
   }
 
   private async generateUniqueSlug(nome: string, currentId?: string): Promise<string> {
@@ -193,5 +367,47 @@ export class PrismaTenantsRepository implements TenantsRepository {
       counter++;
     }
     return `${base}-${counter}`;
+  }
+
+  private async ensureTenantModulesTable(): Promise<void> {
+    if (!this.tenantModulesReady) {
+      this.tenantModulesReady = (async () => {
+        await prisma.$executeRawUnsafe(`
+          CREATE TABLE IF NOT EXISTS tenant_modulos_backend (
+            tenant_id text NOT NULL REFERENCES "Tenant"(id) ON DELETE CASCADE,
+            modulo text NOT NULL,
+            created_at timestamptz NOT NULL DEFAULT NOW()
+          )
+        `);
+
+        await prisma.$executeRawUnsafe(`
+          CREATE UNIQUE INDEX IF NOT EXISTS tenant_modulos_backend_tenant_modulo_key
+          ON tenant_modulos_backend (tenant_id, modulo)
+        `);
+      })();
+    }
+
+    await this.tenantModulesReady;
+  }
+
+  private async seedDefaultModulesIfNeeded(tenantId: string): Promise<void> {
+    const rows = await prisma.$queryRaw<Array<{ total: bigint }>>`
+      SELECT COUNT(*)::bigint AS total
+      FROM tenant_modulos_backend
+      WHERE tenant_id = ${tenantId}
+    `;
+
+    if (Number(rows[0]?.total ?? 0) > 0) {
+      return;
+    }
+
+    for (const modulo of DEFAULT_TENANT_MODULES) {
+      const normalizedModulo = normalizeModuloName(modulo);
+      await prisma.$executeRaw`
+        INSERT INTO tenant_modulos_backend (tenant_id, modulo, created_at)
+        VALUES (${tenantId}, ${normalizedModulo}, NOW())
+        ON CONFLICT (tenant_id, modulo) DO NOTHING
+      `;
+    }
   }
 }

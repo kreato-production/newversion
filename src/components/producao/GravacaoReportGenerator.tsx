@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+
+type JsPDFWithAutoTable = jsPDF & { lastAutoTable: { finalY: number } };
 import { format, parse } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
@@ -99,7 +101,14 @@ export const GravacaoReportGenerator = ({ gravacaoId, disabled }: GravacaoReport
           if (logoBase64) {
             const logoHeight = 25;
             logoWidth = 30; // Will be adjusted based on aspect ratio
-            pdf.addImage(logoBase64, 'PNG', pageWidth - margin - logoWidth, 7, logoWidth, logoHeight);
+            pdf.addImage(
+              logoBase64,
+              'PNG',
+              pageWidth - margin - logoWidth,
+              7,
+              logoWidth,
+              logoHeight,
+            );
           }
         } catch (e) {
           console.log('Could not load logo:', e);
@@ -118,7 +127,11 @@ export const GravacaoReportGenerator = ({ gravacaoId, disabled }: GravacaoReport
       pdf.text(`${data.basicInfo.codigo} - ${data.basicInfo.nome}`, margin, 28);
 
       pdf.setFontSize(9);
-      pdf.text(`Gerado em: ${format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}`, margin, 36);
+      pdf.text(
+        `Gerado em: ${format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}`,
+        margin,
+        36,
+      );
 
       y = 50;
       pdf.setTextColor(0, 0, 0);
@@ -159,7 +172,7 @@ export const GravacaoReportGenerator = ({ gravacaoId, disabled }: GravacaoReport
         margin: { left: margin, right: margin },
       });
 
-      y = (pdf as any).lastAutoTable.finalY + 5;
+      y = (pdf as JsPDFWithAutoTable).lastAutoTable.finalY + 5;
 
       if (data.basicInfo.descricao) {
         pdf.setFont('helvetica', 'bold');
@@ -174,7 +187,7 @@ export const GravacaoReportGenerator = ({ gravacaoId, disabled }: GravacaoReport
       // ==================== ROTEIRO (CENAS) ====================
       if (data.cenas.length > 0) {
         y = checkPageBreak(pdf, y, 40);
-        
+
         pdf.setFontSize(14);
         pdf.setFont('helvetica', 'bold');
         pdf.setTextColor(124, 58, 237);
@@ -187,7 +200,7 @@ export const GravacaoReportGenerator = ({ gravacaoId, disabled }: GravacaoReport
 
           pdf.setFillColor(245, 245, 245);
           pdf.rect(margin, y - 4, contentWidth, 8, 'F');
-          
+
           pdf.setFontSize(11);
           pdf.setFont('helvetica', 'bold');
           const cenaTitle = `Cena ${cena.ordem}${cena.capitulo ? ` - Cap. ${cena.capitulo}` : ''}${cena.numeroCena ? ` / Cena ${cena.numeroCena}` : ''}`;
@@ -224,7 +237,7 @@ export const GravacaoReportGenerator = ({ gravacaoId, disabled }: GravacaoReport
       // ==================== RECURSOS ====================
       if (data.recursos.length > 0) {
         y = checkPageBreak(pdf, y, 40);
-        
+
         pdf.setFontSize(14);
         pdf.setFont('helvetica', 'bold');
         pdf.setTextColor(124, 58, 237);
@@ -233,9 +246,9 @@ export const GravacaoReportGenerator = ({ gravacaoId, disabled }: GravacaoReport
         pdf.setTextColor(0, 0, 0);
 
         // Separate resources by type
-        const recursosTecnicos = data.recursos.filter(r => r.tipo === 'tecnico');
-        const recursosFisicos = data.recursos.filter(r => r.tipo === 'fisico');
-        const recursosHumanosDiretos = data.recursos.filter(r => r.tipo === 'humano');
+        const recursosTecnicos = data.recursos.filter((r) => r.tipo === 'tecnico');
+        const recursosFisicos = data.recursos.filter((r) => r.tipo === 'fisico');
+        const recursosHumanosDiretos = data.recursos.filter((r) => r.tipo === 'humano');
 
         // -------- Recursos Técnicos --------
         if (recursosTecnicos.length > 0 || recursosHumanosDiretos.length > 0) {
@@ -247,7 +260,7 @@ export const GravacaoReportGenerator = ({ gravacaoId, disabled }: GravacaoReport
 
           // Group technical resources by function
           const tecnicosPorFuncao: Record<string, typeof recursosTecnicos> = {};
-          recursosTecnicos.forEach(rt => {
+          recursosTecnicos.forEach((rt) => {
             const funcao = rt.funcao || 'Sem Função';
             if (!tecnicosPorFuncao[funcao]) {
               tecnicosPorFuncao[funcao] = [];
@@ -256,7 +269,7 @@ export const GravacaoReportGenerator = ({ gravacaoId, disabled }: GravacaoReport
           });
 
           // Also add direct HR resources grouped by their function
-          recursosHumanosDiretos.forEach(rh => {
+          recursosHumanosDiretos.forEach((rh) => {
             const funcao = rh.funcao || 'Colaboradores';
             if (!tecnicosPorFuncao[funcao]) {
               tecnicosPorFuncao[funcao] = [];
@@ -266,7 +279,7 @@ export const GravacaoReportGenerator = ({ gravacaoId, disabled }: GravacaoReport
 
           Object.entries(tecnicosPorFuncao).forEach(([funcao, recursos]) => {
             y = checkPageBreak(pdf, y, 20);
-            
+
             pdf.setFontSize(10);
             pdf.setFont('helvetica', 'bold');
             pdf.text(`  ${funcao}`, margin, y);
@@ -274,11 +287,12 @@ export const GravacaoReportGenerator = ({ gravacaoId, disabled }: GravacaoReport
 
             pdf.setFontSize(9);
             pdf.setFont('helvetica', 'normal');
-            
-            recursos.forEach(recurso => {
-              const horario = recurso.horaInicio && recurso.horaFim 
-                ? ` (${recurso.horaInicio} - ${recurso.horaFim})` 
-                : '';
+
+            recursos.forEach((recurso) => {
+              const horario =
+                recurso.horaInicio && recurso.horaFim
+                  ? ` (${recurso.horaInicio} - ${recurso.horaFim})`
+                  : '';
               pdf.text(`      • ${recurso.nome}${horario}`, margin, y);
               y += 4;
             });
@@ -296,11 +310,10 @@ export const GravacaoReportGenerator = ({ gravacaoId, disabled }: GravacaoReport
 
           pdf.setFontSize(9);
           pdf.setFont('helvetica', 'normal');
-          
-          recursosFisicos.forEach(rf => {
-            const horario = rf.horaInicio && rf.horaFim 
-              ? ` (${rf.horaInicio} - ${rf.horaFim})` 
-              : '';
+
+          recursosFisicos.forEach((rf) => {
+            const horario =
+              rf.horaInicio && rf.horaFim ? ` (${rf.horaInicio} - ${rf.horaFim})` : '';
             pdf.text(`    • ${rf.nome}${horario}`, margin, y);
             y += 4;
           });
@@ -312,7 +325,7 @@ export const GravacaoReportGenerator = ({ gravacaoId, disabled }: GravacaoReport
       // ==================== ELENCO ====================
       if (data.elenco.length > 0) {
         y = checkPageBreak(pdf, y, 35);
-        
+
         const sectionNum = getSectionNumber(data, 'elenco');
         pdf.setFontSize(14);
         pdf.setFont('helvetica', 'bold');
@@ -321,10 +334,7 @@ export const GravacaoReportGenerator = ({ gravacaoId, disabled }: GravacaoReport
         y += 8;
         pdf.setTextColor(0, 0, 0);
 
-        const elencoTable = data.elenco.map(e => [
-          e.nomeTrabalho || e.nome,
-          e.personagem,
-        ]);
+        const elencoTable = data.elenco.map((e) => [e.nomeTrabalho || e.nome, e.personagem]);
 
         autoTable(pdf, {
           startY: y,
@@ -336,13 +346,13 @@ export const GravacaoReportGenerator = ({ gravacaoId, disabled }: GravacaoReport
           margin: { left: margin, right: margin },
         });
 
-        y = (pdf as any).lastAutoTable.finalY + 8;
+        y = (pdf as JsPDFWithAutoTable).lastAutoTable.finalY + 8;
       }
 
       // ==================== CONVIDADOS ====================
       if (data.convidados.length > 0) {
         y = checkPageBreak(pdf, y, 35);
-        
+
         const sectionNum = getSectionNumber(data, 'convidados');
         pdf.setFontSize(14);
         pdf.setFont('helvetica', 'bold');
@@ -351,7 +361,7 @@ export const GravacaoReportGenerator = ({ gravacaoId, disabled }: GravacaoReport
         y += 8;
         pdf.setTextColor(0, 0, 0);
 
-        const convidadosTable = data.convidados.map(c => [
+        const convidadosTable = data.convidados.map((c) => [
           c.nomeTrabalho || c.nome,
           c.telefone || '-',
           c.email || '-',
@@ -368,13 +378,13 @@ export const GravacaoReportGenerator = ({ gravacaoId, disabled }: GravacaoReport
           margin: { left: margin, right: margin },
         });
 
-        y = (pdf as any).lastAutoTable.finalY + 8;
+        y = (pdf as JsPDFWithAutoTable).lastAutoTable.finalY + 8;
       }
 
       // ==================== FIGURINOS ====================
       if (data.figurinos.length > 0) {
         y = checkPageBreak(pdf, y, 35);
-        
+
         const sectionNum = getSectionNumber(data, 'figurinos');
         pdf.setFontSize(14);
         pdf.setFont('helvetica', 'bold');
@@ -383,7 +393,7 @@ export const GravacaoReportGenerator = ({ gravacaoId, disabled }: GravacaoReport
         y += 8;
         pdf.setTextColor(0, 0, 0);
 
-        const figurinosTable = data.figurinos.map(f => [
+        const figurinosTable = data.figurinos.map((f) => [
           f.codigoFigurino,
           f.descricao,
           f.tipoFigurino || '-',
@@ -401,13 +411,13 @@ export const GravacaoReportGenerator = ({ gravacaoId, disabled }: GravacaoReport
           margin: { left: margin, right: margin },
         });
 
-        y = (pdf as any).lastAutoTable.finalY + 8;
+        y = (pdf as JsPDFWithAutoTable).lastAutoTable.finalY + 8;
       }
 
       // ==================== TERCEIROS ====================
       if (data.terceiros.length > 0) {
         y = checkPageBreak(pdf, y, 35);
-        
+
         const sectionNum = getSectionNumber(data, 'terceiros');
         pdf.setFontSize(14);
         pdf.setFont('helvetica', 'bold');
@@ -416,7 +426,7 @@ export const GravacaoReportGenerator = ({ gravacaoId, disabled }: GravacaoReport
         y += 8;
         pdf.setTextColor(0, 0, 0);
 
-        const terceirosTable = data.terceiros.map(t => [
+        const terceirosTable = data.terceiros.map((t) => [
           t.fornecedorNome,
           t.servicoNome,
           formatValue(t.custo),
@@ -432,12 +442,12 @@ export const GravacaoReportGenerator = ({ gravacaoId, disabled }: GravacaoReport
           margin: { left: margin, right: margin },
         });
 
-        y = (pdf as any).lastAutoTable.finalY + 8;
+        y = (pdf as JsPDFWithAutoTable).lastAutoTable.finalY + 8;
       }
 
       // ==================== CUSTOS (SEMPRE INCLUÍDO) ====================
       y = checkPageBreak(pdf, y, 50);
-      
+
       const custosSectionNum = getSectionNumber(data, 'custos');
       pdf.setFontSize(14);
       pdf.setFont('helvetica', 'bold');
@@ -449,7 +459,7 @@ export const GravacaoReportGenerator = ({ gravacaoId, disabled }: GravacaoReport
       if (data.custos.length > 0) {
         // Group costs by category
         const custosPorCategoria: Record<string, typeof data.custos> = {};
-        data.custos.forEach(c => {
+        data.custos.forEach((c) => {
           if (!custosPorCategoria[c.categoria]) {
             custosPorCategoria[c.categoria] = [];
           }
@@ -465,8 +475,8 @@ export const GravacaoReportGenerator = ({ gravacaoId, disabled }: GravacaoReport
           y += 5;
 
           const total = itens.reduce((acc, i) => acc + i.custoTotal, 0);
-          
-          const custosTable = itens.map(c => [
+
+          const custosTable = itens.map((c) => [
             c.recurso,
             c.descricao,
             c.horas > 0 ? `${c.horas.toFixed(1)}h` : '-',
@@ -494,7 +504,7 @@ export const GravacaoReportGenerator = ({ gravacaoId, disabled }: GravacaoReport
             },
           });
 
-          y = (pdf as any).lastAutoTable.finalY + 8;
+          y = (pdf as JsPDFWithAutoTable).lastAutoTable.finalY + 8;
         });
       } else {
         pdf.setFontSize(10);
@@ -505,7 +515,7 @@ export const GravacaoReportGenerator = ({ gravacaoId, disabled }: GravacaoReport
 
       // Total Geral
       y = checkPageBreak(pdf, y, 25);
-      
+
       pdf.setFillColor(124, 58, 237);
       pdf.rect(margin, y - 2, contentWidth, 15, 'F');
 
@@ -513,7 +523,9 @@ export const GravacaoReportGenerator = ({ gravacaoId, disabled }: GravacaoReport
       pdf.setFontSize(12);
       pdf.setFont('helvetica', 'bold');
       pdf.text('CUSTO TOTAL ESTIMADO', margin + 5, y + 6);
-      pdf.text(formatValue(data.totais.custoTotal), pageWidth - margin - 5, y + 6, { align: 'right' });
+      pdf.text(formatValue(data.totais.custoTotal), pageWidth - margin - 5, y + 6, {
+        align: 'right',
+      });
 
       pdf.setFontSize(9);
       pdf.setFont('helvetica', 'normal');
@@ -529,7 +541,7 @@ export const GravacaoReportGenerator = ({ gravacaoId, disabled }: GravacaoReport
           `Página ${i} de ${pageCount}`,
           pageWidth / 2,
           pdf.internal.pageSize.getHeight() - 10,
-          { align: 'center' }
+          { align: 'center' },
         );
       }
 
@@ -564,25 +576,25 @@ export const GravacaoReportGenerator = ({ gravacaoId, disabled }: GravacaoReport
 
   const getSectionNumber = (data: GravacaoReportData, section: string): number => {
     let num = 2; // Starts at 2 (after Dados Gerais)
-    
+
     if (data.cenas.length > 0) num++;
     if (section === 'recursos' && data.cenas.length > 0) return num;
-    
+
     if (data.recursos.length > 0) num++;
     if (section === 'elenco') return num;
-    
+
     if (data.elenco.length > 0) num++;
     if (section === 'convidados') return num;
-    
+
     if (data.convidados.length > 0) num++;
     if (section === 'figurinos') return num;
-    
+
     if (data.figurinos.length > 0) num++;
     if (section === 'terceiros') return num;
-    
+
     if (data.terceiros.length > 0) num++;
     if (section === 'custos') return num;
-    
+
     return num;
   };
 

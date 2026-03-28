@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { ApiAdminConfigRepository } from '@/modules/admin/admin-config.api';
 
 export type FieldValidationType = 'obrigatorio' | 'sugerido' | null;
 
@@ -8,6 +8,8 @@ export interface FieldConfig {
   campo: string;
   tipo_validacao: FieldValidationType;
 }
+
+const apiRepository = new ApiAdminConfigRepository();
 
 // Hook to fetch form field configurations for a specific form
 export const useFormFieldConfig = (formularioId: string) => {
@@ -17,17 +19,7 @@ export const useFormFieldConfig = (formularioId: string) => {
 
   const fetchConfigs = useCallback(async () => {
     try {
-      const { data, error } = await (supabase as any)
-        .from('formulario_campos')
-        .select('campo, tipo_validacao')
-        .eq('formulario', formularioId);
-
-      if (error) throw error;
-
-      const configs: Record<string, FieldValidationType> = {};
-      (data || []).forEach((item: FieldConfig) => {
-        configs[item.campo] = item.tipo_validacao;
-      });
+      const configs = await apiRepository.getFormularioCampos(formularioId);
       setFieldConfigs(configs);
     } catch (err) {
       console.error('Error fetching field configs:', err);
@@ -60,12 +52,20 @@ export const useFormFieldConfig = (formularioId: string) => {
   };
 
   // Validate all required fields, returns array of missing field names
-  const validateRequired = (formData: Record<string, any>, fieldLabels: Record<string, string>): string[] => {
+  const validateRequired = (
+    formData: Record<string, unknown>,
+    fieldLabels: Record<string, string>,
+  ): string[] => {
     const missing: string[] = [];
     Object.entries(fieldConfigs).forEach(([campo, tipo]) => {
       if (tipo === 'obrigatorio') {
         const value = formData[campo];
-        if (value === undefined || value === null || value === '' || (typeof value === 'string' && value.trim() === '')) {
+        if (
+          value === undefined ||
+          value === null ||
+          value === '' ||
+          (typeof value === 'string' && value.trim() === '')
+        ) {
           missing.push(fieldLabels[campo] || campo);
         }
       }

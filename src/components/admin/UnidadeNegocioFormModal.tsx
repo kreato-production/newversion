@@ -21,9 +21,10 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useAuth } from '@/contexts/AuthContext';
+import { isBackendDataProviderEnabled } from '@/lib/api/http';
 import { CURRENCIES } from '@/lib/currencies';
 import type { UnidadeNegocio } from '@/modules/unidades/unidades.types';
-import { unidadesRepository } from '@/modules/unidades/unidades.repository';
+import { unidadesRepository } from '@/modules/unidades/unidades.repository.provider';
 
 interface UnidadeNegocioFormModalProps {
   isOpen: boolean;
@@ -49,6 +50,7 @@ export const UnidadeNegocioFormModal = ({
   readOnly = false,
 }: UnidadeNegocioFormModalProps) => {
   const { user } = useAuth();
+  const shouldUseBackend = isBackendDataProviderEnabled();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState(emptyFormData);
   const [isUploading, setIsUploading] = useState(false);
@@ -108,10 +110,10 @@ export const UnidadeNegocioFormModal = ({
     setIsSaving(true);
 
     try {
-      const unidadeId = data?.id || crypto.randomUUID();
+      const unidadeId = data?.id || (!shouldUseBackend ? crypto.randomUUID() : undefined);
       let imagemUrl = formData.imagem;
 
-      if (selectedFile) {
+      if (selectedFile && unidadeId) {
         setIsUploading(true);
         const uploadedUrl = await unidadesRepository.uploadLogo(selectedFile, unidadeId);
         if (uploadedUrl) {
@@ -123,7 +125,7 @@ export const UnidadeNegocioFormModal = ({
       }
 
       await onSave({
-        id: unidadeId,
+        id: unidadeId || '',
         codigoExterno: formData.codigoExterno,
         nome: formData.nome,
         descricao: formData.descricao,
@@ -146,7 +148,9 @@ export const UnidadeNegocioFormModal = ({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="w-[900px] max-w-[900px] max-h-[80vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{data ? 'Editar Unidade de Negocio' : 'Nova Unidade de Negocio'}</DialogTitle>
+          <DialogTitle>
+            {data ? 'Editar Unidade de Negocio' : 'Nova Unidade de Negocio'}
+          </DialogTitle>
           <DialogDescription>
             Preencha os campos abaixo para {data ? 'editar' : 'cadastrar'} a unidade de negocio.
           </DialogDescription>
@@ -165,7 +169,11 @@ export const UnidadeNegocioFormModal = ({
                   <div className="relative">
                     {formData.imagem ? (
                       <div className="relative w-24 h-24 rounded-lg overflow-hidden border bg-muted">
-                        <img src={formData.imagem} alt="Logo" className="w-full h-full object-contain" />
+                        <img
+                          src={formData.imagem}
+                          alt="Logo"
+                          className="w-full h-full object-contain"
+                        />
                         <Button
                           type="button"
                           variant="destructive"
@@ -195,11 +203,18 @@ export const UnidadeNegocioFormModal = ({
                       onChange={handleImageUpload}
                       className="hidden"
                     />
-                    <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
                       <Upload className="w-4 h-4 mr-2" />
                       {formData.imagem ? 'Alterar' : 'Upload'}
                     </Button>
-                    <p className="text-xs text-muted-foreground">Formatos: JPG, PNG, GIF. Max: 2MB</p>
+                    <p className="text-xs text-muted-foreground">
+                      Formatos: JPG, PNG, GIF. Max: 2MB
+                    </p>
                   </div>
                 </div>
               </div>
@@ -210,7 +225,9 @@ export const UnidadeNegocioFormModal = ({
                   <Input
                     id="codigoExterno"
                     value={formData.codigoExterno}
-                    onChange={(event) => setFormData({ ...formData, codigoExterno: event.target.value })}
+                    onChange={(event) =>
+                      setFormData({ ...formData, codigoExterno: event.target.value })
+                    }
                     maxLength={10}
                     placeholder="Max. 10 caracteres"
                   />
@@ -245,7 +262,11 @@ export const UnidadeNegocioFormModal = ({
                   {readOnly ? 'Fechar' : 'Cancelar'}
                 </Button>
                 {!readOnly && (
-                  <Button type="submit" className="gradient-primary hover:opacity-90" disabled={isSaving}>
+                  <Button
+                    type="submit"
+                    className="gradient-primary hover:opacity-90"
+                    disabled={isSaving}
+                  >
                     {isSaving ? (
                       <>
                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -280,14 +301,19 @@ export const UnidadeNegocioFormModal = ({
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-muted-foreground">
-                  Esta moeda sera usada para exibir todos os valores de custos relacionados a esta unidade de negocio.
+                  Esta moeda sera usada para exibir todos os valores de custos relacionados a esta
+                  unidade de negocio.
                 </p>
               </div>
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={onClose} disabled={isSaving}>
                   Cancelar
                 </Button>
-                <Button type="submit" className="gradient-primary hover:opacity-90" disabled={isSaving}>
+                <Button
+                  type="submit"
+                  className="gradient-primary hover:opacity-90"
+                  disabled={isSaving}
+                >
                   {isSaving ? (
                     <>
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />

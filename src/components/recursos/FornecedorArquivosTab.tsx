@@ -1,22 +1,22 @@
-import { useState, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Upload, FileIcon, Trash2, Download, Loader2, File, Eye, X } from 'lucide-react';
+import { Upload, FileIcon, Trash2, Download, Loader2, File, Eye } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
-
-interface FornecedorArquivo {
-  id: string;
-  nome: string;
-  url: string;
-  tipo: string | null;
-  tamanho: number | null;
-  created_at: string;
-}
+import { fornecedoresRepository } from '@/modules/fornecedores/fornecedores.repository.provider';
+import type { FornecedorArquivo } from '@/modules/fornecedores/fornecedores.types';
 
 interface FornecedorArquivosTabProps {
   fornecedorId: string;
+  readOnly?: boolean;
 }
 
 const formatFileSize = (bytes: number | null) => {
@@ -28,13 +28,13 @@ const formatFileSize = (bytes: number | null) => {
 
 const getFileIcon = (tipo: string | null) => {
   if (!tipo) return <File className="w-4 h-4" />;
-  if (tipo.startsWith('image/')) return '🖼️';
-  if (tipo.includes('pdf')) return '📄';
-  if (tipo.includes('spreadsheet') || tipo.includes('excel')) return '📊';
-  if (tipo.includes('document') || tipo.includes('word')) return '📝';
-  if (tipo.includes('video')) return '🎬';
-  if (tipo.includes('audio')) return '🎵';
-  if (tipo.includes('zip') || tipo.includes('rar') || tipo.includes('compressed')) return '📦';
+  if (tipo.startsWith('image/')) return 'IMG';
+  if (tipo.includes('pdf')) return 'PDF';
+  if (tipo.includes('spreadsheet') || tipo.includes('excel')) return 'XLS';
+  if (tipo.includes('document') || tipo.includes('word')) return 'DOC';
+  if (tipo.includes('video')) return 'VID';
+  if (tipo.includes('audio')) return 'AUD';
+  if (tipo.includes('zip') || tipo.includes('rar') || tipo.includes('compressed')) return 'ZIP';
   return <File className="w-4 h-4" />;
 };
 
@@ -43,7 +43,10 @@ const canPreview = (tipo: string | null): boolean => {
   return tipo.startsWith('image/') || tipo === 'application/pdf';
 };
 
-export const FornecedorArquivosTab = ({ fornecedorId }: FornecedorArquivosTabProps) => {
+export const FornecedorArquivosTab = ({
+  fornecedorId,
+  readOnly = false,
+}: FornecedorArquivosTabProps) => {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [arquivos, setArquivos] = useState<FornecedorArquivo[]>([]);
@@ -51,67 +54,46 @@ export const FornecedorArquivosTab = ({ fornecedorId }: FornecedorArquivosTabPro
   const [isUploading, setIsUploading] = useState(false);
   const [previewFile, setPreviewFile] = useState<FornecedorArquivo | null>(null);
 
-  const fetchArquivos = async () => {
+  const fetchArquivos = useCallback(async () => {
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('fornecedor_arquivos')
-        .select('*')
-        .eq('fornecedor_id', fornecedorId)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setArquivos(data || []);
+      setArquivos(await fornecedoresRepository.listArquivos(fornecedorId));
     } catch (error) {
       console.error('Error fetching arquivos:', error);
       toast({ title: 'Erro', description: 'Erro ao carregar arquivos', variant: 'destructive' });
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [fornecedorId, toast]);
 
   useEffect(() => {
-    fetchArquivos();
-  }, [fornecedorId]);
+    void fetchArquivos();
+  }, [fetchArquivos]);
 
-  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
+  const handleUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
     if (!files || files.length === 0) return;
 
     setIsUploading(true);
     try {
       for (const file of Array.from(files)) {
-        // Upload file to storage
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${fornecedorId}/${Date.now()}_${file.name}`;
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(String(reader.result || ''));
+          reader.onerror = () => reject(reader.error);
+          reader.readAsDataURL(file);
+        });
 
-        const { error: uploadError } = await supabase.storage
-          .from('fornecedores')
-          .upload(fileName, file);
-
-        if (uploadError) throw uploadError;
-
-        // Get public URL
-        const { data: urlData } = supabase.storage
-          .from('fornecedores')
-          .getPublicUrl(fileName);
-
-        // Save reference to database
-        const { error: dbError } = await supabase
-          .from('fornecedor_arquivos')
-          .insert({
-            fornecedor_id: fornecedorId,
-            nome: file.name,
-            url: urlData.publicUrl,
-            tipo: file.type,
-            tamanho: file.size,
-          });
-
-        if (dbError) throw dbError;
+        await fornecedoresRepository.addArquivo(fornecedorId, {
+          nome: file.name,
+          url: dataUrl,
+          tipo: file.type,
+          tamanho: file.size,
+        });
       }
 
       toast({ title: 'Sucesso', description: 'Arquivo(s) enviado(s) com sucesso!' });
-      fetchArquivos();
+      await fetchArquivos();
     } catch (error) {
       console.error('Error uploading file:', error);
       toast({ title: 'Erro', description: 'Erro ao enviar arquivo', variant: 'destructive' });
@@ -127,25 +109,9 @@ export const FornecedorArquivosTab = ({ fornecedorId }: FornecedorArquivosTabPro
     if (!confirm(`Deseja excluir o arquivo "${arquivo.nome}"?`)) return;
 
     try {
-      // Extract file path from URL
-      const urlParts = arquivo.url.split('/fornecedores/');
-      const filePath = urlParts[1] ? decodeURIComponent(urlParts[1]) : null;
-
-      if (filePath) {
-        // Delete from storage
-        await supabase.storage.from('fornecedores').remove([filePath]);
-      }
-
-      // Delete from database
-      const { error } = await supabase
-        .from('fornecedor_arquivos')
-        .delete()
-        .eq('id', arquivo.id);
-
-      if (error) throw error;
-
+      await fornecedoresRepository.removeArquivo(fornecedorId, arquivo.id);
       toast({ title: 'Excluído', description: 'Arquivo removido com sucesso!' });
-      fetchArquivos();
+      await fetchArquivos();
     } catch (error) {
       console.error('Error deleting file:', error);
       toast({ title: 'Erro', description: 'Erro ao excluir arquivo', variant: 'destructive' });
@@ -153,51 +119,49 @@ export const FornecedorArquivosTab = ({ fornecedorId }: FornecedorArquivosTabPro
   };
 
   const handleDownload = (arquivo: FornecedorArquivo) => {
-    window.open(arquivo.url, '_blank');
+    const link = document.createElement('a');
+    link.href = arquivo.url;
+    link.download = arquivo.nome;
+    link.click();
   };
 
   const handlePreview = (arquivo: FornecedorArquivo) => {
     if (canPreview(arquivo.tipo)) {
       setPreviewFile(arquivo);
-    } else {
-      // For non-previewable files, just download
-      handleDownload(arquivo);
+      return;
     }
-  };
 
-  const handleRowDoubleClick = (arquivo: FornecedorArquivo) => {
-    handlePreview(arquivo);
+    handleDownload(arquivo);
   };
 
   return (
     <div className="space-y-4 mt-4">
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-medium">Arquivos</h3>
-        <div>
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            onChange={handleUpload}
-            className="hidden"
-          />
-          <Button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isUploading}
-          >
-            {isUploading ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Enviando...
-              </>
-            ) : (
-              <>
-                <Upload className="w-4 h-4 mr-2" />
-                Adicionar Arquivo
-              </>
-            )}
-          </Button>
-        </div>
+        {!readOnly && (
+          <div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              onChange={handleUpload}
+              className="hidden"
+            />
+            <Button onClick={() => fileInputRef.current?.click()} disabled={isUploading}>
+              {isUploading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Enviando...
+                </>
+              ) : (
+                <>
+                  <Upload className="w-4 h-4 mr-2" />
+                  Adicionar Arquivo
+                </>
+              )}
+            </Button>
+          </div>
+        )}
       </div>
 
       {isLoading ? (
@@ -223,27 +187,27 @@ export const FornecedorArquivosTab = ({ fornecedorId }: FornecedorArquivosTabPro
           </TableHeader>
           <TableBody>
             {arquivos.map((arquivo) => (
-              <TableRow 
+              <TableRow
                 key={arquivo.id}
-                onDoubleClick={() => handleRowDoubleClick(arquivo)}
+                onDoubleClick={() => handlePreview(arquivo)}
                 className="cursor-pointer hover:bg-muted/50"
               >
                 <TableCell>
-                  <span className="text-lg">{getFileIcon(arquivo.tipo)}</span>
+                  <span className="text-xs font-medium">{getFileIcon(arquivo.tipo)}</span>
                 </TableCell>
                 <TableCell className="font-medium">
                   <div className="flex items-center gap-2">
                     {arquivo.nome}
-                    {canPreview(arquivo.tipo) && (
-                      <Eye className="w-3 h-3 text-muted-foreground" />
-                    )}
+                    {canPreview(arquivo.tipo) && <Eye className="w-3 h-3 text-muted-foreground" />}
                   </div>
                 </TableCell>
                 <TableCell className="text-muted-foreground">
                   {formatFileSize(arquivo.tamanho)}
                 </TableCell>
                 <TableCell className="text-muted-foreground">
-                  {new Date(arquivo.created_at).toLocaleDateString('pt-BR')}
+                  {arquivo.createdAt
+                    ? new Date(arquivo.createdAt).toLocaleDateString('pt-BR')
+                    : '-'}
                 </TableCell>
                 <TableCell>
                   <div className="flex justify-end gap-1">
@@ -265,15 +229,17 @@ export const FornecedorArquivosTab = ({ fornecedorId }: FornecedorArquivosTabPro
                     >
                       <Download className="w-4 h-4" />
                     </Button>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      onClick={() => handleDelete(arquivo)}
-                      className="text-destructive hover:text-destructive"
-                      title="Excluir"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+                    {!readOnly && (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => handleDelete(arquivo)}
+                        className="text-destructive hover:text-destructive"
+                        title="Excluir"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    )}
                   </div>
                 </TableCell>
               </TableRow>
@@ -282,27 +248,20 @@ export const FornecedorArquivosTab = ({ fornecedorId }: FornecedorArquivosTabPro
         </Table>
       )}
 
-      {/* Preview Modal */}
       <Dialog open={!!previewFile} onOpenChange={() => setPreviewFile(null)}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
           <DialogHeader>
-            <DialogTitle className="flex items-center justify-between">
-              <span>{previewFile?.nome}</span>
-            </DialogTitle>
+            <DialogTitle>{previewFile?.nome}</DialogTitle>
           </DialogHeader>
           <div className="flex-1 overflow-auto max-h-[calc(90vh-100px)]">
             {previewFile?.tipo?.startsWith('image/') ? (
-              <img 
-                src={previewFile.url} 
+              <img
+                src={previewFile.url}
                 alt={previewFile.nome}
                 className="max-w-full h-auto mx-auto"
               />
             ) : previewFile?.tipo === 'application/pdf' ? (
-              <iframe
-                src={previewFile.url}
-                className="w-full h-[70vh]"
-                title={previewFile.nome}
-              />
+              <iframe src={previewFile.url} className="w-full h-[70vh]" title={previewFile.nome} />
             ) : null}
           </div>
         </DialogContent>

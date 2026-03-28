@@ -1,5 +1,3 @@
-import type { SupabaseClient } from '@supabase/supabase-js';
-import { supabase } from '@/integrations/supabase/client';
 import type { Gravacao, GravacaoInput } from './gravacoes.types';
 
 type GravacaoRow = {
@@ -26,6 +24,21 @@ export interface GravacoesRepository {
   list(unidadeIds?: string[]): Promise<Gravacao[]>;
   save(input: GravacaoInput, userId?: string): Promise<void>;
   remove(id: string): Promise<void>;
+}
+
+type LegacyClient = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  from: (table: string) => any;
+};
+
+function createDisabledLegacyClient(): LegacyClient {
+  return {
+    from: () => {
+      throw new Error(
+        'O repositório legado de gravações via Supabase foi desativado. Use a API local.',
+      );
+    },
+  };
 }
 
 function formatDate(date: string | null): string {
@@ -55,12 +68,13 @@ function mapRow(row: GravacaoRow): Gravacao {
 }
 
 export class SupabaseGravacoesRepository implements GravacoesRepository {
-  constructor(private readonly client: SupabaseClient = supabase) {}
+  constructor(private readonly client: LegacyClient = createDisabledLegacyClient()) {}
 
   async list(unidadeIds?: string[]): Promise<Gravacao[]> {
     let query = this.client
       .from('gravacoes')
-      .select(`
+      .select(
+        `
         *,
         unidade_negocio:unidade_negocio_id(nome),
         centro_lucro:centro_lucro_id(nome),
@@ -68,7 +82,8 @@ export class SupabaseGravacoesRepository implements GravacoesRepository {
         tipo_conteudo:tipo_conteudo_id(nome),
         status_gravacao:status_id(nome),
         programa:programa_id(nome)
-      `)
+      `,
+      )
       .order('created_at', { ascending: false });
 
     if (unidadeIds && unidadeIds.length > 0) {

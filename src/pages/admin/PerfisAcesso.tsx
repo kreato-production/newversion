@@ -1,17 +1,22 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
 import { ListActionBar } from '@/components/shared/ListActionBar';
-import { SortableTable, Column } from '@/components/shared/SortableTable';
+import { SortableTable, type Column } from '@/components/shared/SortableTable';
 import { Edit, Trash2, Settings, Copy, FileText, Loader2 } from 'lucide-react';
 import { NewButton } from '@/components/shared/NewButton';
 import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
 import PerfilFormModal from '@/components/admin/PerfilFormModal';
-import { clonePermissions, savePerfilPermissions, getPerfilPermissions } from '@/data/permissionsMatrix';
+import {
+  clonePermissionsAsync,
+  createDefaultPermissions,
+  getPerfilPermissionsAsync,
+  savePerfilPermissionsAsync,
+} from '@/data/permissionsMatrix';
 import jsPDF from 'jspdf';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { ApiParametrosRepository } from '@/modules/parametros/parametros.api.repository';
 
 interface PerfilDb {
   id: string;
@@ -30,6 +35,8 @@ interface Perfil {
   dataCadastro: string;
   usuarioCadastro: string;
 }
+
+const apiRepository = new ApiParametrosRepository();
 
 const mapDbToPerfil = (db: PerfilDb, userName: string): Perfil => ({
   id: db.id,
@@ -58,19 +65,13 @@ const PerfisAcesso = () => {
 
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('perfis_acesso')
-        .select('*')
-        .order('nome', { ascending: true });
-
-      if (error) throw error;
-
-      setItems((data || []).map((d) => mapDbToPerfil(d, user?.nome || '')));
-    } catch (err) {
-      console.error('Error fetching perfis_acesso:', err);
+      const data = await apiRepository.list('kreato_perfis_acesso');
+      setItems((data || []).map((item) => mapDbToPerfil(item, user?.nome || '')));
+    } catch (error) {
+      console.error('Error fetching perfis_acesso:', error);
       toast({
         title: 'Erro',
-        description: `Erro ao carregar dados: ${(err as Error).message}`,
+        description: `Erro ao carregar dados: ${(error as Error).message}`,
         variant: 'destructive',
       });
     } finally {
@@ -79,67 +80,57 @@ const PerfisAcesso = () => {
   }, [session, toast, user?.nome]);
 
   useEffect(() => {
-    fetchData();
+    void fetchData();
   }, [fetchData]);
 
   const handleSave = async (data: Perfil) => {
     try {
-      const dbData = {
+      await apiRepository.save('kreato_perfis_acesso', {
+        ...(editingItem ? { id: data.id } : {}),
+        codigoExterno: data.codigoExterno || '',
         nome: data.nome,
-        descricao: data.descricao || null,
-        codigo_externo: data.codigoExterno || null,
-        created_by: user?.id || null,
-      };
+        descricao: data.descricao || '',
+      });
 
-      if (editingItem) {
-        const { error } = await supabase
-          .from('perfis_acesso')
-          .update(dbData)
-          .eq('id', data.id);
-
-        if (error) throw error;
-        toast({ title: t('common.success'), description: `Perfil ${t('common.updated').toLowerCase()}!` });
-      } else {
-        const { error } = await supabase
-          .from('perfis_acesso')
-          .insert(dbData);
-
-        if (error) throw error;
-        toast({ title: t('common.success'), description: `Perfil ${t('common.save').toLowerCase()}!` });
-      }
+      toast({
+        title: t('common.success'),
+        description: editingItem
+          ? `Perfil ${t('common.updated').toLowerCase()}!`
+          : `Perfil ${t('common.save').toLowerCase()}!`,
+      });
 
       await fetchData();
       setEditingItem(null);
-    } catch (err) {
-      console.error('Error saving perfil:', err);
+    } catch (error) {
+      console.error('Error saving perfil:', error);
       toast({
         title: 'Erro',
-        description: `Erro ao salvar: ${(err as Error).message}`,
+        description: `Erro ao salvar: ${(error as Error).message}`,
         variant: 'destructive',
       });
+      throw error;
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm(t('common.confirm.delete'))) {
-      try {
-        const { error } = await supabase
-          .from('perfis_acesso')
-          .delete()
-          .eq('id', id);
+    if (!confirm(t('common.confirm.delete'))) {
+      return;
+    }
 
-        if (error) throw error;
-
-        toast({ title: t('common.deleted'), description: `Perfil ${t('common.deleted').toLowerCase()}!` });
-        await fetchData();
-      } catch (err) {
-        console.error('Error deleting perfil:', err);
-        toast({
-          title: 'Erro',
-          description: `Erro ao excluir: ${(err as Error).message}`,
-          variant: 'destructive',
-        });
-      }
+    try {
+      await apiRepository.remove('kreato_perfis_acesso', id);
+      toast({
+        title: t('common.deleted'),
+        description: `Perfil ${t('common.deleted').toLowerCase()}!`,
+      });
+      await fetchData();
+    } catch (error) {
+      console.error('Error deleting perfil:', error);
+      toast({
+        title: 'Erro',
+        description: `Erro ao excluir: ${(error as Error).message}`,
+        variant: 'destructive',
+      });
     }
   };
 
@@ -150,25 +141,17 @@ const PerfisAcesso = () => {
 
   const handleCopy = async (item: Perfil) => {
     try {
-      const dbData = {
+      const newPerfil = await apiRepository.save('kreato_perfis_acesso', {
+        codigoExterno: '',
         nome: `${item.nome} (Cópia)`,
-        descricao: item.descricao || null,
-        codigo_externo: null,
-        created_by: user?.id || null,
-      };
+        descricao: item.descricao || '',
+      });
 
-      const { data: newPerfil, error } = await supabase
-        .from('perfis_acesso')
-        .insert(dbData)
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      // Clonar as permissões do perfil original
-      const clonedPermissions = clonePermissions(item.id, newPerfil.id);
+      const clonedPermissions = await clonePermissionsAsync(item.id, newPerfil.id);
       if (clonedPermissions) {
-        savePerfilPermissions(clonedPermissions);
+        await savePerfilPermissionsAsync(clonedPermissions);
+      } else {
+        await savePerfilPermissionsAsync(createDefaultPermissions(newPerfil.id));
       }
 
       await fetchData();
@@ -176,132 +159,135 @@ const PerfisAcesso = () => {
         title: t('common.success'),
         description: `Perfil "${item.nome}" copiado com sucesso!`,
       });
-    } catch (err) {
-      console.error('Error copying perfil:', err);
+    } catch (error) {
+      console.error('Error copying perfil:', error);
       toast({
         title: 'Erro',
-        description: `Erro ao copiar: ${(err as Error).message}`,
+        description: `Erro ao copiar: ${(error as Error).message}`,
         variant: 'destructive',
       });
     }
   };
 
-  const handleExportPDF = (item: Perfil) => {
-    const permissions = getPerfilPermissions(item.id);
-    if (!permissions) {
-      toast({
-        title: 'Erro',
-        description: 'Não foi possível encontrar as permissões do perfil.',
-        variant: 'destructive',
-      });
-      return;
-    }
+  const handleExportPDF = async (item: Perfil) => {
+    try {
+      let permissions = await getPerfilPermissionsAsync(item.id);
 
-    const doc = new jsPDF();
-    const pageWidth = doc.internal.pageSize.getWidth();
-    let yPosition = 20;
-    const lineHeight = 6;
-    const margin = 14;
-
-    // Título
-    doc.setFontSize(18);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Mapa de Permissões de Acesso', pageWidth / 2, yPosition, { align: 'center' });
-    yPosition += 10;
-
-    // Nome do perfil
-    doc.setFontSize(14);
-    doc.text(`Perfil: ${item.nome}`, margin, yPosition);
-    yPosition += 8;
-
-    // Data de geração
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, margin, yPosition);
-    yPosition += 12;
-
-    // Cabeçalho da tabela
-    doc.setFillColor(240, 240, 240);
-    doc.rect(margin, yPosition - 4, pageWidth - 2 * margin, 8, 'F');
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8);
-    
-    const colWidths = [45, 35, 35, 30, 12, 12, 12, 12, 12];
-    const headers = ['Módulo', 'Sub-módulo 1', 'Sub-módulo 2', 'Campo', 'Ação', 'Leit.', 'Incl.', 'Alt.', 'Excl.'];
-    let xPos = margin;
-    
-    headers.forEach((header, index) => {
-      doc.text(header, xPos + 1, yPosition);
-      xPos += colWidths[index];
-    });
-    
-    yPosition += lineHeight;
-
-    // Dados das permissões
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7);
-
-    permissions.permissoes.forEach((perm) => {
-      if (yPosition > 280) {
-        doc.addPage();
-        yPosition = 20;
+      if (!permissions) {
+        permissions = createDefaultPermissions(item.id);
+        await savePerfilPermissionsAsync(permissions);
       }
 
-      xPos = margin;
-      const data = [
-        perm.modulo.substring(0, 20),
-        perm.subModulo1 === '-' ? '' : perm.subModulo1.substring(0, 15),
-        perm.subModulo2 === '-' ? '' : perm.subModulo2.substring(0, 15),
-        perm.campo === '-' ? '' : perm.campo.substring(0, 15),
-        perm.acao === 'visible' ? 'V' : 'I',
-        perm.tipo === 'campo' ? (perm.somenteLeitura ? 'S' : 'N') : '',
-        perm.tipo === 'campo' ? (perm.incluir ? 'S' : 'N') : '',
-        perm.tipo === 'campo' ? (perm.alterar ? 'S' : 'N') : '',
-        perm.tipo === 'campo' ? (perm.excluir ? 'S' : 'N') : '',
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      let yPosition = 20;
+      const lineHeight = 6;
+      const margin = 14;
+
+      doc.setFontSize(18);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Mapa de Permissões de Acesso', pageWidth / 2, yPosition, { align: 'center' });
+      yPosition += 10;
+
+      doc.setFontSize(14);
+      doc.text(`Perfil: ${item.nome}`, margin, yPosition);
+      yPosition += 8;
+
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, margin, yPosition);
+      yPosition += 12;
+
+      doc.setFillColor(240, 240, 240);
+      doc.rect(margin, yPosition - 4, pageWidth - 2 * margin, 8, 'F');
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+
+      const colWidths = [45, 35, 35, 30, 12, 12, 12, 12, 12];
+      const headers = [
+        'Módulo',
+        'Sub-módulo 1',
+        'Sub-módulo 2',
+        'Campo',
+        'Ação',
+        'Leit.',
+        'Incl.',
+        'Alt.',
+        'Excl.',
       ];
+      let xPos = margin;
 
-      // Destaque para módulos
-      if (perm.tipo === 'modulo') {
-        doc.setFont('helvetica', 'bold');
-      } else {
-        doc.setFont('helvetica', 'normal');
-      }
-
-      data.forEach((text, index) => {
-        doc.text(text, xPos + 1, yPosition);
+      headers.forEach((header, index) => {
+        doc.text(header, xPos + 1, yPosition);
         xPos += colWidths[index];
       });
 
       yPosition += lineHeight;
-    });
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7);
 
-    // Legenda
-    yPosition += 5;
-    if (yPosition > 270) {
-      doc.addPage();
-      yPosition = 20;
+      permissions.permissoes.forEach((perm) => {
+        if (yPosition > 280) {
+          doc.addPage();
+          yPosition = 20;
+        }
+
+        xPos = margin;
+        const data = [
+          perm.modulo.substring(0, 20),
+          perm.subModulo1 === '-' ? '' : perm.subModulo1.substring(0, 15),
+          perm.subModulo2 === '-' ? '' : perm.subModulo2.substring(0, 15),
+          perm.campo === '-' ? '' : perm.campo.substring(0, 15),
+          perm.acao === 'visible' ? 'V' : 'I',
+          perm.tipo === 'campo' ? (perm.somenteLeitura ? 'S' : 'N') : '',
+          perm.tipo === 'campo' ? (perm.incluir ? 'S' : 'N') : '',
+          perm.tipo === 'campo' ? (perm.alterar ? 'S' : 'N') : '',
+          perm.tipo === 'campo' ? (perm.excluir ? 'S' : 'N') : '',
+        ];
+
+        doc.setFont('helvetica', perm.tipo === 'modulo' ? 'bold' : 'normal');
+
+        data.forEach((text, index) => {
+          doc.text(text, xPos + 1, yPosition);
+          xPos += colWidths[index];
+        });
+
+        yPosition += lineHeight;
+      });
+
+      yPosition += 5;
+      if (yPosition > 270) {
+        doc.addPage();
+        yPosition = 20;
+      }
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      doc.text('Legenda:', margin, yPosition);
+      yPosition += 5;
+      doc.setFont('helvetica', 'normal');
+      doc.text('V = Visível | I = Invisível | S = Sim | N = Não', margin, yPosition);
+
+      doc.save(`permissoes_${item.nome.replace(/\s+/g, '_').toLowerCase()}.pdf`);
+
+      toast({
+        title: t('common.success'),
+        description: 'PDF das permissões exportado com sucesso!',
+      });
+    } catch (error) {
+      console.error('Error exporting perfil PDF:', error);
+      toast({
+        title: 'Erro',
+        description: `Erro ao exportar PDF: ${(error as Error).message}`,
+        variant: 'destructive',
+      });
     }
-    
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8);
-    doc.text('Legenda:', margin, yPosition);
-    yPosition += 5;
-    doc.setFont('helvetica', 'normal');
-    doc.text('V = Visível | I = Invisível | S = Sim | N = Não', margin, yPosition);
-
-    // Salvar o PDF
-    doc.save(`permissoes_${item.nome.replace(/\s+/g, '_').toLowerCase()}.pdf`);
-
-    toast({
-      title: t('common.success'),
-      description: `PDF das permissões exportado com sucesso!`,
-    });
   };
 
   const filteredItems = items.filter(
     (item) =>
       item.nome.toLowerCase().includes(search.toLowerCase()) ||
-      item.codigoExterno.toLowerCase().includes(search.toLowerCase())
+      item.codigoExterno.toLowerCase().includes(search.toLowerCase()),
   );
 
   const columns: Column<Perfil & { actions?: never }>[] = [
@@ -321,7 +307,9 @@ const PerfisAcesso = () => {
       label: t('common.description'),
       className: 'hidden md:table-cell',
       render: (item) => (
-        <span className="text-muted-foreground max-w-xs truncate block">{item.descricao || '-'}</span>
+        <span className="text-muted-foreground max-w-xs truncate block">
+          {item.descricao || '-'}
+        </span>
       ),
     },
     {
@@ -345,7 +333,7 @@ const PerfisAcesso = () => {
             size="icon"
             variant="ghost"
             className="h-7 w-7"
-            onClick={() => handleCopy(item)}
+            onClick={() => void handleCopy(item)}
             title="Copiar Perfil"
           >
             <Copy className="w-3.5 h-3.5" />
@@ -354,7 +342,7 @@ const PerfisAcesso = () => {
             size="icon"
             variant="ghost"
             className="h-7 w-7"
-            onClick={() => handleExportPDF(item)}
+            onClick={() => void handleExportPDF(item)}
             title="Exportar PDF"
           >
             <FileText className="w-3.5 h-3.5" />
@@ -366,7 +354,7 @@ const PerfisAcesso = () => {
             size="icon"
             variant="ghost"
             className="h-7 w-7 text-destructive hover:text-destructive"
-            onClick={() => handleDelete(item.id)}
+            onClick={() => void handleDelete(item.id)}
           >
             <Trash2 className="w-3.5 h-3.5" />
           </Button>
@@ -385,13 +373,16 @@ const PerfisAcesso = () => {
 
   return (
     <div>
-      <PageHeader
-        title="Perfis de Acesso"
-        description="Gerencie os perfis de acesso do sistema"
-      />
+      <PageHeader title="Perfis de Acesso" description="Gerencie os perfis de acesso do sistema" />
 
       <ListActionBar>
-        <NewButton tooltip={`${t('common.new')} Perfil`} onClick={() => { setEditingItem(null); setIsModalOpen(true); }} />
+        <NewButton
+          tooltip={`${t('common.new')} Perfil`}
+          onClick={() => {
+            setEditingItem(null);
+            setIsModalOpen(true);
+          }}
+        />
         <div className="flex-1" />
         <SearchBar value={search} onChange={setSearch} placeholder={t('common.search')} />
       </ListActionBar>

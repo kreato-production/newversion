@@ -21,29 +21,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Trash2, Building2, DollarSign } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
 import { formatCurrency as formatCurrencyUtil } from '@/lib/currencies';
-
-interface Fornecedor {
-  id: string;
-  nome: string;
-  categoria?: string;
-}
-
-interface Servico {
-  id: string;
-  nome: string;
-}
-
-interface TerceiroAlocado {
-  id: string;
-  fornecedorId: string;
-  fornecedorNome: string;
-  servicoId: string;
-  servicoNome: string;
-  custo: number;
-}
+import {
+  gravacoesRelacionamentosApi,
+  type GravacaoTerceiroFornecedor,
+  type GravacaoTerceiroItem,
+  type GravacaoTerceiroServico,
+} from '@/modules/gravacoes/gravacoes-relacionamentos.api';
 
 interface TerceirosTabProps {
   gravacaoId: string;
@@ -51,226 +35,150 @@ interface TerceirosTabProps {
 
 export const TerceirosTab = ({ gravacaoId }: TerceirosTabProps) => {
   const { toast } = useToast();
-  const { session } = useAuth();
-  const [terceiros, setTerceiros] = useState<TerceiroAlocado[]>([]);
-  const [fornecedores, setFornecedores] = useState<Fornecedor[]>([]);
-  const [servicos, setServicos] = useState<Servico[]>([]);
-  const [servicosFornecedor, setServicosFornecedor] = useState<Servico[]>([]);
-  const [moeda, setMoeda] = useState<string>('BRL');
-  
+  const [terceiros, setTerceiros] = useState<GravacaoTerceiroItem[]>([]);
+  const [fornecedores, setFornecedores] = useState<GravacaoTerceiroFornecedor[]>([]);
+  const [servicos, setServicos] = useState<GravacaoTerceiroServico[]>([]);
+  const [moeda, setMoeda] = useState('BRL');
+
   const [selectedFornecedor, setSelectedFornecedor] = useState('');
   const [selectedServico, setSelectedServico] = useState('');
   const [custo, setCusto] = useState('');
-  
-  // Custom currency formatter based on business unit
-  const formatCurrency = useCallback((value: number) => {
-    return formatCurrencyUtil(value, moeda);
-  }, [moeda]);
+
+  const formatCurrency = useCallback((value: number) => formatCurrencyUtil(value, moeda), [moeda]);
 
   const fetchData = useCallback(async () => {
-    if (!session) return;
-
     try {
-      // First, fetch the gravação to get the unidade_negocio_id
-      const { data: gravacaoData } = await supabase
-        .from('gravacoes')
-        .select('unidade_negocio_id')
-        .eq('id', gravacaoId)
-        .single();
-
-      // If there's a business unit, fetch its currency preference
-      if (gravacaoData?.unidade_negocio_id) {
-        const { data: unidadeData } = await supabase
-          .from('unidades_negocio')
-          .select('moeda')
-          .eq('id', gravacaoData.unidade_negocio_id)
-          .single();
-        
-        if (unidadeData?.moeda) {
-          setMoeda(unidadeData.moeda);
-        }
-      }
-
-      // Fetch terceiros alocados from Supabase
-      const { data: terceirosData } = await supabase
-        .from('gravacao_terceiros')
-        .select('*, fornecedores:fornecedor_id(id, nome), fornecedor_servicos:servico_id(id, nome)')
-        .eq('gravacao_id', gravacaoId);
-
-      setTerceiros((terceirosData || []).map((t: any) => ({
-        id: t.id,
-        fornecedorId: t.fornecedor_id,
-        fornecedorNome: t.fornecedores?.nome || '',
-        servicoId: t.servico_id || '',
-        servicoNome: t.fornecedor_servicos?.nome || '',
-        custo: t.valor || 0,
-      })));
-
-      // Fetch fornecedores
-      const { data: fornecedoresData } = await supabase
-        .from('fornecedores')
-        .select('id, nome')
-        .order('nome');
-
-      setFornecedores(fornecedoresData || []);
-
-      // Fetch serviços gerais
-      const { data: servicosData } = await supabase
-        .from('servicos')
-        .select('id, nome')
-        .order('nome');
-
-      setServicos(servicosData || []);
-    } catch (err) {
-      console.error('Error fetching terceiros data:', err);
+      const response = await gravacoesRelacionamentosApi.listTerceiros(gravacaoId);
+      setTerceiros(response.items);
+      setFornecedores(response.fornecedores);
+      setServicos(response.servicos);
+      setMoeda(response.moeda || 'BRL');
+    } catch (error) {
+      console.error('Error fetching terceiros data from backend:', error);
+      toast({
+        title: 'Erro',
+        description: `Erro ao carregar terceiros: ${(error as Error).message}`,
+        variant: 'destructive',
+      });
     }
-  }, [session, gravacaoId]);
+  }, [gravacaoId, toast]);
 
   useEffect(() => {
-    fetchData();
+    void fetchData();
   }, [fetchData]);
 
-  // Fetch serviços do fornecedor selecionado
-  useEffect(() => {
-    const fetchServicosFornecedor = async () => {
-      if (!selectedFornecedor || !session) {
-        setServicosFornecedor([]);
-        return;
-      }
-
-      const { data } = await supabase
-        .from('fornecedor_servicos')
-        .select('id, nome')
-        .eq('fornecedor_id', selectedFornecedor)
-        .order('nome');
-
-      setServicosFornecedor(data || []);
-    };
-
-    fetchServicosFornecedor();
-  }, [selectedFornecedor, session]);
+  const servicosFornecedor = useMemo(
+    () => servicos.filter((item) => item.fornecedorId === selectedFornecedor),
+    [selectedFornecedor, servicos],
+  );
 
   const handleAdd = async () => {
     if (!selectedFornecedor || !selectedServico) {
       toast({
-        title: 'Campos obrigatórios',
-        description: 'Selecione o fornecedor e o serviço.',
+        title: 'Campos obrigatorios',
+        description: 'Selecione o fornecedor e o servico.',
         variant: 'destructive',
       });
       return;
     }
 
-    const custoNum = parseFloat(custo.replace(',', '.')) || 0;
+    const custoNum = Number.parseFloat(custo.replace(',', '.')) || 0;
+    const fornecedor = fornecedores.find((item) => item.id === selectedFornecedor);
+    const servico = servicosFornecedor.find((item) => item.id === selectedServico);
 
-    const fornecedor = fornecedores.find(f => f.id === selectedFornecedor);
-    const servico = servicosFornecedor.find(s => s.id === selectedServico);
+    if (!fornecedor || !servico) {
+      return;
+    }
 
-    if (!fornecedor || !servico) return;
-
-    // Verificar duplicata
     const exists = terceiros.find(
-      t => t.fornecedorId === selectedFornecedor && t.servicoId === selectedServico
+      (item) => item.fornecedorId === selectedFornecedor && item.servicoId === selectedServico,
     );
 
     if (exists) {
       toast({
         title: 'Registro duplicado',
-        description: 'Este serviço já foi adicionado para este fornecedor.',
+        description: 'Este servico ja foi adicionado para este fornecedor.',
         variant: 'destructive',
       });
       return;
     }
 
-    const { data: insertedData, error } = await supabase
-      .from('gravacao_terceiros')
-      .insert({
-        gravacao_id: gravacaoId,
-        fornecedor_id: selectedFornecedor,
-        servico_id: selectedServico,
+    try {
+      const inserted = await gravacoesRelacionamentosApi.addTerceiro(gravacaoId, {
+        fornecedorId: selectedFornecedor,
+        servicoId: selectedServico,
         valor: custoNum,
-      })
-      .select()
-      .single();
+      });
 
-    if (error) {
+      setTerceiros((current) => [...current, inserted]);
+      setSelectedFornecedor('');
+      setSelectedServico('');
+      setCusto('');
+
+      toast({
+        title: 'Terceiro adicionado',
+        description: `${fornecedor.nome} - ${servico.nome} foi adicionado.`,
+      });
+    } catch (error) {
+      console.error('Error adding terceiro from backend:', error);
       toast({
         title: 'Erro',
-        description: 'Erro ao adicionar terceiro.',
+        description: `Erro ao adicionar terceiro: ${(error as Error).message}`,
         variant: 'destructive',
       });
-      return;
     }
-
-    const novo: TerceiroAlocado = {
-      id: insertedData.id,
-      fornecedorId: selectedFornecedor,
-      fornecedorNome: fornecedor.nome,
-      servicoId: selectedServico,
-      servicoNome: servico.nome,
-      custo: custoNum,
-    };
-
-    setTerceiros([...terceiros, novo]);
-
-    // Limpar campos
-    setSelectedFornecedor('');
-    setSelectedServico('');
-    setCusto('');
-
-    toast({
-      title: 'Terceiro adicionado',
-      description: `${fornecedor.nome} - ${servico.nome} foi adicionado.`,
-    });
   };
 
   const handleRemove = async (id: string) => {
-    const { error } = await supabase
-      .from('gravacao_terceiros')
-      .delete()
-      .eq('id', id);
-
-    if (error) {
+    try {
+      await gravacoesRelacionamentosApi.removeTerceiro(gravacaoId, id);
+      setTerceiros((current) => current.filter((item) => item.id !== id));
+      toast({
+        title: 'Terceiro removido',
+        description: 'O servico terceirizado foi removido.',
+      });
+    } catch (error) {
+      console.error('Error removing terceiro from backend:', error);
       toast({
         title: 'Erro',
-        description: 'Erro ao remover terceiro.',
+        description: `Erro ao remover terceiro: ${(error as Error).message}`,
         variant: 'destructive',
       });
-      return;
     }
-
-    setTerceiros(terceiros.filter(t => t.id !== id));
-    toast({
-      title: 'Terceiro removido',
-      description: 'O serviço terceirizado foi removido.',
-    });
   };
 
-  const totalCusto = useMemo(() => {
-    return terceiros.reduce((acc, t) => acc + t.custo, 0);
-  }, [terceiros]);
+  const totalCusto = useMemo(
+    () => terceiros.reduce((acc, item) => acc + item.custo, 0),
+    [terceiros],
+  );
 
   return (
     <div className="space-y-6 py-4">
-      {/* Formulário de adição */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
             <Building2 className="h-4 w-4" />
-            Adicionar Serviço Terceirizado
+            Adicionar Servico Terceirizado
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
             <div className="space-y-2">
               <Label>Fornecedor</Label>
-              <Select value={selectedFornecedor} onValueChange={setSelectedFornecedor}>
+              <Select
+                value={selectedFornecedor}
+                onValueChange={(value) => {
+                  setSelectedFornecedor(value);
+                  setSelectedServico('');
+                }}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione o fornecedor..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {fornecedores.map(f => (
-                    <SelectItem key={f.id} value={f.id}>
-                      {f.nome}
+                  {fornecedores.map((item) => (
+                    <SelectItem key={item.id} value={item.id}>
+                      {item.nome}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -278,19 +186,19 @@ export const TerceirosTab = ({ gravacaoId }: TerceirosTabProps) => {
             </div>
 
             <div className="space-y-2">
-              <Label>Serviço</Label>
-              <Select 
-                value={selectedServico} 
+              <Label>Servico</Label>
+              <Select
+                value={selectedServico}
                 onValueChange={setSelectedServico}
                 disabled={!selectedFornecedor}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Selecione o serviço..." />
+                  <SelectValue placeholder="Selecione o servico..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {servicosFornecedor.map(s => (
-                    <SelectItem key={s.id} value={s.id}>
-                      {s.nome}
+                  {servicosFornecedor.map((item) => (
+                    <SelectItem key={item.id} value={item.id}>
+                      {item.nome}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -307,8 +215,8 @@ export const TerceirosTab = ({ gravacaoId }: TerceirosTabProps) => {
               />
             </div>
 
-            <Button 
-              onClick={handleAdd} 
+            <Button
+              onClick={() => void handleAdd()}
               className="gradient-primary hover:opacity-90"
               disabled={!selectedFornecedor || !selectedServico}
             >
@@ -319,7 +227,6 @@ export const TerceirosTab = ({ gravacaoId }: TerceirosTabProps) => {
         </CardContent>
       </Card>
 
-      {/* Lista de terceiros */}
       {terceiros.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-12 text-center">
           <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
@@ -327,14 +234,14 @@ export const TerceirosTab = ({ gravacaoId }: TerceirosTabProps) => {
           </div>
           <h3 className="text-lg font-semibold text-foreground mb-1">Nenhum terceiro adicionado</h3>
           <p className="text-sm text-muted-foreground max-w-sm">
-            Adicione fornecedores e serviços terceirizados para esta gravação.
+            Adicione fornecedores e servicos terceirizados para esta gravacao.
           </p>
         </div>
       ) : (
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
-              Serviços Terceirizados
+              Servicos Terceirizados
               <Badge variant="secondary" className="ml-2">
                 {terceiros.length} item(s)
               </Badge>
@@ -345,23 +252,23 @@ export const TerceirosTab = ({ gravacaoId }: TerceirosTabProps) => {
               <TableHeader>
                 <TableRow>
                   <TableHead>Fornecedor</TableHead>
-                  <TableHead>Serviço</TableHead>
+                  <TableHead>Servico</TableHead>
                   <TableHead className="text-right">Custo</TableHead>
                   <TableHead className="w-[80px]"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {terceiros.map(t => (
-                  <TableRow key={t.id}>
-                    <TableCell className="font-medium">{t.fornecedorNome}</TableCell>
-                    <TableCell>{t.servicoNome}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(t.custo)}</TableCell>
+                {terceiros.map((item) => (
+                  <TableRow key={item.id}>
+                    <TableCell className="font-medium">{item.fornecedorNome}</TableCell>
+                    <TableCell>{item.servicoNome}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(item.custo)}</TableCell>
                     <TableCell>
                       <Button
                         size="icon"
                         variant="ghost"
                         className="text-destructive hover:text-destructive"
-                        onClick={() => handleRemove(t.id)}
+                        onClick={() => void handleRemove(item.id)}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -383,7 +290,6 @@ export const TerceirosTab = ({ gravacaoId }: TerceirosTabProps) => {
         </Card>
       )}
 
-      {/* Card de resumo */}
       {terceiros.length > 0 && (
         <Card className="border-primary">
           <CardContent className="pt-6">
@@ -395,7 +301,7 @@ export const TerceirosTab = ({ gravacaoId }: TerceirosTabProps) => {
                 <div>
                   <p className="text-sm text-muted-foreground">Custo Total com Terceiros</p>
                   <p className="text-sm text-muted-foreground">
-                    {terceiros.length} serviço(s) contratado(s)
+                    {terceiros.length} servico(s) contratado(s)
                   </p>
                 </div>
               </div>

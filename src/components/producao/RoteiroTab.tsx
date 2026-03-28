@@ -1,6 +1,16 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Plus, Trash2, GripVertical, ChevronDown, ChevronUp, FileDown } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  Check,
+  ChevronDown,
+  ChevronUp,
+  FileDown,
+  GripVertical,
+  Plus,
+  Trash2,
+  X,
+} from 'lucide-react';
 import jsPDF from 'jspdf';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,17 +22,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Badge } from '@/components/ui/badge';
 import {
   Command,
@@ -32,16 +33,10 @@ import {
   CommandItem,
   CommandList,
 } from '@/components/ui/command';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
-import { toast } from 'sonner';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { cn } from '@/lib/utils';
-import { supabase } from '@/integrations/supabase/client';
-import { Check, X } from 'lucide-react';
+import { roteiroApi } from '@/modules/roteiro/roteiro.api';
 
 interface Cena {
   id: string;
@@ -64,7 +59,6 @@ interface Pessoa {
   nome: string;
   sobrenome?: string;
   nomeTrabalho?: string;
-  classificacao?: string;
   status?: string;
 }
 
@@ -82,7 +76,7 @@ interface RoteiroTabProps {
 }
 
 export const RoteiroTab = ({ gravacaoId, conteudoId }: RoteiroTabProps) => {
-  const { t, language } = useLanguage();
+  const { t } = useLanguage();
   const [cenas, setCenas] = useState<Cena[]>([]);
   const [elenco, setElenco] = useState<ElencoMembro[]>([]);
   const [figurantes, setFigurantes] = useState<Pessoa[]>([]);
@@ -92,187 +86,123 @@ export const RoteiroTab = ({ gravacaoId, conteudoId }: RoteiroTabProps) => {
   const [personagensPopoverOpen, setPersonagensPopoverOpen] = useState<Record<string, boolean>>({});
   const [figurantesPopoverOpen, setFigurantesPopoverOpen] = useState<Record<string, boolean>>({});
 
-  // Translated options based on language
-  const PERIODOS = [
-    { value: 'Dia', label: t('script.day') },
-    { value: 'Noite', label: t('script.night') },
-    { value: 'Manhã', label: t('script.morning') },
-    { value: 'Tarde', label: t('script.afternoon') },
-    { value: 'Madrugada', label: t('script.dawn') },
-  ];
+  const PERIODOS = useMemo(
+    () => [
+      { value: 'Dia', label: t('script.day') },
+      { value: 'Noite', label: t('script.night') },
+      { value: 'Manha', label: t('script.morning') },
+      { value: 'Tarde', label: t('script.afternoon') },
+      { value: 'Madrugada', label: t('script.dawn') },
+    ],
+    [t],
+  );
 
-  const RITMOS = [
-    { value: 'Dramático', label: t('script.dramatic') },
-    { value: 'Cena Rápida', label: t('script.fastScene') },
-    { value: 'Contemplativa', label: t('script.contemplative') },
-  ];
+  const RITMOS = useMemo(
+    () => [
+      { value: 'Dramatico', label: t('script.dramatic') },
+      { value: 'Cena Rapida', label: t('script.fastScene') },
+      { value: 'Contemplativa', label: t('script.contemplative') },
+    ],
+    [t],
+  );
 
-  const TIPOS_AMBIENTE = [
-    { value: 'Externo', label: t('script.external') },
-    { value: 'Interno', label: t('script.internal') },
-  ];
+  const TIPOS_AMBIENTE = useMemo(
+    () => [
+      { value: 'Externo', label: t('script.external') },
+      { value: 'Interno', label: t('script.internal') },
+    ],
+    [t],
+  );
 
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      // Carregar cenas do Supabase
-      const { data: cenasData } = await supabase
-        .from('gravacao_cenas')
-        .select('*')
-        .eq('gravacao_id', gravacaoId)
-        .order('ordem', { ascending: true });
+      const data = await roteiroApi.list(gravacaoId, conteudoId);
 
-      if (cenasData) {
-        setCenas(cenasData.map(c => ({
-          id: c.id,
-          ordem: c.ordem,
-          capitulo: c.capitulo || '',
-          numeroCena: c.numero_cena || '',
-          ambiente: c.ambiente || '',
-          tipoAmbiente: (c.tipo_ambiente as 'Externo' | 'Interno' | '') || '',
-          periodo: c.periodo || '',
-          localGravacao: c.local_gravacao || '',
-          personagens: c.personagens || [],
-          figurantes: c.figurantes || [],
-          tempoAproximado: c.tempo_aproximado || '',
-          ritmo: c.ritmo || '',
-          descricao: c.descricao || '',
-        })));
-      }
+      setCenas(
+        data.cenas.map((cena) => ({
+          id: cena.id,
+          ordem: cena.ordem,
+          capitulo: cena.capitulo || '',
+          numeroCena: cena.numeroCena || '',
+          ambiente: cena.ambiente || '',
+          tipoAmbiente: (cena.tipoAmbiente as 'Externo' | 'Interno' | '') || '',
+          periodo: cena.periodo || '',
+          localGravacao: cena.localGravacao || '',
+          personagens: cena.personagens || [],
+          figurantes: cena.figurantes || [],
+          tempoAproximado: cena.tempoAproximado || '',
+          ritmo: cena.ritmo || '',
+          descricao: cena.descricao || '',
+        })),
+      );
 
-      // Carregar elenco da gravação E do conteúdo associado
-      const elencoResults: any[] = [];
+      setElenco(
+        data.elenco.map((item) => ({
+          id: item.id,
+          pessoaId: item.pessoaId,
+          nome: item.nome,
+          nomeTrabalho: item.nomeTrabalho || undefined,
+          personagem: item.personagem || '',
+        })),
+      );
 
-      // Buscar elenco vinculado à gravação
-      const { data: elencoGravacao } = await supabase
-        .from('gravacao_elenco')
-        .select(`
-          id,
-          personagem,
-          pessoa_id,
-          pessoas:pessoa_id(id, nome, sobrenome, nome_trabalho)
-        `)
-        .eq('gravacao_id', gravacaoId);
-
-      if (elencoGravacao) elencoResults.push(...elencoGravacao);
-
-      // Buscar elenco vinculado ao conteúdo (se houver conteúdo associado)
-      if (conteudoId) {
-        const { data: elencoConteudo } = await supabase
-          .from('gravacao_elenco')
-          .select(`
-            id,
-            personagem,
-            pessoa_id,
-            pessoas:pessoa_id(id, nome, sobrenome, nome_trabalho)
-          `)
-          .eq('conteudo_id', conteudoId)
-          .is('gravacao_id', null);
-
-        if (elencoConteudo) {
-          // Evitar duplicatas por pessoa_id
-          const existingPessoaIds = new Set(elencoResults.map(e => e.pessoa_id));
-          elencoConteudo.forEach(e => {
-            if (!existingPessoaIds.has(e.pessoa_id)) {
-              elencoResults.push(e);
-            }
-          });
-        }
-      }
-
-      setElenco(elencoResults.map(e => {
-        const pessoa = e.pessoas as any;
-        return {
-          id: e.id,
-          pessoaId: e.pessoa_id,
-          nome: pessoa?.nome || '',
-          nomeTrabalho: pessoa?.nome_trabalho || undefined,
-          personagem: e.personagem || '',
-        };
-      }));
-
-      // Carregar figurantes - buscar pessoas com classificações que contenham "figurante" ou "extra"
-      // Se não encontrar, buscar todas as pessoas ativas como fallback
-      const { data: classificacoesData } = await supabase
-        .from('classificacoes_pessoa')
-        .select('id, nome')
-        .or('nome.ilike.%figurante%,nome.ilike.%extra%');
-
-      const figuranteClassIds = classificacoesData?.map(c => c.id) || [];
-
-      if (figuranteClassIds.length > 0) {
-        const { data: pessoasData } = await supabase
-          .from('pessoas')
-          .select('id, nome, sobrenome, nome_trabalho, status')
-          .in('classificacao_id', figuranteClassIds)
-          .eq('status', 'Ativo');
-
-        if (pessoasData) {
-          setFigurantes(pessoasData.map(p => ({
-            id: p.id,
-            nome: p.nome,
-            sobrenome: p.sobrenome,
-            nomeTrabalho: p.nome_trabalho || undefined,
-            status: p.status || undefined,
-          })));
-        }
-      } else {
-        // Fallback: carregar todas as pessoas ativas para seleção de figurantes
-        const { data: pessoasData } = await supabase
-          .from('pessoas')
-          .select('id, nome, sobrenome, nome_trabalho, status')
-          .eq('status', 'Ativo')
-          .order('nome');
-
-        if (pessoasData) {
-          setFigurantes(pessoasData.map(p => ({
-            id: p.id,
-            nome: p.nome,
-            sobrenome: p.sobrenome,
-            nomeTrabalho: p.nome_trabalho || undefined,
-            status: p.status || undefined,
-          })));
-        }
-      }
+      setFigurantes(
+        data.figurantes.map((item) => ({
+          id: item.id,
+          nome: item.nome,
+          sobrenome: item.sobrenome,
+          nomeTrabalho: item.nomeTrabalho || undefined,
+          status: item.status || undefined,
+        })),
+      );
     } catch (error) {
       console.error('Erro ao carregar dados do roteiro:', error);
+      toast.error('Erro ao carregar roteiro');
     } finally {
       setLoading(false);
     }
-  }, [gravacaoId, conteudoId]);
+  }, [conteudoId, gravacaoId]);
 
   useEffect(() => {
-    loadData();
+    void loadData();
   }, [loadData]);
 
-  const saveCena = async (cena: Cena, isNew: boolean = false) => {
-    try {
-      const dbCena = {
-        gravacao_id: gravacaoId,
+  const persistCena = useCallback(
+    async (cena: Cena, isNew = false) => {
+      const saved = await roteiroApi.saveCena(gravacaoId, {
+        id: isNew ? '' : cena.id,
         ordem: cena.ordem,
-        capitulo: cena.capitulo || null,
-        numero_cena: cena.numeroCena || null,
-        ambiente: cena.ambiente || null,
-        tipo_ambiente: cena.tipoAmbiente || null,
-        periodo: cena.periodo || null,
-        local_gravacao: cena.localGravacao || null,
+        capitulo: cena.capitulo,
+        numeroCena: cena.numeroCena,
+        ambiente: cena.ambiente,
+        tipoAmbiente: cena.tipoAmbiente,
+        periodo: cena.periodo,
+        localGravacao: cena.localGravacao,
         personagens: cena.personagens,
         figurantes: cena.figurantes,
-        tempo_aproximado: cena.tempoAproximado || null,
-        ritmo: cena.ritmo || null,
-        descricao: cena.descricao || null,
-      };
+        tempoAproximado: cena.tempoAproximado,
+        ritmo: cena.ritmo,
+        descricao: cena.descricao,
+      });
 
-      if (isNew) {
-        await supabase.from('gravacao_cenas').insert({ ...dbCena, id: cena.id });
-      } else {
-        await supabase.from('gravacao_cenas').update(dbCena).eq('id', cena.id);
+      if (isNew && saved.id !== cena.id) {
+        setCenas((current) =>
+          current.map((item) => (item.id === cena.id ? { ...item, id: saved.id } : item)),
+        );
       }
-    } catch (error) {
-      console.error('Erro ao salvar cena:', error);
-      toast.error('Erro ao salvar cena');
-    }
-  };
+    },
+    [gravacaoId],
+  );
+
+  const syncOrder = useCallback(
+    async (items: Cena[]) => {
+      for (const cena of items) {
+        await persistCena(cena);
+      }
+    },
+    [persistCena],
+  );
 
   const handleAddCena = async () => {
     const novaCena: Cena = {
@@ -290,78 +220,90 @@ export const RoteiroTab = ({ gravacaoId, conteudoId }: RoteiroTabProps) => {
       ritmo: '',
       descricao: '',
     };
-    
-    setCenas([...cenas, novaCena]);
-    setExpandedCenas(new Set([...expandedCenas, novaCena.id]));
-    await saveCena(novaCena, true);
-    toast.success(t('script.sceneAdded'));
+
+    setCenas((current) => [...current, novaCena]);
+    setExpandedCenas((current) => new Set([...current, novaCena.id]));
+
+    try {
+      await persistCena(novaCena, true);
+      toast.success(t('script.sceneAdded'));
+    } catch (error) {
+      console.error('Erro ao adicionar cena:', error);
+      toast.error('Erro ao adicionar cena');
+      setCenas((current) => current.filter((item) => item.id !== novaCena.id));
+    }
   };
 
   const handleRemoveCena = async (id: string) => {
+    const newCenas = cenas
+      .filter((cena) => cena.id !== id)
+      .map((cena, index) => ({ ...cena, ordem: index + 1 }));
+
+    setCenas(newCenas);
+
     try {
-      await supabase.from('gravacao_cenas').delete().eq('id', id);
-      
-      const newCenas = cenas
-        .filter(c => c.id !== id)
-        .map((c, index) => ({ ...c, ordem: index + 1 }));
-      
-      setCenas(newCenas);
-      
-      // Update order in database
-      for (const cena of newCenas) {
-        await supabase.from('gravacao_cenas').update({ ordem: cena.ordem }).eq('id', cena.id);
-      }
-      
+      await roteiroApi.removeCena(gravacaoId, id);
+      await syncOrder(newCenas);
       toast.success(t('script.sceneRemoved'));
     } catch (error) {
       console.error('Erro ao remover cena:', error);
       toast.error('Erro ao remover cena');
+      void loadData();
     }
   };
 
-  const handleUpdateCena = async (id: string, field: keyof Cena, value: any) => {
-    const newCenas = cenas.map(c => 
-      c.id === id ? { ...c, [field]: value } : c
-    );
+  const handleUpdateCena = async (id: string, field: keyof Cena, value: string | string[]) => {
+    const newCenas = cenas.map((cena) => (cena.id === id ? { ...cena, [field]: value } : cena));
     setCenas(newCenas);
-    
-    const updatedCena = newCenas.find(c => c.id === id);
-    if (updatedCena) {
-      await saveCena(updatedCena);
+
+    const updatedCena = newCenas.find((cena) => cena.id === id);
+    if (!updatedCena) {
+      return;
+    }
+
+    try {
+      await persistCena(updatedCena);
+    } catch (error) {
+      console.error('Erro ao salvar cena:', error);
+      toast.error('Erro ao salvar cena');
     }
   };
 
   const toggleExpanded = (id: string) => {
-    const newExpanded = new Set(expandedCenas);
-    if (newExpanded.has(id)) {
-      newExpanded.delete(id);
-    } else {
-      newExpanded.add(id);
-    }
-    setExpandedCenas(newExpanded);
+    setExpandedCenas((current) => {
+      const next = new Set(current);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
   };
 
   const handleDragStart = (index: number) => {
     setDraggedIndex(index);
   };
 
-  const handleDragOver = async (e: React.DragEvent, index: number) => {
-    e.preventDefault();
-    if (draggedIndex === null || draggedIndex === index) return;
-    
-    const newCenas = [...cenas];
-    const draggedItem = newCenas[draggedIndex];
-    newCenas.splice(draggedIndex, 1);
-    newCenas.splice(index, 0, draggedItem);
-    
-    // Atualizar ordem
-    const reorderedCenas = newCenas.map((c, i) => ({ ...c, ordem: i + 1 }));
-    setCenas(reorderedCenas);
+  const handleDragOver = async (event: React.DragEvent, index: number) => {
+    event.preventDefault();
+    if (draggedIndex === null || draggedIndex === index) {
+      return;
+    }
+
+    const reordered = [...cenas];
+    const [draggedItem] = reordered.splice(draggedIndex, 1);
+    reordered.splice(index, 0, draggedItem);
+
+    const ordered = reordered.map((cena, itemIndex) => ({ ...cena, ordem: itemIndex + 1 }));
+    setCenas(ordered);
     setDraggedIndex(index);
-    
-    // Save order to database
-    for (const cena of reorderedCenas) {
-      await supabase.from('gravacao_cenas').update({ ordem: cena.ordem }).eq('id', cena.id);
+
+    try {
+      await syncOrder(ordered);
+    } catch (error) {
+      console.error('Erro ao reordenar cenas:', error);
+      toast.error('Erro ao reordenar cenas');
     }
   };
 
@@ -370,42 +312,49 @@ export const RoteiroTab = ({ gravacaoId, conteudoId }: RoteiroTabProps) => {
   };
 
   const handlePersonagemToggle = (cenaId: string, elencoId: string) => {
-    const cena = cenas.find(c => c.id === cenaId);
-    if (!cena) return;
-    
-    const newPersonagens = cena.personagens.includes(elencoId)
-      ? cena.personagens.filter(p => p !== elencoId)
+    const cena = cenas.find((item) => item.id === cenaId);
+    if (!cena) {
+      return;
+    }
+
+    const personagens = cena.personagens.includes(elencoId)
+      ? cena.personagens.filter((id) => id !== elencoId)
       : [...cena.personagens, elencoId];
-    
-    handleUpdateCena(cenaId, 'personagens', newPersonagens);
+
+    void handleUpdateCena(cenaId, 'personagens', personagens);
   };
 
   const handleFiguranteToggle = (cenaId: string, figuranteId: string) => {
-    const cena = cenas.find(c => c.id === cenaId);
-    if (!cena) return;
-    
-    const newFigurantes = cena.figurantes.includes(figuranteId)
-      ? cena.figurantes.filter(f => f !== figuranteId)
+    const cena = cenas.find((item) => item.id === cenaId);
+    if (!cena) {
+      return;
+    }
+
+    const figurantesIds = cena.figurantes.includes(figuranteId)
+      ? cena.figurantes.filter((id) => id !== figuranteId)
       : [...cena.figurantes, figuranteId];
-    
-    handleUpdateCena(cenaId, 'figurantes', newFigurantes);
+
+    void handleUpdateCena(cenaId, 'figurantes', figurantesIds);
   };
 
   const getElencoDisplayName = (membro: ElencoMembro) => {
-    const atorName = membro.nomeTrabalho || membro.nome;
-    return `${membro.personagem} (${atorName})`;
+    const atorNome = membro.nomeTrabalho || membro.nome;
+    return `${membro.personagem} (${atorNome})`;
   };
 
-  const getFiguranteDisplayName = (pessoa: Pessoa) => {
-    return pessoa.nomeTrabalho || `${pessoa.nome} ${pessoa.sobrenome || ''}`.trim();
-  };
+  const getFiguranteDisplayName = (pessoa: Pessoa) =>
+    pessoa.nomeTrabalho || `${pessoa.nome} ${pessoa.sobrenome || ''}`.trim();
 
-  const getDisplayLabel = (value: string, options: { value: string; label: string }[]) => {
-    const option = options.find(o => o.value === value);
+  const getDisplayLabel = (value: string, options: Array<{ value: string; label: string }>) => {
+    const option = options.find((item) => item.value === value);
     return option?.label || value;
   };
 
   const stripHtml = (html: string) => {
+    if (typeof document === 'undefined') {
+      return html;
+    }
+
     const tmp = document.createElement('div');
     tmp.innerHTML = html;
     return tmp.textContent || tmp.innerText || '';
@@ -421,7 +370,7 @@ export const RoteiroTab = ({ gravacaoId, conteudoId }: RoteiroTabProps) => {
     const pageWidth = pdf.internal.pageSize.getWidth();
     const pageHeight = pdf.internal.pageSize.getHeight();
     const margin = 20;
-    const contentWidth = pageWidth - (margin * 2);
+    const contentWidth = pageWidth - margin * 2;
 
     cenas.forEach((cena, index) => {
       if (index > 0) {
@@ -430,29 +379,33 @@ export const RoteiroTab = ({ gravacaoId, conteudoId }: RoteiroTabProps) => {
 
       let y = margin;
 
-      // Header
       pdf.setFillColor(59, 130, 246);
       pdf.rect(0, 0, pageWidth, 35, 'F');
-      
+
       pdf.setTextColor(255, 255, 255);
       pdf.setFontSize(18);
       pdf.setFont('helvetica', 'bold');
-      const headerText = `${t('script.scene')} ${cena.ordem}`;
-      pdf.text(headerText, margin, 22);
+      pdf.text(`${t('script.scene')} ${cena.ordem}`, margin, 22);
 
       if (cena.capitulo && cena.numeroCena) {
         pdf.setFontSize(12);
         pdf.setFont('helvetica', 'normal');
-        pdf.text(`${t('script.chapter')} ${cena.capitulo} - ${t('script.scene')} ${cena.numeroCena}`, margin, 30);
+        pdf.text(
+          `${t('script.chapter')} ${cena.capitulo} - ${t('script.scene')} ${cena.numeroCena}`,
+          margin,
+          30,
+        );
       }
 
       y = 50;
       pdf.setTextColor(0, 0, 0);
 
-      // Info Grid
       const infoItems = [
         { label: t('script.environment'), value: cena.ambiente },
-        { label: t('script.environmentType'), value: getDisplayLabel(cena.tipoAmbiente, TIPOS_AMBIENTE) },
+        {
+          label: t('script.environmentType'),
+          value: getDisplayLabel(cena.tipoAmbiente, TIPOS_AMBIENTE),
+        },
         { label: t('script.period'), value: getDisplayLabel(cena.periodo, PERIODOS) },
         { label: t('script.rhythm'), value: getDisplayLabel(cena.ritmo, RITMOS) },
         { label: t('script.recordingLocation'), value: cena.localGravacao },
@@ -460,15 +413,20 @@ export const RoteiroTab = ({ gravacaoId, conteudoId }: RoteiroTabProps) => {
       ];
 
       pdf.setFontSize(10);
-      const colWidth = contentWidth / 2;
-      
-      infoItems.forEach((item, i) => {
-        if (!item.value) return;
-        const col = i % 2;
-        const x = margin + (col * colWidth);
-        
-        if (col === 0 && i > 0) y += 12;
-        
+      const columnWidth = contentWidth / 2;
+
+      infoItems.forEach((item, itemIndex) => {
+        if (!item.value) {
+          return;
+        }
+
+        const column = itemIndex % 2;
+        const x = margin + column * columnWidth;
+
+        if (column === 0 && itemIndex > 0) {
+          y += 12;
+        }
+
         pdf.setFont('helvetica', 'bold');
         pdf.text(`${item.label}:`, x, y);
         pdf.setFont('helvetica', 'normal');
@@ -477,72 +435,70 @@ export const RoteiroTab = ({ gravacaoId, conteudoId }: RoteiroTabProps) => {
 
       y += 20;
 
-      // Characters
       if (cena.personagens.length > 0) {
         pdf.setFont('helvetica', 'bold');
         pdf.setFontSize(11);
-        pdf.text(t('script.charactersInScene').split(' (')[0] + ':', margin, y);
+        pdf.text(`${t('script.charactersInScene').split(' (')[0]}:`, margin, y);
         y += 6;
-        
+
         pdf.setFont('helvetica', 'normal');
         pdf.setFontSize(10);
         const personagensText = cena.personagens
-          .map(pId => {
-            const membro = elenco.find(e => e.id === pId);
+          .map((id) => {
+            const membro = elenco.find((item) => item.id === id);
             return membro ? getElencoDisplayName(membro) : '';
           })
           .filter(Boolean)
           .join(', ');
-        
-        const personagensLines = pdf.splitTextToSize(personagensText, contentWidth);
-        pdf.text(personagensLines, margin, y);
-        y += (personagensLines.length * 5) + 8;
+
+        const lines = pdf.splitTextToSize(personagensText, contentWidth);
+        pdf.text(lines, margin, y);
+        y += lines.length * 5 + 8;
       }
 
-      // Extras
       if (cena.figurantes.length > 0) {
         pdf.setFont('helvetica', 'bold');
         pdf.setFontSize(11);
-        pdf.text(t('script.extras').split(' (')[0] + ':', margin, y);
+        pdf.text(`${t('script.extras').split(' (')[0]}:`, margin, y);
         y += 6;
-        
+
         pdf.setFont('helvetica', 'normal');
         pdf.setFontSize(10);
         const figurantesText = cena.figurantes
-          .map(fId => {
-            const pessoa = figurantes.find(f => f.id === fId);
+          .map((id) => {
+            const pessoa = figurantes.find((item) => item.id === id);
             return pessoa ? getFiguranteDisplayName(pessoa) : '';
           })
           .filter(Boolean)
           .join(', ');
-        
-        const figurantesLines = pdf.splitTextToSize(figurantesText, contentWidth);
-        pdf.text(figurantesLines, margin, y);
-        y += (figurantesLines.length * 5) + 8;
+
+        const lines = pdf.splitTextToSize(figurantesText, contentWidth);
+        pdf.text(lines, margin, y);
+        y += lines.length * 5 + 8;
       }
 
-      // Description
       if (cena.descricao) {
         pdf.setFont('helvetica', 'bold');
         pdf.setFontSize(11);
-        pdf.text(t('script.sceneDescription') + ':', margin, y);
+        pdf.text(`${t('script.sceneDescription')}:`, margin, y);
         y += 6;
-        
+
         pdf.setFont('helvetica', 'normal');
         pdf.setFontSize(10);
         const descricaoText = stripHtml(cena.descricao);
         const descricaoLines = pdf.splitTextToSize(descricaoText, contentWidth);
-        
-        // Check if we need to limit lines to fit page
         const maxLines = Math.floor((pageHeight - y - margin) / 5);
-        const linesToPrint = descricaoLines.slice(0, maxLines);
-        pdf.text(linesToPrint, margin, y);
+        pdf.text(descricaoLines.slice(0, maxLines), margin, y);
       }
 
-      // Footer
       pdf.setFontSize(8);
       pdf.setTextColor(128, 128, 128);
-      pdf.text(`${t('script.scene')} ${index + 1} ${t('common.of')} ${cenas.length}`, pageWidth / 2, pageHeight - 10, { align: 'center' });
+      pdf.text(
+        `${t('script.scene')} ${index + 1} ${t('common.of')} ${cenas.length}`,
+        pageWidth / 2,
+        pageHeight - 10,
+        { align: 'center' },
+      );
     });
 
     pdf.save(`roteiro_${new Date().toISOString().split('T')[0]}.pdf`);
@@ -562,9 +518,7 @@ export const RoteiroTab = ({ gravacaoId, conteudoId }: RoteiroTabProps) => {
       <div className="flex justify-between items-center">
         <div>
           <h3 className="text-lg font-medium">{t('script.title')}</h3>
-          <p className="text-sm text-muted-foreground">
-            {t('script.description')}
-          </p>
+          <p className="text-sm text-muted-foreground">{t('script.description')}</p>
         </div>
         <div className="flex gap-2">
           {cenas.length > 0 && (
@@ -573,7 +527,10 @@ export const RoteiroTab = ({ gravacaoId, conteudoId }: RoteiroTabProps) => {
               {t('script.exportPDF')}
             </Button>
           )}
-          <Button onClick={handleAddCena} className="gradient-primary hover:opacity-90">
+          <Button
+            onClick={() => void handleAddCena()}
+            className="gradient-primary hover:opacity-90"
+          >
             <Plus className="h-4 w-4 mr-2" />
             {t('script.addScene')}
           </Button>
@@ -583,7 +540,7 @@ export const RoteiroTab = ({ gravacaoId, conteudoId }: RoteiroTabProps) => {
       {cenas.length === 0 ? (
         <div className="text-center py-12 border-2 border-dashed rounded-lg">
           <p className="text-muted-foreground mb-4">{t('script.noScenes')}</p>
-          <Button variant="outline" onClick={handleAddCena}>
+          <Button variant="outline" onClick={() => void handleAddCena()}>
             <Plus className="h-4 w-4 mr-2" />
             {t('script.addFirstScene')}
           </Button>
@@ -595,9 +552,9 @@ export const RoteiroTab = ({ gravacaoId, conteudoId }: RoteiroTabProps) => {
               key={cena.id}
               draggable
               onDragStart={() => handleDragStart(index)}
-              onDragOver={(e) => handleDragOver(e, index)}
+              onDragOver={(event) => void handleDragOver(event, index)}
               onDragEnd={handleDragEnd}
-              className={`transition-all ${draggedIndex === index ? 'opacity-50 scale-95' : ''}`}
+              className={cn('transition-all', draggedIndex === index && 'opacity-50 scale-95')}
             >
               <Collapsible open={expandedCenas.has(cena.id)}>
                 <CardHeader className="py-3">
@@ -608,8 +565,8 @@ export const RoteiroTab = ({ gravacaoId, conteudoId }: RoteiroTabProps) => {
                         #{cena.ordem}
                       </Badge>
                       <CardTitle className="text-base">
-                        {cena.capitulo && cena.numeroCena 
-                          ? `${t('script.chapter').slice(0,3)}. ${cena.capitulo} - ${t('script.scene')} ${cena.numeroCena}`
+                        {cena.capitulo && cena.numeroCena
+                          ? `${t('script.chapter').slice(0, 3)}. ${cena.capitulo} - ${t('script.scene')} ${cena.numeroCena}`
                           : `${t('script.scene')} ${cena.ordem}`}
                       </CardTitle>
                       {cena.tipoAmbiente && (
@@ -625,17 +582,13 @@ export const RoteiroTab = ({ gravacaoId, conteudoId }: RoteiroTabProps) => {
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => handleRemoveCena(cena.id)}
+                        onClick={() => void handleRemoveCena(cena.id)}
                         className="text-destructive hover:text-destructive"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
                       <CollapsibleTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => toggleExpanded(cena.id)}
-                        >
+                        <Button variant="ghost" size="icon" onClick={() => toggleExpanded(cena.id)}>
                           {expandedCenas.has(cena.id) ? (
                             <ChevronUp className="h-4 w-4" />
                           ) : (
@@ -648,13 +601,14 @@ export const RoteiroTab = ({ gravacaoId, conteudoId }: RoteiroTabProps) => {
                 </CardHeader>
                 <CollapsibleContent>
                   <CardContent className="space-y-4 pt-0">
-                    {/* Linha 1: Capítulo, Número da Cena, Ambiente */}
                     <div className="grid grid-cols-3 gap-4">
                       <div className="space-y-2">
                         <Label>{t('script.chapter')}</Label>
                         <Input
                           value={cena.capitulo}
-                          onChange={(e) => handleUpdateCena(cena.id, 'capitulo', e.target.value)}
+                          onChange={(event) =>
+                            void handleUpdateCena(cena.id, 'capitulo', event.target.value)
+                          }
                           placeholder="Ex: 01"
                         />
                       </div>
@@ -662,7 +616,9 @@ export const RoteiroTab = ({ gravacaoId, conteudoId }: RoteiroTabProps) => {
                         <Label>{t('script.sceneNumber')}</Label>
                         <Input
                           value={cena.numeroCena}
-                          onChange={(e) => handleUpdateCena(cena.id, 'numeroCena', e.target.value)}
+                          onChange={(event) =>
+                            void handleUpdateCena(cena.id, 'numeroCena', event.target.value)
+                          }
                           placeholder="Ex: 15"
                         />
                       </div>
@@ -670,25 +626,28 @@ export const RoteiroTab = ({ gravacaoId, conteudoId }: RoteiroTabProps) => {
                         <Label>{t('script.environment')}</Label>
                         <Input
                           value={cena.ambiente}
-                          onChange={(e) => handleUpdateCena(cena.id, 'ambiente', e.target.value)}
+                          onChange={(event) =>
+                            void handleUpdateCena(cena.id, 'ambiente', event.target.value)
+                          }
                           placeholder={t('script.environmentPlaceholder')}
                         />
                       </div>
                     </div>
 
-                    {/* Linha 2: Tipo Ambiente, Período, Ritmo */}
                     <div className="grid grid-cols-3 gap-4">
                       <div className="space-y-2">
                         <Label>{t('script.environmentType')}</Label>
                         <Select
                           value={cena.tipoAmbiente}
-                          onValueChange={(value) => handleUpdateCena(cena.id, 'tipoAmbiente', value)}
+                          onValueChange={(value) =>
+                            void handleUpdateCena(cena.id, 'tipoAmbiente', value)
+                          }
                         >
                           <SelectTrigger>
                             <SelectValue placeholder={t('common.select')} />
                           </SelectTrigger>
                           <SelectContent>
-                            {TIPOS_AMBIENTE.map(tipo => (
+                            {TIPOS_AMBIENTE.map((tipo) => (
                               <SelectItem key={tipo.value} value={tipo.value}>
                                 {tipo.label}
                               </SelectItem>
@@ -700,13 +659,15 @@ export const RoteiroTab = ({ gravacaoId, conteudoId }: RoteiroTabProps) => {
                         <Label>{t('script.period')}</Label>
                         <Select
                           value={cena.periodo}
-                          onValueChange={(value) => handleUpdateCena(cena.id, 'periodo', value)}
+                          onValueChange={(value) =>
+                            void handleUpdateCena(cena.id, 'periodo', value)
+                          }
                         >
                           <SelectTrigger>
                             <SelectValue placeholder={t('common.select')} />
                           </SelectTrigger>
                           <SelectContent>
-                            {PERIODOS.map(periodo => (
+                            {PERIODOS.map((periodo) => (
                               <SelectItem key={periodo.value} value={periodo.value}>
                                 {periodo.label}
                               </SelectItem>
@@ -718,13 +679,13 @@ export const RoteiroTab = ({ gravacaoId, conteudoId }: RoteiroTabProps) => {
                         <Label>{t('script.rhythm')}</Label>
                         <Select
                           value={cena.ritmo}
-                          onValueChange={(value) => handleUpdateCena(cena.id, 'ritmo', value)}
+                          onValueChange={(value) => void handleUpdateCena(cena.id, 'ritmo', value)}
                         >
                           <SelectTrigger>
                             <SelectValue placeholder={t('common.select')} />
                           </SelectTrigger>
                           <SelectContent>
-                            {RITMOS.map(ritmo => (
+                            {RITMOS.map((ritmo) => (
                               <SelectItem key={ritmo.value} value={ritmo.value}>
                                 {ritmo.label}
                               </SelectItem>
@@ -734,13 +695,14 @@ export const RoteiroTab = ({ gravacaoId, conteudoId }: RoteiroTabProps) => {
                       </div>
                     </div>
 
-                    {/* Linha 3: Local de Gravação, Tempo Aproximado */}
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label>{t('script.recordingLocation')}</Label>
                         <Input
                           value={cena.localGravacao}
-                          onChange={(e) => handleUpdateCena(cena.id, 'localGravacao', e.target.value)}
+                          onChange={(event) =>
+                            void handleUpdateCena(cena.id, 'localGravacao', event.target.value)
+                          }
                           placeholder={t('script.locationPlaceholder')}
                         />
                       </div>
@@ -748,17 +710,28 @@ export const RoteiroTab = ({ gravacaoId, conteudoId }: RoteiroTabProps) => {
                         <Label>{t('script.approximateTime')}</Label>
                         <Input
                           value={cena.tempoAproximado}
-                          onChange={(e) => handleUpdateCena(cena.id, 'tempoAproximado', e.target.value)}
+                          onChange={(event) =>
+                            void handleUpdateCena(cena.id, 'tempoAproximado', event.target.value)
+                          }
                           placeholder="Ex: 5min"
                         />
                       </div>
                     </div>
 
-                    {/* Personagens na Cena */}
                     <div className="space-y-2">
-                      <Label>{t('script.charactersInScene')} ({cena.personagens.length})</Label>
+                      <Label>
+                        {t('script.charactersInScene')} ({cena.personagens.length})
+                      </Label>
                       {elenco.length > 0 ? (
-                        <Popover open={personagensPopoverOpen[cena.id] || false} onOpenChange={(open) => setPersonagensPopoverOpen(prev => ({ ...prev, [cena.id]: open }))}>
+                        <Popover
+                          open={personagensPopoverOpen[cena.id] || false}
+                          onOpenChange={(open) =>
+                            setPersonagensPopoverOpen((current) => ({
+                              ...current,
+                              [cena.id]: open,
+                            }))
+                          }
+                        >
                           <PopoverTrigger asChild>
                             <Button variant="outline" className="w-full justify-start">
                               {cena.personagens.length > 0
@@ -777,12 +750,14 @@ export const RoteiroTab = ({ gravacaoId, conteudoId }: RoteiroTabProps) => {
                                       key={membro.id}
                                       onSelect={() => handlePersonagemToggle(cena.id, membro.id)}
                                     >
-                                      <div className={cn(
-                                        "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
-                                        cena.personagens.includes(membro.id)
-                                          ? "bg-primary text-primary-foreground"
-                                          : "opacity-50"
-                                      )}>
+                                      <div
+                                        className={cn(
+                                          'mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary',
+                                          cena.personagens.includes(membro.id)
+                                            ? 'bg-primary text-primary-foreground'
+                                            : 'opacity-50',
+                                        )}
+                                      >
                                         {cena.personagens.includes(membro.id) && (
                                           <Check className="h-3 w-3" />
                                         )}
@@ -802,15 +777,22 @@ export const RoteiroTab = ({ gravacaoId, conteudoId }: RoteiroTabProps) => {
                       )}
                       {cena.personagens.length > 0 && (
                         <div className="flex flex-wrap gap-1 mt-2">
-                          {cena.personagens.map(pId => {
-                            const membro = elenco.find(e => e.id === pId);
-                            if (!membro) return null;
+                          {cena.personagens.map((id) => {
+                            const membro = elenco.find((item) => item.id === id);
+                            if (!membro) {
+                              return null;
+                            }
+
                             return (
-                              <Badge key={pId} variant="secondary" className="flex items-center gap-1">
+                              <Badge
+                                key={id}
+                                variant="secondary"
+                                className="flex items-center gap-1"
+                              >
                                 {membro.personagem}
                                 <X
                                   className="h-3 w-3 cursor-pointer"
-                                  onClick={() => handlePersonagemToggle(cena.id, pId)}
+                                  onClick={() => handlePersonagemToggle(cena.id, id)}
                                 />
                               </Badge>
                             );
@@ -819,11 +801,17 @@ export const RoteiroTab = ({ gravacaoId, conteudoId }: RoteiroTabProps) => {
                       )}
                     </div>
 
-                    {/* Figurantes na Cena */}
                     <div className="space-y-2">
-                      <Label>{t('script.extras')} ({cena.figurantes.length})</Label>
+                      <Label>
+                        {t('script.extras')} ({cena.figurantes.length})
+                      </Label>
                       {figurantes.length > 0 ? (
-                        <Popover open={figurantesPopoverOpen[cena.id] || false} onOpenChange={(open) => setFigurantesPopoverOpen(prev => ({ ...prev, [cena.id]: open }))}>
+                        <Popover
+                          open={figurantesPopoverOpen[cena.id] || false}
+                          onOpenChange={(open) =>
+                            setFigurantesPopoverOpen((current) => ({ ...current, [cena.id]: open }))
+                          }
+                        >
                           <PopoverTrigger asChild>
                             <Button variant="outline" className="w-full justify-start">
                               {cena.figurantes.length > 0
@@ -842,12 +830,14 @@ export const RoteiroTab = ({ gravacaoId, conteudoId }: RoteiroTabProps) => {
                                       key={pessoa.id}
                                       onSelect={() => handleFiguranteToggle(cena.id, pessoa.id)}
                                     >
-                                      <div className={cn(
-                                        "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
-                                        cena.figurantes.includes(pessoa.id)
-                                          ? "bg-primary text-primary-foreground"
-                                          : "opacity-50"
-                                      )}>
+                                      <div
+                                        className={cn(
+                                          'mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary',
+                                          cena.figurantes.includes(pessoa.id)
+                                            ? 'bg-primary text-primary-foreground'
+                                            : 'opacity-50',
+                                        )}
+                                      >
                                         {cena.figurantes.includes(pessoa.id) && (
                                           <Check className="h-3 w-3" />
                                         )}
@@ -867,15 +857,22 @@ export const RoteiroTab = ({ gravacaoId, conteudoId }: RoteiroTabProps) => {
                       )}
                       {cena.figurantes.length > 0 && (
                         <div className="flex flex-wrap gap-1 mt-2">
-                          {cena.figurantes.map(fId => {
-                            const pessoa = figurantes.find(f => f.id === fId);
-                            if (!pessoa) return null;
+                          {cena.figurantes.map((id) => {
+                            const pessoa = figurantes.find((item) => item.id === id);
+                            if (!pessoa) {
+                              return null;
+                            }
+
                             return (
-                              <Badge key={fId} variant="secondary" className="flex items-center gap-1">
+                              <Badge
+                                key={id}
+                                variant="secondary"
+                                className="flex items-center gap-1"
+                              >
                                 {getFiguranteDisplayName(pessoa)}
                                 <X
                                   className="h-3 w-3 cursor-pointer"
-                                  onClick={() => handleFiguranteToggle(cena.id, fId)}
+                                  onClick={() => handleFiguranteToggle(cena.id, id)}
                                 />
                               </Badge>
                             );
@@ -884,12 +881,11 @@ export const RoteiroTab = ({ gravacaoId, conteudoId }: RoteiroTabProps) => {
                       )}
                     </div>
 
-                    {/* Descrição da Cena */}
                     <div className="space-y-2">
                       <Label>{t('script.sceneDescription')}</Label>
                       <RichTextEditor
                         value={cena.descricao}
-                        onChange={(value) => handleUpdateCena(cena.id, 'descricao', value)}
+                        onChange={(value) => void handleUpdateCena(cena.id, 'descricao', value)}
                         placeholder={t('script.descriptionPlaceholder')}
                       />
                     </div>

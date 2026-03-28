@@ -1,12 +1,29 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { Plus, Trash2, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
 import { formatCurrency } from '@/lib/currencies';
+import { ApiTabelasPrecoRepository } from '@/modules/tabelas-preco/tabelas-preco.api.repository';
+import type {
+  RecursoOption,
+  TabelaPrecoRecursoItem,
+} from '@/modules/tabelas-preco/tabelas-preco.types';
 
 interface Props {
   tabelaPrecoId: string;
@@ -14,79 +31,94 @@ interface Props {
   moeda?: string;
 }
 
-interface RecursoTecnicoOption {
-  id: string;
-  nome: string;
-}
+const repository = new ApiTabelasPrecoRepository();
 
-interface TabelaPrecoRT {
-  id: string;
-  recurso_tecnico_id: string;
-  valor_hora: number;
-  recursoNome?: string;
-}
-
-export const TabelaPrecoRecursosTecnicosTab = ({ tabelaPrecoId, readOnly, moeda = 'BRL' }: Props) => {
+export const TabelaPrecoRecursosTecnicosTab = ({
+  tabelaPrecoId,
+  readOnly,
+  moeda = 'BRL',
+}: Props) => {
   const { toast } = useToast();
-  const [items, setItems] = useState<TabelaPrecoRT[]>([]);
-  const [recursos, setRecursos] = useState<RecursoTecnicoOption[]>([]);
+  const [items, setItems] = useState<TabelaPrecoRecursoItem[]>([]);
+  const [recursos, setRecursos] = useState<RecursoOption[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedRecurso, setSelectedRecurso] = useState('');
   const [valorHora, setValorHora] = useState('');
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [{ data: itensData }, { data: recursosData }] = await Promise.all([
-        supabase.from('tabela_preco_recursos_tecnicos' as any).select('*').eq('tabela_preco_id', tabelaPrecoId),
-        supabase.from('recursos_tecnicos').select('id, nome').order('nome'),
-      ]);
-
-      const rMap = new Map((recursosData || []).map((r: any) => [r.id, r.nome]));
-      setItems((itensData || []).map((i: any) => ({ ...i, recursoNome: rMap.get(i.recurso_tecnico_id) || 'Desconhecido' })));
-      setRecursos(recursosData || []);
+      const response = await repository.listRecursos(tabelaPrecoId, 'tecnico');
+      setItems(response.items);
+      setRecursos(response.recursos);
     } catch (error) {
       console.error(error);
+      toast({
+        title: 'Erro',
+        description: `Erro ao carregar recursos técnicos: ${(error as Error).message}`,
+        variant: 'destructive',
+      });
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [tabelaPrecoId, toast]);
 
-  useEffect(() => { fetchData(); }, [tabelaPrecoId]);
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const handleAdd = async () => {
-    if (!selectedRecurso || !valorHora) return;
+    if (!selectedRecurso || !valorHora) {
+      return;
+    }
+
     try {
-      const { error } = await supabase.from('tabela_preco_recursos_tecnicos' as any).insert({
-        tabela_preco_id: tabelaPrecoId,
-        recurso_tecnico_id: selectedRecurso,
-        valor_hora: parseFloat(valorHora),
-      });
-      if (error) throw error;
+      const response = await repository.addRecurso(
+        tabelaPrecoId,
+        'tecnico',
+        selectedRecurso,
+        parseFloat(valorHora),
+      );
+      setItems(response.items);
+      setRecursos(response.recursos);
       toast({ title: 'Sucesso', description: 'Recurso técnico adicionado!' });
       setSelectedRecurso('');
       setValorHora('');
-      await fetchData();
-    } catch (error: any) {
+    } catch (error) {
       console.error(error);
-      toast({ title: 'Erro', description: 'Erro ao adicionar recurso técnico', variant: 'destructive' });
+      toast({
+        title: 'Erro',
+        description: `Erro ao adicionar recurso técnico: ${(error as Error).message}`,
+        variant: 'destructive',
+      });
     }
   };
 
   const handleDelete = async (id: string) => {
     try {
-      const { error } = await supabase.from('tabela_preco_recursos_tecnicos' as any).delete().eq('id', id);
-      if (error) throw error;
+      await repository.removeRecurso(tabelaPrecoId, 'tecnico', id);
       await fetchData();
     } catch (error) {
       console.error(error);
-      toast({ title: 'Erro', description: 'Erro ao remover', variant: 'destructive' });
+      toast({
+        title: 'Erro',
+        description: `Erro ao remover recurso técnico: ${(error as Error).message}`,
+        variant: 'destructive',
+      });
     }
   };
 
-  const availableRecursos = recursos.filter(r => !items.some(i => i.recurso_tecnico_id === r.id));
+  const availableRecursos = recursos.filter(
+    (recurso) => !items.some((item) => item.recursoId === recurso.id),
+  );
 
-  if (isLoading) return <div className="flex justify-center py-4"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
+  if (isLoading) {
+    return (
+      <div className="flex justify-center py-4">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -94,23 +126,49 @@ export const TabelaPrecoRecursosTecnicosTab = ({ tabelaPrecoId, readOnly, moeda 
         <div className="flex gap-2 items-end">
           <div className="flex-1">
             <Select value={selectedRecurso} onValueChange={setSelectedRecurso}>
-              <SelectTrigger><SelectValue placeholder="Selecione um recurso técnico" /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione um recurso técnico" />
+              </SelectTrigger>
               <SelectContent>
-                {availableRecursos.map(r => <SelectItem key={r.id} value={r.id}>{r.nome}</SelectItem>)}
+                {availableRecursos.map((recurso) => (
+                  <SelectItem key={recurso.id} value={recurso.id}>
+                    {recurso.nome}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
           <div className="w-32">
-            <Input type="number" placeholder="Valor/Hora" value={valorHora} onChange={(e) => setValorHora(e.target.value)} step="0.01" min="0" />
+            <Input
+              type="number"
+              placeholder="Valor/Hora"
+              value={valorHora}
+              onChange={(e) => setValorHora(e.target.value)}
+              step="0.01"
+              min="0"
+            />
           </div>
-          <Button type="button" size="sm" onClick={handleAdd} disabled={!selectedRecurso || !valorHora}>
+          <Button
+            type="button"
+            size="sm"
+            onClick={handleAdd}
+            disabled={!selectedRecurso || !valorHora}
+          >
             <Plus className="w-4 h-4 mr-1" /> Adicionar
           </Button>
         </div>
       )}
 
+      {!readOnly && recursos.length === 0 && (
+        <p className="text-sm text-muted-foreground">
+          Nenhum recurso técnico cadastrado localmente para vincular.
+        </p>
+      )}
+
       {items.length === 0 ? (
-        <p className="text-sm text-muted-foreground text-center py-4">Nenhum recurso técnico adicionado.</p>
+        <p className="text-sm text-muted-foreground text-center py-4">
+          Nenhum recurso técnico adicionado.
+        </p>
       ) : (
         <Table>
           <TableHeader>
@@ -121,13 +179,18 @@ export const TabelaPrecoRecursosTecnicosTab = ({ tabelaPrecoId, readOnly, moeda 
             </TableRow>
           </TableHeader>
           <TableBody>
-            {items.map(item => (
+            {items.map((item) => (
               <TableRow key={item.id}>
                 <TableCell>{item.recursoNome}</TableCell>
-                <TableCell>{formatCurrency(Number(item.valor_hora), moeda)}</TableCell>
+                <TableCell>{formatCurrency(Number(item.valorHora), moeda)}</TableCell>
                 {!readOnly && (
                   <TableCell>
-                    <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => handleDelete(item.id)}>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-7 w-7 text-destructive"
+                      onClick={() => handleDelete(item.id)}
+                    >
                       <Trash2 className="w-3.5 h-3.5" />
                     </Button>
                   </TableCell>

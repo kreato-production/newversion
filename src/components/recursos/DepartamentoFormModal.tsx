@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -22,9 +22,13 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useToast } from '@/hooks/use-toast';
-import { SortableTable, Column } from '@/components/shared/SortableTable';
+import { SortableTable, type Column } from '@/components/shared/SortableTable';
 import { Plus, Trash2, Briefcase, Loader2 } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import {
+  ApiDepartamentosRepository,
+  type DepartamentoFuncaoApiItem,
+  type FuncaoApiItem,
+} from '@/modules/departamentos/departamentos.api.repository';
 
 interface Departamento {
   id?: string;
@@ -51,7 +55,7 @@ interface DepartamentoFuncao {
 interface DepartamentoFormModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (data: Departamento) => void;
+  onSave: (data: Departamento) => Promise<void>;
   data?: Departamento | null;
   readOnly?: boolean;
 }
@@ -61,6 +65,27 @@ const emptyFormData: Departamento = {
   nome: '',
   descricao: '',
 };
+
+const apiRepository = new ApiDepartamentosRepository();
+
+function mapFuncaoFromApi(item: FuncaoApiItem): Funcao {
+  return {
+    id: item.id,
+    nome: item.nome,
+    codigo_externo: item.codigoExterno,
+    descricao: item.descricao,
+  };
+}
+
+function mapAssociacaoFromApi(item: DepartamentoFuncaoApiItem): DepartamentoFuncao {
+  return {
+    id: item.id,
+    funcaoId: item.funcaoId,
+    dataAssociacao: item.dataAssociacao
+      ? new Date(item.dataAssociacao).toLocaleDateString('pt-BR')
+      : '',
+  };
+}
 
 export const DepartamentoFormModal = ({
   isOpen,
@@ -79,152 +104,127 @@ export const DepartamentoFormModal = ({
   const [funcoesCadastradas, setFuncoesCadastradas] = useState<Funcao[]>([]);
   const [isLoadingFuncoes, setIsLoadingFuncoes] = useState(false);
 
-  // Carregar funções do Supabase
   const fetchFuncoes = useCallback(async () => {
     setIsLoadingFuncoes(true);
     try {
-      const { data: funcoesData, error } = await supabase
-        .from('funcoes')
-        .select('id, nome, codigo_externo, descricao')
-        .order('nome');
+      if (!data?.id) {
+        setFuncoesCadastradas([]);
+        setFuncoesAssociadas([]);
+        return;
+      }
 
-      if (error) throw error;
-      setFuncoesCadastradas(funcoesData || []);
+      const response = await apiRepository.listFuncoes(data.id);
+      setFuncoesCadastradas(response.cadastradas.map(mapFuncaoFromApi));
+      setFuncoesAssociadas(response.associadas.map(mapAssociacaoFromApi));
     } catch (err) {
-      console.error('Erro ao carregar funções:', err);
+      console.error('Erro ao carregar funcoes:', err);
     } finally {
       setIsLoadingFuncoes(false);
     }
-  }, []);
+  }, [data?.id]);
 
-  // Carregar funções associadas ao departamento
   const fetchFuncoesAssociadas = useCallback(async (departamentoId: string) => {
     try {
-      const { data: associacoes, error } = await supabase
-        .from('departamento_funcoes')
-        .select('id, funcao_id, created_at')
-        .eq('departamento_id', departamentoId);
-
-      if (error) throw error;
-
-      const mapped: DepartamentoFuncao[] = (associacoes || []).map((a) => ({
-        id: a.id,
-        funcaoId: a.funcao_id,
-        dataAssociacao: a.created_at ? new Date(a.created_at).toLocaleDateString('pt-BR') : '',
-      }));
-
-      setFuncoesAssociadas(mapped);
+      const response = await apiRepository.listFuncoes(departamentoId);
+      setFuncoesCadastradas(response.cadastradas.map(mapFuncaoFromApi));
+      setFuncoesAssociadas(response.associadas.map(mapAssociacaoFromApi));
     } catch (err) {
-      console.error('Erro ao carregar funções associadas:', err);
+      console.error('Erro ao carregar funcoes associadas:', err);
     }
   }, []);
 
-  // Reset form data when modal opens or data changes
   useEffect(() => {
-    if (isOpen) {
-      setFormData(data ? { ...data } : { ...emptyFormData });
-      setIsAddingFuncao(false);
-      setSelectedFuncaoId('');
-      
-      fetchFuncoes();
-      
-      if (data?.id) {
-        fetchFuncoesAssociadas(data.id);
-      } else {
-        setFuncoesAssociadas([]);
-      }
+    if (!isOpen) return;
+
+    setFormData(data ? { ...data } : { ...emptyFormData });
+    setIsAddingFuncao(false);
+    setSelectedFuncaoId('');
+    void fetchFuncoes();
+
+    if (data?.id) {
+      void fetchFuncoesAssociadas(data.id);
+    } else {
+      setFuncoesAssociadas([]);
     }
   }, [isOpen, data, fetchFuncoes, fetchFuncoesAssociadas]);
 
-  // Funções disponíveis para associar (excluindo as já associadas)
   const funcoesDisponiveis = useMemo(() => {
-    const associadasIds = funcoesAssociadas.map((fa) => fa.funcaoId);
-    return funcoesCadastradas.filter((f) => !associadasIds.includes(f.id));
-  }, [funcoesCadastradas, funcoesAssociadas]);
-
-  // Dados para a tabela de funções
-  const dadosTabelaFuncoes = useMemo(() => {
-    return funcoesAssociadas.map((fa) => {
-      const funcao = funcoesCadastradas.find((f) => f.id === fa.funcaoId);
-      return {
-        id: fa.id,
-        funcaoId: fa.funcaoId,
-        nome: funcao?.nome || 'Função não encontrada',
-        codigoExterno: funcao?.codigo_externo || '-',
-        descricao: funcao?.descricao || '-',
-        dataAssociacao: fa.dataAssociacao,
-      };
-    });
+    const associadasIds = funcoesAssociadas.map((item) => item.funcaoId);
+    return funcoesCadastradas.filter((funcao) => !associadasIds.includes(funcao.id));
   }, [funcoesAssociadas, funcoesCadastradas]);
+
+  const dadosTabelaFuncoes = useMemo(
+    () =>
+      funcoesAssociadas.map((associacao) => {
+        const funcao = funcoesCadastradas.find((item) => item.id === associacao.funcaoId);
+        return {
+          id: associacao.id,
+          funcaoId: associacao.funcaoId,
+          nome: funcao?.nome || 'Funcao nao encontrada',
+          codigoExterno: funcao?.codigo_externo || '-',
+          descricao: funcao?.descricao || '-',
+          dataAssociacao: associacao.dataAssociacao,
+        };
+      }),
+    [funcoesAssociadas, funcoesCadastradas],
+  );
 
   const handleAssociarFuncao = async () => {
     if (!selectedFuncaoId) {
-      toast({ title: 'Atenção', description: 'Selecione uma função para associar.', variant: 'destructive' });
+      toast({
+        title: 'Atencao',
+        description: 'Selecione uma funcao para associar.',
+        variant: 'destructive',
+      });
       return;
     }
 
     if (!data?.id) {
-      toast({ title: 'Atenção', description: 'Salve o departamento antes de associar funções.', variant: 'destructive' });
+      toast({
+        title: 'Atencao',
+        description: 'Salve o departamento antes de associar funcoes.',
+        variant: 'destructive',
+      });
       return;
     }
 
     try {
-      const { data: insertedData, error } = await supabase
-        .from('departamento_funcoes')
-        .insert({
-          departamento_id: data.id,
-          funcao_id: selectedFuncaoId,
-        })
-        .select()
-        .single();
+      await apiRepository.addFuncao(data.id, selectedFuncaoId);
+      await fetchFuncoesAssociadas(data.id);
 
-      if (error) throw error;
-
-      const novaAssociacao: DepartamentoFuncao = {
-        id: insertedData.id,
-        funcaoId: insertedData.funcao_id,
-        dataAssociacao: new Date().toLocaleDateString('pt-BR'),
-      };
-
-      setFuncoesAssociadas([...funcoesAssociadas, novaAssociacao]);
-      toast({ title: 'Sucesso', description: 'Função associada com sucesso!' });
+      toast({ title: 'Sucesso', description: 'Funcao associada com sucesso!' });
       setSelectedFuncaoId('');
       setIsAddingFuncao(false);
     } catch (err) {
-      console.error('Erro ao associar função:', err);
-      toast({ title: 'Erro', description: 'Erro ao associar função.', variant: 'destructive' });
+      console.error('Erro ao associar funcao:', err);
+      toast({ title: 'Erro', description: 'Erro ao associar funcao.', variant: 'destructive' });
     }
   };
 
   const handleRemoverFuncao = async (id: string) => {
     if (!data?.id) return;
-    if (!confirm('Tem certeza que deseja remover esta associação?')) return;
+    if (!confirm('Tem certeza que deseja remover esta associacao?')) return;
 
     try {
-      const { error } = await supabase
-        .from('departamento_funcoes')
-        .delete()
-        .eq('id', id);
+      await apiRepository.removeFuncao(data.id, id);
+      await fetchFuncoesAssociadas(data.id);
 
-      if (error) throw error;
-
-      setFuncoesAssociadas(funcoesAssociadas.filter((fa) => fa.id !== id));
-      toast({ title: 'Removido', description: 'Associação removida com sucesso!' });
+      toast({ title: 'Removido', description: 'Associacao removida com sucesso!' });
     } catch (err) {
-      console.error('Erro ao remover associação:', err);
-      toast({ title: 'Erro', description: 'Erro ao remover associação.', variant: 'destructive' });
+      console.error('Erro ao remover associacao:', err);
+      toast({ title: 'Erro', description: 'Erro ao remover associacao.', variant: 'destructive' });
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+
     if (!formData.nome.trim()) {
-      toast({ title: 'Erro', description: 'Nome é obrigatório.', variant: 'destructive' });
+      toast({ title: 'Erro', description: 'Nome e obrigatorio.', variant: 'destructive' });
       return;
     }
 
-    onSave({
+    await onSave({
       ...formData,
       id: data?.id || crypto.randomUUID(),
       dataCadastro: data?.dataCadastro || new Date().toLocaleDateString('pt-BR'),
@@ -233,16 +233,16 @@ export const DepartamentoFormModal = ({
     onClose();
   };
 
-  const columnsFuncoes: Column<typeof dadosTabelaFuncoes[0] & { actions?: never }>[] = [
+  const columnsFuncoes: Column<(typeof dadosTabelaFuncoes)[number] & { actions?: never }>[] = [
     {
       key: 'codigoExterno',
-      label: 'Código',
+      label: 'Codigo',
       className: 'w-24',
       render: (item) => <span className="font-mono text-sm">{item.codigoExterno}</span>,
     },
     {
       key: 'nome',
-      label: 'Função',
+      label: 'Funcao',
       render: (item) => (
         <div className="flex items-center gap-2">
           <Briefcase className="h-4 w-4 text-primary" />
@@ -252,7 +252,7 @@ export const DepartamentoFormModal = ({
     },
     {
       key: 'descricao',
-      label: 'Descrição',
+      label: 'Descricao',
       className: 'hidden md:table-cell',
       render: (item) => (
         <span className="text-muted-foreground max-w-xs truncate block">{item.descricao}</span>
@@ -260,12 +260,12 @@ export const DepartamentoFormModal = ({
     },
     {
       key: 'dataAssociacao',
-      label: 'Data Associação',
+      label: 'Data Associacao',
       className: 'w-32',
     },
     {
       key: 'actions',
-      label: 'Ações',
+      label: 'Acoes',
       className: 'w-20 text-right',
       sortable: false,
       render: (item) => (
@@ -275,7 +275,8 @@ export const DepartamentoFormModal = ({
             size="icon"
             variant="ghost"
             className="h-7 w-7 text-destructive hover:text-destructive"
-            onClick={() => handleRemoverFuncao(item.id)}
+            onClick={() => void handleRemoverFuncao(item.id)}
+            disabled={readOnly}
           >
             <Trash2 className="w-3.5 h-3.5" />
           </Button>
@@ -289,31 +290,35 @@ export const DepartamentoFormModal = ({
       <DialogContent className="w-[900px] max-w-[900px] max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{data ? 'Editar Departamento' : 'Novo Departamento'}</DialogTitle>
-          <DialogDescription>
-            {data ? 'Editar' : 'Cadastrar'} departamento.
-          </DialogDescription>
+          <DialogDescription>{data ? 'Editar' : 'Cadastrar'} departamento.</DialogDescription>
         </DialogHeader>
-        
-        <form onSubmit={handleSubmit} className="space-y-4">
+
+        <form onSubmit={(event) => void handleSubmit(event)} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="codigoExterno">{t('common.externalCode')}</Label>
               <Input
                 id="codigoExterno"
                 value={formData.codigoExterno}
-                onChange={(e) => setFormData({ ...formData, codigoExterno: e.target.value })}
+                onChange={(event) =>
+                  setFormData({ ...formData, codigoExterno: event.target.value })
+                }
                 maxLength={10}
                 placeholder={t('common.maxChars')}
+                disabled={readOnly}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="nome">{t('common.name')} <span className="text-destructive">*</span></Label>
+              <Label htmlFor="nome">
+                {t('common.name')} <span className="text-destructive">*</span>
+              </Label>
               <Input
                 id="nome"
                 value={formData.nome}
-                onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
+                onChange={(event) => setFormData({ ...formData, nome: event.target.value })}
                 maxLength={100}
                 required
+                disabled={readOnly}
               />
             </div>
           </div>
@@ -322,42 +327,41 @@ export const DepartamentoFormModal = ({
             <Textarea
               id="descricao"
               value={formData.descricao}
-              onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
+              onChange={(event) => setFormData({ ...formData, descricao: event.target.value })}
               rows={3}
+              disabled={readOnly}
             />
           </div>
 
-          {/* Tabs - apenas visíveis ao editar */}
           {data && (
             <div className="pt-4 border-t">
               <Tabs defaultValue="funcoes" className="w-full">
                 <TabsList>
                   <TabsTrigger value="funcoes" className="gap-2">
                     <Briefcase className="h-4 w-4" />
-                    Funções
+                    Funcoes
                   </TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="funcoes" className="mt-4">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold">Funções Associadas</h3>
+                    <h3 className="text-lg font-semibold">Funcoes Associadas</h3>
                     <Button
                       type="button"
                       size="sm"
                       onClick={() => setIsAddingFuncao(true)}
-                      disabled={funcoesDisponiveis.length === 0 || isLoadingFuncoes}
+                      disabled={readOnly || funcoesDisponiveis.length === 0 || isLoadingFuncoes}
                     >
                       <Plus className="h-4 w-4 mr-2" />
-                      Associar Função
+                      Associar Funcao
                     </Button>
                   </div>
 
-                  {/* Formulário para adicionar função */}
                   {isAddingFuncao && (
                     <div className="flex gap-2 mb-4 p-3 border rounded-lg bg-muted/30">
                       <Select value={selectedFuncaoId} onValueChange={setSelectedFuncaoId}>
                         <SelectTrigger className="flex-1">
-                          <SelectValue placeholder="Selecione uma função..." />
+                          <SelectValue placeholder="Selecione uma funcao..." />
                         </SelectTrigger>
                         <SelectContent>
                           {funcoesDisponiveis.map((funcao) => (
@@ -367,13 +371,21 @@ export const DepartamentoFormModal = ({
                           ))}
                         </SelectContent>
                       </Select>
-                      <Button type="button" onClick={handleAssociarFuncao} disabled={!selectedFuncaoId}>
+                      <Button
+                        type="button"
+                        onClick={() => void handleAssociarFuncao()}
+                        disabled={!selectedFuncaoId}
+                      >
                         Adicionar
                       </Button>
-                      <Button type="button" variant="outline" onClick={() => {
-                        setIsAddingFuncao(false);
-                        setSelectedFuncaoId('');
-                      }}>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          setIsAddingFuncao(false);
+                          setSelectedFuncaoId('');
+                        }}
+                      >
                         Cancelar
                       </Button>
                     </div>
@@ -386,9 +398,9 @@ export const DepartamentoFormModal = ({
                   ) : dadosTabelaFuncoes.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-8 text-center border rounded-lg bg-muted/20">
                       <Briefcase className="h-10 w-10 text-muted-foreground/50 mb-3" />
-                      <p className="text-muted-foreground">Nenhuma função associada.</p>
+                      <p className="text-muted-foreground">Nenhuma funcao associada.</p>
                       <p className="text-sm text-muted-foreground mt-1">
-                        Clique em "Associar Função" para adicionar.
+                        Clique em "Associar Funcao" para adicionar.
                       </p>
                     </div>
                   ) : (

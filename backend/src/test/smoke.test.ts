@@ -5,7 +5,14 @@ import { hashPassword } from '../lib/security/password.js';
 import type { AuthRepository, LoginUserRecord, RefreshTokenRecord } from '../modules/auth/auth.repository.js';
 import { AuthService } from '../modules/auth/auth.service.js';
 import type { TenantValidation } from '../modules/auth/auth.types.js';
-import type { GravacaoRecord, GravacoesRepository, SaveGravacaoInput } from '../modules/gravacoes/gravacoes.repository.js';
+import type {
+  GravacaoConvidadoRecord,
+  GravacaoFigurinoRecord,
+  GravacaoRecord,
+  GravacaoTerceiroRecord,
+  GravacoesRepository,
+  SaveGravacaoInput,
+} from '../modules/gravacoes/gravacoes.repository.js';
 import { GravacoesService } from '../modules/gravacoes/gravacoes.service.js';
 import type { ProgramasRepository, ProgramaRecord, SaveProgramaInput } from '../modules/programas/programas.repository.js';
 import { ProgramasService } from '../modules/programas/programas.service.js';
@@ -45,6 +52,19 @@ class InMemoryGravacoesRepository implements GravacoesRepository {
   async findById(id: string) { return this.items.get(id) ?? null; }
   async save(input: SaveGravacaoInput) { const item: GravacaoRecord = { id: input.id ?? crypto.randomUUID(), tenantId: input.tenantId, codigo: input.codigo, codigoExterno: input.codigoExterno ?? null, nome: input.nome, descricao: input.descricao ?? null, unidadeNegocioId: input.unidadeNegocioId ?? null, unidadeNegocioNome: 'Unidade A', centroLucro: input.centroLucro ?? null, classificacao: input.classificacao ?? null, tipoConteudo: input.tipoConteudo ?? null, status: input.status ?? null, dataPrevista: input.dataPrevista ?? null, conteudoId: input.conteudoId ?? null, orcamento: input.orcamento ?? 0, programaId: input.programaId ?? null, programaNome: input.programaId ? 'Programa Smoke' : null, createdAt: new Date('2026-03-25T12:00:00.000Z') }; this.items.set(item.id, item); return item; }
   async remove(id: string) { this.items.delete(id); }
+  async listFigurinos() { return { figurinos: [], items: [] }; }
+  async addFigurino(): Promise<GravacaoFigurinoRecord> { throw new Error('Not implemented in test double'); }
+  async updateFigurino() { return null; }
+  async findFigurinoAllocationById() { return null; }
+  async removeFigurino() {}
+  async listTerceiros() { return { items: [], fornecedores: [], servicos: [], moeda: 'BRL' }; }
+  async addTerceiro(): Promise<GravacaoTerceiroRecord> { throw new Error('Not implemented in test double'); }
+  async findTerceiroById() { return null; }
+  async removeTerceiro() {}
+  async listConvidados() { return { pessoas: [], items: [] }; }
+  async addConvidado(): Promise<GravacaoConvidadoRecord> { throw new Error('Not implemented in test double'); }
+  async findConvidadoById() { return null; }
+  async removeConvidado() {}
 }
 
 describe('api smoke', () => {
@@ -90,4 +110,3 @@ describe('api smoke', () => {
     await app.close();
   });
 });
-

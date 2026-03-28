@@ -1,5 +1,3 @@
-import type { SupabaseClient } from '@supabase/supabase-js';
-import { supabase } from '@/integrations/supabase/client';
 import type { Conteudo, ConteudoFormOptions, ConteudoInput } from './conteudos.types';
 
 type ConteudoRow = {
@@ -69,8 +67,23 @@ export interface ConteudosRepository {
   listOptions(unidadeIds?: string[]): Promise<ConteudoFormOptions>;
 }
 
+type LegacyClient = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  from: (table: string) => any;
+};
+
+function createDisabledLegacyClient(): LegacyClient {
+  return {
+    from: () => {
+      throw new Error(
+        'O repositório legado de conteúdos via Supabase foi desativado. Use a API local.',
+      );
+    },
+  };
+}
+
 export class SupabaseConteudosRepository implements ConteudosRepository {
-  constructor(private readonly client: SupabaseClient = supabase) {}
+  constructor(private readonly client: LegacyClient = createDisabledLegacyClient()) {}
 
   async list(): Promise<Conteudo[]> {
     const { data, error } = await this.client

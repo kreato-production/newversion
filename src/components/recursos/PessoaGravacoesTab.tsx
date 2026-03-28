@@ -1,19 +1,20 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { format, parseISO } from 'date-fns';
-import { supabase } from '@/integrations/supabase/client';
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Video } from 'lucide-react';
+import { pessoasRepository } from '@/modules/pessoas/pessoas.repository.provider';
+import type { GravacaoParticipacao } from '@/modules/pessoas/pessoas.types';
 
 interface PessoaGravacoesTabProps {
   pessoaId: string;
-}
-
-interface GravacaoParticipacao {
-  id: string;
-  codigo: string;
-  nome: string;
-  data_prevista: string | null;
 }
 
 export const PessoaGravacoesTab = ({ pessoaId }: PessoaGravacoesTabProps) => {
@@ -24,54 +25,26 @@ export const PessoaGravacoesTab = ({ pessoaId }: PessoaGravacoesTabProps) => {
     const fetchGravacoes = async () => {
       setLoading(true);
       try {
-        // Get recordings where the person is in the cast (gravacao_elenco)
-        const { data: elencoData } = await supabase
-          .from('gravacao_elenco')
-          .select('gravacao_id')
-          .eq('pessoa_id', pessoaId)
-          .not('gravacao_id', 'is', null);
-
-        // Get recordings where the person is a guest (gravacao_convidados)
-        const { data: convidadosData } = await supabase
-          .from('gravacao_convidados')
-          .select('gravacao_id')
-          .eq('pessoa_id', pessoaId);
-
-        // Combine unique gravacao IDs
-        const elencoIds = (elencoData || []).map(e => e.gravacao_id).filter(Boolean) as string[];
-        const convidadosIds = (convidadosData || []).map(c => c.gravacao_id);
-        const allIds = [...new Set([...elencoIds, ...convidadosIds])];
-
-        if (allIds.length === 0) {
-          setGravacoes([]);
-          setLoading(false);
-          return;
-        }
-
-        // Fetch the recordings details
-        const { data: gravacoesData } = await supabase
-          .from('gravacoes')
-          .select('id, codigo, nome, data_prevista')
-          .in('id', allIds)
-          .order('data_prevista', { ascending: false, nullsFirst: false });
-
-        setGravacoes(gravacoesData || []);
+        setGravacoes(await pessoasRepository.listGravacoes(pessoaId));
       } catch (error) {
-        console.error('Error fetching gravacoes:', error);
+        console.error('Error fetching gravacoes da pessoa:', error);
+        setGravacoes([]);
       } finally {
         setLoading(false);
       }
     };
 
     if (pessoaId) {
-      fetchGravacoes();
+      void fetchGravacoes();
     }
   }, [pessoaId]);
 
   const formatDate = (dateStr: string | null) => {
-    if (!dateStr) return '-';
+    if (!dateStr) {
+      return '-';
+    }
+
     try {
-      // Check if it's ISO format
       if (/^\d{4}-\d{2}-\d{2}/.test(dateStr)) {
         return format(parseISO(dateStr), 'dd/MM/yyyy');
       }
@@ -115,7 +88,7 @@ export const PessoaGravacoesTab = ({ pessoaId }: PessoaGravacoesTabProps) => {
             <TableRow key={gravacao.id}>
               <TableCell className="font-mono">{gravacao.codigo}</TableCell>
               <TableCell>{gravacao.nome}</TableCell>
-              <TableCell>{formatDate(gravacao.data_prevista)}</TableCell>
+              <TableCell>{formatDate(gravacao.dataPrevista)}</TableCell>
             </TableRow>
           ))}
         </TableBody>

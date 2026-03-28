@@ -20,9 +20,9 @@ export const BackendGravacaoList = () => {
   const { user, session } = useAuth();
   const { canIncluir, canAlterar, canExcluir } = usePermissions();
 
-  const podeIncluir = canIncluir('Produção', 'Gravação');
-  const podeAlterar = canAlterar('Produção', 'Gravação');
-  const podeExcluir = canExcluir('Produção', 'Gravação');
+  const podeIncluir = canIncluir('ProduÃ§Ã£o', 'GravaÃ§Ã£o');
+  const podeAlterar = canAlterar('ProduÃ§Ã£o', 'GravaÃ§Ã£o');
+  const podeExcluir = canExcluir('ProduÃ§Ã£o', 'GravaÃ§Ã£o');
 
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -43,7 +43,7 @@ export const BackendGravacaoList = () => {
       console.error('Error fetching gravacoes from backend:', error);
       toast({
         title: t('common.error'),
-        description: `Erro ao carregar gravações: ${(error as Error).message}`,
+        description: `Erro ao carregar gravaÃ§Ãµes: ${(error as Error).message}`,
         variant: 'destructive',
       });
     } finally {
@@ -60,7 +60,7 @@ export const BackendGravacaoList = () => {
       await gravacoesRepository.save(input, user?.id);
       toast({
         title: t('common.success'),
-        description: editingItem ? 'Gravação atualizada!' : 'Gravação criada!',
+        description: editingItem ? 'GravaÃ§Ã£o atualizada!' : 'GravaÃ§Ã£o criada!',
       });
       await fetchData();
       setEditingItem(null);
@@ -71,6 +71,7 @@ export const BackendGravacaoList = () => {
         description: `Erro ao salvar: ${(error as Error).message}`,
         variant: 'destructive',
       });
+      throw error;
     }
   };
 
@@ -79,7 +80,7 @@ export const BackendGravacaoList = () => {
 
     try {
       await gravacoesRepository.remove(id);
-      toast({ title: t('common.deleted'), description: 'Gravação excluída!' });
+      toast({ title: t('common.deleted'), description: 'GravaÃ§Ã£o excluÃ­da!' });
       await fetchData();
     } catch (error) {
       console.error('Error deleting gravacao from backend:', error);
@@ -91,10 +92,11 @@ export const BackendGravacaoList = () => {
     }
   };
 
-  const filteredItems = items.filter((item) =>
-    item.nome.toLowerCase().includes(search.toLowerCase())
-    || item.codigo.toLowerCase().includes(search.toLowerCase())
-    || item.codigoExterno.toLowerCase().includes(search.toLowerCase()),
+  const filteredItems = items.filter(
+    (item) =>
+      item.nome.toLowerCase().includes(search.toLowerCase()) ||
+      item.codigo.toLowerCase().includes(search.toLowerCase()) ||
+      item.codigoExterno.toLowerCase().includes(search.toLowerCase()),
   );
 
   const columns: Column<Gravacao>[] = [
@@ -102,7 +104,9 @@ export const BackendGravacaoList = () => {
       key: 'codigo',
       label: t('common.code'),
       className: 'w-32',
-      render: (item) => <span className="font-mono text-sm font-medium text-primary">{item.codigo || '-'}</span>,
+      render: (item) => (
+        <span className="font-mono text-sm font-medium text-primary">{item.codigo || '-'}</span>
+      ),
     },
     {
       key: 'nome',
@@ -122,13 +126,18 @@ export const BackendGravacaoList = () => {
     {
       key: 'status',
       label: t('common.status'),
-      render: (item) => <Badge className="bg-muted text-muted-foreground">{item.status || t('common.none')}</Badge>,
+      render: (item) => (
+        <Badge className="bg-muted text-muted-foreground">{item.status || t('common.none')}</Badge>
+      ),
     },
     {
       key: 'dataPrevista',
       label: t('recordings.expectedDate'),
       className: 'w-32',
-      render: (item) => item.dataPrevista ? new Date(`${item.dataPrevista}T00:00:00`).toLocaleDateString('pt-BR') : '-',
+      render: (item) =>
+        item.dataPrevista
+          ? new Date(`${item.dataPrevista}T00:00:00`).toLocaleDateString('pt-BR')
+          : '-',
     },
     {
       key: 'acoes',
@@ -137,11 +146,23 @@ export const BackendGravacaoList = () => {
       sortable: false,
       render: (item) => (
         <div className="flex justify-end gap-1">
-          <Button size="icon" variant="ghost" onClick={() => { setEditingItem(item); setIsModalOpen(true); }}>
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={() => {
+              setEditingItem(item);
+              setIsModalOpen(true);
+            }}
+          >
             <Edit className="w-4 h-4" />
           </Button>
           {podeExcluir && (
-            <Button size="icon" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => handleDelete(item.id)}>
+            <Button
+              size="icon"
+              variant="ghost"
+              className="text-destructive hover:text-destructive"
+              onClick={() => handleDelete(item.id)}
+            >
               <Trash2 className="w-4 h-4" />
             </Button>
           )}
@@ -151,14 +172,29 @@ export const BackendGravacaoList = () => {
   ];
 
   if (isLoading) {
-    return <div className="flex items-center justify-center h-64"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
   }
 
   return (
     <div>
-      <PageHeader title={t('recordings.title')} description="Fluxo principal de gravações migrado para a API própria." />
+      <PageHeader
+        title={t('recordings.title')}
+        description="Fluxo principal de gravaÃ§Ãµes migrado para a API prÃ³pria."
+      />
       <ListActionBar>
-        {podeIncluir && <NewButton tooltip={t('recordings.new')} onClick={() => { setEditingItem(null); setIsModalOpen(true); }} />}
+        {podeIncluir && (
+          <NewButton
+            tooltip={t('recordings.new')}
+            onClick={() => {
+              setEditingItem(null);
+              setIsModalOpen(true);
+            }}
+          />
+        )}
         <div className="flex-1" />
         <SearchBar value={search} onChange={setSearch} placeholder={t('common.search')} />
       </ListActionBar>
@@ -166,18 +202,26 @@ export const BackendGravacaoList = () => {
         {filteredItems.length === 0 ? (
           <EmptyState
             title={t('recordings.empty')}
-            description="Adicione uma gravação usando o backend próprio."
+            description="Adicione uma gravaÃ§Ã£o usando o backend prÃ³prio."
             icon={Video}
             onAction={() => setIsModalOpen(true)}
             actionLabel={t('recordings.new')}
           />
         ) : (
-          <SortableTable data={filteredItems} columns={columns} getRowKey={(item) => item.id} storageKey="kreato_gravacoes_backend_table" />
+          <SortableTable
+            data={filteredItems}
+            columns={columns}
+            getRowKey={(item) => item.id}
+            storageKey="kreato_gravacoes_backend_table"
+          />
         )}
       </DataCard>
       <GravacaoBackendFormModal
         isOpen={isModalOpen}
-        onClose={() => { setIsModalOpen(false); setEditingItem(null); }}
+        onClose={() => {
+          setIsModalOpen(false);
+          setEditingItem(null);
+        }}
         onSave={handleSave}
         data={editingItem}
         readOnly={!!editingItem && !podeAlterar}

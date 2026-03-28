@@ -1,6 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,8 +17,8 @@ import { Edit, Trash2, Plus, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
 import type { CategoriaIncidencia } from '@/pages/producao/CategoriasIncidencia';
+import { ApiParametrizacoesRepository } from '@/modules/parametrizacoes/parametrizacoes.api.repository';
 
 interface ClassificacaoIncidencia {
   id: string;
@@ -28,12 +33,20 @@ interface ClassificacaoIncidencia {
 interface Props {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (data: any) => void;
+  onSave: (data: Record<string, unknown>) => Promise<void>;
   data?: CategoriaIncidencia | null;
   readOnly?: boolean;
 }
 
-export const CategoriaIncidenciaFormModal = ({ isOpen, onClose, onSave, data, readOnly = false }: Props) => {
+const repository = new ApiParametrizacoesRepository();
+
+export const CategoriaIncidenciaFormModal = ({
+  isOpen,
+  onClose,
+  onSave,
+  data,
+  readOnly = false,
+}: Props) => {
   const { user } = useAuth();
   const { t } = useLanguage();
   const { toast } = useToast();
@@ -62,16 +75,24 @@ export const CategoriaIncidenciaFormModal = ({ isOpen, onClose, onSave, data, re
   }, [data, isOpen]);
 
   const fetchClassificacoes = useCallback(async () => {
-    if (!data?.id) { setClassificacoes([]); return; }
+    if (!data?.id) {
+      setClassificacoes([]);
+      return;
+    }
     setLoadingClassif(true);
     try {
-      const { data: items, error } = await (supabase as any)
-        .from('classificacoes_incidencia')
-        .select('*')
-        .eq('categoria_incidencia_id', data.id)
-        .order('titulo');
-      if (error) throw error;
-      setClassificacoes(items || []);
+      const response = await repository.listClassificacoesIncidencia(data.id);
+      setClassificacoes(
+        response.data.map((item) => ({
+          id: item.id,
+          categoria_incidencia_id: data.id,
+          codigo_externo: item.codigo_externo || null,
+          titulo: item.titulo,
+          descricao: item.descricao || null,
+          created_by: item.created_by || null,
+          created_at: item.created_at || null,
+        })),
+      );
     } catch (err) {
       console.error(err);
     } finally {
@@ -83,12 +104,16 @@ export const CategoriaIncidenciaFormModal = ({ isOpen, onClose, onSave, data, re
     if (isOpen && data?.id) fetchClassificacoes();
   }, [isOpen, data?.id, fetchClassificacoes]);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!formData.titulo.trim()) {
-      toast({ title: t('common.error'), description: t('incidentCategory.titleRequired'), variant: 'destructive' });
+      toast({
+        title: t('common.error'),
+        description: t('incidentCategory.titleRequired'),
+        variant: 'destructive',
+      });
       return;
     }
-    onSave(formData);
+    await onSave(formData);
     onClose();
   };
 
@@ -97,88 +122,162 @@ export const CategoriaIncidenciaFormModal = ({ isOpen, onClose, onSave, data, re
     if (!classifForm.titulo.trim() || !data?.id) return;
     try {
       const payload = {
-        categoria_incidencia_id: data.id,
         titulo: classifForm.titulo,
         descricao: classifForm.descricao || null,
         codigo_externo: classifForm.codigo_externo || null,
-        created_by: user?.id || null,
       };
-      if (editingClassif) {
-        const { error } = await (supabase as any).from('classificacoes_incidencia').update(payload).eq('id', editingClassif.id);
-        if (error) throw error;
-      } else {
-        const { error } = await (supabase as any).from('classificacoes_incidencia').insert(payload);
-        if (error) throw error;
-      }
+
+      await repository.saveClassificacaoIncidencia(data.id, {
+        ...(editingClassif ? { id: editingClassif.id } : {}),
+        titulo: payload.titulo,
+        descricao: payload.descricao || '',
+        codigo_externo: payload.codigo_externo || '',
+      });
       await fetchClassificacoes();
       setShowClassifForm(false);
       setEditingClassif(null);
       setClassifForm({ codigo_externo: '', titulo: '', descricao: '' });
     } catch (err) {
-      toast({ title: t('common.error'), description: (err as Error).message, variant: 'destructive' });
+      toast({
+        title: t('common.error'),
+        description: (err as Error).message,
+        variant: 'destructive',
+      });
     }
   };
 
   const handleDeleteClassif = async (id: string) => {
     if (!confirm(t('common.confirm.delete'))) return;
     try {
-      const { error } = await (supabase as any).from('classificacoes_incidencia').delete().eq('id', id);
-      if (error) throw error;
+      if (!data?.id) return;
+      await repository.removeClassificacaoIncidencia(data.id, id);
       await fetchClassificacoes();
     } catch (err) {
-      toast({ title: t('common.error'), description: (err as Error).message, variant: 'destructive' });
+      toast({
+        title: t('common.error'),
+        description: (err as Error).message,
+        variant: 'destructive',
+      });
     }
   };
 
   const handleEditClassif = (item: ClassificacaoIncidencia) => {
     setEditingClassif(item);
-    setClassifForm({ codigo_externo: item.codigo_externo || '', titulo: item.titulo, descricao: item.descricao || '' });
+    setClassifForm({
+      codigo_externo: item.codigo_externo || '',
+      titulo: item.titulo,
+      descricao: item.descricao || '',
+    });
     setShowClassifForm(true);
   };
 
   const classifColumns: Column<ClassificacaoIncidencia & { actions?: never }>[] = [
-    { key: 'codigo_externo', label: t('common.externalCode'), className: 'w-24', render: (item) => <span className="font-mono text-sm">{item.codigo_externo || '-'}</span> },
-    { key: 'titulo', label: t('incidentCategory.title'), render: (item) => <span className="font-medium">{item.titulo}</span> },
-    { key: 'descricao', label: t('common.description'), className: 'hidden md:table-cell', render: (item) => <span className="text-muted-foreground max-w-xs truncate block">{item.descricao || '-'}</span> },
     {
-      key: 'actions', label: t('common.actions'), className: 'w-24 text-right', sortable: false,
-      render: (item) => readOnly ? null : (
-        <div className="flex justify-end gap-1">
-          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => handleEditClassif(item)}><Edit className="w-3.5 h-3.5" /></Button>
-          <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => handleDeleteClassif(item.id)}><Trash2 className="w-3.5 h-3.5" /></Button>
-        </div>
+      key: 'codigo_externo',
+      label: t('common.externalCode'),
+      className: 'w-24',
+      render: (item) => <span className="font-mono text-sm">{item.codigo_externo || '-'}</span>,
+    },
+    {
+      key: 'titulo',
+      label: t('incidentCategory.title'),
+      render: (item) => <span className="font-medium">{item.titulo}</span>,
+    },
+    {
+      key: 'descricao',
+      label: t('common.description'),
+      className: 'hidden md:table-cell',
+      render: (item) => (
+        <span className="text-muted-foreground max-w-xs truncate block">
+          {item.descricao || '-'}
+        </span>
       ),
+    },
+    {
+      key: 'actions',
+      label: t('common.actions'),
+      className: 'w-24 text-right',
+      sortable: false,
+      render: (item) =>
+        readOnly ? null : (
+          <div className="flex justify-end gap-1">
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-7 w-7"
+              onClick={() => handleEditClassif(item)}
+            >
+              <Edit className="w-3.5 h-3.5" />
+            </Button>
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-7 w-7 text-destructive hover:text-destructive"
+              onClick={() => handleDeleteClassif(item.id)}
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </Button>
+          </div>
+        ),
     },
   ];
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{data ? (readOnly ? t('common.view') : t('common.edit')) : t('common.new')} {t('incidentCategory.entity')}</DialogTitle>
+          <DialogTitle>
+            {data ? (readOnly ? t('common.view') : t('common.edit')) : t('common.new')}{' '}
+            {t('incidentCategory.entity')}
+          </DialogTitle>
           <DialogDescription>{t('incidentCategory.formDescription')}</DialogDescription>
         </DialogHeader>
 
         <Tabs defaultValue="dados">
           <TabsList className="w-full">
-            <TabsTrigger value="dados" className="flex-1">{t('incidentCategory.tabGeneral')}</TabsTrigger>
-            {data?.id && <TabsTrigger value="classificacoes" className="flex-1">{t('incidentCategory.tabClassifications')}</TabsTrigger>}
+            <TabsTrigger value="dados" className="flex-1">
+              {t('incidentCategory.tabGeneral')}
+            </TabsTrigger>
+            {data?.id && (
+              <TabsTrigger value="classificacoes" className="flex-1">
+                {t('incidentCategory.tabClassifications')}
+              </TabsTrigger>
+            )}
           </TabsList>
 
           <TabsContent value="dados" className="space-y-4 mt-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>{t('common.externalCode')}</Label>
-                <Input maxLength={10} value={formData.codigo_externo} onChange={(e) => setFormData({ ...formData, codigo_externo: e.target.value })} disabled={readOnly} />
+                <Input
+                  maxLength={10}
+                  value={formData.codigo_externo}
+                  onChange={(e) => setFormData({ ...formData, codigo_externo: e.target.value })}
+                  disabled={readOnly}
+                />
               </div>
               <div className="space-y-2">
                 <Label>{t('incidentCategory.title')} *</Label>
-                <Input value={formData.titulo} onChange={(e) => setFormData({ ...formData, titulo: e.target.value })} disabled={readOnly} />
+                <Input
+                  value={formData.titulo}
+                  onChange={(e) => setFormData({ ...formData, titulo: e.target.value })}
+                  disabled={readOnly}
+                />
               </div>
             </div>
             <div className="space-y-2">
               <Label>{t('common.description')}</Label>
-              <Textarea rows={3} value={formData.descricao} onChange={(e) => setFormData({ ...formData, descricao: e.target.value })} disabled={readOnly} />
+              <Textarea
+                rows={3}
+                value={formData.descricao}
+                onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
+                disabled={readOnly}
+              />
             </div>
             <div className="space-y-2">
               <Label>{t('incidentCategory.user')}</Label>
@@ -190,8 +289,16 @@ export const CategoriaIncidenciaFormModal = ({ isOpen, onClose, onSave, data, re
             <TabsContent value="classificacoes" className="mt-4 space-y-4">
               {!readOnly && (
                 <div className="flex justify-end">
-                  <Button size="sm" onClick={() => { setEditingClassif(null); setClassifForm({ codigo_externo: '', titulo: '', descricao: '' }); setShowClassifForm(true); }}>
-                    <Plus className="w-4 h-4 mr-1" /> {t('common.new')} {t('incidentCategory.classification')}
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      setEditingClassif(null);
+                      setClassifForm({ codigo_externo: '', titulo: '', descricao: '' });
+                      setShowClassifForm(true);
+                    }}
+                  >
+                    <Plus className="w-4 h-4 mr-1" /> {t('common.new')}{' '}
+                    {t('incidentCategory.classification')}
                   </Button>
                 </div>
               )}
@@ -201,38 +308,75 @@ export const CategoriaIncidenciaFormModal = ({ isOpen, onClose, onSave, data, re
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label>{t('common.externalCode')}</Label>
-                      <Input maxLength={10} value={classifForm.codigo_externo} onChange={(e) => setClassifForm({ ...classifForm, codigo_externo: e.target.value })} />
+                      <Input
+                        maxLength={10}
+                        value={classifForm.codigo_externo}
+                        onChange={(e) =>
+                          setClassifForm({ ...classifForm, codigo_externo: e.target.value })
+                        }
+                      />
                     </div>
                     <div className="space-y-2">
                       <Label>{t('incidentCategory.title')} *</Label>
-                      <Input value={classifForm.titulo} onChange={(e) => setClassifForm({ ...classifForm, titulo: e.target.value })} />
+                      <Input
+                        value={classifForm.titulo}
+                        onChange={(e) => setClassifForm({ ...classifForm, titulo: e.target.value })}
+                      />
                     </div>
                   </div>
                   <div className="space-y-2">
                     <Label>{t('common.description')}</Label>
-                    <Textarea rows={3} value={classifForm.descricao} onChange={(e) => setClassifForm({ ...classifForm, descricao: e.target.value })} />
+                    <Textarea
+                      rows={3}
+                      value={classifForm.descricao}
+                      onChange={(e) =>
+                        setClassifForm({ ...classifForm, descricao: e.target.value })
+                      }
+                    />
                   </div>
                   <div className="flex gap-2 justify-end">
-                    <Button variant="outline" size="sm" onClick={() => { setShowClassifForm(false); setEditingClassif(null); }}>{t('common.cancel')}</Button>
-                    <Button size="sm" onClick={handleSaveClassif}>{t('common.save')}</Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setShowClassifForm(false);
+                        setEditingClassif(null);
+                      }}
+                    >
+                      {t('common.cancel')}
+                    </Button>
+                    <Button size="sm" onClick={handleSaveClassif}>
+                      {t('common.save')}
+                    </Button>
                   </div>
                 </div>
               )}
 
               {loadingClassif ? (
-                <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+                <div className="flex justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
               ) : classificacoes.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-8">{t('incidentCategory.noClassifications')}</p>
+                <p className="text-sm text-muted-foreground text-center py-8">
+                  {t('incidentCategory.noClassifications')}
+                </p>
               ) : (
-                <SortableTable data={classificacoes} columns={classifColumns} getRowKey={(item) => item.id} storageKey="kreato_classif_incidencia" />
+                <SortableTable
+                  data={classificacoes}
+                  columns={classifColumns}
+                  getRowKey={(item) => item.id}
+                  storageKey="kreato_classif_incidencia"
+                />
               )}
             </TabsContent>
           )}
         </Tabs>
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>{readOnly ? t('common.close') : t('common.cancel')}</Button>
-          {!readOnly && <Button onClick={handleSubmit}>{t('common.save')}</Button>}
+          <Button variant="outline" onClick={onClose}>
+            {readOnly ? t('common.close') : t('common.cancel')}
+          </Button>
+          {!readOnly && <Button onClick={() => void handleSubmit()}>{t('common.save')}</Button>}
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -9,4 +9,4 @@ export interface UnidadeNegocio {
   usuarioCadastro: string;
 }
 
-export interface UnidadeNegocioInput extends UnidadeNegocio {}
+export type UnidadeNegocioInput = UnidadeNegocio;

@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { ProgramaFormModal } from './ProgramaFormModal';
 
-vi.mock('@/modules/unidades/unidades.repository', () => ({
+vi.mock('@/modules/unidades/unidades.repository.provider', () => ({
   unidadesRepository: {
     list: vi.fn().mockResolvedValue([]),
   },
@@ -33,13 +33,25 @@ describe('ProgramaFormModal', () => {
   });
 
   it('exibe titulo "Editar Programa" quando dados passados', async () => {
-    const programa = { id: 'p-1', codigoExterno: 'PA', nome: 'Programa A', descricao: '', unidadeNegocioId: '' };
+    const programa = {
+      id: 'p-1',
+      codigoExterno: 'PA',
+      nome: 'Programa A',
+      descricao: '',
+      unidadeNegocioId: '',
+    };
     render(<ProgramaFormModal {...defaultProps} data={programa} />);
     await waitFor(() => expect(screen.getByText('Editar Programa')).toBeInTheDocument());
   });
 
   it('preenche campo nome com dado existente', async () => {
-    const programa = { id: 'p-1', codigoExterno: '', nome: 'Programa Existente', descricao: '', unidadeNegocioId: '' };
+    const programa = {
+      id: 'p-1',
+      codigoExterno: '',
+      nome: 'Programa Existente',
+      descricao: '',
+      unidadeNegocioId: '',
+    };
     render(<ProgramaFormModal {...defaultProps} data={programa} />);
     await waitFor(() => {
       const input = screen.getByRole('textbox', { name: /common\.name/i });
@@ -74,9 +86,7 @@ describe('ProgramaFormModal', () => {
     });
     fireEvent.click(screen.getByText('common.save'));
 
-    expect(onSave).toHaveBeenCalledWith(
-      expect.objectContaining({ nome: 'Novo Programa Teste' }),
-    );
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ nome: 'Novo Programa Teste' }));
     expect(onClose).toHaveBeenCalled();
   });
 

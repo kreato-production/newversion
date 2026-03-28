@@ -10,11 +10,13 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
-import type { RecursoTecnico } from '@/pages/recursos/RecursosTecnicos';
 import { useFormFieldConfig, FieldAsterisk } from '@/hooks/useFormFieldConfig';
 import { SearchableSelect } from '@/components/shared/SearchableSelect';
+import { recursosTecnicosRepository } from '@/modules/recursos-tecnicos/recursos-tecnicos.repository.provider';
+import type {
+  RecursoTecnico,
+  RecursoTecnicoInput,
+} from '@/modules/recursos-tecnicos/recursos-tecnicos.types';
 
 interface Funcao {
   id: string;
@@ -24,7 +26,7 @@ interface Funcao {
 interface RecursoTecnicoFormModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (data: RecursoTecnico) => void;
+  onSave: (data: RecursoTecnicoInput) => Promise<void>;
   data?: RecursoTecnico | null;
   readOnly?: boolean;
 }
@@ -36,9 +38,10 @@ export const RecursoTecnicoFormModal = ({
   data,
   readOnly = false,
 }: RecursoTecnicoFormModalProps) => {
-  const { user, session } = useAuth();
   const { getAsterisk } = useFormFieldConfig('recursoTecnico');
   const [funcoes, setFuncoes] = useState<Funcao[]>([]);
+  const [isLoadingFuncoes, setIsLoadingFuncoes] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     codigoExterno: data?.codigoExterno || '',
     nome: data?.nome || '',
@@ -47,16 +50,22 @@ export const RecursoTecnicoFormModal = ({
   });
 
   const fetchFuncoes = useCallback(async () => {
-    if (!session) return;
-    const { data: funcoesData } = await supabase
-      .from('funcoes')
-      .select('id, nome')
-      .order('nome');
-    setFuncoes(funcoesData || []);
-  }, [session]);
+    setIsLoadingFuncoes(true);
+    try {
+      const response = await recursosTecnicosRepository.listOptions();
+      setFuncoes(response.funcoes || []);
+    } finally {
+      setIsLoadingFuncoes(false);
+    }
+  }, []);
 
   useEffect(() => {
-    if (isOpen) fetchFuncoes();
+    if (isOpen) {
+      fetchFuncoes().catch((error) => {
+        console.error('Error fetching funcoes do recurso tecnico:', error);
+        setFuncoes([]);
+      });
+    }
   }, [isOpen, fetchFuncoes]);
 
   useEffect(() => {
@@ -70,77 +79,94 @@ export const RecursoTecnicoFormModal = ({
     }
   }, [isOpen, data]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onSave({
-      id: data?.id || crypto.randomUUID(),
-      codigoExterno: formData.codigoExterno,
-      nome: formData.nome,
-      funcaoOperador: formData.funcaoOperador,
-      funcaoOperadorId: formData.funcaoOperadorId || undefined,
-      dataCadastro: data?.dataCadastro || new Date().toLocaleDateString('pt-BR'),
-      usuarioCadastro: data?.usuarioCadastro || user?.nome || 'Admin',
-    });
-    setFormData({ codigoExterno: '', nome: '', funcaoOperador: '', funcaoOperadorId: '' });
-    onClose();
+
+    try {
+      setIsSubmitting(true);
+      await onSave({
+        id: data?.id,
+        codigoExterno: formData.codigoExterno,
+        nome: formData.nome,
+        funcaoOperador: formData.funcaoOperador,
+        funcaoOperadorId: formData.funcaoOperadorId || undefined,
+      });
+      setFormData({ codigoExterno: '', nome: '', funcaoOperador: '', funcaoOperadorId: '' });
+      onClose();
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="w-[900px] max-w-[900px] max-h-[80vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{data ? 'Editar Recurso Técnico' : 'Novo Recurso Técnico'}</DialogTitle>
+          <DialogTitle>{data ? 'Editar Recurso Tecnico' : 'Novo Recurso Tecnico'}</DialogTitle>
           <DialogDescription>
-            Preencha os campos para {data ? 'editar' : 'cadastrar'} o recurso técnico.
+            Preencha os campos para {data ? 'editar' : 'cadastrar'} o recurso tecnico.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="codigoExterno">Código Externo <FieldAsterisk type={getAsterisk('codigoExterno')} /></Label>
+            <Label htmlFor="codigoExterno">
+              Codigo Externo <FieldAsterisk type={getAsterisk('codigoExterno')} />
+            </Label>
             <Input
               id="codigoExterno"
               value={formData.codigoExterno}
               onChange={(e) => setFormData({ ...formData, codigoExterno: e.target.value })}
               maxLength={10}
-              placeholder="Máx. 10 caracteres"
+              placeholder="Max. 10 caracteres"
+              disabled={readOnly || isSubmitting}
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="nome">Nome <FieldAsterisk type={getAsterisk('nome')} /></Label>
+            <Label htmlFor="nome">
+              Nome <FieldAsterisk type={getAsterisk('nome')} />
+            </Label>
             <Input
               id="nome"
               value={formData.nome}
               onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
               maxLength={100}
               required
+              disabled={readOnly || isSubmitting}
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="funcaoOperador">Função do Operador <FieldAsterisk type={getAsterisk('funcaoOperador')} /></Label>
+            <Label htmlFor="funcaoOperador">
+              Funcao do Operador <FieldAsterisk type={getAsterisk('funcaoOperador')} />
+            </Label>
             <SearchableSelect
-              options={funcoes.map(f => ({ value: f.id, label: f.nome }))}
+              options={funcoes.map((item) => ({ value: item.id, label: item.nome }))}
               value={formData.funcaoOperadorId}
               onValueChange={(value) => {
-                const funcaoSelecionada = funcoes.find(f => f.id === value);
-                setFormData({ 
-                  ...formData, 
+                const funcaoSelecionada = funcoes.find((item) => item.id === value);
+                setFormData({
+                  ...formData,
                   funcaoOperadorId: value,
-                  funcaoOperador: funcaoSelecionada?.nome || ''
+                  funcaoOperador: funcaoSelecionada?.nome || '',
                 });
               }}
-              placeholder="Selecione a função..."
-              searchPlaceholder="Pesquisar função..."
+              placeholder="Selecione a funcao..."
+              searchPlaceholder="Pesquisar funcao..."
+              disabled={readOnly || isSubmitting || isLoadingFuncoes}
             />
             <p className="text-xs text-muted-foreground">
-              Define qual função pode operar este recurso
+              Define qual funcao pode operar este recurso
             </p>
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>
+            <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
               {readOnly ? 'Fechar' : 'Cancelar'}
             </Button>
             {!readOnly && (
-              <Button type="submit" className="gradient-primary hover:opacity-90">
+              <Button
+                type="submit"
+                className="gradient-primary hover:opacity-90"
+                disabled={isSubmitting}
+              >
                 Salvar
               </Button>
             )}

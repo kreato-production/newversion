@@ -2,15 +2,14 @@ import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
 import { ListActionBar } from '@/components/shared/ListActionBar';
-import { SortableTable, Column } from '@/components/shared/SortableTable';
+import { SortableTable, type Column } from '@/components/shared/SortableTable';
 import { Edit, Trash2, Settings, Loader2 } from 'lucide-react';
 import { NewButton } from '@/components/shared/NewButton';
 import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { CategoriaIncidenciaFormModal } from '@/components/producao/CategoriaIncidenciaFormModal';
+import { ApiParametrizacoesRepository } from '@/modules/parametrizacoes/parametrizacoes.api.repository';
 
 export interface CategoriaIncidencia {
   id: string;
@@ -22,78 +21,100 @@ export interface CategoriaIncidencia {
   updated_at: string | null;
 }
 
+const repository = new ApiParametrizacoesRepository();
+
 const CategoriasIncidencia = () => {
   const { toast } = useToast();
   const { t } = useLanguage();
-  const { user, session } = useAuth();
-  const { canAlterar, canIncluir, canExcluir } = usePermissions();
+  const { canAlterar } = usePermissions();
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<CategoriaIncidencia | null>(null);
   const [items, setItems] = useState<CategoriaIncidencia[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const permPath = ['Produção', 'Parametrizações', 'Categorias de Incidência'] as const;
+  const permPath = ['ProduÃ§Ã£o', 'ParametrizaÃ§Ãµes', 'Categorias de IncidÃªncia'] as const;
 
   const fetchData = useCallback(async () => {
-    if (!session) { setIsLoading(false); return; }
     setIsLoading(true);
     try {
-      const { data, error } = await (supabase as any)
-        .from('categorias_incidencia')
-        .select('*')
-        .order('titulo', { ascending: true });
-      if (error) throw error;
-      setItems(data || []);
+      const response = await repository.listCategoriasIncidencia();
+      setItems(
+        response.data.map((item) => ({
+          id: item.id,
+          codigo_externo: item.codigo_externo || null,
+          titulo: item.titulo,
+          descricao: item.descricao || null,
+          created_by: item.created_by || null,
+          created_at: item.created_at || null,
+          updated_at: item.created_at || null,
+        })),
+      );
     } catch (err) {
-      toast({ title: t('common.error'), description: (err as Error).message, variant: 'destructive' });
+      toast({
+        title: t('common.error'),
+        description: (err as Error).message,
+        variant: 'destructive',
+      });
     } finally {
       setIsLoading(false);
     }
-  }, [session, toast, t]);
+  }, [toast, t]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    void fetchData();
+  }, [fetchData]);
 
   const handleDelete = async (id: string) => {
     if (!confirm(t('common.confirm.delete'))) return;
     try {
-      const { error } = await (supabase as any).from('categorias_incidencia').delete().eq('id', id);
-      if (error) throw error;
-      toast({ title: t('common.deleted'), description: `${t('incidentCategory.entity')} ${t('common.deleted').toLowerCase()}!` });
+      await repository.removeCategoriaIncidencia(id);
+      toast({
+        title: t('common.deleted'),
+        description: `${t('incidentCategory.entity')} ${t('common.deleted').toLowerCase()}!`,
+      });
       await fetchData();
     } catch (err) {
-      toast({ title: t('common.error'), description: (err as Error).message, variant: 'destructive' });
+      toast({
+        title: t('common.error'),
+        description: (err as Error).message,
+        variant: 'destructive',
+      });
     }
   };
 
-  const handleSave = async (data: any) => {
+  const handleSave = async (data: {
+    titulo: string;
+    descricao?: string;
+    codigo_externo?: string;
+  }) => {
     try {
-      const payload = {
+      await repository.saveCategoriaIncidencia({
+        ...(editingItem ? { id: editingItem.id } : {}),
         titulo: data.titulo,
-        descricao: data.descricao || null,
-        codigo_externo: data.codigo_externo || null,
-        created_by: user?.id || null,
-      };
-      if (editingItem) {
-        const { error } = await (supabase as any).from('categorias_incidencia').update(payload).eq('id', editingItem.id);
-        if (error) throw error;
-        toast({ title: t('common.success'), description: `${t('incidentCategory.entity')} ${t('common.updated').toLowerCase()}!` });
-      } else {
-        const { error } = await (supabase as any).from('categorias_incidencia').insert(payload);
-        if (error) throw error;
-        toast({ title: t('common.success'), description: `${t('incidentCategory.entity')} ${t('common.save').toLowerCase()}!` });
-      }
+        descricao: data.descricao || '',
+        codigo_externo: data.codigo_externo || '',
+      });
+      toast({
+        title: t('common.success'),
+        description: `${t('incidentCategory.entity')} ${editingItem ? t('common.updated').toLowerCase() : t('common.save').toLowerCase()}!`,
+      });
       await fetchData();
       setEditingItem(null);
     } catch (err) {
-      toast({ title: t('common.error'), description: (err as Error).message, variant: 'destructive' });
+      toast({
+        title: t('common.error'),
+        description: (err as Error).message,
+        variant: 'destructive',
+      });
+      throw err;
     }
   };
 
   const filteredItems = items.filter(
     (item) =>
-      item.titulo?.toLowerCase().includes(search.toLowerCase()) ||
-      (item.codigo_externo || '').toLowerCase().includes(search.toLowerCase())
+      item.titulo.toLowerCase().includes(search.toLowerCase()) ||
+      (item.codigo_externo || '').toLowerCase().includes(search.toLowerCase()),
   );
 
   const columns: Column<CategoriaIncidencia & { actions?: never }>[] = [
@@ -112,13 +133,18 @@ const CategoriasIncidencia = () => {
       key: 'descricao',
       label: t('common.description'),
       className: 'hidden md:table-cell',
-      render: (item) => <span className="text-muted-foreground max-w-xs truncate block">{item.descricao || '-'}</span>,
+      render: (item) => (
+        <span className="text-muted-foreground max-w-xs truncate block">
+          {item.descricao || '-'}
+        </span>
+      ),
     },
     {
       key: 'created_at',
       label: t('common.registrationDate'),
       className: 'w-32',
-      render: (item) => item.created_at ? new Date(item.created_at).toLocaleDateString('pt-BR') : '-',
+      render: (item) =>
+        item.created_at ? new Date(item.created_at).toLocaleDateString('pt-BR') : '-',
     },
     {
       key: 'actions',
@@ -127,10 +153,23 @@ const CategoriasIncidencia = () => {
       sortable: false,
       render: (item) => (
         <div className="flex justify-end gap-1">
-          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => { setEditingItem(item); setIsModalOpen(true); }}>
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-7 w-7"
+            onClick={() => {
+              setEditingItem(item);
+              setIsModalOpen(true);
+            }}
+          >
             <Edit className="w-3.5 h-3.5" />
           </Button>
-          <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => handleDelete(item.id)}>
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-7 w-7 text-destructive hover:text-destructive"
+            onClick={() => void handleDelete(item.id)}
+          >
             <Trash2 className="w-3.5 h-3.5" />
           </Button>
         </div>
@@ -148,9 +187,18 @@ const CategoriasIncidencia = () => {
 
   return (
     <div>
-      <PageHeader title={t('incidentCategory.pageTitle')} description={t('incidentCategory.pageDescription')} />
+      <PageHeader
+        title={t('incidentCategory.pageTitle')}
+        description={t('incidentCategory.pageDescription')}
+      />
       <ListActionBar>
-        <NewButton tooltip={`${t('common.new')} ${t('incidentCategory.entity')}`} onClick={() => { setEditingItem(null); setIsModalOpen(true); }} />
+        <NewButton
+          tooltip={`${t('common.new')} ${t('incidentCategory.entity')}`}
+          onClick={() => {
+            setEditingItem(null);
+            setIsModalOpen(true);
+          }}
+        />
         <div className="flex-1" />
         <SearchBar value={search} onChange={setSearch} placeholder={t('common.search')} />
       </ListActionBar>
@@ -164,12 +212,20 @@ const CategoriasIncidencia = () => {
             actionLabel={`${t('common.add')} ${t('incidentCategory.entity')}`}
           />
         ) : (
-          <SortableTable data={filteredItems} columns={columns} getRowKey={(item) => item.id} storageKey="kreato_categorias_incidencia" />
+          <SortableTable
+            data={filteredItems}
+            columns={columns}
+            getRowKey={(item) => item.id}
+            storageKey="kreato_categorias_incidencia"
+          />
         )}
       </DataCard>
       <CategoriaIncidenciaFormModal
         isOpen={isModalOpen}
-        onClose={() => { setIsModalOpen(false); setEditingItem(null); }}
+        onClose={() => {
+          setIsModalOpen(false);
+          setEditingItem(null);
+        }}
         onSave={handleSave}
         data={editingItem}
         readOnly={!!editingItem && !canAlterar(permPath[0], permPath[1], permPath[2])}

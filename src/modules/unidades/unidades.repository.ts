@@ -1,5 +1,3 @@
-import type { SupabaseClient } from '@supabase/supabase-js';
-import { supabase } from '@/integrations/supabase/client';
 import type { UnidadeNegocio } from './unidades.types';
 
 type UnidadeNegocioRow = {
@@ -46,8 +44,45 @@ export interface UnidadesRepository {
   uploadLogo(file: File, unidadeId: string): Promise<string | null>;
 }
 
+type LegacyStorageClient = {
+  from: (bucket: string) => {
+    remove: (paths: string[]) => Promise<unknown>;
+    upload: (
+      path: string,
+      file: File,
+      options?: { upsert?: boolean },
+    ) => Promise<{ error?: unknown }>;
+    getPublicUrl: (path: string) => { data: { publicUrl: string } };
+  };
+};
+
+type LegacyClient = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  from: (table: string) => any;
+  storage: LegacyStorageClient;
+};
+
+function createDisabledLegacyClient(): LegacyClient {
+  const disabled = () => {
+    throw new Error(
+      'O repositório legado de unidades via Supabase foi desativado. Use a API local.',
+    );
+  };
+
+  return {
+    from: disabled,
+    storage: {
+      from: () => ({
+        remove: async () => disabled(),
+        upload: async () => disabled(),
+        getPublicUrl: () => disabled(),
+      }),
+    },
+  };
+}
+
 export class SupabaseUnidadesRepository implements UnidadesRepository {
-  constructor(private readonly client: SupabaseClient = supabase) {}
+  constructor(private readonly client: LegacyClient = createDisabledLegacyClient()) {}
 
   async list(userName: string): Promise<UnidadeNegocio[]> {
     const { data, error } = await this.client
@@ -83,10 +118,7 @@ export class SupabaseUnidadesRepository implements UnidadesRepository {
   }
 
   async remove(id: string): Promise<void> {
-    const { error } = await this.client
-      .from('unidades_negocio')
-      .delete()
-      .eq('id', id);
+    const { error } = await this.client.from('unidades_negocio').delete().eq('id', id);
 
     if (error) throw error;
   }
@@ -106,9 +138,7 @@ export class SupabaseUnidadesRepository implements UnidadesRepository {
       return null;
     }
 
-    const { data } = this.client.storage
-      .from('unidades-negocio')
-      .getPublicUrl(filePath);
+    const { data } = this.client.storage.from('unidades-negocio').getPublicUrl(filePath);
 
     return data.publicUrl;
   }

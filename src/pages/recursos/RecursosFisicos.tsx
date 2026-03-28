@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
 import { ListActionBar } from '@/components/shared/ListActionBar';
@@ -8,58 +8,23 @@ import { useToast } from '@/hooks/use-toast';
 import { RecursoFisicoFormModal } from '@/components/recursos/RecursoFisicoFormModal';
 import { MapaRecursosFisicosModal } from '@/components/recursos/MapaRecursosFisicosModal';
 import { SortableTable, Column } from '@/components/shared/SortableTable';
-import { supabase } from '@/integrations/supabase/client';
-import type { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
-import type { EstoqueItem } from '@/components/recursos/EstoqueTab';
+import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { usePermissions } from '@/hooks/usePermissions';
-
-type RecursoFisicoDB = Tables<'recursos_fisicos'>;
-
-export interface FaixaDisponibilidade {
-  id: string;
-  dataInicio: string;
-  dataFim: string;
-  horaInicio: string;
-  horaFim: string;
-  diasSemana: number[];
-}
-
-export interface RecursoFisico {
-  id: string;
-  codigoExterno: string;
-  nome: string;
-  custoHora: number;
-  faixasDisponibilidade: FaixaDisponibilidade[];
-  estoqueItens?: EstoqueItem[];
-  estoqueCount?: number;
-  dataCadastro: string;
-  usuarioCadastro: string;
-  usuarioCadastroId?: string;
-}
-
-const mapDbToRecursoFisico = (
-  db: RecursoFisicoDB,
-  faixas: FaixaDisponibilidade[] = [],
-  estoqueItens: EstoqueItem[] = [],
-  usuarioNome: string = ''
-): RecursoFisico => ({
-  id: db.id,
-  codigoExterno: db.codigo_externo || '',
-  nome: db.nome,
-  custoHora: db.custo_hora || 0,
-  faixasDisponibilidade: faixas,
-  estoqueItens: estoqueItens,
-  estoqueCount: estoqueItens.length,
-  dataCadastro: db.created_at ? new Date(db.created_at).toLocaleDateString('pt-BR') : '',
-  usuarioCadastro: usuarioNome,
-  usuarioCadastroId: db.created_by || undefined,
-});
+import { recursosFisicosRepository } from '@/modules/recursos-fisicos/recursos-fisicos.repository.provider';
+import type {
+  RecursoFisico,
+  RecursoFisicoInput,
+} from '@/modules/recursos-fisicos/recursos-fisicos.types';
 
 const RecursosFisicos = () => {
   const { toast } = useToast();
   const { t } = useLanguage();
-  const { canAlterar } = usePermissions();
+  const { user, session } = useAuth();
+  const { canIncluir, canAlterar, canExcluir } = usePermissions();
+  const podeIncluir = canIncluir('Recursos', 'Recursos Físicos');
+  const podeAlterar = canAlterar('Recursos', 'Recursos Físicos');
+  const podeExcluir = canExcluir('Recursos', 'Recursos Físicos');
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isMapaOpen, setIsMapaOpen] = useState(false);
@@ -67,164 +32,82 @@ const RecursosFisicos = () => {
   const [items, setItems] = useState<RecursoFisico[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const fetchRecursosFisicos = async () => {
+  const fetchRecursosFisicos = useCallback(async () => {
+    if (!session) {
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     try {
-      const { data: recursosData, error: recursosError } = await supabase
-        .from('recursos_fisicos')
-        .select('*')
-        .order('nome');
-
-      if (recursosError) throw recursosError;
-
-      const { data: profilesData } = await supabase
-        .from('profiles')
-        .select('id, nome');
-      
-      const profilesMap = new Map<string, string>();
-      (profilesData || []).forEach(p => profilesMap.set(p.id, p.nome));
-
-      const recursosWithFaixas = await Promise.all(
-        (recursosData || []).map(async (rf) => {
-          const { data: faixasData } = await supabase
-            .from('rf_faixas_disponibilidade')
-            .select('*')
-            .eq('recurso_fisico_id', rf.id);
-
-          const faixas: FaixaDisponibilidade[] = (faixasData || []).map((f) => ({
-            id: f.id,
-            dataInicio: f.data_inicio,
-            dataFim: f.data_fim,
-            horaInicio: f.hora_inicio,
-            horaFim: f.hora_fim,
-            diasSemana: f.dias_semana || [1, 2, 3, 4, 5],
-          }));
-
-          const { data: estoqueData } = await supabase
-            .from('rf_estoque_itens')
-            .select('*')
-            .eq('recurso_fisico_id', rf.id)
-            .order('numerador');
-
-          const estoqueItens: EstoqueItem[] = (estoqueData || []).map(item => ({
-            id: item.id,
-            numerador: item.numerador,
-            codigo: item.codigo || '',
-            nome: item.nome,
-            descricao: item.descricao || '',
-            imagemUrl: item.imagem_url || '',
-          }));
-
-          const usuarioNome = rf.created_by ? profilesMap.get(rf.created_by) || '' : '';
-
-          return mapDbToRecursoFisico(rf, faixas, estoqueItens, usuarioNome);
-        })
-      );
-
-      setItems(recursosWithFaixas);
+      setItems(await recursosFisicosRepository.list());
     } catch (error) {
       console.error('Error fetching recursos fisicos:', error);
-      toast({ title: t('common.error'), description: t('common.error'), variant: 'destructive' });
+      toast({
+        title: t('common.error'),
+        description: `Erro ao carregar recursos físicos: ${(error as Error).message}`,
+        variant: 'destructive',
+      });
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [session, t, toast]);
 
   useEffect(() => {
     fetchRecursosFisicos();
-  }, []);
+  }, [fetchRecursosFisicos]);
 
-  const handleSave = async (data: RecursoFisico) => {
+  const handleSave = async (data: RecursoFisicoInput) => {
     try {
-      const { data: { user: currentUser } } = await supabase.auth.getUser();
-      
-      const dbData: TablesInsert<'recursos_fisicos'> = {
-        id: data.id || undefined,
-        codigo_externo: data.codigoExterno || null,
-        nome: data.nome,
-        custo_hora: data.custoHora || 0,
-        created_by: editingItem ? editingItem.usuarioCadastroId : currentUser?.id,
-      };
-
-      let recursoId = data.id;
-
-      if (editingItem) {
-        const { error } = await supabase
-          .from('recursos_fisicos')
-          .update(dbData as TablesUpdate<'recursos_fisicos'>)
-          .eq('id', data.id);
-        if (error) throw error;
-      } else {
-        const { data: inserted, error } = await supabase
-          .from('recursos_fisicos')
-          .insert(dbData)
-          .select()
-          .single();
-        if (error) throw error;
-        recursoId = inserted.id;
-      }
-
-      if (data.faixasDisponibilidade) {
-        await supabase.from('rf_faixas_disponibilidade').delete().eq('recurso_fisico_id', recursoId);
-        if (data.faixasDisponibilidade.length > 0) {
-          const faixasData = data.faixasDisponibilidade.map((f) => ({
-            recurso_fisico_id: recursoId,
-            data_inicio: f.dataInicio,
-            data_fim: f.dataFim,
-            hora_inicio: f.horaInicio,
-            hora_fim: f.horaFim,
-            dias_semana: f.diasSemana,
-          }));
-          await supabase.from('rf_faixas_disponibilidade').insert(faixasData);
-        }
-      }
-
-      if (data.estoqueItens) {
-        await supabase.from('rf_estoque_itens').delete().eq('recurso_fisico_id', recursoId);
-        if (data.estoqueItens.length > 0) {
-          const estoqueData = data.estoqueItens.map((item) => ({
-            recurso_fisico_id: recursoId,
-            numerador: item.numerador,
-            codigo: item.codigo || null,
-            nome: item.nome,
-            descricao: item.descricao || null,
-            imagem_url: item.imagemUrl || null,
-            created_by: currentUser?.id,
-          }));
-          await supabase.from('rf_estoque_itens').insert(estoqueData);
-        }
-      }
-
-      toast({ title: t('common.success'), description: t('common.success') });
+      await recursosFisicosRepository.save({
+        ...data,
+        tenantId: user?.tenantId ?? null,
+      });
+      toast({
+        title: t('common.success'),
+        description: editingItem ? 'Recurso físico atualizado!' : 'Recurso físico criado!',
+      });
       await fetchRecursosFisicos();
       setEditingItem(null);
     } catch (error) {
       console.error('Error saving recurso fisico:', error);
-      toast({ title: t('common.error'), description: t('common.error'), variant: 'destructive' });
+      toast({
+        title: t('common.error'),
+        description: `Erro ao salvar: ${(error as Error).message}`,
+        variant: 'destructive',
+      });
+      throw error;
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm(t('common.confirm.delete'))) {
-      try {
-        const { error } = await supabase.from('recursos_fisicos').delete().eq('id', id);
-        if (error) throw error;
-        toast({ title: t('common.deleted'), description: t('common.deleted') });
-        await fetchRecursosFisicos();
-      } catch (error) {
-        console.error('Error deleting recurso fisico:', error);
-        toast({ title: t('common.error'), description: t('common.error'), variant: 'destructive' });
-      }
+    if (!confirm(t('common.confirm.delete'))) {
+      return;
+    }
+
+    try {
+      await recursosFisicosRepository.remove(id);
+      toast({ title: t('common.deleted'), description: t('common.deleted') });
+      await fetchRecursosFisicos();
+    } catch (error) {
+      console.error('Error deleting recurso fisico:', error);
+      toast({
+        title: t('common.error'),
+        description: `Erro ao excluir: ${(error as Error).message}`,
+        variant: 'destructive',
+      });
     }
   };
 
   const formatCustoHora = (value: number) =>
-    new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
+    new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(
+      value,
+    );
 
   const filteredItems = items.filter(
     (item) =>
       item.nome.toLowerCase().includes(search.toLowerCase()) ||
-      item.codigoExterno.toLowerCase().includes(search.toLowerCase())
+      item.codigoExterno.toLowerCase().includes(search.toLowerCase()),
   );
 
   const columns: Column<RecursoFisico>[] = [
@@ -232,9 +115,7 @@ const RecursosFisicos = () => {
       key: 'codigoExterno',
       label: t('common.code'),
       className: 'w-24',
-      render: (item) => (
-        <span className="font-mono text-sm">{item.codigoExterno || '-'}</span>
-      ),
+      render: (item) => <span className="font-mono text-sm">{item.codigoExterno || '-'}</span>,
     },
     {
       key: 'nome',
@@ -290,20 +171,23 @@ const RecursosFisicos = () => {
               setEditingItem(item);
               setIsModalOpen(true);
             }}
+            disabled={!podeAlterar}
           >
             <Edit className="w-4 h-4" />
           </Button>
-          <Button
-            size="icon"
-            variant="ghost"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleDelete(item.id);
-            }}
-            className="text-destructive hover:text-destructive"
-          >
-            <Trash2 className="w-4 h-4" />
-          </Button>
+          {podeExcluir && (
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDelete(item.id);
+              }}
+              className="text-destructive hover:text-destructive"
+            >
+              <Trash2 className="w-4 h-4" />
+            </Button>
+          )}
         </div>
       ),
     },
@@ -317,7 +201,15 @@ const RecursosFisicos = () => {
       />
 
       <ListActionBar>
-        <NewButton tooltip={t('field.newResource')} onClick={() => { setEditingItem(null); setIsModalOpen(true); }} />
+        {podeIncluir && (
+          <NewButton
+            tooltip={t('field.newResource')}
+            onClick={() => {
+              setEditingItem(null);
+              setIsModalOpen(true);
+            }}
+          />
+        )}
         <div className="flex-1" />
         <SearchBar value={search} onChange={setSearch} />
         <Button
@@ -341,7 +233,7 @@ const RecursosFisicos = () => {
             title={t('field.noPhysicalResourceRegistered')}
             description={t('field.physicalResourcesHint')}
             icon={MapPin}
-            onAction={() => setIsModalOpen(true)}
+            onAction={podeIncluir ? () => setIsModalOpen(true) : undefined}
             actionLabel={t('field.addPhysicalResource')}
           />
         ) : (
@@ -362,7 +254,7 @@ const RecursosFisicos = () => {
         }}
         onSave={handleSave}
         data={editingItem}
-        readOnly={!!editingItem && !canAlterar('Recursos', 'Recursos Físicos')}
+        readOnly={!!editingItem && !podeAlterar}
       />
 
       <MapaRecursosFisicosModal

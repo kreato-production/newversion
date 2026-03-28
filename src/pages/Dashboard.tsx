@@ -1,12 +1,35 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Video, Users, Building2, Calendar, TrendingUp, Clock, Clapperboard, Wrench, MapPin, DollarSign, Loader2 } from 'lucide-react';
-import { useMemo, useState, useEffect, useCallback } from 'react';
-import { isAfter, isBefore, addDays, parseISO, startOfWeek, endOfWeek, format, getMonth, getYear } from 'date-fns';
+import {
+  Video,
+  Users,
+  Calendar,
+  TrendingUp,
+  Clock,
+  Clapperboard,
+  Wrench,
+  DollarSign,
+  Loader2,
+} from 'lucide-react';
+import { useMemo, useState, useEffect } from 'react';
+import { parseISO, format, getMonth, getYear } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { supabase } from '@/integrations/supabase/client';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from 'recharts';
+import { ApiAnalyticsRepository } from '@/modules/analytics/analytics.api';
+import type {
+  DashboardOverviewResponse,
+  DashboardRecordingSummary,
+} from '@/modules/analytics/analytics.types';
 
 const StatCard = ({
   title,
@@ -37,14 +60,6 @@ const StatCard = ({
   </Card>
 );
 
-interface Gravacao {
-  id: string;
-  nome: string;
-  codigo: string;
-  data_prevista?: string;
-  status_id?: string;
-}
-
 interface DashboardStats {
   gravacoes: number;
   gravacoesAtivas: number;
@@ -57,6 +72,7 @@ interface DashboardStats {
 }
 
 const Dashboard = () => {
+  const analyticsRepository = useMemo(() => new ApiAnalyticsRepository(), []);
   const { user, session } = useAuth();
   const { t } = useLanguage();
   const [isLoading, setIsLoading] = useState(true);
@@ -70,151 +86,104 @@ const Dashboard = () => {
     unidades: 0,
     fornecedores: 0,
   });
-  const [gravacoesSemana, setGravacoesSemana] = useState<Gravacao[]>([]);
-  const [gravacoesParaCusto, setGravacoesParaCusto] = useState<Gravacao[]>([]);
-
-  const fetchDashboardData = useCallback(async () => {
-    if (!session) {
-      setIsLoading(false);
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      // Build filtered queries based on user's allowed units
-      const hasUnitFilter = user?.unidadeIds && user.unidadeIds.length > 0;
-
-      let gravacoesQuery = supabase.from('gravacoes').select('id, nome, codigo, data_prevista, status_id');
-      let conteudosQuery = supabase.from('conteudos').select('id', { count: 'exact', head: true });
-
-      if (hasUnitFilter) {
-        gravacoesQuery = gravacoesQuery.in('unidade_negocio_id', user.unidadeIds!);
-        conteudosQuery = conteudosQuery.in('unidade_negocio_id', user.unidadeIds!);
-      }
-
-      // Fetch counts from all tables in parallel
-      const [
-        gravacoesRes,
-        conteudosRes,
-        recursosHumanosRes,
-        recursosTecnicosRes,
-        recursosFisicosRes,
-        unidadesRes,
-        fornecedoresRes,
-      ] = await Promise.all([
-        gravacoesQuery,
-        conteudosQuery,
-        supabase.from('recursos_humanos').select('id', { count: 'exact', head: true }),
-        supabase.from('recursos_tecnicos').select('id', { count: 'exact', head: true }),
-        supabase.from('recursos_fisicos').select('id', { count: 'exact', head: true }),
-        supabase.from('unidades_negocio').select('id', { count: 'exact', head: true }),
-        supabase.from('fornecedores').select('id', { count: 'exact', head: true }),
-      ]);
-
-      const gravacoes = gravacoesRes.data || [];
-      const hoje = new Date();
-      
-      // Gravações ativas (com data prevista no futuro ou sem data)
-      const gravacoesAtivas = gravacoes.filter((g) => {
-        if (!g.data_prevista) return true;
-        const dataPrevista = parseISO(g.data_prevista);
-        return isAfter(dataPrevista, addDays(hoje, -1));
-      });
-
-      // Gravações da semana
-      const inicioSemana = startOfWeek(hoje, { weekStartsOn: 0 });
-      const fimSemana = endOfWeek(hoje, { weekStartsOn: 0 });
-      
-      const gravacoesNaSemana = gravacoes.filter((g) => {
-        if (!g.data_prevista) return false;
-        const dataPrevista = parseISO(g.data_prevista);
-        return isAfter(dataPrevista, addDays(inicioSemana, -1)) && 
-               isBefore(dataPrevista, addDays(fimSemana, 1));
-      });
-
-      setStats({
-        gravacoes: gravacoes.length,
-        gravacoesAtivas: gravacoesAtivas.length,
-        conteudos: conteudosRes.count || 0,
-        recursosHumanos: recursosHumanosRes.count || 0,
-        recursosTecnicos: recursosTecnicosRes.count || 0,
-        recursosFisicos: recursosFisicosRes.count || 0,
-        unidades: unidadesRes.count || 0,
-        fornecedores: fornecedoresRes.count || 0,
-      });
-
-      setGravacoesSemana(gravacoesNaSemana);
-      setGravacoesParaCusto(gravacoes);
-    } catch (err) {
-      console.error('Error fetching dashboard data:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [session, user]);
+  const [gravacoesSemana, setGravacoesSemana] = useState<DashboardRecordingSummary[]>([]);
+  const [gravacoesParaCusto, setGravacoesParaCusto] = useState<DashboardRecordingSummary[]>([]);
 
   useEffect(() => {
-    fetchDashboardData();
-  }, [fetchDashboardData]);
+    let isActive = true;
 
-  // Dados para o gráfico de custos por mês
-  const custosAnuais = useMemo(() => {
-    const anoCorrente = new Date().getFullYear();
-    
-    // Determinar o ano a ser exibido
-    let anoExibicao = anoCorrente;
-    const anosComDados = new Set<number>();
-    gravacoesParaCusto.forEach((g) => {
-      if (g.data_prevista) {
-        try {
-          const parsed = parseISO(g.data_prevista);
-          if (!isNaN(parsed.getTime())) {
-            anosComDados.add(getYear(parsed));
-          }
-        } catch {
-          // Ignora datas inválidas
+    const fetchDashboardData = async () => {
+      if (!session) {
+        if (isActive) {
+          setIsLoading(false);
+        }
+        return;
+      }
+
+      if (isActive) {
+        setIsLoading(true);
+      }
+
+      try {
+        const data: DashboardOverviewResponse = await analyticsRepository.getDashboardOverview();
+
+        if (!isActive) {
+          return;
+        }
+
+        setStats(data.stats);
+        setGravacoesSemana(data.gravacoesSemana);
+        setGravacoesParaCusto(data.gravacoes);
+      } catch (err) {
+        if (isActive) {
+          console.error('Error fetching dashboard data:', err);
+        }
+      } finally {
+        if (isActive) {
+          setIsLoading(false);
         }
       }
+    };
+
+    void fetchDashboardData();
+
+    return () => {
+      isActive = false;
+    };
+  }, [analyticsRepository, session]);
+
+  const custosAnuais = useMemo(() => {
+    const anoCorrente = new Date().getFullYear();
+    let anoExibicao = anoCorrente;
+    const anosComDados = new Set<number>();
+
+    gravacoesParaCusto.forEach((g) => {
+      if (!g.dataPrevista) {
+        return;
+      }
+
+      try {
+        const parsed = parseISO(g.dataPrevista);
+        if (!isNaN(parsed.getTime())) {
+          anosComDados.add(getYear(parsed));
+        }
+      } catch {
+        // Ignora datas inválidas
+      }
     });
+
     if (anosComDados.size > 0 && !anosComDados.has(anoCorrente)) {
-      const anosArray = Array.from(anosComDados);
-      anoExibicao = Math.max(...anosArray);
+      anoExibicao = Math.max(...Array.from(anosComDados));
     }
-    
-    // Inicializar meses
-    const meses = Array.from({ length: 12 }, (_, i) => ({
-      mes: format(new Date(anoExibicao, i, 1), 'MMM', { locale: ptBR }),
-      mesNumero: i,
+
+    const meses = Array.from({ length: 12 }, (_, index) => ({
+      mes: format(new Date(anoExibicao, index, 1), 'MMM', { locale: ptBR }),
+      mesNumero: index,
       custosGravacoes: 0,
       custosConteudos: 0,
       ano: anoExibicao,
     }));
 
-    // Calcular gravações por mês
     gravacoesParaCusto.forEach((gravacao) => {
-      if (!gravacao.data_prevista) return;
+      if (!gravacao.dataPrevista) {
+        return;
+      }
+
       try {
-        const data = parseISO(gravacao.data_prevista);
-        if (isNaN(data.getTime()) || getYear(data) !== anoExibicao) return;
-        
+        const data = parseISO(gravacao.dataPrevista);
+        if (isNaN(data.getTime()) || getYear(data) !== anoExibicao) {
+          return;
+        }
+
         const mesIndex = getMonth(data);
-        meses[mesIndex].custosGravacoes += 1; // Contando gravações por mês
+        meses[mesIndex].custosGravacoes += 1;
       } catch {
-        // Ignora gravações com datas inválidas
+        // Ignora datas inválidas
       }
     });
 
     return meses;
   }, [gravacoesParaCusto]);
-
-  // Formatar valores para exibição
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(value);
-  };
 
   if (isLoading) {
     return (
@@ -231,12 +200,40 @@ const Dashboard = () => {
           <h1 className="text-2xl font-bold text-white">
             {t('dashboard.hello')}, {user?.nome}!
           </h1>
-          <p className="text-white/80 mt-1">
-            {t('dashboard.welcome')}
-          </p>
+          <p className="text-white/80 mt-1">{t('dashboard.welcome')}</p>
         </div>
       </div>
 
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+        <StatCard
+          title={t('dashboard.totalRecordings')}
+          value={stats.gravacoes}
+          description={`${stats.gravacoesAtivas} ativas`}
+          icon={Video}
+          gradient="bg-kreato-blue"
+        />
+        <StatCard
+          title={t('dashboard.totalContents')}
+          value={stats.conteudos}
+          description="Conteúdos cadastrados"
+          icon={Clapperboard}
+          gradient="bg-kreato-purple"
+        />
+        <StatCard
+          title={t('dashboard.humanResources')}
+          value={stats.recursosHumanos}
+          description="Recursos humanos"
+          icon={Users}
+          gradient="bg-kreato-orange"
+        />
+        <StatCard
+          title={t('dashboard.technicalResources')}
+          value={stats.recursosTecnicos}
+          description={`${stats.recursosFisicos} recursos físicos`}
+          icon={Wrench}
+          gradient="bg-kreato-cyan"
+        />
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
@@ -256,15 +253,18 @@ const Dashboard = () => {
             ) : (
               <div className="space-y-4 max-h-80 overflow-y-auto">
                 {gravacoesSemana.map((gravacao) => (
-                  <div key={gravacao.id} className="flex items-center gap-4 p-3 border border-border rounded-lg">
+                  <div
+                    key={gravacao.id}
+                    className="flex items-center gap-4 p-3 border border-border rounded-lg"
+                  >
                     <div className="w-10 h-10 rounded-lg gradient-brand flex items-center justify-center">
                       <Video className="w-5 h-5 text-primary-foreground" />
                     </div>
                     <div className="flex-1">
                       <p className="text-sm font-medium text-foreground">{gravacao.nome}</p>
                       <p className="text-xs text-muted-foreground">
-                        {gravacao.data_prevista 
-                          ? format(parseISO(gravacao.data_prevista), 'dd/MM/yyyy', { locale: ptBR })
+                        {gravacao.dataPrevista
+                          ? format(parseISO(gravacao.dataPrevista), 'dd/MM/yyyy', { locale: ptBR })
                           : 'Sem data'}
                       </p>
                     </div>
@@ -321,7 +321,6 @@ const Dashboard = () => {
         </Card>
       </div>
 
-      {/* Gráfico de Gravações por Mês */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">

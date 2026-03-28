@@ -24,13 +24,14 @@ import { useToast } from '@/hooks/use-toast';
 import { SortableTable, type Column } from '@/components/shared/SortableTable';
 import { Plus, Trash2, Users, Loader2 } from 'lucide-react';
 import { useFormFieldConfig, FieldAsterisk } from '@/hooks/useFormFieldConfig';
-import { equipesRepository } from '@/modules/equipes/equipes.repository';
+import { isBackendDataProviderEnabled } from '@/lib/api/http';
+import { equipesRepository } from '@/modules/equipes/equipes.repository.provider';
 import type { EquipeInput, Membro, RecursoHumano } from '@/modules/equipes/equipes.types';
 
 interface EquipeFormModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (data: EquipeInput) => void;
+  onSave: (data: EquipeInput) => Promise<void>;
   data?: { id: string; codigo: string; descricao: string } | null;
   onRefresh?: () => void;
   readOnly?: boolean;
@@ -53,6 +54,7 @@ export const EquipeFormModal = ({
   const { toast } = useToast();
   const { isVisible } = usePermissions();
   const { getAsterisk } = useFormFieldConfig('equipe');
+  const shouldUseBackend = isBackendDataProviderEnabled();
   const [formData, setFormData] = useState<EquipeInput>(emptyFormData);
   const [isAddingMembro, setIsAddingMembro] = useState(false);
   const [selectedRHId, setSelectedRHId] = useState('');
@@ -71,28 +73,53 @@ export const EquipeFormModal = ({
     }
   }, []);
 
-  const fetchMembros = useCallback(async (equipeId: string) => {
-    try {
-      setMembros(await equipesRepository.listMembros(equipeId));
-    } catch (error) {
-      console.error('Erro ao carregar membros:', error);
-    }
-  }, []);
+  const fetchMembros = useCallback(
+    async (equipeId: string) => {
+      if (shouldUseBackend) {
+        setIsLoadingRH(true);
+      }
+
+      try {
+        const data = await equipesRepository.listMembros(equipeId);
+        setMembros(data.membros);
+        if (shouldUseBackend) {
+          setRecursosHumanos(data.disponiveis);
+        }
+      } catch (error) {
+        console.error('Erro ao carregar membros:', error);
+      } finally {
+        if (shouldUseBackend) {
+          setIsLoadingRH(false);
+        }
+      }
+    },
+    [shouldUseBackend],
+  );
 
   useEffect(() => {
     if (!isOpen) return;
 
-    setFormData(data ? { id: data.id, codigo: data.codigo, descricao: data.descricao } : { ...emptyFormData });
+    setFormData(
+      data ? { id: data.id, codigo: data.codigo, descricao: data.descricao } : { ...emptyFormData },
+    );
     setIsAddingMembro(false);
     setSelectedRHId('');
-    fetchRecursosHumanos();
+    if (!shouldUseBackend) {
+      fetchRecursosHumanos();
+    } else {
+      setRecursosHumanos([]);
+      setIsLoadingRH(true);
+    }
 
     if (data?.id) {
       fetchMembros(data.id);
     } else {
       setMembros([]);
+      if (shouldUseBackend) {
+        setIsLoadingRH(false);
+      }
     }
-  }, [isOpen, data, fetchMembros, fetchRecursosHumanos]);
+  }, [isOpen, data, fetchMembros, fetchRecursosHumanos, shouldUseBackend]);
 
   const rhDisponiveis = useMemo(() => {
     const membroIds = membros.map((membro) => membro.recursoHumanoId);
@@ -117,12 +144,20 @@ export const EquipeFormModal = ({
 
   const handleAddMembro = async () => {
     if (!selectedRHId) {
-      toast({ title: t('common.error'), description: t('teams.selectMember'), variant: 'destructive' });
+      toast({
+        title: t('common.error'),
+        description: t('teams.selectMember'),
+        variant: 'destructive',
+      });
       return;
     }
 
     if (!data?.id) {
-      toast({ title: t('common.error'), description: t('teams.saveFirst'), variant: 'destructive' });
+      toast({
+        title: t('common.error'),
+        description: t('teams.saveFirst'),
+        variant: 'destructive',
+      });
       return;
     }
 
@@ -133,9 +168,16 @@ export const EquipeFormModal = ({
       setSelectedRHId('');
       setIsAddingMembro(false);
       onRefresh?.();
+      if (shouldUseBackend) {
+        await fetchMembros(data.id);
+      }
     } catch (error) {
       console.error('Erro ao adicionar membro:', error);
-      toast({ title: t('common.error'), description: t('teams.memberAddError'), variant: 'destructive' });
+      toast({
+        title: t('common.error'),
+        description: t('teams.memberAddError'),
+        variant: 'destructive',
+      });
     }
   };
 
@@ -143,25 +185,37 @@ export const EquipeFormModal = ({
     if (!confirm(t('common.confirm.delete'))) return;
 
     try {
-      await equipesRepository.removeMembro(id);
+      if (!data?.id) return;
+      await equipesRepository.removeMembro(data.id, id);
       setMembros(membros.filter((membro) => membro.id !== id));
       toast({ title: t('common.deleted'), description: t('teams.memberRemoved') });
       onRefresh?.();
+      if (shouldUseBackend) {
+        await fetchMembros(data.id);
+      }
     } catch (error) {
       console.error('Erro ao remover membro:', error);
-      toast({ title: t('common.error'), description: t('teams.memberRemoveError'), variant: 'destructive' });
+      toast({
+        title: t('common.error'),
+        description: t('teams.memberRemoveError'),
+        variant: 'destructive',
+      });
     }
   };
 
-  const handleSubmit = (event: React.FormEvent) => {
+  const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
 
     if (!formData.codigo.trim() || !formData.descricao.trim()) {
-      toast({ title: t('common.error'), description: t('common.required'), variant: 'destructive' });
+      toast({
+        title: t('common.error'),
+        description: t('common.required'),
+        variant: 'destructive',
+      });
       return;
     }
 
-    onSave(formData);
+    await onSave(formData);
     onClose();
   };
 
@@ -281,7 +335,8 @@ export const EquipeFormModal = ({
                             <SelectContent>
                               {rhDisponiveis.map((rh) => (
                                 <SelectItem key={rh.id} value={rh.id}>
-                                  {rh.nome} {rh.sobrenome} {rh.funcao_nome ? `(${rh.funcao_nome})` : ''}
+                                  {rh.nome} {rh.sobrenome}{' '}
+                                  {rh.funcao_nome ? `(${rh.funcao_nome})` : ''}
                                 </SelectItem>
                               ))}
                             </SelectContent>
@@ -310,7 +365,9 @@ export const EquipeFormModal = ({
                         <div className="flex flex-col items-center justify-center py-8 text-center border rounded-lg bg-muted/20">
                           <Users className="h-10 w-10 text-muted-foreground/50 mb-3" />
                           <p className="text-muted-foreground">{t('teams.noMembers')}</p>
-                          <p className="text-sm text-muted-foreground mt-1">{t('teams.addMemberHint')}</p>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            {t('teams.addMemberHint')}
+                          </p>
                         </div>
                       ) : (
                         <div className="border rounded-lg overflow-hidden max-h-[250px] overflow-y-auto">

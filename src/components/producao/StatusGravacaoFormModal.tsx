@@ -18,7 +18,7 @@ import { type StatusGravacaoItem } from '@/pages/producao/StatusGravacao';
 interface StatusGravacaoFormModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (data: StatusGravacaoItem) => void;
+  onSave: (data: StatusGravacaoItem) => Promise<void>;
   data?: StatusGravacaoItem | null;
   readOnly?: boolean;
 }
@@ -71,9 +71,9 @@ export const StatusGravacaoFormModal = ({
     }
   }, [data, isOpen]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onSave({
+    await onSave({
       id: data?.id || crypto.randomUUID(),
       ...formData,
       isInicial: data?.isInicial || false,
@@ -92,7 +92,7 @@ export const StatusGravacaoFormModal = ({
             Preencha os campos abaixo para {data ? 'editar' : 'cadastrar'} o status.
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="codigoExterno">Código Externo</Label>
@@ -105,7 +105,9 @@ export const StatusGravacaoFormModal = ({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="nome">Nome <span className="text-destructive">*</span></Label>
+              <Label htmlFor="nome">
+                Nome <span className="text-destructive">*</span>
+              </Label>
               <Input
                 id="nome"
                 value={formData.nome}
@@ -126,7 +128,9 @@ export const StatusGravacaoFormModal = ({
                       key={color}
                       type="button"
                       className={`w-8 h-8 rounded-full border-2 transition-all ${
-                        formData.cor === color ? 'border-primary ring-2 ring-primary/50 scale-110' : 'border-border hover:scale-105'
+                        formData.cor === color
+                          ? 'border-primary ring-2 ring-primary/50 scale-110'
+                          : 'border-border hover:scale-105'
                       }`}
                       style={{ backgroundColor: color }}
                       onClick={() => setFormData({ ...formData, cor: color })}
@@ -148,10 +152,7 @@ export const StatusGravacaoFormModal = ({
                   placeholder="#000000"
                   className="w-28 font-mono text-sm"
                 />
-                <Badge 
-                  style={{ backgroundColor: formData.cor }}
-                  className="text-white ml-auto"
-                >
+                <Badge style={{ backgroundColor: formData.cor }} className="text-white ml-auto">
                   {formData.nome || 'Preview'}
                 </Badge>
               </div>

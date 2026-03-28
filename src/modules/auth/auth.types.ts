@@ -61,5 +61,5 @@ export interface LoginResult {
 
 export interface AuthSessionState {
   session: AuthSession | null;
-  supabaseUser: AuthSessionUser | null;
+  sessionUser: AuthSessionUser | null;
 }

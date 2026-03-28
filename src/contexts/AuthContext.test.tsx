@@ -5,7 +5,7 @@ import { AuthProvider, useAuth } from './AuthContext';
 vi.mock('@/modules/auth/auth.repository', () => ({
   authRepository: {
     onAuthStateChange: vi.fn(() => ({ unsubscribe: vi.fn() })),
-    getSession: vi.fn().mockResolvedValue({ session: null, supabaseUser: null }),
+    getSession: vi.fn().mockResolvedValue({ session: null, sessionUser: null }),
     signInWithPassword: vi.fn(),
     signOut: vi.fn().mockResolvedValue(undefined),
     fetchUserProfile: vi.fn(),
@@ -37,7 +37,7 @@ function TestConsumer() {
 beforeEach(() => {
   vi.clearAllMocks();
   mockAuthRepo.onAuthStateChange.mockReturnValue({ unsubscribe: vi.fn() });
-  mockAuthRepo.getSession.mockResolvedValue({ session: null, supabaseUser: null });
+  mockAuthRepo.getSession.mockResolvedValue({ session: null, sessionUser: null });
 });
 
 describe('AuthContext', () => {
@@ -54,7 +54,11 @@ describe('AuthContext', () => {
   });
 
   it('login chama signInWithPassword com credenciais corretas', async () => {
-    mockAuthRepo.signInWithPassword.mockResolvedValue({ session: null, user: null, error: 'senha invalida' });
+    mockAuthRepo.signInWithPassword.mockResolvedValue({
+      session: null,
+      user: null,
+      error: 'senha invalida',
+    });
 
     let loginFn!: (u: string, p: string) => Promise<{ success: boolean; error?: string }>;
 
@@ -80,7 +84,11 @@ describe('AuthContext', () => {
   });
 
   it('login retorna erro quando credenciais invalidas', async () => {
-    mockAuthRepo.signInWithPassword.mockResolvedValue({ session: null, user: null, error: 'Usuario ou senha invalidos' });
+    mockAuthRepo.signInWithPassword.mockResolvedValue({
+      session: null,
+      user: null,
+      error: 'Usuario ou senha invalidos',
+    });
 
     let loginFn!: (u: string, p: string) => Promise<{ success: boolean; error?: string }>;
 

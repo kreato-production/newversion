@@ -15,6 +15,9 @@ dist-ssr
 .env.*
 backend/.env
 
+# Runtime artifacts
+.codex-runtime/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

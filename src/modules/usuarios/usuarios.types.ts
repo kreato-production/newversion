@@ -1,5 +1,5 @@
 export interface UsuarioApiModel {
-  id: string;
+  id?: string;
   codigoExterno: string;
   nome: string;
   email: string;

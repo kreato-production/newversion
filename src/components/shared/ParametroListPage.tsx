@@ -8,9 +8,9 @@ import { Edit, Trash2, Settings, Loader2 } from 'lucide-react';
 import { NewButton } from '@/components/shared/NewButton';
 import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
+import { ApiParametrosRepository } from '@/modules/parametros/parametros.api.repository';
 
 interface Parametro {
   id: string;
@@ -31,24 +31,6 @@ interface ParametroLegacy {
   usuarioCadastro: string;
 }
 
-// Mapping from storageKey to Supabase table name
-const tableMapping: Record<string, string> = {
-  'kreato_cargos': 'cargos',
-  'kreato_funcoes': 'funcoes',
-  'kreato_servicos': 'servicos',
-  'kreato_classificacao': 'classificacoes',
-  'kreato_material': 'materiais',
-  'kreato_tipos_gravacao': 'tipos_gravacao',
-  'kreato_categoria_fornecedores': 'categorias_fornecedor',
-  'kreato_tipo_figurino': 'tipos_figurino',
-  'kreato_classificacao_pessoas': 'classificacoes_pessoa',
-  'kreato_status_gravacao': 'status_gravacao',
-  'kreato_status_tarefa': 'status_tarefa',
-  'kreato_departamentos': 'departamentos',
-  'kreato_perfis_acesso': 'perfis_acesso',
-  'kreato_unidades_negocio': 'unidades_negocio',
-};
-
 interface ParametroListPageProps {
   title: string;
   description: string;
@@ -58,7 +40,15 @@ interface ParametroListPageProps {
   permissionPath?: [string, string, string?];
 }
 
-const ParametroListPage = ({ title, description, entityName, storageKey, permissionPath }: ParametroListPageProps) => {
+const apiRepository = new ApiParametrosRepository();
+
+const ParametroListPage = ({
+  title,
+  description,
+  entityName,
+  storageKey,
+  permissionPath,
+}: ParametroListPageProps) => {
   const { toast } = useToast();
   const { t } = useLanguage();
   const { user, session } = useAuth();
@@ -69,31 +59,18 @@ const ParametroListPage = ({ title, description, entityName, storageKey, permiss
   const [items, setItems] = useState<Parametro[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Get the Supabase table name from the storageKey mapping
-  const tableName = tableMapping[storageKey];
-
-  // Fetch data from Supabase
   const fetchData = useCallback(async () => {
-    if (!session || !tableName) {
+    if (!session) {
       setIsLoading(false);
       return;
     }
 
     setIsLoading(true);
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data, error } = await (supabase as any)
-        .from(tableName)
-        .select('*')
-        .order('nome', { ascending: true });
-
-      if (error) {
-        throw error;
-      }
-
+      const data = await apiRepository.list(storageKey);
       setItems(data || []);
     } catch (err) {
-      console.error(`Error fetching ${tableName}:`, err);
+      console.error(`Error fetching ${storageKey}:`, err);
       toast({
         title: 'Erro',
         description: `Erro ao carregar dados: ${(err as Error).message}`,
@@ -102,19 +79,11 @@ const ParametroListPage = ({ title, description, entityName, storageKey, permiss
     } finally {
       setIsLoading(false);
     }
-  }, [session, tableName, toast]);
+  }, [session, storageKey, toast]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
-
-  // Convert legacy format to database format
-  const toDbFormat = (data: ParametroLegacy): Record<string, unknown> => ({
-    nome: data.nome,
-    descricao: data.descricao || null,
-    codigo_externo: data.codigoExterno || null,
-    created_by: user?.id || null,
-  });
 
   // Convert database format to legacy format for display
   const toLegacyFormat = (data: Parametro): ParametroLegacy => ({
@@ -127,38 +96,24 @@ const ParametroListPage = ({ title, description, entityName, storageKey, permiss
   });
 
   const handleSave = async (data: ParametroLegacy) => {
-    if (!tableName) return;
-
     try {
-      if (editingItem) {
-        // Update existing record
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { error } = await (supabase as any)
-          .from(tableName)
-          .update(toDbFormat(data))
-          .eq('id', data.id);
+      await apiRepository.save(storageKey, {
+        id: editingItem ? data.id : undefined,
+        codigoExterno: data.codigoExterno,
+        nome: data.nome,
+        descricao: data.descricao,
+      });
 
-        if (error) throw error;
+      toast({
+        title: t('common.success'),
+        description: `${entityName} ${editingItem ? t('common.updated').toLowerCase() : t('common.save').toLowerCase()}!`,
+      });
 
-        toast({ title: t('common.success'), description: `${entityName} ${t('common.updated').toLowerCase()}!` });
-      } else {
-        // Create new record
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { error } = await (supabase as any)
-          .from(tableName)
-          .insert(toDbFormat(data));
-
-        if (error) throw error;
-
-        toast({ title: t('common.success'), description: `${entityName} ${t('common.save').toLowerCase()}!` });
-      }
-
-      // Refresh data
       await fetchData();
       setEditingItem(null);
-    } catch (err: any) {
-      console.error(`Error saving ${tableName}:`, err);
-      const isDuplicate = err?.code === '23505';
+    } catch (err: unknown) {
+      console.error(`Error saving ${storageKey}:`, err);
+      const isDuplicate = (err as Record<string, unknown>)?.code === '23505';
       toast({
         title: 'Erro',
         description: isDuplicate
@@ -170,22 +125,17 @@ const ParametroListPage = ({ title, description, entityName, storageKey, permiss
   };
 
   const handleDelete = async (id: string) => {
-    if (!tableName) return;
-
     if (confirm(t('common.confirm.delete'))) {
       try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { error } = await (supabase as any)
-          .from(tableName)
-          .delete()
-          .eq('id', id);
+        await apiRepository.remove(storageKey, id);
 
-        if (error) throw error;
-
-        toast({ title: t('common.deleted'), description: `${entityName} ${t('common.deleted').toLowerCase()}!` });
+        toast({
+          title: t('common.deleted'),
+          description: `${entityName} ${t('common.deleted').toLowerCase()}!`,
+        });
         await fetchData();
       } catch (err) {
-        console.error(`Error deleting ${tableName}:`, err);
+        console.error(`Error deleting ${storageKey}:`, err);
         toast({
           title: 'Erro',
           description: `Erro ao excluir: ${(err as Error).message}`,
@@ -203,7 +153,7 @@ const ParametroListPage = ({ title, description, entityName, storageKey, permiss
   const filteredItems = items.filter(
     (item) =>
       item.nome?.toLowerCase().includes(search.toLowerCase()) ||
-      (item.codigo_externo || '').toLowerCase().includes(search.toLowerCase())
+      (item.codigo_externo || '').toLowerCase().includes(search.toLowerCase()),
   );
 
   const columns: Column<Parametro & { actions?: never }>[] = [
@@ -223,14 +173,17 @@ const ParametroListPage = ({ title, description, entityName, storageKey, permiss
       label: t('common.description'),
       className: 'hidden md:table-cell',
       render: (item) => (
-        <span className="text-muted-foreground max-w-xs truncate block">{item.descricao || '-'}</span>
+        <span className="text-muted-foreground max-w-xs truncate block">
+          {item.descricao || '-'}
+        </span>
       ),
     },
     {
       key: 'created_at',
       label: t('common.registrationDate'),
       className: 'w-32',
-      render: (item) => item.created_at ? new Date(item.created_at).toLocaleDateString('pt-BR') : '-',
+      render: (item) =>
+        item.created_at ? new Date(item.created_at).toLocaleDateString('pt-BR') : '-',
     },
     {
       key: 'actions',
@@ -265,13 +218,16 @@ const ParametroListPage = ({ title, description, entityName, storageKey, permiss
 
   return (
     <div>
-      <PageHeader
-        title={title}
-        description={description}
-      />
+      <PageHeader title={title} description={description} />
 
       <ListActionBar>
-        <NewButton tooltip={`${t('common.new')} ${entityName}`} onClick={() => { setEditingItem(null); setIsModalOpen(true); }} />
+        <NewButton
+          tooltip={`${t('common.new')} ${entityName}`}
+          onClick={() => {
+            setEditingItem(null);
+            setIsModalOpen(true);
+          }}
+        />
         <div className="flex-1" />
         <SearchBar value={search} onChange={setSearch} placeholder={t('common.search')} />
       </ListActionBar>
@@ -304,7 +260,11 @@ const ParametroListPage = ({ title, description, entityName, storageKey, permiss
         onSave={handleSave}
         title={entityName}
         data={editingItem}
-        readOnly={!!editingItem && permissionPath ? !canAlterar(permissionPath[0], permissionPath[1], permissionPath[2] || '-') : false}
+        readOnly={
+          !!editingItem && permissionPath
+            ? !canAlterar(permissionPath[0], permissionPath[1], permissionPath[2] || '-')
+            : false
+        }
       />
     </div>
   );

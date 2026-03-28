@@ -8,7 +8,7 @@ export type User = AuthUserProfile;
 
 interface AuthContextType {
   user: User | null;
-  supabaseUser: AuthSessionUser | null;
+  sessionUser: AuthSessionUser | null;
   session: AuthSession | null;
   isAuthenticated: boolean;
   isLoading: boolean;
@@ -20,18 +20,23 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [supabaseUser, setSupabaseUser] = useState<AuthSessionUser | null>(null);
+  const [sessionUser, setSessionUser] = useState<AuthSessionUser | null>(null);
   const [session, setSession] = useState<AuthSession | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
   useEffect(() => {
-    const syncProfile = async (nextSession: AuthSession | null, nextSupabaseUser: AuthSessionUser | null) => {
+    const syncProfile = async (
+      nextSession: AuthSession | null,
+      nextSessionUser: AuthSessionUser | null,
+    ) => {
       setSession(nextSession);
-      setSupabaseUser(nextSupabaseUser);
+      setSessionUser(nextSessionUser);
 
       if (nextSession?.user?.id) {
-        const { profile, status, error } = await authRepository.fetchUserProfile(nextSession.user.id);
+        const { profile, status, error } = await authRepository.fetchUserProfile(
+          nextSession.user.id,
+        );
 
         if (profile === null && status === null) {
           setUser(null);
@@ -56,27 +61,41 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setIsLoading(false);
     };
 
-    const subscription = authRepository.onAuthStateChange(async ({ session: nextSession, supabaseUser: nextSupabaseUser }) => {
-      await syncProfile(nextSession, nextSupabaseUser);
-    });
+    const subscription = authRepository.onAuthStateChange(
+      async ({ session: nextSession, sessionUser: nextSessionUser }) => {
+        await syncProfile(nextSession, nextSessionUser);
+      },
+    );
 
-    authRepository.getSession().then(async ({ session: existingSession, supabaseUser: existingSupabaseUser }) => {
-      await syncProfile(existingSession, existingSupabaseUser);
-    });
+    authRepository
+      .getSession()
+      .then(async ({ session: existingSession, sessionUser: existingSessionUser }) => {
+        await syncProfile(existingSession, existingSessionUser);
+      });
 
     return () => subscription.unsubscribe();
   }, [toast]);
 
-  const login = async (usuario: string, password: string): Promise<{ success: boolean; error?: string }> => {
+  const login = async (
+    usuario: string,
+    password: string,
+  ): Promise<{ success: boolean; error?: string }> => {
     try {
-      const { user: authenticatedUser, error } = await authRepository.signInWithPassword(usuario, password);
+      const { user: authenticatedUser, error } = await authRepository.signInWithPassword(
+        usuario,
+        password,
+      );
 
       if (error) {
         return { success: false, error };
       }
 
       if (authenticatedUser) {
-        const { profile, status, error: profileError } = await authRepository.fetchUserProfile(authenticatedUser.id);
+        const {
+          profile,
+          status,
+          error: profileError,
+        } = await authRepository.fetchUserProfile(authenticatedUser.id);
 
         if (status === 'TenantBloqueado') {
           await authRepository.signOut();
@@ -85,7 +104,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
         if (status !== 'Ativo') {
           await authRepository.signOut();
-          return { success: false, error: 'Usuario inativo. Entre em contato com o administrador.' };
+          return {
+            success: false,
+            error: 'Usuario inativo. Entre em contato com o administrador.',
+          };
         }
 
         setUser(profile);
@@ -102,7 +124,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       await authRepository.signOut();
       setUser(null);
-      setSupabaseUser(null);
+      setSessionUser(null);
       setSession(null);
       clearKreatoLocalStorage();
     } catch (error) {
@@ -114,7 +136,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     <AuthContext.Provider
       value={{
         user,
-        supabaseUser,
+        sessionUser,
         session,
         isAuthenticated: !!session && !!user,
         isLoading,

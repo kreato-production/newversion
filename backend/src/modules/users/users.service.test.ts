@@ -5,6 +5,9 @@ import type { SaveUserInput, UserRecord, UsersRepository } from './users.reposit
 
 class InMemoryUsersRepository implements UsersRepository {
   items = new Map<string, UserRecord & { passwordHash?: string | null }>();
+  userUnidades = new Map<string, Set<string>>();
+  userProgramas = new Map<string, Set<string>>();
+  userEquipes = new Map<string, Set<string>>();
 
   async listByTenant(tenantId: string | null) {
     const data = [...this.items.values()]
@@ -54,6 +57,19 @@ class InMemoryUsersRepository implements UsersRepository {
   async remove(id: string) {
     this.items.delete(id);
   }
+
+  async listAvailableUnidades() { return []; }
+  async listUserUnidades() { return []; }
+  async addUserUnidade() {}
+  async removeUserUnidade() {}
+  async listAvailableProgramas() { return []; }
+  async listUserProgramas() { return []; }
+  async addUserPrograma() {}
+  async removeUserPrograma() {}
+  async listAvailableEquipes() { return []; }
+  async listUserEquipes() { return []; }
+  async addUserEquipe() {}
+  async removeUserEquipe() {}
 }
 
 const tenantAdmin: SessionUser = {
@@ -102,4 +118,3 @@ describe('UsersService', () => {
     })).rejects.toThrow('Somente administradores globais podem criar usuarios globais');
   });
 });
-

@@ -1,5 +1,16 @@
-import { useState, useEffect, useMemo } from 'react';
-import { Search, CheckCircle2, Clock, AlertCircle, ArrowUpDown, ArrowUp, ArrowDown, Edit, Loader2 } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  AlertCircle,
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  CheckCircle2,
+  Clock,
+  Edit,
+  Loader2,
+  Search,
+} from 'lucide-react';
+import { toast } from 'sonner';
 import { NewButton } from '@/components/shared/NewButton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,12 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  Card,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Table,
   TableBody,
@@ -25,283 +31,74 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { PageHeader, DataCard } from '@/components/shared/PageComponents';
+import { DataCard, PageHeader } from '@/components/shared/PageComponents';
 import { ListActionBar } from '@/components/shared/ListActionBar';
 import { TarefaFormModal } from '@/components/producao/TarefaFormModal';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { usePermissions } from '@/hooks/usePermissions';
-import { useAuth } from '@/contexts/AuthContext';
-import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { supabase } from '@/integrations/supabase/client';
-import type { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
+import {
+  ApiTarefasRepository,
+  type Tarefa,
+  type TarefaGravacao,
+  type TarefaRecursoHumano,
+  type TarefaStatus,
+} from '@/modules/tarefas/tarefas.api';
 
-type TarefaDB = Tables<'tarefas'>;
-type StatusTarefaDB = Tables<'status_tarefa'>;
-type GravacaoDB = Tables<'gravacoes'>;
-
-interface Tarefa {
-  id: string;
-  gravacaoId: string;
-  gravacaoNome?: string;
-  recursoHumanoId: string;
-  recursoHumanoNome?: string;
-  recursoTecnicoId?: string;
-  recursoTecnicoNome?: string;
-  titulo: string;
-  descricao: string;
-  statusId: string;
-  statusNome?: string;
-  statusCor?: string;
-  prioridade: 'baixa' | 'media' | 'alta';
-  dataInicio: string;
-  dataFim: string;
-  horaInicio?: string;
-  horaFim?: string;
-  dataCriacao: string;
-  dataAtualizacao: string;
-  observacoes?: string;
-}
-
-interface StatusTarefa {
-  id: string;
-  codigo: string;
-  nome: string;
-  cor?: string;
-  is_inicial?: boolean;
-}
-
-interface Gravacao {
-  id: string;
-  nome: string;
-}
+const tarefasRepository = new ApiTarefasRepository();
 
 const Tarefas = () => {
   const { t, formatDate } = useLanguage();
-  const { canIncluir, canAlterar, canExcluir } = usePermissions();
-  const { user } = useAuth();
-  
-  const podeIncluir = canIncluir('Produção', 'Tarefas');
-  const podeAlterar = canAlterar('Produção', 'Tarefas');
-  const podeExcluir = canExcluir('Produção', 'Tarefas');
-  
+  const { canAlterar, canExcluir, canIncluir } = usePermissions();
+
+  const podeIncluir = canIncluir('ProduÃ§Ã£o', 'Tarefas');
+  const podeAlterar = canAlterar('ProduÃ§Ã£o', 'Tarefas');
+  const podeExcluir = canExcluir('ProduÃ§Ã£o', 'Tarefas');
+
   const [tarefas, setTarefas] = useState<Tarefa[]>([]);
-  const [statusList, setStatusList] = useState<StatusTarefa[]>([]);
-  const [gravacoes, setGravacoes] = useState<Gravacao[]>([]);
+  const [statusList, setStatusList] = useState<TarefaStatus[]>([]);
+  const [gravacoes, setGravacoes] = useState<TarefaGravacao[]>([]);
+  const [recursosHumanos, setRecursosHumanos] = useState<TarefaRecursoHumano[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [filterGravacao, setFilterGravacao] = useState<string>('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTarefa, setEditingTarefa] = useState<Tarefa | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [allowedRHIds, setAllowedRHIds] = useState<string[] | null>(null); // null = no filter (admin/all)
-
-  // Fetch the allowed RH IDs based on user tipo_acesso
-  const loadAllowedRHIds = async () => {
-    if (!user) return;
-
-    const tipoAcesso = user.tipoAcesso || 'Operacional';
-    const recursoHumanoId = user.recursoHumanoId;
-
-    if (tipoAcesso === 'Operacional') {
-      // Only show tasks assigned to the user's recurso_humano
-      if (recursoHumanoId) {
-        setAllowedRHIds([recursoHumanoId]);
-      } else {
-        // No RH linked - show no tasks
-        setAllowedRHIds([]);
-      }
-    } else if (tipoAcesso === 'Coordenação') {
-      // Show tasks from all RH members of the user's teams + own tasks
-      try {
-        // Get user's equipes
-        const { data: userEquipes, error: ueError } = await supabase
-          .from('usuario_equipes')
-          .select('equipe_id')
-          .eq('usuario_id', user.id);
-
-        if (ueError) throw ueError;
-
-        const equipeIds = (userEquipes || []).map(ue => ue.equipe_id);
-
-        if (equipeIds.length === 0) {
-          // No teams - only own tasks
-          setAllowedRHIds(recursoHumanoId ? [recursoHumanoId] : []);
-          return;
-        }
-
-        // Get all RH members from those teams
-        const { data: membros, error: mError } = await supabase
-          .from('equipe_membros')
-          .select('recurso_humano_id')
-          .in('equipe_id', equipeIds);
-
-        if (mError) throw mError;
-
-        const rhIds = new Set((membros || []).map(m => m.recurso_humano_id));
-        // Also include own RH id
-        if (recursoHumanoId) {
-          rhIds.add(recursoHumanoId);
-        }
-
-        setAllowedRHIds(Array.from(rhIds));
-      } catch (error) {
-        console.error('Error loading allowed RH IDs:', error);
-        // Fallback: show only own tasks
-        setAllowedRHIds(recursoHumanoId ? [recursoHumanoId] : []);
-      }
-    } else {
-      // Unknown type - no filter
-      setAllowedRHIds(null);
-    }
-  };
 
   const loadData = async (showLoading = true) => {
-    const shouldShowLoading = showLoading && tarefas.length === 0;
-    if (shouldShowLoading) setIsLoading(true);
+    if (showLoading) {
+      setIsLoading(true);
+    }
+
     try {
-      // Load status list
-      const { data: statusData, error: statusError } = await supabase
-        .from('status_tarefa')
-        .select('*')
-        .order('nome');
+      const [tarefasData, options] = await Promise.all([
+        tarefasRepository.list(),
+        tarefasRepository.listOptions(),
+      ]);
 
-      if (statusError) throw statusError;
-      
-      const mappedStatus: StatusTarefa[] = (statusData || []).map(s => ({
-        id: s.id,
-        codigo: s.codigo,
-        nome: s.nome,
-        cor: s.cor || undefined,
-        is_inicial: (s as any).is_inicial || false,
-      }));
-      setStatusList(mappedStatus);
-
-      // Load gravacoes (filtered by unidade de negócio)
-      let gravacoesQuery = supabase
-        .from('gravacoes')
-        .select('id, nome, unidade_negocio_id')
-        .order('nome');
-
-      if (user?.unidadeIds && user.unidadeIds.length > 0) {
-        gravacoesQuery = gravacoesQuery.in('unidade_negocio_id', user.unidadeIds);
-      }
-
-      const { data: gravacoesData, error: gravacoesError } = await gravacoesQuery;
-
-      if (gravacoesError) throw gravacoesError;
-      setGravacoes(gravacoesData || []);
-
-      // Load tarefas with relations
-      let query = supabase
-        .from('tarefas')
-        .select(`
-          *,
-          hora_inicio,
-          hora_fim,
-          gravacoes:gravacao_id(nome, unidade_negocio_id),
-          recursos_humanos:recurso_humano_id(nome, sobrenome),
-          recursos_tecnicos:recurso_tecnico_id(nome),
-          status_tarefa:status_id(nome, cor)
-        `)
-        .order('created_at', { ascending: false });
-
-      // Apply RH filter if set
-      if (allowedRHIds !== null && allowedRHIds.length > 0) {
-        query = query.in('recurso_humano_id', allowedRHIds);
-      } else if (allowedRHIds !== null && allowedRHIds.length === 0) {
-        // No allowed IDs - return empty
-        setTarefas([]);
-        setIsLoading(false);
-        return;
-      }
-
-      // Filter by allowed gravação IDs (based on unidade de negócio)
-      const allowedGravacaoIds = (gravacoesData || []).map((g: any) => g.id);
-      if (user?.unidadeIds && user.unidadeIds.length > 0 && allowedGravacaoIds.length > 0) {
-        query = query.in('gravacao_id', allowedGravacaoIds);
-      } else if (user?.unidadeIds && user.unidadeIds.length > 0 && allowedGravacaoIds.length === 0) {
-        setTarefas([]);
-        setIsLoading(false);
-        return;
-      }
-
-      const { data: tarefasData, error: tarefasError } = await query;
-
-      if (tarefasError) throw tarefasError;
-
-      const mappedTarefas: Tarefa[] = (tarefasData || []).map(t => ({
-        id: t.id,
-        gravacaoId: t.gravacao_id || '',
-        gravacaoNome: t.gravacoes?.nome || undefined,
-        recursoHumanoId: t.recurso_humano_id || '',
-        recursoHumanoNome: t.recursos_humanos ? `${t.recursos_humanos.nome} ${t.recursos_humanos.sobrenome}` : undefined,
-        recursoTecnicoId: t.recurso_tecnico_id || undefined,
-        recursoTecnicoNome: t.recursos_tecnicos?.nome || undefined,
-        titulo: t.titulo,
-        descricao: t.descricao || '',
-        statusId: t.status_id || '',
-        statusNome: t.status_tarefa?.nome || undefined,
-        statusCor: t.status_tarefa?.cor || undefined,
-        prioridade: t.prioridade || 'media',
-        dataInicio: t.data_inicio || '',
-        dataFim: t.data_fim || '',
-        horaInicio: (t as any).hora_inicio?.substring(0, 5) || undefined,
-        horaFim: (t as any).hora_fim?.substring(0, 5) || undefined,
-        dataCriacao: t.created_at || '',
-        dataAtualizacao: t.updated_at || '',
-        observacoes: t.observacoes || undefined,
-      }));
-      setTarefas(mappedTarefas);
+      setTarefas(tarefasData);
+      setStatusList(options.statusList);
+      setGravacoes(options.gravacoes);
+      setRecursosHumanos(options.recursosHumanos);
     } catch (error) {
-      console.error('Error loading data:', error);
+      console.error('Error loading tarefas:', error);
       toast.error('Erro ao carregar dados');
     } finally {
-      if (shouldShowLoading) setIsLoading(false);
+      if (showLoading) {
+        setIsLoading(false);
+      }
     }
   };
 
   useEffect(() => {
-    loadAllowedRHIds();
-  }, [user]);
-
-  useEffect(() => {
-    if (allowedRHIds !== undefined) {
-      loadData();
-    }
-  }, [allowedRHIds]);
+    void loadData();
+  }, []);
 
   const handleSave = async (tarefa: Tarefa) => {
     try {
-      const dbData: any = {
-        titulo: tarefa.titulo,
-        descricao: tarefa.descricao || null,
-        gravacao_id: tarefa.gravacaoId || null,
-        recurso_humano_id: tarefa.recursoHumanoId || (editingTarefa?.recursoHumanoId) || null,
-        recurso_tecnico_id: tarefa.recursoTecnicoId || null,
-        status_id: tarefa.statusId || null,
-        prioridade: tarefa.prioridade,
-        data_inicio: tarefa.dataInicio || null,
-        data_fim: tarefa.dataFim || null,
-        hora_inicio: tarefa.horaInicio || null,
-        hora_fim: tarefa.horaFim || null,
-        observacoes: tarefa.observacoes || null,
-      };
-
-      if (editingTarefa) {
-        const { error } = await supabase
-          .from('tarefas')
-          .update(dbData as TablesUpdate<'tarefas'>)
-          .eq('id', tarefa.id);
-        if (error) throw error;
-        toast.success(t('tasks.updated'));
-      } else {
-        dbData.id = tarefa.id || undefined;
-        const { error } = await supabase.from('tarefas').insert(dbData);
-        if (error) throw error;
-        toast.success(t('tasks.created'));
-      }
-
+      await tarefasRepository.save(tarefa);
+      toast.success(editingTarefa ? t('tasks.updated') : t('tasks.created'));
       setIsModalOpen(false);
       setEditingTarefa(null);
       await loadData(false);
@@ -313,10 +110,11 @@ const Tarefas = () => {
 
   const handleDelete = async (id: string) => {
     try {
-      const { error } = await supabase.from('tarefas').delete().eq('id', id);
-      if (error) throw error;
+      await tarefasRepository.remove(id);
       toast.success(t('common.deleted'));
-      await loadData();
+      setIsModalOpen(false);
+      setEditingTarefa(null);
+      await loadData(false);
     } catch (error) {
       console.error('Error deleting tarefa:', error);
       toast.error('Erro ao excluir tarefa');
@@ -330,87 +128,103 @@ const Tarefas = () => {
 
   const getPrioridadeColor = (prioridade: string) => {
     switch (prioridade) {
-      case 'alta': return 'bg-red-500';
-      case 'media': return 'bg-yellow-500';
-      case 'baixa': return 'bg-green-500';
-      default: return 'bg-gray-500';
+      case 'alta':
+        return 'bg-red-500';
+      case 'media':
+        return 'bg-yellow-500';
+      case 'baixa':
+        return 'bg-green-500';
+      default:
+        return 'bg-gray-500';
     }
   };
 
   const getPrioridadeLabel = (prioridade: string) => {
     switch (prioridade) {
-      case 'alta': return t('tasks.priorityHigh');
-      case 'media': return t('tasks.priorityMedium');
-      case 'baixa': return t('tasks.priorityLow');
-      default: return prioridade;
+      case 'alta':
+        return t('tasks.priorityHigh');
+      case 'media':
+        return t('tasks.priorityMedium');
+      case 'baixa':
+        return t('tasks.priorityLow');
+      default:
+        return prioridade;
     }
   };
 
-  const filteredTarefas = tarefas.filter(tarefa => {
-    const matchesSearch = 
+  const filteredTarefas = tarefas.filter((tarefa) => {
+    const matchesSearch =
       tarefa.titulo.toLowerCase().includes(searchTerm.toLowerCase()) ||
       tarefa.descricao?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       tarefa.recursoHumanoNome?.toLowerCase().includes(searchTerm.toLowerCase());
-    
+
     const matchesStatus = filterStatus === 'all' || tarefa.statusId === filterStatus;
     const matchesGravacao = filterGravacao === 'all' || tarefa.gravacaoId === filterGravacao;
-    
+
     return matchesSearch && matchesStatus && matchesGravacao;
   });
 
-  // Sorting
-  type SortKey = 'titulo' | 'gravacaoNome' | 'recursoHumanoNome' | 'statusNome' | 'prioridade' | 'dataFim';
+  type SortKey =
+    | 'titulo'
+    | 'gravacaoNome'
+    | 'recursoHumanoNome'
+    | 'statusNome'
+    | 'prioridade'
+    | 'dataFim';
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   const handleSort = (key: SortKey) => {
     if (sortKey === key) {
-      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortKey(key);
-      setSortDirection('asc');
+      setSortDirection((current) => (current === 'asc' ? 'desc' : 'asc'));
+      return;
     }
+
+    setSortKey(key);
+    setSortDirection('asc');
   };
 
   const sortedTarefas = useMemo(() => {
-    if (!sortKey) return filteredTarefas;
+    if (!sortKey) {
+      return filteredTarefas;
+    }
 
     return [...filteredTarefas].sort((a, b) => {
       let aVal: string | number = a[sortKey] || '';
       let bVal: string | number = b[sortKey] || '';
-      
+
       if (sortKey === 'prioridade') {
-        const prioOrder: Record<string, number> = { alta: 3, media: 2, baixa: 1 };
-        aVal = prioOrder[a.prioridade] || 0;
-        bVal = prioOrder[b.prioridade] || 0;
+        const order: Record<string, number> = { alta: 3, media: 2, baixa: 1 };
+        aVal = order[a.prioridade] || 0;
+        bVal = order[b.prioridade] || 0;
       }
-      
+
       if (sortKey === 'dataFim') {
         aVal = a.dataFim ? new Date(a.dataFim).getTime() : 0;
         bVal = b.dataFim ? new Date(b.dataFim).getTime() : 0;
       }
 
       if (typeof aVal === 'string' && typeof bVal === 'string') {
-        return sortDirection === 'asc' 
-          ? aVal.localeCompare(bVal)
-          : bVal.localeCompare(aVal);
+        return sortDirection === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
       }
-      
-      return sortDirection === 'asc' 
-        ? (aVal as number) - (bVal as number)
-        : (bVal as number) - (aVal as number);
+
+      return sortDirection === 'asc' ? Number(aVal) - Number(bVal) : Number(bVal) - Number(aVal);
     });
-  }, [filteredTarefas, sortKey, sortDirection]);
+  }, [filteredTarefas, sortDirection, sortKey]);
 
   const SortHeader = ({ label, sortKeyName }: { label: string; sortKeyName: SortKey }) => (
-    <TableHead 
+    <TableHead
       className="cursor-pointer hover:bg-muted/50 select-none"
       onClick={() => handleSort(sortKeyName)}
     >
       <div className="flex items-center gap-1">
         {label}
         {sortKey === sortKeyName ? (
-          sortDirection === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+          sortDirection === 'asc' ? (
+            <ArrowUp className="h-3 w-3" />
+          ) : (
+            <ArrowDown className="h-3 w-3" />
+          )
         ) : (
           <ArrowUpDown className="h-3 w-3 opacity-30" />
         )}
@@ -418,27 +232,22 @@ const Tarefas = () => {
     </TableHead>
   );
 
-  // Statistics
   const totalTarefas = tarefas.length;
-  const tarefasPendentes = tarefas.filter(t => 
-    statusList.find(s => s.id === t.statusId)?.codigo === '01'
+  const tarefasPendentes = tarefas.filter(
+    (item) => statusList.find((status) => status.id === item.statusId)?.codigo === '01',
   ).length;
-  const tarefasProgresso = tarefas.filter(t => 
-    statusList.find(s => s.id === t.statusId)?.codigo === '02'
+  const tarefasProgresso = tarefas.filter(
+    (item) => statusList.find((status) => status.id === item.statusId)?.codigo === '02',
   ).length;
-  const tarefasConcluidas = tarefas.filter(t => 
-    statusList.find(s => s.id === t.statusId)?.codigo === '03'
+  const tarefasConcluidas = tarefas.filter(
+    (item) => statusList.find((status) => status.id === item.statusId)?.codigo === '03',
   ).length;
 
   return (
     <>
-      <PageHeader
-        title={t('tasks.title')}
-        description={t('tasks.description')}
-      />
+      <PageHeader title={t('tasks.title')} description={t('tasks.description')} />
 
       <div className="space-y-6">
-        {/* Statistics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
           <Card>
             <CardHeader className="pb-2">
@@ -475,10 +284,15 @@ const Tarefas = () => {
           </Card>
         </div>
 
-        {/* Filters in ListActionBar */}
         <ListActionBar>
           {podeIncluir && (
-            <NewButton tooltip={t('tasks.new')} onClick={() => { setEditingTarefa(null); setIsModalOpen(true); }} />
+            <NewButton
+              tooltip={t('tasks.new')}
+              onClick={() => {
+                setEditingTarefa(null);
+                setIsModalOpen(true);
+              }}
+            />
           )}
           <div className="flex-1" />
           <div className="relative min-w-[200px]">
@@ -486,7 +300,7 @@ const Tarefas = () => {
             <Input
               placeholder={t('common.search')}
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(event) => setSearchTerm(event.target.value)}
               className="pl-10"
             />
           </div>
@@ -496,8 +310,10 @@ const Tarefas = () => {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">{t('common.all')}</SelectItem>
-              {statusList.map(status => (
-                <SelectItem key={status.id} value={status.id}>{status.nome}</SelectItem>
+              {statusList.map((status) => (
+                <SelectItem key={status.id} value={status.id}>
+                  {status.nome}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -507,14 +323,15 @@ const Tarefas = () => {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">{t('common.all')}</SelectItem>
-              {gravacoes.map(g => (
-                <SelectItem key={g.id} value={g.id}>{g.nome}</SelectItem>
+              {gravacoes.map((gravacao) => (
+                <SelectItem key={gravacao.id} value={gravacao.id}>
+                  {gravacao.nome}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
         </ListActionBar>
 
-        {/* Tasks Table */}
         {isLoading ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -523,7 +340,13 @@ const Tarefas = () => {
           <div className="text-center py-12 border-2 border-dashed rounded-lg">
             <p className="text-muted-foreground mb-4">{t('tasks.empty')}</p>
             {podeIncluir && (
-              <Button variant="outline" onClick={() => { setEditingTarefa(null); setIsModalOpen(true); }}>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setEditingTarefa(null);
+                  setIsModalOpen(true);
+                }}
+              >
                 {t('tasks.addFirst')}
               </Button>
             )}
@@ -543,21 +366,18 @@ const Tarefas = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {sortedTarefas.map(tarefa => (
-                    <TableRow 
-                      key={tarefa.id} 
-                      className={cn(
-                        "hover:bg-muted/50",
-                        "cursor-pointer"
-                      )}
-                      onClick={() => handleEdit(tarefa)}
-                    >
+                {sortedTarefas.map((tarefa) => (
+                  <TableRow
+                    key={tarefa.id}
+                    className={cn('hover:bg-muted/50', 'cursor-pointer')}
+                    onClick={() => handleEdit(tarefa)}
+                  >
                     <TableCell className="font-medium">{tarefa.titulo}</TableCell>
                     <TableCell>{tarefa.gravacaoNome || '-'}</TableCell>
                     <TableCell>{tarefa.recursoHumanoNome || '-'}</TableCell>
                     <TableCell>
                       {tarefa.statusNome && (
-                        <Badge 
+                        <Badge
                           style={{ backgroundColor: tarefa.statusCor || '#888' }}
                           className="text-white"
                         >
@@ -567,18 +387,19 @@ const Tarefas = () => {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <div className={cn("w-2.5 h-2.5 rounded-full", getPrioridadeColor(tarefa.prioridade))} />
+                        <div
+                          className={cn(
+                            'w-2.5 h-2.5 rounded-full',
+                            getPrioridadeColor(tarefa.prioridade),
+                          )}
+                        />
                         {getPrioridadeLabel(tarefa.prioridade)}
                       </div>
                     </TableCell>
                     <TableCell>{tarefa.dataFim ? formatDate(tarefa.dataFim) : '-'}</TableCell>
                     <TableCell>
-                      <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleEdit(tarefa)}
-                        >
+                      <div className="flex gap-1" onClick={(event) => event.stopPropagation()}>
+                        <Button variant="ghost" size="icon" onClick={() => handleEdit(tarefa)}>
                           <Edit className="h-4 w-4" />
                         </Button>
                       </div>
@@ -599,7 +420,8 @@ const Tarefas = () => {
         data={editingTarefa}
         statusList={statusList}
         gravacoes={gravacoes}
-        readOnly={editingTarefa && !podeAlterar}
+        recursosHumanos={recursosHumanos}
+        readOnly={Boolean(editingTarefa) && !podeAlterar}
       />
     </>
   );

@@ -5,6 +5,7 @@ export type JwtPayload = {
   type: 'access' | 'refresh';
   role: string;
   tenantId?: string | null;
+  jti?: string;
   exp: number;
   iat: number;
 };

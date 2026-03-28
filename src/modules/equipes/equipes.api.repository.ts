@@ -3,7 +3,8 @@ import type { Equipe, EquipeInput, Membro, RecursoHumano } from './equipes.types
 
 export class ApiEquipesRepository {
   async list(): Promise<Equipe[]> {
-    return apiRequest<Equipe[]>('/equipes');
+    const response = await apiRequest<{ data: Equipe[] }>('/equipes');
+    return response.data;
   }
 
   async create(input: EquipeInput): Promise<void> {
@@ -27,18 +28,25 @@ export class ApiEquipesRepository {
   }
 
   async listRecursosHumanosAtivos(): Promise<RecursoHumano[]> {
-    throw new Error('Operacao ainda nao migrada para a API propria');
+    throw new Error('Use listMembros para carregar usuarios disponiveis por equipe');
   }
 
-  async listMembros(_equipeId: string): Promise<Membro[]> {
-    throw new Error('Operacao ainda nao migrada para a API propria');
+  async listMembros(
+    equipeId: string,
+  ): Promise<{ membros: Membro[]; disponiveis: RecursoHumano[] }> {
+    return apiRequest(`/equipes/${equipeId}/membros`);
   }
 
-  async addMembro(_equipeId: string, _recursoHumanoId: string): Promise<Membro> {
-    throw new Error('Operacao ainda nao migrada para a API propria');
+  async addMembro(equipeId: string, recursoHumanoId: string): Promise<Membro> {
+    return apiRequest(`/equipes/${equipeId}/membros`, {
+      method: 'POST',
+      body: JSON.stringify({ targetId: recursoHumanoId }),
+    });
   }
 
-  async removeMembro(_membroId: string): Promise<void> {
-    throw new Error('Operacao ainda nao migrada para a API propria');
+  async removeMembro(equipeId: string, membroId: string): Promise<void> {
+    await apiRequest(`/equipes/${equipeId}/membros/${membroId}`, {
+      method: 'DELETE',
+    });
   }
 }

@@ -1,5 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,104 +17,178 @@ import { Loader2, Upload, Trash2, Download } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
 import { useFormFieldConfig, FieldAsterisk } from '@/hooks/useFormFieldConfig';
+import {
+  ApiIncidenciasGravacaoRepository,
+  type IncidenciaAnexoApiItem,
+} from '@/modules/incidencias-gravacao/incidencias-gravacao.api';
+import { gravacoesRepository } from '@/modules/gravacoes/gravacoes.repository.provider';
+import { ApiRecursosFisicosRepository } from '@/modules/recursos-fisicos/recursos-fisicos.api.repository';
+import { ApiParametrizacoesRepository } from '@/modules/parametrizacoes/parametrizacoes.api.repository';
 
-interface Anexo {
+interface IncidenciaFormData {
+  id?: string;
+  codigo_externo?: string;
+  titulo?: string;
+  gravacao_id?: string;
+  recurso_fisico_id?: string;
+  severidade_id?: string;
+  impacto_id?: string;
+  categoria_id?: string;
+  classificacao_id?: string;
+  data_incidencia?: string;
+  horario_incidencia?: string;
+  tempo_incidencia?: string;
+  descricao?: string;
+  causa_provavel?: string;
+}
+
+interface SelectOption {
   id: string;
-  nome: string;
-  url: string;
-  tipo: string | null;
-  tamanho: number | null;
-  created_at: string | null;
+  nome?: string;
+  titulo?: string;
+  codigo?: string;
 }
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
   onSave: () => Promise<void> | void;
-  data?: any;
+  data?: IncidenciaFormData;
   readOnly?: boolean;
   defaultGravacaoId?: string;
 }
 
-export const IncidenciaGravacaoFormModal = ({ isOpen, onClose, onSave, data, readOnly = false, defaultGravacaoId }: Props) => {
+const incidenciasRepository = new ApiIncidenciasGravacaoRepository();
+const recursosFisicosRepository = new ApiRecursosFisicosRepository();
+const parametrizacoesRepository = new ApiParametrizacoesRepository();
+
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = () => reject(reader.error || new Error('Falha ao ler arquivo'));
+    reader.readAsDataURL(file);
+  });
+}
+
+export const IncidenciaGravacaoFormModal = ({
+  isOpen,
+  onClose,
+  onSave,
+  data,
+  readOnly = false,
+  defaultGravacaoId,
+}: Props) => {
   const { user } = useAuth();
   const { t } = useLanguage();
   const { toast } = useToast();
-  const { getAsterisk, validateRequired, showValidationError } = useFormFieldConfig('incidenciaGravacao');
+  const { getAsterisk, validateRequired, showValidationError } =
+    useFormFieldConfig('incidenciaGravacao');
 
-  // Map snake_case form keys to camelCase registry keys
   const fieldKeyMap: Record<string, string> = {
-    codigo_externo: 'codigoExterno', titulo: 'titulo', gravacao_id: 'gravacaoId',
-    recurso_fisico_id: 'recursoFisicoId', severidade_id: 'severidadeId', impacto_id: 'impactoId',
-    categoria_id: 'categoriaId', classificacao_id: 'classificacaoId',
-    data_incidencia: 'dataIncidencia', horario_incidencia: 'horarioIncidencia',
-    tempo_incidencia: 'tempoIncidencia', descricao: 'descricao', causa_provavel: 'causaProvavel',
+    codigo_externo: 'codigoExterno',
+    titulo: 'titulo',
+    gravacao_id: 'gravacaoId',
+    recurso_fisico_id: 'recursoFisicoId',
+    severidade_id: 'severidadeId',
+    impacto_id: 'impactoId',
+    categoria_id: 'categoriaId',
+    classificacao_id: 'classificacaoId',
+    data_incidencia: 'dataIncidencia',
+    horario_incidencia: 'horarioIncidencia',
+    tempo_incidencia: 'tempoIncidencia',
+    descricao: 'descricao',
+    causa_provavel: 'causaProvavel',
   };
   const fieldLabels: Record<string, string> = {
-    codigoExterno: 'Código Externo', titulo: 'Título', gravacaoId: 'Gravação',
-    recursoFisicoId: 'Recurso Físico', severidadeId: 'Severidade', impactoId: 'Impacto',
-    categoriaId: 'Categoria', classificacaoId: 'Classificação',
-    dataIncidencia: 'Data da Incidência', horarioIncidencia: 'Horário da Incidência',
-    tempoIncidencia: 'Tempo da Incidência', descricao: 'Descrição', causaProvavel: 'Causa Provável',
+    codigoExterno: 'Código Externo',
+    titulo: 'Título',
+    gravacaoId: 'Gravação',
+    recursoFisicoId: 'Recurso Físico',
+    severidadeId: 'Severidade',
+    impactoId: 'Impacto',
+    categoriaId: 'Categoria',
+    classificacaoId: 'Classificação',
+    dataIncidencia: 'Data da Incidência',
+    horarioIncidencia: 'Horário da Incidência',
+    tempoIncidencia: 'Tempo da Incidência',
+    descricao: 'Descrição',
+    causaProvavel: 'Causa Provável',
   };
 
   const [form, setForm] = useState({
-    codigo_externo: '', titulo: '', gravacao_id: '', recurso_fisico_id: '',
-    severidade_id: '', impacto_id: '', categoria_id: '', classificacao_id: '',
-    data_incidencia: '', horario_incidencia: '', tempo_incidencia: '',
-    descricao: '', causa_provavel: '',
+    codigo_externo: '',
+    titulo: '',
+    gravacao_id: '',
+    recurso_fisico_id: '',
+    severidade_id: '',
+    impacto_id: '',
+    categoria_id: '',
+    classificacao_id: '',
+    data_incidencia: '',
+    horario_incidencia: '',
+    tempo_incidencia: '',
+    descricao: '',
+    causa_provavel: '',
   });
   const [saving, setSaving] = useState(false);
 
-  // Dropdown options
-  const [gravacoes, setGravacoes] = useState<any[]>([]);
-  const [recursosFisicos, setRecursosFisicos] = useState<any[]>([]);
-  const [severidades, setSeveridades] = useState<any[]>([]);
-  const [impactos, setImpactos] = useState<any[]>([]);
-  const [categorias, setCategorias] = useState<any[]>([]);
-  const [classificacoes, setClassificacoes] = useState<any[]>([]);
+  const [gravacoes, setGravacoes] = useState<SelectOption[]>([]);
+  const [recursosFisicos, setRecursosFisicos] = useState<SelectOption[]>([]);
+  const [severidades, setSeveridades] = useState<SelectOption[]>([]);
+  const [impactos, setImpactos] = useState<SelectOption[]>([]);
+  const [categorias, setCategorias] = useState<SelectOption[]>([]);
+  const [classificacoes, setClassificacoes] = useState<SelectOption[]>([]);
 
-  // Attachments
-  const [anexos, setAnexos] = useState<Anexo[]>([]);
+  const [anexos, setAnexos] = useState<IncidenciaAnexoApiItem[]>([]);
   const [uploading, setUploading] = useState(false);
 
-  // Fetch dropdown data
   useEffect(() => {
     if (!isOpen) return;
+
     const fetchOptions = async () => {
-      const [g, rf, s, i, c] = await Promise.all([
-        (supabase as any).from('gravacoes').select('id, nome, codigo').order('nome'),
-        (supabase as any).from('recursos_fisicos').select('id, nome').order('nome'),
-        (supabase as any).from('severidades_incidencia').select('id, titulo').order('titulo'),
-        (supabase as any).from('impactos_incidencia').select('id, titulo').order('titulo'),
-        (supabase as any).from('categorias_incidencia').select('id, titulo').order('titulo'),
-      ]);
-      setGravacoes(g.data || []);
-      setRecursosFisicos(rf.data || []);
-      setSeveridades(s.data || []);
-      setImpactos(i.data || []);
-      setCategorias(c.data || []);
+      try {
+        const [g, rf, s, i, c] = await Promise.all([
+          gravacoesRepository.list(),
+          recursosFisicosRepository.list(),
+          parametrizacoesRepository.listSeveridadesIncidencia(),
+          parametrizacoesRepository.listImpactosIncidencia(),
+          parametrizacoesRepository.listCategoriasIncidencia(),
+        ]);
+        setGravacoes((g || []) as SelectOption[]);
+        setRecursosFisicos((rf || []) as SelectOption[]);
+        setSeveridades((s.data || []) as SelectOption[]);
+        setImpactos((i.data || []) as SelectOption[]);
+        setCategorias((c.data || []) as SelectOption[]);
+      } catch (error) {
+        console.error('Error loading incidencia options:', error);
+      }
     };
-    fetchOptions();
+
+    void fetchOptions();
   }, [isOpen]);
 
-  // Fetch classificações when categoria changes
   useEffect(() => {
-    if (!form.categoria_id) { setClassificacoes([]); return; }
+    if (!form.categoria_id) {
+      setClassificacoes([]);
+      return;
+    }
+
     const fetchClassif = async () => {
-      const { data: items } = await (supabase as any)
-        .from('classificacoes_incidencia')
-        .select('id, titulo')
-        .eq('categoria_incidencia_id', form.categoria_id)
-        .order('titulo');
-      setClassificacoes(items || []);
+      try {
+        const response = await parametrizacoesRepository.listClassificacoesIncidencia(
+          form.categoria_id,
+        );
+        setClassificacoes((response.data || []) as SelectOption[]);
+      } catch (error) {
+        console.error('Error loading classificacoes incidencia:', error);
+      }
     };
-    fetchClassif();
+
+    void fetchClassif();
   }, [form.categoria_id]);
 
-  // Load form data
   useEffect(() => {
     if (data) {
       setForm({
@@ -127,48 +208,65 @@ export const IncidenciaGravacaoFormModal = ({ isOpen, onClose, onSave, data, rea
       });
     } else {
       setForm({
-        codigo_externo: '', titulo: '', gravacao_id: defaultGravacaoId || '', recurso_fisico_id: '',
-        severidade_id: '', impacto_id: '', categoria_id: '', classificacao_id: '',
-        data_incidencia: '', horario_incidencia: '', tempo_incidencia: '',
-        descricao: '', causa_provavel: '',
+        codigo_externo: '',
+        titulo: '',
+        gravacao_id: defaultGravacaoId || '',
+        recurso_fisico_id: '',
+        severidade_id: '',
+        impacto_id: '',
+        categoria_id: '',
+        classificacao_id: '',
+        data_incidencia: '',
+        horario_incidencia: '',
+        tempo_incidencia: '',
+        descricao: '',
+        causa_provavel: '',
       });
     }
-  }, [data, isOpen]);
+  }, [data, isOpen, defaultGravacaoId]);
 
-  // Fetch attachments
   const fetchAnexos = useCallback(async () => {
-    if (!data?.id) { setAnexos([]); return; }
-    const { data: items } = await (supabase as any)
-      .from('incidencia_anexos')
-      .select('*')
-      .eq('incidencia_id', data.id)
-      .order('created_at');
+    if (!data?.id) {
+      setAnexos([]);
+      return;
+    }
+
+    const items = await incidenciasRepository.listAnexos(data.id);
     setAnexos(items || []);
   }, [data?.id]);
 
   useEffect(() => {
-    if (isOpen && data?.id) fetchAnexos();
+    if (isOpen && data?.id) {
+      void fetchAnexos();
+    }
   }, [isOpen, data?.id, fetchAnexos]);
 
   const handleSubmit = async () => {
-    // Map form data to camelCase keys for validation
-    const camelCaseData: Record<string, any> = {};
+    const camelCaseData: Record<string, unknown> = {};
     Object.entries(form).forEach(([key, val]) => {
       const camelKey = fieldKeyMap[key] || key;
       camelCaseData[camelKey] = val;
     });
+
     const missing = validateRequired(camelCaseData, fieldLabels);
     if (missing.length > 0) {
       showValidationError(missing);
       return;
     }
+
     if (!form.titulo.trim()) {
-      toast({ title: t('common.error'), description: t('common.required'), variant: 'destructive' });
+      toast({
+        title: t('common.error'),
+        description: t('common.required'),
+        variant: 'destructive',
+      });
       return;
     }
+
     setSaving(true);
     try {
-      const payload: any = {
+      await incidenciasRepository.save({
+        id: data?.id,
         titulo: form.titulo,
         codigo_externo: form.codigo_externo || null,
         gravacao_id: form.gravacao_id || null,
@@ -183,21 +281,23 @@ export const IncidenciaGravacaoFormModal = ({ isOpen, onClose, onSave, data, rea
         descricao: form.descricao || null,
         causa_provavel: form.causa_provavel || null,
         created_by: user?.id || null,
-      };
+      });
 
-      if (data?.id) {
-        const { error } = await (supabase as any).from('incidencias_gravacao').update(payload).eq('id', data.id);
-        if (error) throw error;
-        toast({ title: t('common.success'), description: `${t('incident.entity')} ${t('common.update').toLowerCase()}!` });
-      } else {
-        const { error } = await (supabase as any).from('incidencias_gravacao').insert(payload);
-        if (error) throw error;
-        toast({ title: t('common.success'), description: `${t('incident.entity')} ${t('common.save').toLowerCase()}!` });
-      }
+      toast({
+        title: t('common.success'),
+        description: data?.id
+          ? `${t('incident.entity')} ${t('common.update').toLowerCase()}!`
+          : `${t('incident.entity')} ${t('common.save').toLowerCase()}!`,
+      });
+
       await onSave();
       onClose();
     } catch (err) {
-      toast({ title: t('common.error'), description: (err as Error).message, variant: 'destructive' });
+      toast({
+        title: t('common.error'),
+        description: (err as Error).message,
+        variant: 'destructive',
+      });
     } finally {
       setSaving(false);
     }
@@ -208,44 +308,40 @@ export const IncidenciaGravacaoFormModal = ({ isOpen, onClose, onSave, data, rea
     setUploading(true);
     try {
       for (const file of Array.from(e.target.files)) {
-        const filePath = `${data.id}/${Date.now()}_${file.name}`;
-        const { error: uploadError } = await supabase.storage.from('incidencias').upload(filePath, file);
-        if (uploadError) throw uploadError;
-
-        const { data: publicUrl } = supabase.storage.from('incidencias').getPublicUrl(filePath);
-
-        const { error: dbError } = await (supabase as any).from('incidencia_anexos').insert({
-          incidencia_id: data.id,
+        const dataUrl = await readFileAsDataUrl(file);
+        await incidenciasRepository.addAnexo(data.id, {
           nome: file.name,
-          url: publicUrl.publicUrl,
+          url: dataUrl,
           tipo: file.type,
           tamanho: file.size,
-          created_by: user?.id || null,
         });
-        if (dbError) throw dbError;
       }
+
       await fetchAnexos();
       toast({ title: t('common.success'), description: t('common.upload') });
     } catch (err) {
-      toast({ title: t('common.error'), description: (err as Error).message, variant: 'destructive' });
+      toast({
+        title: t('common.error'),
+        description: (err as Error).message,
+        variant: 'destructive',
+      });
     } finally {
       setUploading(false);
       e.target.value = '';
     }
   };
 
-  const handleDeleteAnexo = async (anexo: Anexo) => {
+  const handleDeleteAnexo = async (anexo: IncidenciaAnexoApiItem) => {
     if (!confirm(t('common.confirm.delete'))) return;
     try {
-      // Delete from storage
-      const urlParts = anexo.url.split('/incidencias/');
-      if (urlParts[1]) {
-        await supabase.storage.from('incidencias').remove([decodeURIComponent(urlParts[1])]);
-      }
-      await (supabase as any).from('incidencia_anexos').delete().eq('id', anexo.id);
+      await incidenciasRepository.removeAnexo(data.id, anexo.id);
       await fetchAnexos();
     } catch (err) {
-      toast({ title: t('common.error'), description: (err as Error).message, variant: 'destructive' });
+      toast({
+        title: t('common.error'),
+        description: (err as Error).message,
+        variant: 'destructive',
+      });
     }
   };
 
@@ -254,38 +350,68 @@ export const IncidenciaGravacaoFormModal = ({ isOpen, onClose, onSave, data, rea
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{data ? (readOnly ? t('common.view') : t('common.edit')) : t('common.new')} {t('incident.entity')}</DialogTitle>
+          <DialogTitle>
+            {data ? (readOnly ? t('common.view') : t('common.edit')) : t('common.new')}{' '}
+            {t('incident.entity')}
+          </DialogTitle>
           <DialogDescription>{t('incident.formDescription')}</DialogDescription>
         </DialogHeader>
 
         <Tabs defaultValue="dados">
           <TabsList className="w-full">
-            <TabsTrigger value="dados" className="flex-1">{t('incident.tabGeneral')}</TabsTrigger>
-            {data?.id && <TabsTrigger value="anexos" className="flex-1">{t('incident.tabAttachments')}</TabsTrigger>}
+            <TabsTrigger value="dados" className="flex-1">
+              {t('incident.tabGeneral')}
+            </TabsTrigger>
+            {data?.id && (
+              <TabsTrigger value="anexos" className="flex-1">
+                {t('incident.tabAttachments')}
+              </TabsTrigger>
+            )}
           </TabsList>
 
           <TabsContent value="dados" className="space-y-4 mt-4">
-            {/* Row 1: Código Externo + Título */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>{t('common.externalCode')} <FieldAsterisk type={getAsterisk('codigoExterno')} /></Label>
-                <Input maxLength={10} value={form.codigo_externo} onChange={(e) => setForm({ ...form, codigo_externo: e.target.value })} disabled={readOnly} />
+                <Label>
+                  {t('common.externalCode')} <FieldAsterisk type={getAsterisk('codigoExterno')} />
+                </Label>
+                <Input
+                  maxLength={10}
+                  value={form.codigo_externo}
+                  onChange={(e) => setForm({ ...form, codigo_externo: e.target.value })}
+                  disabled={readOnly}
+                />
               </div>
               <div className="space-y-2">
-                <Label>{t('incident.title')} <FieldAsterisk type={getAsterisk('titulo')} /></Label>
-                <Input value={form.titulo} onChange={(e) => setForm({ ...form, titulo: e.target.value })} disabled={readOnly} />
+                <Label>
+                  {t('incident.title')} <FieldAsterisk type={getAsterisk('titulo')} />
+                </Label>
+                <Input
+                  value={form.titulo}
+                  onChange={(e) => setForm({ ...form, titulo: e.target.value })}
+                  disabled={readOnly}
+                />
               </div>
             </div>
 
-            {/* Row 2: Gravação + Recurso Físico */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>{t('incident.recording')} <FieldAsterisk type={getAsterisk('gravacaoId')} /></Label>
+                <Label>
+                  {t('incident.recording')} <FieldAsterisk type={getAsterisk('gravacaoId')} />
+                </Label>
                 <SearchableSelect
-                  options={gravacoes.map((g: any) => ({ value: g.id, label: `${g.codigo} - ${g.nome}` }))}
+                  options={gravacoes.map((g) => ({
+                    value: g.id,
+                    label: `${g.codigo ?? ''} - ${g.nome ?? ''}`,
+                  }))}
                   value={form.gravacao_id}
                   onValueChange={(v) => setForm({ ...form, gravacao_id: v })}
                   disabled={readOnly || !!defaultGravacaoId}
@@ -294,9 +420,12 @@ export const IncidenciaGravacaoFormModal = ({ isOpen, onClose, onSave, data, rea
                 />
               </div>
               <div className="space-y-2">
-                <Label>{t('incident.physicalResource')} <FieldAsterisk type={getAsterisk('recursoFisicoId')} /></Label>
+                <Label>
+                  {t('incident.physicalResource')}{' '}
+                  <FieldAsterisk type={getAsterisk('recursoFisicoId')} />
+                </Label>
                 <SearchableSelect
-                  options={recursosFisicos.map((r: any) => ({ value: r.id, label: r.nome }))}
+                  options={recursosFisicos.map((r) => ({ value: r.id, label: r.nome ?? '' }))}
                   value={form.recurso_fisico_id}
                   onValueChange={(v) => setForm({ ...form, recurso_fisico_id: v })}
                   disabled={readOnly}
@@ -306,12 +435,13 @@ export const IncidenciaGravacaoFormModal = ({ isOpen, onClose, onSave, data, rea
               </div>
             </div>
 
-            {/* Row 3: Severidade + Impacto */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>{t('incident.severity')} <FieldAsterisk type={getAsterisk('severidadeId')} /></Label>
+                <Label>
+                  {t('incident.severity')} <FieldAsterisk type={getAsterisk('severidadeId')} />
+                </Label>
                 <SearchableSelect
-                  options={severidades.map((s: any) => ({ value: s.id, label: s.titulo }))}
+                  options={severidades.map((s) => ({ value: s.id, label: s.titulo ?? '' }))}
                   value={form.severidade_id}
                   onValueChange={(v) => setForm({ ...form, severidade_id: v })}
                   disabled={readOnly}
@@ -320,9 +450,11 @@ export const IncidenciaGravacaoFormModal = ({ isOpen, onClose, onSave, data, rea
                 />
               </div>
               <div className="space-y-2">
-                <Label>{t('incident.impact')} <FieldAsterisk type={getAsterisk('impactoId')} /></Label>
+                <Label>
+                  {t('incident.impact')} <FieldAsterisk type={getAsterisk('impactoId')} />
+                </Label>
                 <SearchableSelect
-                  options={impactos.map((i: any) => ({ value: i.id, label: i.titulo }))}
+                  options={impactos.map((i) => ({ value: i.id, label: i.titulo ?? '' }))}
                   value={form.impacto_id}
                   onValueChange={(v) => setForm({ ...form, impacto_id: v })}
                   disabled={readOnly}
@@ -332,12 +464,13 @@ export const IncidenciaGravacaoFormModal = ({ isOpen, onClose, onSave, data, rea
               </div>
             </div>
 
-            {/* Row 4: Categoria + Classificação (dependent) */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>{t('incident.category')} <FieldAsterisk type={getAsterisk('categoriaId')} /></Label>
+                <Label>
+                  {t('incident.category')} <FieldAsterisk type={getAsterisk('categoriaId')} />
+                </Label>
                 <SearchableSelect
-                  options={categorias.map((c: any) => ({ value: c.id, label: c.titulo }))}
+                  options={categorias.map((c) => ({ value: c.id, label: c.titulo ?? '' }))}
                   value={form.categoria_id}
                   onValueChange={handleCategoriaChange}
                   disabled={readOnly}
@@ -346,47 +479,84 @@ export const IncidenciaGravacaoFormModal = ({ isOpen, onClose, onSave, data, rea
                 />
               </div>
               <div className="space-y-2">
-                <Label>{t('incident.classification')} <FieldAsterisk type={getAsterisk('classificacaoId')} /></Label>
+                <Label>
+                  {t('incident.classification')}{' '}
+                  <FieldAsterisk type={getAsterisk('classificacaoId')} />
+                </Label>
                 <SearchableSelect
-                  options={classificacoes.map((c: any) => ({ value: c.id, label: c.titulo }))}
+                  options={classificacoes.map((c) => ({ value: c.id, label: c.titulo ?? '' }))}
                   value={form.classificacao_id}
                   onValueChange={(v) => setForm({ ...form, classificacao_id: v })}
                   disabled={readOnly || !form.categoria_id}
-                  placeholder={form.categoria_id ? t('common.select') : t('incident.selectCategoryFirst')}
+                  placeholder={
+                    form.categoria_id ? t('common.select') : t('incident.selectCategoryFirst')
+                  }
                   searchPlaceholder="Pesquisar classificação..."
                 />
               </div>
             </div>
 
-            {/* Row 5: Data + Horário + Tempo */}
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
-                <Label>{t('incident.date')} <FieldAsterisk type={getAsterisk('dataIncidencia')} /></Label>
-                <Input type="date" value={form.data_incidencia} onChange={(e) => setForm({ ...form, data_incidencia: e.target.value })} disabled={readOnly} />
+                <Label>
+                  {t('incident.date')} <FieldAsterisk type={getAsterisk('dataIncidencia')} />
+                </Label>
+                <Input
+                  type="date"
+                  value={form.data_incidencia}
+                  onChange={(e) => setForm({ ...form, data_incidencia: e.target.value })}
+                  disabled={readOnly}
+                />
               </div>
               <div className="space-y-2">
-                <Label>{t('incident.time')} <FieldAsterisk type={getAsterisk('horarioIncidencia')} /></Label>
-                <Input type="time" value={form.horario_incidencia} onChange={(e) => setForm({ ...form, horario_incidencia: e.target.value })} disabled={readOnly} />
+                <Label>
+                  {t('incident.time')} <FieldAsterisk type={getAsterisk('horarioIncidencia')} />
+                </Label>
+                <Input
+                  type="time"
+                  value={form.horario_incidencia}
+                  onChange={(e) => setForm({ ...form, horario_incidencia: e.target.value })}
+                  disabled={readOnly}
+                />
               </div>
               <div className="space-y-2">
-                <Label>{t('incident.duration')} <FieldAsterisk type={getAsterisk('tempoIncidencia')} /></Label>
-                <Input type="time" value={form.tempo_incidencia} onChange={(e) => setForm({ ...form, tempo_incidencia: e.target.value })} disabled={readOnly} placeholder="HH:MM" />
+                <Label>
+                  {t('incident.duration')} <FieldAsterisk type={getAsterisk('tempoIncidencia')} />
+                </Label>
+                <Input
+                  type="time"
+                  value={form.tempo_incidencia}
+                  onChange={(e) => setForm({ ...form, tempo_incidencia: e.target.value })}
+                  disabled={readOnly}
+                  placeholder="HH:MM"
+                />
               </div>
             </div>
 
-            {/* Row 6: Descrição */}
             <div className="space-y-2">
-              <Label>{t('common.description')} <FieldAsterisk type={getAsterisk('descricao')} /></Label>
-              <Textarea rows={3} value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} disabled={readOnly} />
+              <Label>
+                {t('common.description')} <FieldAsterisk type={getAsterisk('descricao')} />
+              </Label>
+              <Textarea
+                rows={3}
+                value={form.descricao}
+                onChange={(e) => setForm({ ...form, descricao: e.target.value })}
+                disabled={readOnly}
+              />
             </div>
 
-            {/* Row 7: Causa provável */}
             <div className="space-y-2">
-              <Label>{t('incident.probableCause')} <FieldAsterisk type={getAsterisk('causaProvavel')} /></Label>
-              <Textarea rows={3} value={form.causa_provavel} onChange={(e) => setForm({ ...form, causa_provavel: e.target.value })} disabled={readOnly} />
+              <Label>
+                {t('incident.probableCause')} <FieldAsterisk type={getAsterisk('causaProvavel')} />
+              </Label>
+              <Textarea
+                rows={3}
+                value={form.causa_provavel}
+                onChange={(e) => setForm({ ...form, causa_provavel: e.target.value })}
+                disabled={readOnly}
+              />
             </div>
 
-            {/* Row 8: Usuário */}
             <div className="space-y-2">
               <Label>{t('common.user')}</Label>
               <Input value={user?.nome || ''} disabled />
@@ -401,7 +571,11 @@ export const IncidenciaGravacaoFormModal = ({ isOpen, onClose, onSave, data, rea
                     <input type="file" multiple className="hidden" onChange={handleFileUpload} />
                     <Button asChild size="sm" disabled={uploading}>
                       <span>
-                        {uploading ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Upload className="w-4 h-4 mr-1" />}
+                        {uploading ? (
+                          <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                        ) : (
+                          <Upload className="w-4 h-4 mr-1" />
+                        )}
                         {t('common.upload')}
                       </span>
                     </Button>
@@ -410,11 +584,16 @@ export const IncidenciaGravacaoFormModal = ({ isOpen, onClose, onSave, data, rea
               )}
 
               {anexos.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-8">{t('incident.noAttachments')}</p>
+                <p className="text-sm text-muted-foreground text-center py-8">
+                  {t('incident.noAttachments')}
+                </p>
               ) : (
                 <div className="space-y-2">
                   {anexos.map((anexo) => (
-                    <div key={anexo.id} className="flex items-center justify-between p-3 border rounded-lg">
+                    <div
+                      key={anexo.id}
+                      className="flex items-center justify-between p-3 border rounded-lg"
+                    >
                       <div className="flex items-center gap-3 min-w-0">
                         <span className="text-sm font-medium truncate">{anexo.nome}</span>
                         {anexo.tamanho && (
@@ -430,7 +609,12 @@ export const IncidenciaGravacaoFormModal = ({ isOpen, onClose, onSave, data, rea
                           </a>
                         </Button>
                         {!readOnly && (
-                          <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => handleDeleteAnexo(anexo)}>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7 text-destructive hover:text-destructive"
+                            onClick={() => handleDeleteAnexo(anexo)}
+                          >
                             <Trash2 className="w-3.5 h-3.5" />
                           </Button>
                         )}
@@ -444,9 +628,16 @@ export const IncidenciaGravacaoFormModal = ({ isOpen, onClose, onSave, data, rea
         </Tabs>
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>{readOnly ? t('common.close') : t('common.cancel')}</Button>
+          <Button variant="outline" onClick={onClose}>
+            {readOnly ? t('common.close') : t('common.cancel')}
+          </Button>
           {!readOnly && (
-            <Button onClick={handleSubmit} disabled={saving || !form.titulo.trim()}>
+            <Button
+              onClick={() => {
+                void handleSubmit();
+              }}
+              disabled={saving || !form.titulo.trim()}
+            >
               {saving && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
               {t('common.save')}
             </Button>

@@ -9,7 +9,7 @@ import { NewButton } from '@/components/shared/NewButton';
 import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { usePermissions } from '@/hooks/usePermissions';
-import { equipesRepository } from '@/modules/equipes/equipes.repository';
+import { equipesRepository } from '@/modules/equipes/equipes.repository.provider';
 import type { Equipe, EquipeInput } from '@/modules/equipes/equipes.types';
 
 const Equipes = () => {
@@ -28,7 +28,11 @@ const Equipes = () => {
       setItems(await equipesRepository.list());
     } catch (error) {
       console.error('Error fetching equipes:', error);
-      toast({ title: t('common.error'), description: t('teams.loadError'), variant: 'destructive' });
+      toast({
+        title: t('common.error'),
+        description: t('teams.loadError'),
+        variant: 'destructive',
+      });
     } finally {
       setIsLoading(false);
     }
@@ -52,7 +56,11 @@ const Equipes = () => {
       setEditingItem(null);
     } catch (error) {
       console.error('Error saving equipe:', error);
-      toast({ title: t('common.error'), description: t('teams.saveError'), variant: 'destructive' });
+      toast({
+        title: t('common.error'),
+        description: t('teams.saveError'),
+        variant: 'destructive',
+      });
     }
   };
 
@@ -65,7 +73,11 @@ const Equipes = () => {
       await fetchEquipes();
     } catch (error) {
       console.error('Error deleting equipe:', error);
-      toast({ title: t('common.error'), description: t('teams.deleteError'), variant: 'destructive' });
+      toast({
+        title: t('common.error'),
+        description: t('teams.deleteError'),
+        variant: 'destructive',
+      });
     }
   };
 

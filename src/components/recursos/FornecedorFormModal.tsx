@@ -1,6 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,80 +13,120 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { usePermissions } from '@/hooks/usePermissions';
-import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
-import type { Fornecedor } from '@/pages/recursos/Fornecedores';
+import { SearchableSelect } from '@/components/shared/SearchableSelect';
 import { ServicosTab } from './ServicosTab';
 import { FornecedorArquivosTab } from './FornecedorArquivosTab';
-import { supabase } from '@/integrations/supabase/client';
-import { useFormFieldConfig, FieldAsterisk } from '@/hooks/useFormFieldConfig';
-import { SearchableSelect } from '@/components/shared/SearchableSelect';
+import { fornecedoresRepository } from '@/modules/fornecedores/fornecedores.repository.provider';
+import type {
+  CategoriaFornecedorOption,
+  Fornecedor,
+  FornecedorInput,
+} from '@/modules/fornecedores/fornecedores.types';
 
 const PAISES = [
-  'Brasil', 'Portugal', 'Espanha', 'Estados Unidos', 'Argentina', 'Chile',
-  'Colômbia', 'México', 'Peru', 'Uruguai', 'Alemanha', 'França', 'Itália',
-  'Reino Unido', 'Canadá', 'Austrália', 'Japão', 'China', 'Índia',
+  'Brasil',
+  'Portugal',
+  'Espanha',
+  'Estados Unidos',
+  'Argentina',
+  'Chile',
+  'Colômbia',
+  'México',
+  'Peru',
+  'Uruguai',
+  'Alemanha',
+  'França',
+  'Itália',
+  'Reino Unido',
+  'Canadá',
+  'Austrália',
+  'Japão',
+  'China',
+  'Índia',
 ];
 
 interface FornecedorFormModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (data: Fornecedor) => void;
+  onSave: (data: FornecedorInput) => Promise<void>;
   data?: Fornecedor | null;
   readOnly?: boolean;
 }
 
+const emptyFormData: FornecedorInput = {
+  codigoExterno: '',
+  nome: '',
+  categoria: '',
+  categoriaId: '',
+  email: '',
+  pais: '',
+  identificacaoFiscal: '',
+  descricao: '',
+};
+
 export const FornecedorFormModal = ({
-  isOpen, onClose, onSave, data, readOnly = false,
+  isOpen,
+  onClose,
+  onSave,
+  data,
+  readOnly = false,
 }: FornecedorFormModalProps) => {
-  const { user } = useAuth();
   const { t } = useLanguage();
   const { isVisible } = usePermissions();
-  const { getAsterisk, validateRequired, showValidationError } = useFormFieldConfig('fornecedor');
-  const [categorias, setCategorias] = useState<{ id: string; nome: string }[]>([]);
-  const [formData, setFormData] = useState({
-    codigoExterno: '', nome: '', categoriaId: '', email: '', pais: '', identificacaoFiscal: '', descricao: '',
-  });
+  const [categorias, setCategorias] = useState<CategoriaFornecedorOption[]>([]);
+  const [formData, setFormData] = useState<FornecedorInput>(emptyFormData);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    const fetchCategorias = async () => {
-      const { data: cats } = await supabase.from('categorias_fornecedor').select('id, nome').order('nome');
-      setCategorias(cats || []);
+    const loadCategorias = async () => {
+      if (!isOpen) {
+        return;
+      }
+
+      const options = await fornecedoresRepository.listOptions();
+      setCategorias(options.categorias);
     };
-    if (isOpen) fetchCategorias();
+
+    void loadCategorias();
   }, [isOpen]);
 
   useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
     if (data) {
       setFormData({
-        codigoExterno: data.codigoExterno, nome: data.nome, categoriaId: data.categoriaId || '',
-        email: data.email, pais: data.pais, identificacaoFiscal: data.identificacaoFiscal, descricao: data.descricao,
+        id: data.id,
+        codigoExterno: data.codigoExterno,
+        nome: data.nome,
+        categoria: data.categoria,
+        categoriaId: data.categoriaId || '',
+        email: data.email,
+        pais: data.pais,
+        identificacaoFiscal: data.identificacaoFiscal,
+        descricao: data.descricao,
       });
-    } else {
-      setFormData({ codigoExterno: '', nome: '', categoriaId: '', email: '', pais: '', identificacaoFiscal: '', descricao: '' });
+      return;
     }
+
+    setFormData(emptyFormData);
   }, [data, isOpen]);
 
-  const fornecedorFieldLabels: Record<string, string> = {
-    codigoExterno: 'Código Externo', nome: 'Nome', identificacaoFiscal: 'Identificação Fiscal',
-    categoriaId: 'Categoria', email: 'E-mail', pais: 'País', descricao: 'Descrição',
-  };
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (readOnly || isSubmitting) {
+      return;
+    }
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const missing = validateRequired(formData as any, fornecedorFieldLabels);
-    if (missing.length > 0) { showValidationError(missing); return; }
-    const categoriaObj = categorias.find(c => c.id === formData.categoriaId);
-    onSave({
-      id: data?.id || crypto.randomUUID(),
-      codigoExterno: formData.codigoExterno, nome: formData.nome,
-      categoria: categoriaObj?.nome || '', categoriaId: formData.categoriaId || undefined,
-      email: formData.email, pais: formData.pais, identificacaoFiscal: formData.identificacaoFiscal,
-      descricao: formData.descricao,
-      dataCadastro: data?.dataCadastro || new Date().toLocaleDateString('pt-BR'),
-      usuarioCadastro: data?.usuarioCadastro || user?.nome || 'Admin',
-    });
-    onClose();
+    setIsSubmitting(true);
+    try {
+      await onSave(formData);
+      onClose();
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -96,74 +141,134 @@ export const FornecedorFormModal = ({
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="dados">{t('field.generalData')}</TabsTrigger>
             {isVisible('Recursos', 'Fornecedores', '-', 'Tabulador "Serviços"') && (
-              <TabsTrigger value="servicos" disabled={!data}>{t('field.services')}</TabsTrigger>
+              <TabsTrigger value="servicos" disabled={!data}>
+                {t('field.services')}
+              </TabsTrigger>
             )}
-            <TabsTrigger value="arquivos" disabled={!data}>{t('field.files')}</TabsTrigger>
+            <TabsTrigger value="arquivos" disabled={!data}>
+              {t('field.files')}
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="dados">
             <form onSubmit={handleSubmit} className="space-y-4 mt-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="codigoExterno">{t('common.externalCode')} <FieldAsterisk type={getAsterisk('codigoExterno')} /></Label>
-                  <Input id="codigoExterno" value={formData.codigoExterno} onChange={(e) => setFormData({ ...formData, codigoExterno: e.target.value })} maxLength={10} />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="nome">{t('common.name')} <FieldAsterisk type={getAsterisk('nome')} /></Label>
-                  <Input id="nome" value={formData.nome} onChange={(e) => setFormData({ ...formData, nome: e.target.value })} maxLength={100} required />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>{t('common.category')} <FieldAsterisk type={getAsterisk('categoriaId')} /></Label>
-                  <SearchableSelect
-                    options={categorias.map(c => ({ value: c.id, label: c.nome }))}
-                    value={formData.categoriaId}
-                    onValueChange={(value) => setFormData({ ...formData, categoriaId: value })}
-                    placeholder={t('common.select')}
-                    searchPlaceholder="Pesquisar categoria..."
+                  <Label htmlFor="codigoExterno">{t('common.externalCode')}</Label>
+                  <Input
+                    id="codigoExterno"
+                    value={formData.codigoExterno}
+                    disabled={readOnly}
+                    onChange={(e) => setFormData({ ...formData, codigoExterno: e.target.value })}
+                    maxLength={10}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="email">{t('common.email')} <FieldAsterisk type={getAsterisk('email')} /></Label>
-                  <Input id="email" type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} required />
+                  <Label htmlFor="nome">{t('common.name')}</Label>
+                  <Input
+                    id="nome"
+                    value={formData.nome}
+                    disabled={readOnly}
+                    onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
+                    maxLength={100}
+                    required
+                  />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>{t('common.country')} <FieldAsterisk type={getAsterisk('pais')} /></Label>
+                  <Label>{t('common.category')}</Label>
                   <SearchableSelect
-                    options={PAISES.map(p => ({ value: p, label: p }))}
+                    options={categorias.map((c) => ({ value: c.id, label: c.nome }))}
+                    value={formData.categoriaId || ''}
+                    onValueChange={(value) => {
+                      const selected = categorias.find((c) => c.id === value);
+                      setFormData({
+                        ...formData,
+                        categoriaId: value,
+                        categoria: selected?.nome || '',
+                      });
+                    }}
+                    placeholder={t('common.select')}
+                    searchPlaceholder="Pesquisar categoria..."
+                    disabled={readOnly}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="email">{t('common.email')}</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={formData.email}
+                    disabled={readOnly}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>{t('common.country')}</Label>
+                  <SearchableSelect
+                    options={PAISES.map((pais) => ({ value: pais, label: pais }))}
                     value={formData.pais}
                     onValueChange={(value) => setFormData({ ...formData, pais: value })}
                     placeholder={t('common.select')}
                     searchPlaceholder="Pesquisar país..."
+                    disabled={readOnly}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="identificacaoFiscal">{t('field.fiscalId')} <FieldAsterisk type={getAsterisk('identificacaoFiscal')} /></Label>
-                  <Input id="identificacaoFiscal" value={formData.identificacaoFiscal} onChange={(e) => setFormData({ ...formData, identificacaoFiscal: e.target.value })} maxLength={100} />
+                  <Label htmlFor="identificacaoFiscal">{t('field.fiscalId')}</Label>
+                  <Input
+                    id="identificacaoFiscal"
+                    value={formData.identificacaoFiscal}
+                    disabled={readOnly}
+                    onChange={(e) =>
+                      setFormData({ ...formData, identificacaoFiscal: e.target.value })
+                    }
+                    maxLength={100}
+                  />
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="descricao">{t('common.description')} <FieldAsterisk type={getAsterisk('descricao')} /></Label>
-                <Textarea id="descricao" value={formData.descricao} onChange={(e) => setFormData({ ...formData, descricao: e.target.value })} rows={3} />
+                <Label htmlFor="descricao">{t('common.description')}</Label>
+                <Textarea
+                  id="descricao"
+                  value={formData.descricao}
+                  disabled={readOnly}
+                  onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
+                  rows={3}
+                />
               </div>
 
               <DialogFooter>
-                <Button type="button" variant="outline" onClick={onClose}>{readOnly ? 'Fechar' : t('common.cancel')}</Button>
-                {!readOnly && <Button type="submit" className="gradient-primary hover:opacity-90">{t('common.save')}</Button>}
+                <Button type="button" variant="outline" onClick={onClose}>
+                  {readOnly ? 'Fechar' : t('common.cancel')}
+                </Button>
+                {!readOnly && (
+                  <Button
+                    type="submit"
+                    className="gradient-primary hover:opacity-90"
+                    disabled={isSubmitting}
+                  >
+                    {t('common.save')}
+                  </Button>
+                )}
               </DialogFooter>
             </form>
           </TabsContent>
 
           {isVisible('Recursos', 'Fornecedores', '-', 'Tabulador "Serviços"') && (
-            <TabsContent value="servicos">{data && <ServicosTab fornecedorId={data.id} />}</TabsContent>
+            <TabsContent value="servicos">
+              {data && <ServicosTab fornecedorId={data.id} readOnly={readOnly} />}
+            </TabsContent>
           )}
-          <TabsContent value="arquivos">{data && <FornecedorArquivosTab fornecedorId={data.id} />}</TabsContent>
+          <TabsContent value="arquivos">
+            {data && <FornecedorArquivosTab fornecedorId={data.id} readOnly={readOnly} />}
+          </TabsContent>
         </Tabs>
       </DialogContent>
     </Dialog>

@@ -52,6 +52,12 @@ class InMemoryEquipesRepository implements EquipesRepository {
     return item;
   }
   async remove(id: string) { this.items.delete(id); }
+  async listUsuariosAtivos() { return []; }
+  async listMembros() { return []; }
+  async addMembro() {
+    return { id: 'member-1', recursoHumanoId: 'user-1', dataAssociacao: new Date('2026-03-25T12:00:00.000Z') };
+  }
+  async removeMembro() {}
 }
 
 describe('equipes routes', () => {
@@ -86,4 +92,3 @@ describe('equipes routes', () => {
     await app.close();
   });
 });
-

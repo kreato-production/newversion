@@ -1,5 +1,3 @@
-import type { SupabaseClient } from '@supabase/supabase-js';
-import { supabase } from '@/integrations/supabase/client';
 import type { Equipe, EquipeInput, Membro, RecursoHumano } from './equipes.types';
 
 type EquipeRow = {
@@ -60,13 +58,28 @@ export interface EquipesRepository {
   update(id: string, input: EquipeInput): Promise<void>;
   remove(id: string): Promise<void>;
   listRecursosHumanosAtivos(): Promise<RecursoHumano[]>;
-  listMembros(equipeId: string): Promise<Membro[]>;
+  listMembros(equipeId: string): Promise<{ membros: Membro[]; disponiveis: RecursoHumano[] }>;
   addMembro(equipeId: string, recursoHumanoId: string): Promise<Membro>;
-  removeMembro(membroId: string): Promise<void>;
+  removeMembro(equipeId: string, membroId: string): Promise<void>;
+}
+
+type LegacyClient = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  from: (table: string) => any;
+};
+
+function createDisabledLegacyClient(): LegacyClient {
+  return {
+    from: () => {
+      throw new Error(
+        'O repositório legado de equipes via Supabase foi desativado. Use a API local.',
+      );
+    },
+  };
 }
 
 export class SupabaseEquipesRepository implements EquipesRepository {
-  constructor(private readonly client: SupabaseClient = supabase) {}
+  constructor(private readonly client: LegacyClient = createDisabledLegacyClient()) {}
 
   async list(): Promise<Equipe[]> {
     const { data, error } = await this.client
@@ -112,14 +125,28 @@ export class SupabaseEquipesRepository implements EquipesRepository {
     return ((data || []) as RecursoHumanoRow[]).map(mapRecursoHumanoRow);
   }
 
-  async listMembros(equipeId: string): Promise<Membro[]> {
-    const { data, error } = await this.client
-      .from('equipe_membros')
-      .select('id, recurso_humano_id, created_at')
-      .eq('equipe_id', equipeId);
+  async listMembros(
+    equipeId: string,
+  ): Promise<{ membros: Membro[]; disponiveis: RecursoHumano[] }> {
+    const [membrosResult, rhResult] = await Promise.all([
+      this.client
+        .from('equipe_membros')
+        .select('id, recurso_humano_id, created_at')
+        .eq('equipe_id', equipeId),
+      this.client
+        .from('recursos_humanos')
+        .select('id, nome, sobrenome, funcoes(nome)')
+        .eq('status', 'Ativo')
+        .order('nome'),
+    ]);
 
-    if (error) throw error;
-    return ((data || []) as MembroRow[]).map(mapMembroRow);
+    if (membrosResult.error) throw membrosResult.error;
+    if (rhResult.error) throw rhResult.error;
+
+    return {
+      membros: ((membrosResult.data || []) as MembroRow[]).map(mapMembroRow),
+      disponiveis: ((rhResult.data || []) as RecursoHumanoRow[]).map(mapRecursoHumanoRow),
+    };
   }
 
   async addMembro(equipeId: string, recursoHumanoId: string): Promise<Membro> {
@@ -128,12 +155,11 @@ export class SupabaseEquipesRepository implements EquipesRepository {
       .insert({ equipe_id: equipeId, recurso_humano_id: recursoHumanoId })
       .select('id, recurso_humano_id, created_at')
       .single();
-
     if (error) throw error;
     return mapMembroRow(data as MembroRow);
   }
 
-  async removeMembro(membroId: string): Promise<void> {
+  async removeMembro(_equipeId: string, membroId: string): Promise<void> {
     const { error } = await this.client.from('equipe_membros').delete().eq('id', membroId);
     if (error) throw error;
   }

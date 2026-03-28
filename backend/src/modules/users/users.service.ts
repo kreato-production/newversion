@@ -23,6 +23,10 @@ export const saveUserSchema = z.object({
 
 export type SaveUserDto = z.infer<typeof saveUserSchema>;
 
+export const saveUserRelationSchema = z.object({
+  targetId: z.string().min(1),
+});
+
 function mapStatus(status: 'Ativo' | 'Inativo' | 'Bloqueado'): 'ATIVO' | 'INATIVO' | 'BLOQUEADO' {
   if (status === 'Inativo') return 'INATIVO';
   if (status === 'Bloqueado') return 'BLOQUEADO';
@@ -37,6 +41,16 @@ function mapStatusToView(status: 'ATIVO' | 'INATIVO' | 'BLOQUEADO'): 'Ativo' | '
 
 export class UsersService {
   constructor(private readonly repository: UsersRepository) {}
+
+  private async getTargetUser(actor: SessionUser, userId: string) {
+    const existing = await this.repository.findById(userId);
+    if (!existing) {
+      throw new Error('Usuario nao encontrado');
+    }
+
+    ensureSameTenant(actor, existing.tenantId);
+    return existing;
+  }
 
   async list(actor: SessionUser, opts?: { limit?: number; offset?: number }) {
     const tenantId = actor.role === 'GLOBAL_ADMIN' ? actor.tenantId ?? null : resolveTenantId(actor, actor.tenantId);
@@ -127,12 +141,88 @@ export class UsersService {
   }
 
   async remove(actor: SessionUser, id: string) {
-    const existing = await this.repository.findById(id);
-    if (!existing) {
-      throw new Error('Usuario nao encontrado');
+    await this.getTargetUser(actor, id);
+    await this.repository.remove(id);
+  }
+
+  async listUnidades(actor: SessionUser, userId: string) {
+    const user = await this.getTargetUser(actor, userId);
+    return {
+      vinculadas: await this.repository.listUserUnidades(user.id),
+      disponiveis: user.tenantId ? await this.repository.listAvailableUnidades(user.tenantId) : [],
+    };
+  }
+
+  async addUnidade(actor: SessionUser, userId: string, unidadeId: string) {
+    const user = await this.getTargetUser(actor, userId);
+    if (!user.tenantId) {
+      throw new Error('Usuario sem tenant associado');
     }
 
-    ensureSameTenant(actor, existing.tenantId);
-    await this.repository.remove(id);
+    const available = await this.repository.listAvailableUnidades(user.tenantId);
+    if (!available.some((item) => item.id === unidadeId)) {
+      throw new Error('Unidade nao encontrada para o tenant do usuario');
+    }
+
+    await this.repository.addUserUnidade(user.id, unidadeId);
+  }
+
+  async removeUnidade(actor: SessionUser, userId: string, unidadeId: string) {
+    const user = await this.getTargetUser(actor, userId);
+    await this.repository.removeUserUnidade(user.id, unidadeId);
+  }
+
+  async listProgramas(actor: SessionUser, userId: string) {
+    const user = await this.getTargetUser(actor, userId);
+    return {
+      vinculados: await this.repository.listUserProgramas(user.id),
+      disponiveis: user.tenantId ? await this.repository.listAvailableProgramas(user.tenantId) : [],
+    };
+  }
+
+  async addPrograma(actor: SessionUser, userId: string, programaId: string) {
+    const user = await this.getTargetUser(actor, userId);
+    if (!user.tenantId) {
+      throw new Error('Usuario sem tenant associado');
+    }
+
+    const available = await this.repository.listAvailableProgramas(user.tenantId);
+    if (!available.some((item) => item.id === programaId)) {
+      throw new Error('Programa nao encontrado para o tenant do usuario');
+    }
+
+    await this.repository.addUserPrograma({ tenantId: user.tenantId, userId: user.id, programaId });
+  }
+
+  async removePrograma(actor: SessionUser, userId: string, programaId: string) {
+    const user = await this.getTargetUser(actor, userId);
+    await this.repository.removeUserPrograma(user.id, programaId);
+  }
+
+  async listEquipes(actor: SessionUser, userId: string) {
+    const user = await this.getTargetUser(actor, userId);
+    return {
+      vinculadas: await this.repository.listUserEquipes(user.id),
+      disponiveis: user.tenantId ? await this.repository.listAvailableEquipes(user.tenantId) : [],
+    };
+  }
+
+  async addEquipe(actor: SessionUser, userId: string, equipeId: string) {
+    const user = await this.getTargetUser(actor, userId);
+    if (!user.tenantId) {
+      throw new Error('Usuario sem tenant associado');
+    }
+
+    const available = await this.repository.listAvailableEquipes(user.tenantId);
+    if (!available.some((item) => item.id === equipeId)) {
+      throw new Error('Equipe nao encontrada para o tenant do usuario');
+    }
+
+    await this.repository.addUserEquipe({ tenantId: user.tenantId, userId: user.id, equipeId });
+  }
+
+  async removeEquipe(actor: SessionUser, userId: string, equipeId: string) {
+    const user = await this.getTargetUser(actor, userId);
+    await this.repository.removeUserEquipe(user.id, equipeId);
   }
 }

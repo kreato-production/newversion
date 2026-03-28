@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import type { UserRole } from '@prisma/client';
 import { env } from '../../config/env.js';
 import { sha256 } from '../../lib/security/hash.js';
@@ -160,7 +161,7 @@ export class AuthService {
       now,
     );
     const refreshToken = signJwt(
-      { sub: user.id, role: user.role, tenantId: user.tenantId, type: 'refresh' },
+      { sub: user.id, role: user.role, tenantId: user.tenantId, type: 'refresh', jti: randomUUID() },
       env.JWT_REFRESH_SECRET,
       env.JWT_REFRESH_TTL_SECONDS,
       now,

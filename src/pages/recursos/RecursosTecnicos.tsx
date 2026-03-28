@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
 import { ListActionBar } from '@/components/shared/ListActionBar';
@@ -7,115 +7,100 @@ import { NewButton } from '@/components/shared/NewButton';
 import { useToast } from '@/hooks/use-toast';
 import { RecursoTecnicoFormModal } from '@/components/recursos/RecursoTecnicoFormModal';
 import { SortableTable, Column } from '@/components/shared/SortableTable';
-import { supabase } from '@/integrations/supabase/client';
-import type { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
+import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { usePermissions } from '@/hooks/usePermissions';
-
-type RecursoTecnicoDB = Tables<'recursos_tecnicos'>;
-
-export interface RecursoTecnico {
-  id: string;
-  codigoExterno: string;
-  nome: string;
-  funcaoOperador: string;
-  funcaoOperadorId?: string;
-  dataCadastro: string;
-  usuarioCadastro: string;
-}
-
-const mapDbToRecursoTecnico = (
-  db: RecursoTecnicoDB & { funcoes?: { nome: string } | null }
-): RecursoTecnico => ({
-  id: db.id,
-  codigoExterno: db.codigo_externo || '',
-  nome: db.nome,
-  funcaoOperador: db.funcoes?.nome || '',
-  funcaoOperadorId: db.funcao_operador_id || undefined,
-  dataCadastro: db.created_at ? new Date(db.created_at).toLocaleDateString('pt-BR') : '',
-  usuarioCadastro: '',
-});
+import { recursosTecnicosRepository } from '@/modules/recursos-tecnicos/recursos-tecnicos.repository.provider';
+import type {
+  RecursoTecnico,
+  RecursoTecnicoInput,
+} from '@/modules/recursos-tecnicos/recursos-tecnicos.types';
 
 const RecursosTecnicos = () => {
   const { toast } = useToast();
   const { t } = useLanguage();
-  const { canAlterar } = usePermissions();
+  const { user, session } = useAuth();
+  const { canIncluir, canAlterar, canExcluir } = usePermissions();
+  const podeIncluir = canIncluir('Recursos', 'Recursos Técnicos');
+  const podeAlterar = canAlterar('Recursos', 'Recursos Técnicos');
+  const podeExcluir = canExcluir('Recursos', 'Recursos Técnicos');
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<RecursoTecnico | null>(null);
   const [items, setItems] = useState<RecursoTecnico[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const fetchRecursosTecnicos = async () => {
+  const fetchRecursosTecnicos = useCallback(async () => {
+    if (!session) {
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('recursos_tecnicos')
-        .select('*, funcoes:funcao_operador_id(nome)')
-        .order('nome');
-
-      if (error) throw error;
-      setItems((data || []).map(mapDbToRecursoTecnico));
+      setItems(await recursosTecnicosRepository.list());
     } catch (error) {
       console.error('Error fetching recursos tecnicos:', error);
-      toast({ title: t('common.error'), description: t('common.error'), variant: 'destructive' });
+      toast({
+        title: t('common.error'),
+        description: `Erro ao carregar recursos técnicos: ${(error as Error).message}`,
+        variant: 'destructive',
+      });
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [session, t, toast]);
 
   useEffect(() => {
     fetchRecursosTecnicos();
-  }, []);
+  }, [fetchRecursosTecnicos]);
 
-  const handleSave = async (data: RecursoTecnico) => {
+  const handleSave = async (data: RecursoTecnicoInput) => {
     try {
-      const dbData: TablesInsert<'recursos_tecnicos'> = {
-        id: data.id || undefined,
-        codigo_externo: data.codigoExterno || null,
-        nome: data.nome,
-        funcao_operador_id: data.funcaoOperadorId || null,
-      };
-
-      if (editingItem) {
-        const { error } = await supabase
-          .from('recursos_tecnicos')
-          .update(dbData as TablesUpdate<'recursos_tecnicos'>)
-          .eq('id', data.id);
-        if (error) throw error;
-        toast({ title: t('common.success'), description: t('common.success') });
-      } else {
-        const { error } = await supabase.from('recursos_tecnicos').insert(dbData);
-        if (error) throw error;
-        toast({ title: t('common.success'), description: t('common.success') });
-      }
-
+      await recursosTecnicosRepository.save({
+        ...data,
+        tenantId: user?.tenantId ?? null,
+      });
+      toast({
+        title: t('common.success'),
+        description: editingItem ? 'Recurso técnico atualizado!' : 'Recurso técnico criado!',
+      });
       await fetchRecursosTecnicos();
       setEditingItem(null);
     } catch (error) {
       console.error('Error saving recurso tecnico:', error);
-      toast({ title: t('common.error'), description: t('common.error'), variant: 'destructive' });
+      toast({
+        title: t('common.error'),
+        description: `Erro ao salvar: ${(error as Error).message}`,
+        variant: 'destructive',
+      });
+      throw error;
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm(t('common.confirm.delete'))) {
-      try {
-        const { error } = await supabase.from('recursos_tecnicos').delete().eq('id', id);
-        if (error) throw error;
-        toast({ title: t('common.deleted'), description: t('common.deleted') });
-        await fetchRecursosTecnicos();
-      } catch (error) {
-        console.error('Error deleting recurso tecnico:', error);
-        toast({ title: t('common.error'), description: t('common.error'), variant: 'destructive' });
-      }
+    if (!confirm(t('common.confirm.delete'))) {
+      return;
+    }
+
+    try {
+      await recursosTecnicosRepository.remove(id);
+      toast({ title: t('common.deleted'), description: t('common.deleted') });
+      await fetchRecursosTecnicos();
+    } catch (error) {
+      console.error('Error deleting recurso tecnico:', error);
+      toast({
+        title: t('common.error'),
+        description: `Erro ao excluir: ${(error as Error).message}`,
+        variant: 'destructive',
+      });
     }
   };
 
   const filteredItems = items.filter(
     (item) =>
       item.nome.toLowerCase().includes(search.toLowerCase()) ||
-      item.codigoExterno.toLowerCase().includes(search.toLowerCase())
+      item.codigoExterno.toLowerCase().includes(search.toLowerCase()),
   );
 
   const columns: Column<RecursoTecnico>[] = [
@@ -123,9 +108,7 @@ const RecursosTecnicos = () => {
       key: 'codigoExterno',
       label: t('common.code'),
       className: 'w-24',
-      render: (item) => (
-        <span className="font-mono text-sm">{item.codigoExterno || '-'}</span>
-      ),
+      render: (item) => <span className="font-mono text-sm">{item.codigoExterno || '-'}</span>,
     },
     {
       key: 'nome',
@@ -162,20 +145,23 @@ const RecursosTecnicos = () => {
               setEditingItem(item);
               setIsModalOpen(true);
             }}
+            disabled={!podeAlterar}
           >
             <Edit className="w-4 h-4" />
           </Button>
-          <Button
-            size="icon"
-            variant="ghost"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleDelete(item.id);
-            }}
-            className="text-destructive hover:text-destructive"
-          >
-            <Trash2 className="w-4 h-4" />
-          </Button>
+          {podeExcluir && (
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDelete(item.id);
+              }}
+              className="text-destructive hover:text-destructive"
+            >
+              <Trash2 className="w-4 h-4" />
+            </Button>
+          )}
         </div>
       ),
     },
@@ -189,7 +175,15 @@ const RecursosTecnicos = () => {
       />
 
       <ListActionBar>
-        <NewButton tooltip={t('field.newResource')} onClick={() => { setEditingItem(null); setIsModalOpen(true); }} />
+        {podeIncluir && (
+          <NewButton
+            tooltip={t('field.newResource')}
+            onClick={() => {
+              setEditingItem(null);
+              setIsModalOpen(true);
+            }}
+          />
+        )}
         <div className="flex-1" />
         <SearchBar value={search} onChange={setSearch} />
       </ListActionBar>
@@ -204,7 +198,7 @@ const RecursosTecnicos = () => {
             title={t('field.noTechnicalResourceRegistered')}
             description={t('field.technicalResourcesHint')}
             icon={Wrench}
-            onAction={() => setIsModalOpen(true)}
+            onAction={podeIncluir ? () => setIsModalOpen(true) : undefined}
             actionLabel={t('field.addTechnicalResource')}
           />
         ) : (
@@ -225,7 +219,7 @@ const RecursosTecnicos = () => {
         }}
         onSave={handleSave}
         data={editingItem}
-        readOnly={!!editingItem && !canAlterar('Recursos', 'Recursos Técnicos')}
+        readOnly={!!editingItem && !podeAlterar}
       />
     </div>
   );

@@ -1,6 +1,6 @@
 import { useCallback, useState, useEffect } from 'react';
 import { parseISO, isWithinInterval, getDay } from 'date-fns';
-import { supabase } from '@/integrations/supabase/client';
+import { apiRequest } from '@/lib/api/http';
 
 interface FaixaDisponibilidade {
   id: string;
@@ -37,6 +37,23 @@ interface DisponibilidadeResult {
   ocupacoesExistentes?: OcupacaoExistente[];
 }
 
+interface RecursosFisicosListResponse {
+  data: Array<{
+    id: string;
+    nome: string;
+    faixasDisponibilidade?: FaixaDisponibilidade[];
+  }>;
+}
+
+interface OcupacaoApiResponse {
+  recursoId: string;
+  data: string;
+  gravacaoId: string;
+  gravacaoNome: string;
+  horaInicio: string;
+  horaFim: string;
+}
+
 // Converte horário HH:mm para minutos
 const horaParaMinutos = (hora: string): number => {
   const [h, m] = hora.split(':').map(Number);
@@ -53,7 +70,7 @@ const horariosSeOverlap = (
   inicio1: string,
   fim1: string,
   inicio2: string,
-  fim2: string
+  fim2: string,
 ): boolean => {
   const i1 = horaParaMinutos(inicio1);
   const f1 = horaParaMinutos(fim1);
@@ -67,40 +84,38 @@ export const useRecursoFisicoDisponibilidade = () => {
 
   // Fetch resources with availability windows from Supabase
   useEffect(() => {
+    let isMounted = true;
+
     const fetchRecursos = async () => {
-      const { data: recursos } = await supabase
-        .from('recursos_fisicos')
-        .select('id, nome');
+      try {
+        const response = await apiRequest<RecursosFisicosListResponse>(
+          '/recursos-fisicos?limit=200&offset=0',
+        );
 
-      const { data: faixas } = await supabase
-        .from('rf_faixas_disponibilidade')
-        .select('*');
-
-      const faixasByRecurso: Record<string, FaixaDisponibilidade[]> = {};
-      (faixas || []).forEach((f) => {
-        if (!faixasByRecurso[f.recurso_fisico_id]) {
-          faixasByRecurso[f.recurso_fisico_id] = [];
+        if (!isMounted) {
+          return;
         }
-        faixasByRecurso[f.recurso_fisico_id].push({
-          id: f.id,
-          dataInicio: f.data_inicio,
-          dataFim: f.data_fim,
-          horaInicio: f.hora_inicio,
-          horaFim: f.hora_fim,
-          diasSemana: f.dias_semana || [],
-        });
-      });
 
-      setRecursosFisicos(
-        (recursos || []).map((r) => ({
-          id: r.id,
-          nome: r.nome,
-          faixasDisponibilidade: faixasByRecurso[r.id] || [],
-        }))
-      );
+        setRecursosFisicos(
+          (response.data || []).map((recurso) => ({
+            id: recurso.id,
+            nome: recurso.nome,
+            faixasDisponibilidade: recurso.faixasDisponibilidade || [],
+          })),
+        );
+      } catch (error) {
+        console.error('Erro ao carregar disponibilidade de recursos fisicos:', error);
+        if (isMounted) {
+          setRecursosFisicos([]);
+        }
+      }
     };
 
     fetchRecursos();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const getRecursosFisicos = useCallback((): RecursoFisico[] => {
@@ -112,44 +127,23 @@ export const useRecursoFisicoDisponibilidade = () => {
     async (
       recursoId: string,
       dataStr: string,
-      gravacaoIdExcluir?: string
+      gravacaoIdExcluir?: string,
     ): Promise<OcupacaoExistente[]> => {
-      const ocupacoes: OcupacaoExistente[] = [];
+      const ocupacoes = await apiRequest<OcupacaoApiResponse[]>(
+        `/recursos-fisicos/ocupacao?dataInicio=${encodeURIComponent(dataStr)}&dataFim=${encodeURIComponent(dataStr)}`,
+      );
 
-      // Fetch all recordings with their physical resource allocations
-      let query = supabase
-        .from('gravacao_recursos')
-        .select(`
-          gravacao_id,
-          hora_inicio,
-          hora_fim,
-          gravacoes:gravacao_id(id, nome, codigo, data_prevista)
-        `)
-        .eq('recurso_fisico_id', recursoId)
-        .not('hora_inicio', 'is', null)
-        .not('hora_fim', 'is', null);
-
-      if (gravacaoIdExcluir) {
-        query = query.neq('gravacao_id', gravacaoIdExcluir);
-      }
-
-      const { data } = await query;
-
-      for (const item of data || []) {
-        const gravacao = item.gravacoes as any;
-        if (gravacao?.data_prevista === dataStr && item.hora_inicio && item.hora_fim) {
-          ocupacoes.push({
-            gravacaoId: gravacao.id,
-            gravacaoNome: gravacao.nome || gravacao.codigo,
-            horaInicio: item.hora_inicio,
-            horaFim: item.hora_fim,
-          });
-        }
-      }
-
-      return ocupacoes;
+      return (ocupacoes || [])
+        .filter((item) => item.recursoId === recursoId)
+        .filter((item) => !gravacaoIdExcluir || item.gravacaoId !== gravacaoIdExcluir)
+        .map((item) => ({
+          gravacaoId: item.gravacaoId,
+          gravacaoNome: item.gravacaoNome,
+          horaInicio: item.horaInicio.slice(0, 5),
+          horaFim: item.horaFim.slice(0, 5),
+        }));
     },
-    []
+    [],
   );
 
   // Verifica se o recurso físico está disponível em uma data/horário específico
@@ -159,7 +153,7 @@ export const useRecursoFisicoDisponibilidade = () => {
       dataStr: string,
       horaInicio?: string,
       horaFim?: string,
-      gravacaoIdAtual?: string
+      gravacaoIdAtual?: string,
     ): DisponibilidadeResult => {
       const recurso = recursosFisicos.find((r) => r.id === recursoId);
 
@@ -183,7 +177,8 @@ export const useRecursoFisicoDisponibilidade = () => {
         const fim = parseISO(faixa.dataFim);
 
         return (
-          isWithinInterval(data, { start: inicio, end: fim }) && faixa.diasSemana.includes(diaSemana)
+          isWithinInterval(data, { start: inicio, end: fim }) &&
+          faixa.diasSemana.includes(diaSemana)
         );
       });
 
@@ -220,7 +215,7 @@ export const useRecursoFisicoDisponibilidade = () => {
         faixaDisponivel: faixasValidas[0],
       };
     },
-    [recursosFisicos]
+    [recursosFisicos],
   );
 
   // Retorna as faixas de disponibilidade válidas para uma data
@@ -237,18 +232,19 @@ export const useRecursoFisicoDisponibilidade = () => {
         const fim = parseISO(faixa.dataFim);
 
         return (
-          isWithinInterval(data, { start: inicio, end: fim }) && faixa.diasSemana.includes(diaSemana)
+          isWithinInterval(data, { start: inicio, end: fim }) &&
+          faixa.diasSemana.includes(diaSemana)
         );
       });
     },
-    [recursosFisicos]
+    [recursosFisicos],
   );
 
   // Calcula ocupação detalhada de um recurso em uma data (para mapa de ocupação)
   const getOcupacaoDetalhada = useCallback(
     (
       recursoId: string,
-      dataStr: string
+      dataStr: string,
     ): {
       faixasDisponiveis: { horaInicio: string; horaFim: string; duracaoMinutos: number }[];
       ocupacoes: (OcupacaoExistente & { duracaoMinutos: number })[];
@@ -278,7 +274,7 @@ export const useRecursoFisicoDisponibilidade = () => {
         percentualOcupacao: 0,
       };
     },
-    [getFaixasDisponiveis]
+    [getFaixasDisponiveis],
   );
 
   // Formatar minutos em string legível (ex: "3h30min" ou "45min")

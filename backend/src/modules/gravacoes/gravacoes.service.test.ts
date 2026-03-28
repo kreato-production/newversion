@@ -1,6 +1,13 @@
 import type { SessionUser } from '../auth/auth.types.js';
 import { describe, expect, it } from 'vitest';
-import type { GravacaoRecord, GravacoesRepository, SaveGravacaoInput } from './gravacoes.repository.js';
+import type {
+  GravacaoConvidadoRecord,
+  GravacaoFigurinoRecord,
+  GravacaoRecord,
+  GravacaoTerceiroRecord,
+  GravacoesRepository,
+  SaveGravacaoInput,
+} from './gravacoes.repository.js';
 import { GravacoesService } from './gravacoes.service.js';
 
 class InMemoryGravacoesRepository implements GravacoesRepository {
@@ -44,6 +51,52 @@ class InMemoryGravacoesRepository implements GravacoesRepository {
   async remove(id: string) {
     this.records = this.records.filter((item) => item.id !== id);
   }
+
+  async listFigurinos() {
+    return { figurinos: [], items: [] };
+  }
+
+  async addFigurino(): Promise<GravacaoFigurinoRecord> {
+    throw new Error('Not implemented in test double');
+  }
+
+  async updateFigurino() {
+    return null;
+  }
+
+  async findFigurinoAllocationById() {
+    return null;
+  }
+
+  async removeFigurino() {}
+
+  async listTerceiros() {
+    return { items: [], fornecedores: [], servicos: [], moeda: 'BRL' };
+  }
+
+  async addTerceiro(): Promise<GravacaoTerceiroRecord> {
+    throw new Error('Not implemented in test double');
+  }
+
+  async findTerceiroById() {
+    return null;
+  }
+
+  async removeTerceiro() {}
+
+  async listConvidados() {
+    return { pessoas: [], items: [] };
+  }
+
+  async addConvidado(): Promise<GravacaoConvidadoRecord> {
+    throw new Error('Not implemented in test double');
+  }
+
+  async findConvidadoById() {
+    return null;
+  }
+
+  async removeConvidado() {}
 }
 
 const actor: SessionUser = {
@@ -135,4 +188,3 @@ describe('GravacoesService', () => {
     });
   });
 });
-

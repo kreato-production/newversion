@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -33,52 +33,17 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
-import { ptBR, enUS, es } from 'date-fns/locale';
+import { enUS, es, ptBR } from 'date-fns/locale';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { usePermissions } from '@/hooks/usePermissions';
-import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
-import { useFormFieldConfig, FieldAsterisk } from '@/hooks/useFormFieldConfig';
-
-interface Tarefa {
-  id: string;
-  gravacaoId: string;
-  recursoHumanoId: string;
-  recursoHumanoNome?: string;
-  recursoTecnicoId?: string;
-  recursoTecnicoNome?: string;
-  titulo: string;
-  descricao: string;
-  statusId: string;
-  prioridade: 'baixa' | 'media' | 'alta';
-  dataInicio: string;
-  dataFim: string;
-  horaInicio?: string;
-  horaFim?: string;
-  dataCriacao: string;
-  dataAtualizacao: string;
-  observacoes?: string;
-}
-
-interface StatusTarefa {
-  id: string;
-  codigo: string;
-  nome: string;
-  cor?: string;
-  is_inicial?: boolean;
-}
-
-interface Gravacao {
-  id: string;
-  nome: string;
-}
-
-interface RecursoHumano {
-  id: string;
-  nome: string;
-  status?: string | null;
-}
+import { FieldAsterisk, useFormFieldConfig } from '@/hooks/useFormFieldConfig';
+import type {
+  Tarefa,
+  TarefaGravacao,
+  TarefaRecursoHumano,
+  TarefaStatus,
+} from '@/modules/tarefas/tarefas.api';
 
 interface TarefaFormModalProps {
   open: boolean;
@@ -86,9 +51,9 @@ interface TarefaFormModalProps {
   onSave: (data: Tarefa) => void;
   onDelete?: () => void;
   data?: Tarefa | null;
-  statusList: StatusTarefa[];
-  gravacoes: Gravacao[];
-  /** Se true, todos os campos ficam em somente leitura (usuário sem permissão de alterar) */
+  statusList: TarefaStatus[];
+  gravacoes: TarefaGravacao[];
+  recursosHumanos: TarefaRecursoHumano[];
   readOnly?: boolean;
 }
 
@@ -100,43 +65,49 @@ export const TarefaFormModal = ({
   data,
   statusList,
   gravacoes,
+  recursosHumanos,
   readOnly: globalReadOnly = false,
 }: TarefaFormModalProps) => {
   const { t, language } = useLanguage();
-  const { session } = useAuth();
   const { isReadOnly, isVisible } = usePermissions();
   const { getAsterisk } = useFormFieldConfig('tarefa');
   const [formData, setFormData] = useState<Partial<Tarefa>>({});
-  const [recursosHumanos, setRecursosHumanos] = useState<RecursoHumano[]>([]);
   const initializedForRef = useRef<string | null>(null);
 
-  const localeMap = { pt: ptBR, en: enUS, es: es };
+  const localeMap = { pt: ptBR, en: enUS, es };
 
-  // Verificar permissões de campos (somente leitura por campo ou global)
-  const isTituloReadOnly = globalReadOnly || isReadOnly('Produção', 'Tarefas', '-', 'Título da Tarefa');
-  const isDescricaoReadOnly = globalReadOnly || isReadOnly('Produção', 'Tarefas', '-', 'Descrição');
-  const isGravacaoReadOnly = globalReadOnly || isReadOnly('Produção', 'Tarefas', '-', 'Gravação');
-  const isStatusReadOnly = globalReadOnly || isReadOnly('Produção', 'Tarefas', '-', 'Status');
-  const isResponsavelReadOnly = globalReadOnly || isReadOnly('Produção', 'Tarefas', '-', 'Responsável');
-  const isPrioridadeReadOnly = globalReadOnly || isReadOnly('Produção', 'Tarefas', '-', 'Prioridade');
-  const isDataInicioReadOnly = globalReadOnly || isReadOnly('Produção', 'Tarefas', '-', 'Data Início');
-  const isDataLimiteReadOnly = globalReadOnly || isReadOnly('Produção', 'Tarefas', '-', 'Data Limite');
-  const isHoraInicioReadOnly = globalReadOnly || isReadOnly('Produção', 'Tarefas', '-', 'Hora Início');
-  const isHoraFimReadOnly = globalReadOnly || isReadOnly('Produção', 'Tarefas', '-', 'Hora Fim');
-  const isObservacoesReadOnly = globalReadOnly || isReadOnly('Produção', 'Tarefas', '-', 'Observações');
+  const isTituloReadOnly =
+    globalReadOnly || isReadOnly('ProduÃ§Ã£o', 'Tarefas', '-', 'TÃ­tulo da Tarefa');
+  const isDescricaoReadOnly =
+    globalReadOnly || isReadOnly('ProduÃ§Ã£o', 'Tarefas', '-', 'DescriÃ§Ã£o');
+  const isGravacaoReadOnly =
+    globalReadOnly || isReadOnly('ProduÃ§Ã£o', 'Tarefas', '-', 'GravaÃ§Ã£o');
+  const isStatusReadOnly = globalReadOnly || isReadOnly('ProduÃ§Ã£o', 'Tarefas', '-', 'Status');
+  const isResponsavelReadOnly =
+    globalReadOnly || isReadOnly('ProduÃ§Ã£o', 'Tarefas', '-', 'ResponsÃ¡vel');
+  const isPrioridadeReadOnly =
+    globalReadOnly || isReadOnly('ProduÃ§Ã£o', 'Tarefas', '-', 'Prioridade');
+  const isDataInicioReadOnly =
+    globalReadOnly || isReadOnly('ProduÃ§Ã£o', 'Tarefas', '-', 'Data InÃ­cio');
+  const isDataLimiteReadOnly =
+    globalReadOnly || isReadOnly('ProduÃ§Ã£o', 'Tarefas', '-', 'Data Limite');
+  const isHoraInicioReadOnly =
+    globalReadOnly || isReadOnly('ProduÃ§Ã£o', 'Tarefas', '-', 'Hora InÃ­cio');
+  const isHoraFimReadOnly = globalReadOnly || isReadOnly('ProduÃ§Ã£o', 'Tarefas', '-', 'Hora Fim');
+  const isObservacoesReadOnly =
+    globalReadOnly || isReadOnly('ProduÃ§Ã£o', 'Tarefas', '-', 'ObservaÃ§Ãµes');
 
-  // Verificar visibilidade dos campos
-  const showTitulo = isVisible('Produção', 'Tarefas', '-', 'Título da Tarefa');
-  const showDescricao = isVisible('Produção', 'Tarefas', '-', 'Descrição');
-  const showGravacao = isVisible('Produção', 'Tarefas', '-', 'Gravação');
-  const showStatus = isVisible('Produção', 'Tarefas', '-', 'Status');
-  const showResponsavel = isVisible('Produção', 'Tarefas', '-', 'Responsável');
-  const showPrioridade = isVisible('Produção', 'Tarefas', '-', 'Prioridade');
-  const showDataInicio = isVisible('Produção', 'Tarefas', '-', 'Data Início');
-  const showDataLimite = isVisible('Produção', 'Tarefas', '-', 'Data Limite');
-  const showHoraInicio = isVisible('Produção', 'Tarefas', '-', 'Hora Início');
-  const showHoraFim = isVisible('Produção', 'Tarefas', '-', 'Hora Fim');
-  const showObservacoes = isVisible('Produção', 'Tarefas', '-', 'Observações');
+  const showTitulo = isVisible('ProduÃ§Ã£o', 'Tarefas', '-', 'TÃ­tulo da Tarefa');
+  const showDescricao = isVisible('ProduÃ§Ã£o', 'Tarefas', '-', 'DescriÃ§Ã£o');
+  const showGravacao = isVisible('ProduÃ§Ã£o', 'Tarefas', '-', 'GravaÃ§Ã£o');
+  const showStatus = isVisible('ProduÃ§Ã£o', 'Tarefas', '-', 'Status');
+  const showResponsavel = isVisible('ProduÃ§Ã£o', 'Tarefas', '-', 'ResponsÃ¡vel');
+  const showPrioridade = isVisible('ProduÃ§Ã£o', 'Tarefas', '-', 'Prioridade');
+  const showDataInicio = isVisible('ProduÃ§Ã£o', 'Tarefas', '-', 'Data InÃ­cio');
+  const showDataLimite = isVisible('ProduÃ§Ã£o', 'Tarefas', '-', 'Data Limite');
+  const showHoraInicio = isVisible('ProduÃ§Ã£o', 'Tarefas', '-', 'Hora InÃ­cio');
+  const showHoraFim = isVisible('ProduÃ§Ã£o', 'Tarefas', '-', 'Hora Fim');
+  const showObservacoes = isVisible('ProduÃ§Ã£o', 'Tarefas', '-', 'ObservaÃ§Ãµes');
 
   useEffect(() => {
     if (!open) {
@@ -145,82 +116,53 @@ export const TarefaFormModal = ({
     }
 
     const dataId = data?.id || '__new__';
-    if (initializedForRef.current === dataId) return;
+    if (initializedForRef.current === dataId) {
+      return;
+    }
+
     initializedForRef.current = dataId;
 
     if (data) {
-      const incomingRecursoHumanoId =
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (data as any).recursoHumanoId ?? (data as any).recurso_humano_id ?? '';
-
       setFormData({
         ...data,
-        recursoHumanoId: incomingRecursoHumanoId || '',
+        recursoHumanoId: data.recursoHumanoId || '',
       });
-    } else {
-      // Find the initial status (is_inicial = true), fallback to PEND, then first
-      const inicialStatus = statusList.find(s => (s as any).is_inicial === true);
-      const defaultStatus = inicialStatus || statusList.find(s => s.codigo === 'PEND') || statusList[0];
-      setFormData({
-        id: crypto.randomUUID(),
-        prioridade: 'media',
-        statusId: defaultStatus?.id,
-        dataCriacao: new Date().toISOString(),
-        dataAtualizacao: new Date().toISOString(),
-        recursoHumanoId: '',
-      });
+      return;
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data, open]);
 
-  const fetchRecursosHumanos = useCallback(async () => {
-    if (!session) return;
-
-    try {
-      const { data: rhData } = await supabase
-        .from('recursos_humanos')
-        .select('id, nome, sobrenome, status')
-        .order('nome');
-
-      setRecursosHumanos((rhData || []).map((r: any) => ({
-        id: r.id,
-        nome: `${r.nome} ${r.sobrenome}`.trim(),
-        status: r.status,
-      })));
-    } catch (err) {
-      console.error('Error fetching recursos humanos:', err);
-    }
-  }, [session]);
-
-  useEffect(() => {
-    if (open) {
-      fetchRecursosHumanos();
-    }
-  }, [open, fetchRecursosHumanos]);
-
-  // Garante que o responsável atual exista na lista (para o Select conseguir renderizar o valor)
-  useEffect(() => {
-    if (!open || !data?.recursoHumanoId) return;
-    if (!data.recursoHumanoNome) return;
-
-    setRecursosHumanos((prev) => {
-      if (prev.some((p) => p.id === data.recursoHumanoId)) return prev;
-      return [{ id: data.recursoHumanoId, nome: data.recursoHumanoNome }, ...prev];
+    const initialStatus =
+      statusList.find((item) => item.is_inicial) ||
+      statusList.find((item) => item.codigo === 'PEND') ||
+      statusList[0];
+    setFormData({
+      prioridade: 'media',
+      statusId: initialStatus?.id,
+      dataCriacao: new Date().toISOString(),
+      dataAtualizacao: new Date().toISOString(),
+      recursoHumanoId: '',
     });
-  }, [open, data?.recursoHumanoId, data?.recursoHumanoNome]);
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    const recurso = recursosHumanos.find(r => r.id === formData.recursoHumanoId);
-    
+  }, [data, open, statusList]);
+
+  const updateField = (field: keyof Tarefa, value: string) => {
+    setFormData((current) => ({ ...current, [field]: value }));
+  };
+
+  const handleSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
+
+    const recurso = recursosHumanos.find((item) => item.id === formData.recursoHumanoId);
     onSave({
       ...formData,
       recursoHumanoNome: recurso?.nome,
     } as Tarefa);
   };
 
-  const updateField = (field: keyof Tarefa, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+  const formatDateLabel = (value?: string) => {
+    if (!value) {
+      return t('common.select');
+    }
+
+    return format(new Date(`${value}T00:00:00`), 'PPP', { locale: localeMap[language] });
   };
 
   return (
@@ -228,20 +170,19 @@ export const TarefaFormModal = ({
       <DialogContent className="w-[900px] max-w-[900px] max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{data ? t('tasks.edit') : t('tasks.new')}</DialogTitle>
-          <DialogDescription>
-            {t('tasks.formDescription')}
-          </DialogDescription>
+          <DialogDescription>{t('tasks.formDescription')}</DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Title */}
           {showTitulo && (
             <div className="space-y-2">
-              <Label htmlFor="titulo">{t('tasks.taskTitle')} <FieldAsterisk type={getAsterisk('titulo')} /></Label>
+              <Label htmlFor="titulo">
+                {t('tasks.taskTitle')} <FieldAsterisk type={getAsterisk('titulo')} />
+              </Label>
               <Input
                 id="titulo"
                 value={formData.titulo || ''}
-                onChange={(e) => updateField('titulo', e.target.value)}
+                onChange={(event) => updateField('titulo', event.target.value)}
                 placeholder={t('tasks.taskTitlePlaceholder')}
                 required={!isTituloReadOnly}
                 disabled={isTituloReadOnly}
@@ -250,14 +191,15 @@ export const TarefaFormModal = ({
             </div>
           )}
 
-          {/* Description */}
           {showDescricao && (
             <div className="space-y-2">
-              <Label htmlFor="descricao">{t('tasks.taskDescription')} <FieldAsterisk type={getAsterisk('descricao')} /></Label>
+              <Label htmlFor="descricao">
+                {t('tasks.taskDescription')} <FieldAsterisk type={getAsterisk('descricao')} />
+              </Label>
               <Textarea
                 id="descricao"
                 value={formData.descricao || ''}
-                onChange={(e) => updateField('descricao', e.target.value)}
+                onChange={(event) => updateField('descricao', event.target.value)}
                 placeholder={t('tasks.taskDescriptionPlaceholder')}
                 rows={3}
                 disabled={isDescricaoReadOnly}
@@ -266,14 +208,15 @@ export const TarefaFormModal = ({
             </div>
           )}
 
-          {/* Recording & Status */}
           <div className="grid grid-cols-2 gap-4">
             {showGravacao && (
               <div className="space-y-2">
-                <Label>{t('tasks.recording')} <FieldAsterisk type={getAsterisk('gravacaoId')} /></Label>
+                <Label>
+                  {t('tasks.recording')} <FieldAsterisk type={getAsterisk('gravacaoId')} />
+                </Label>
                 {isGravacaoReadOnly ? (
                   <Input
-                    value={gravacoes.find(g => g.id === formData.gravacaoId)?.nome || '-'}
+                    value={gravacoes.find((item) => item.id === formData.gravacaoId)?.nome || '-'}
                     disabled
                     className="bg-muted"
                   />
@@ -281,14 +224,15 @@ export const TarefaFormModal = ({
                   <Select
                     value={formData.gravacaoId || ''}
                     onValueChange={(value) => updateField('gravacaoId', value)}
-                    required
                   >
                     <SelectTrigger>
                       <SelectValue placeholder={t('common.select')} />
                     </SelectTrigger>
                     <SelectContent>
-                      {gravacoes.map(g => (
-                        <SelectItem key={g.id} value={g.id}>{g.nome}</SelectItem>
+                      {gravacoes.map((item) => (
+                        <SelectItem key={item.id} value={item.id}>
+                          {item.nome}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -298,10 +242,12 @@ export const TarefaFormModal = ({
 
             {showStatus && (
               <div className="space-y-2">
-                <Label>{t('tasks.status')} <FieldAsterisk type={getAsterisk('statusId')} /></Label>
+                <Label>
+                  {t('tasks.status')} <FieldAsterisk type={getAsterisk('statusId')} />
+                </Label>
                 {isStatusReadOnly ? (
                   <Input
-                    value={statusList.find(s => s.id === formData.statusId)?.nome || '-'}
+                    value={statusList.find((item) => item.id === formData.statusId)?.nome || '-'}
                     disabled
                     className="bg-muted"
                   />
@@ -309,17 +255,16 @@ export const TarefaFormModal = ({
                   <Select
                     value={formData.statusId || ''}
                     onValueChange={(value) => updateField('statusId', value)}
-                    required
                   >
                     <SelectTrigger>
                       <SelectValue placeholder={t('common.select')} />
                     </SelectTrigger>
                     <SelectContent>
-                      {statusList.map(status => (
+                      {statusList.map((status) => (
                         <SelectItem key={status.id} value={status.id}>
                           <div className="flex items-center gap-2">
-                            <div 
-                              className="w-3 h-3 rounded-full" 
+                            <div
+                              className="w-3 h-3 rounded-full"
                               style={{ backgroundColor: status.cor || '#888' }}
                             />
                             {status.nome}
@@ -333,16 +278,17 @@ export const TarefaFormModal = ({
             )}
           </div>
 
-          {/* Assignee & Priority */}
           <div className="grid grid-cols-2 gap-4">
             {showResponsavel && (
               <div className="space-y-2">
-                <Label>{t('tasks.assignee')} <FieldAsterisk type={getAsterisk('recursoHumanoId')} /></Label>
+                <Label>
+                  {t('tasks.assignee')} <FieldAsterisk type={getAsterisk('recursoHumanoId')} />
+                </Label>
                 {isResponsavelReadOnly ? (
                   <Input
                     value={
-                      recursosHumanos.find(r => r.id === formData.recursoHumanoId)?.nome ||
-                      (formData.recursoHumanoNome as string) ||
+                      recursosHumanos.find((item) => item.id === formData.recursoHumanoId)?.nome ||
+                      formData.recursoHumanoNome ||
                       '-'
                     }
                     disabled
@@ -352,15 +298,15 @@ export const TarefaFormModal = ({
                   <Select
                     value={formData.recursoHumanoId || ''}
                     onValueChange={(value) => updateField('recursoHumanoId', value)}
-                    required
                   >
                     <SelectTrigger>
                       <SelectValue placeholder={t('common.select')} />
                     </SelectTrigger>
                     <SelectContent>
-                      {recursosHumanos.map(rh => (
-                        <SelectItem key={rh.id} value={rh.id}>
-                          {rh.nome}{rh.status === 'Inativo' ? ' (Inativo)' : ''}
+                      {recursosHumanos.map((item) => (
+                        <SelectItem key={item.id} value={item.id}>
+                          {item.nome}
+                          {item.status === 'Inativo' ? ' (Inativo)' : ''}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -371,40 +317,35 @@ export const TarefaFormModal = ({
 
             {showPrioridade && (
               <div className="space-y-2">
-                <Label>{t('tasks.priority')} <FieldAsterisk type={getAsterisk('prioridade')} /></Label>
+                <Label>
+                  {t('tasks.priority')} <FieldAsterisk type={getAsterisk('prioridade')} />
+                </Label>
                 {isPrioridadeReadOnly ? (
                   <Input
-                    value={formData.prioridade === 'alta' ? t('tasks.priorityHigh') : formData.prioridade === 'media' ? t('tasks.priorityMedium') : t('tasks.priorityLow')}
+                    value={
+                      formData.prioridade === 'alta'
+                        ? t('tasks.priorityHigh')
+                        : formData.prioridade === 'media'
+                          ? t('tasks.priorityMedium')
+                          : t('tasks.priorityLow')
+                    }
                     disabled
                     className="bg-muted"
                   />
                 ) : (
                   <Select
                     value={formData.prioridade || 'media'}
-                    onValueChange={(value) => updateField('prioridade', value as 'baixa' | 'media' | 'alta')}
+                    onValueChange={(value) =>
+                      updateField('prioridade', value as Tarefa['prioridade'])
+                    }
                   >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="baixa">
-                        <div className="flex items-center gap-2">
-                          <div className="w-3 h-3 rounded-full bg-green-500" />
-                          {t('tasks.priorityLow')}
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="media">
-                        <div className="flex items-center gap-2">
-                          <div className="w-3 h-3 rounded-full bg-yellow-500" />
-                          {t('tasks.priorityMedium')}
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="alta">
-                        <div className="flex items-center gap-2">
-                          <div className="w-3 h-3 rounded-full bg-red-500" />
-                          {t('tasks.priorityHigh')}
-                        </div>
-                      </SelectItem>
+                      <SelectItem value="baixa">{t('tasks.priorityLow')}</SelectItem>
+                      <SelectItem value="media">{t('tasks.priorityMedium')}</SelectItem>
+                      <SelectItem value="alta">{t('tasks.priorityHigh')}</SelectItem>
                     </SelectContent>
                   </Select>
                 )}
@@ -412,17 +353,15 @@ export const TarefaFormModal = ({
             )}
           </div>
 
-          {/* Dates */}
           <div className="grid grid-cols-2 gap-4">
             {showDataInicio && (
               <div className="space-y-2">
-                <Label>{t('tasks.startDate')} <FieldAsterisk type={getAsterisk('dataInicio')} /></Label>
+                <Label>
+                  {t('tasks.startDate')} <FieldAsterisk type={getAsterisk('dataInicio')} />
+                </Label>
                 {isDataInicioReadOnly ? (
                   <Input
-                    value={formData.dataInicio 
-                      ? format(new Date(formData.dataInicio), 'PPP', { locale: localeMap[language] })
-                      : '-'
-                    }
+                    value={formData.dataInicio ? formatDateLabel(formData.dataInicio) : '-'}
                     disabled
                     className="bg-muted"
                   />
@@ -432,22 +371,25 @@ export const TarefaFormModal = ({
                       <Button
                         variant="outline"
                         className={cn(
-                          "w-full justify-start text-left font-normal",
-                          !formData.dataInicio && "text-muted-foreground"
+                          'w-full justify-start text-left font-normal',
+                          !formData.dataInicio && 'text-muted-foreground',
                         )}
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
-                        {formData.dataInicio 
-                          ? format(new Date(formData.dataInicio), 'PPP', { locale: localeMap[language] })
-                          : t('common.select')
-                        }
+                        {formatDateLabel(formData.dataInicio)}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0 bg-popover" align="start">
                       <Calendar
                         mode="single"
-                        selected={formData.dataInicio ? new Date(formData.dataInicio) : undefined}
-                        onSelect={(date) => updateField('dataInicio', date?.toISOString() || '')}
+                        selected={
+                          formData.dataInicio
+                            ? new Date(`${formData.dataInicio}T00:00:00`)
+                            : undefined
+                        }
+                        onSelect={(date) =>
+                          updateField('dataInicio', date ? date.toISOString().slice(0, 10) : '')
+                        }
                         locale={localeMap[language]}
                       />
                     </PopoverContent>
@@ -458,13 +400,12 @@ export const TarefaFormModal = ({
 
             {showDataLimite && (
               <div className="space-y-2">
-                <Label>{t('tasks.dueDate')} <FieldAsterisk type={getAsterisk('dataFim')} /></Label>
+                <Label>
+                  {t('tasks.dueDate')} <FieldAsterisk type={getAsterisk('dataFim')} />
+                </Label>
                 {isDataLimiteReadOnly ? (
                   <Input
-                    value={formData.dataFim 
-                      ? format(new Date(formData.dataFim), 'PPP', { locale: localeMap[language] })
-                      : '-'
-                    }
+                    value={formData.dataFim ? formatDateLabel(formData.dataFim) : '-'}
                     disabled
                     className="bg-muted"
                   />
@@ -474,31 +415,31 @@ export const TarefaFormModal = ({
                       <Button
                         variant="outline"
                         className={cn(
-                          "w-full justify-start text-left font-normal",
-                          !formData.dataFim && "text-muted-foreground"
+                          'w-full justify-start text-left font-normal',
+                          !formData.dataFim && 'text-muted-foreground',
                         )}
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
-                        {formData.dataFim 
-                          ? format(new Date(formData.dataFim), 'PPP', { locale: localeMap[language] })
-                          : t('common.select')
-                        }
+                        {formatDateLabel(formData.dataFim)}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0 bg-popover" align="start">
                       <Calendar
                         mode="single"
-                        selected={formData.dataFim ? new Date(formData.dataFim) : undefined}
-                        onSelect={(date) => updateField('dataFim', date?.toISOString() || '')}
+                        selected={
+                          formData.dataFim ? new Date(`${formData.dataFim}T00:00:00`) : undefined
+                        }
+                        onSelect={(date) =>
+                          updateField('dataFim', date ? date.toISOString().slice(0, 10) : '')
+                        }
                         locale={localeMap[language]}
                       />
                     </PopoverContent>
-                </Popover>
+                  </Popover>
                 )}
               </div>
             )}
 
-            {/* Time fields */}
             {showHoraInicio && (
               <div className="space-y-2">
                 <Label htmlFor="horaInicio">{t('common.startTime')}</Label>
@@ -506,7 +447,7 @@ export const TarefaFormModal = ({
                   id="horaInicio"
                   type="time"
                   value={formData.horaInicio || ''}
-                  onChange={(e) => updateField('horaInicio', e.target.value)}
+                  onChange={(event) => updateField('horaInicio', event.target.value)}
                   disabled={isHoraInicioReadOnly}
                   className={isHoraInicioReadOnly ? 'bg-muted' : ''}
                 />
@@ -520,7 +461,7 @@ export const TarefaFormModal = ({
                   id="horaFim"
                   type="time"
                   value={formData.horaFim || ''}
-                  onChange={(e) => updateField('horaFim', e.target.value)}
+                  onChange={(event) => updateField('horaFim', event.target.value)}
                   disabled={isHoraFimReadOnly}
                   className={isHoraFimReadOnly ? 'bg-muted' : ''}
                 />
@@ -528,15 +469,16 @@ export const TarefaFormModal = ({
             )}
           </div>
 
-          {/* Notes */}
           {showObservacoes && (
             <div className="space-y-2">
-              <Label htmlFor="observacoes">{t('common.observations')} <FieldAsterisk type={getAsterisk('observacoes')} /></Label>
+              <Label htmlFor="observacoes">
+                {t('common.observations')} <FieldAsterisk type={getAsterisk('observacoes')} />
+              </Label>
               <Textarea
                 id="observacoes"
                 value={formData.observacoes || ''}
-                onChange={(e) => updateField('observacoes', e.target.value)}
-                placeholder={t('common.observations') + '...'}
+                onChange={(event) => updateField('observacoes', event.target.value)}
+                placeholder={`${t('common.observations')}...`}
                 rows={2}
                 disabled={isObservacoesReadOnly}
                 className={isObservacoesReadOnly ? 'bg-muted' : ''}
@@ -562,14 +504,13 @@ export const TarefaFormModal = ({
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                       <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-                      <AlertDialogAction onClick={onDelete}>
-                        {t('common.delete')}
-                      </AlertDialogAction>
+                      <AlertDialogAction onClick={onDelete}>{t('common.delete')}</AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
               )}
             </div>
+
             <div className="flex gap-2">
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                 {globalReadOnly ? t('common.close') : t('common.cancel')}

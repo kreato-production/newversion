@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
 import { ListActionBar } from '@/components/shared/ListActionBar';
@@ -8,121 +8,101 @@ import { Edit, Trash2, Building2, Loader2 } from 'lucide-react';
 import { NewButton } from '@/components/shared/NewButton';
 import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { supabase } from '@/integrations/supabase/client';
-import type { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
 import { usePermissions } from '@/hooks/usePermissions';
+import {
+  ApiDepartamentosRepository,
+  type DepartamentoApiInput,
+  type DepartamentoApiItem,
+} from '@/modules/departamentos/departamentos.api.repository';
 
-type DepartamentoDB = Tables<'departamentos'>;
+type Departamento = DepartamentoApiItem;
 
-interface Departamento {
-  id: string;
-  codigoExterno: string;
-  nome: string;
-  descricao: string;
-  dataCadastro: string;
-  usuarioCadastro: string;
-}
-
-const mapDbToDepartamento = (db: DepartamentoDB): Departamento => ({
-  id: db.id,
-  codigoExterno: db.codigo_externo || '',
-  nome: db.nome,
-  descricao: db.descricao || '',
-  dataCadastro: db.created_at ? new Date(db.created_at).toLocaleDateString('pt-BR') : '',
-  usuarioCadastro: '',
-});
+const apiRepository = new ApiDepartamentosRepository();
 
 const Departamentos = () => {
   const { toast } = useToast();
   const { t } = useLanguage();
-  const { canAlterar } = usePermissions();
+  const { canIncluir, canAlterar, canExcluir } = usePermissions();
+  const podeIncluir = canIncluir('Recursos', 'Departamentos');
+  const podeAlterar = canAlterar('Recursos', 'Departamentos');
+  const podeExcluir = canExcluir('Recursos', 'Departamentos');
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Departamento | null>(null);
   const [items, setItems] = useState<Departamento[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const fetchDepartamentos = async () => {
+  const fetchDepartamentos = useCallback(async () => {
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('departamentos')
-        .select('*')
-        .order('nome');
-
-      if (error) throw error;
-      setItems((data || []).map(mapDbToDepartamento));
+      setItems(await apiRepository.list());
     } catch (error) {
       console.error('Error fetching departamentos:', error);
-      toast({ title: 'Erro', description: 'Erro ao carregar departamentos', variant: 'destructive' });
+      toast({
+        title: 'Erro',
+        description: `Erro ao carregar departamentos: ${(error as Error).message}`,
+        variant: 'destructive',
+      });
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [toast]);
 
   useEffect(() => {
-    fetchDepartamentos();
-  }, []);
+    void fetchDepartamentos();
+  }, [fetchDepartamentos]);
 
-  const handleSave = async (data: Departamento) => {
+  const handleSave = async (data: DepartamentoApiInput) => {
     try {
-      const dbData: TablesInsert<'departamentos'> = {
-        id: data.id || undefined,
-        codigo_externo: data.codigoExterno || null,
-        nome: data.nome,
-        descricao: data.descricao || null,
-      };
-
-      if (editingItem) {
-        const { error } = await supabase
-          .from('departamentos')
-          .update(dbData as TablesUpdate<'departamentos'>)
-          .eq('id', data.id);
-        if (error) throw error;
-        toast({ title: t('common.success'), description: `Departamento ${t('common.updated').toLowerCase()}!` });
-      } else {
-        const { error } = await supabase.from('departamentos').insert(dbData);
-        if (error) throw error;
-        toast({ title: t('common.success'), description: `Departamento ${t('common.save').toLowerCase()}!` });
-      }
-
+      await apiRepository.save(data);
+      toast({
+        title: t('common.success'),
+        description: editingItem
+          ? `Departamento ${t('common.updated').toLowerCase()}!`
+          : `Departamento salvo!`,
+      });
       await fetchDepartamentos();
       setEditingItem(null);
     } catch (error) {
       console.error('Error saving departamento:', error);
-      toast({ title: 'Erro', description: 'Erro ao salvar departamento', variant: 'destructive' });
+      toast({
+        title: 'Erro',
+        description: `Erro ao salvar departamento: ${(error as Error).message}`,
+        variant: 'destructive',
+      });
+      throw error;
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm(t('common.confirm.delete'))) {
-      try {
-        // Delete associated funcoes first
-        await supabase.from('departamento_funcoes').delete().eq('departamento_id', id);
-        
-        const { error } = await supabase.from('departamentos').delete().eq('id', id);
-        if (error) throw error;
-        toast({ title: t('common.deleted'), description: `Departamento ${t('common.deleted').toLowerCase()}!` });
-        await fetchDepartamentos();
-      } catch (error) {
-        console.error('Error deleting departamento:', error);
-        toast({ title: 'Erro', description: 'Erro ao excluir departamento', variant: 'destructive' });
-      }
+    if (!confirm(t('common.confirm.delete'))) {
+      return;
     }
-  };
 
-  const handleEdit = (item: Departamento) => {
-    setEditingItem(item);
-    setIsModalOpen(true);
+    try {
+      await apiRepository.remove(id);
+      toast({
+        title: t('common.deleted'),
+        description: `Departamento ${t('common.deleted').toLowerCase()}!`,
+      });
+      await fetchDepartamentos();
+    } catch (error) {
+      console.error('Error deleting departamento:', error);
+      toast({
+        title: 'Erro',
+        description: `Erro ao excluir departamento: ${(error as Error).message}`,
+        variant: 'destructive',
+      });
+    }
   };
 
   const filteredItems = items.filter(
     (item) =>
       item.nome.toLowerCase().includes(search.toLowerCase()) ||
-      item.codigoExterno.toLowerCase().includes(search.toLowerCase())
+      item.codigoExterno.toLowerCase().includes(search.toLowerCase()),
   );
 
-  const columns: Column<Departamento & { actions?: never }>[] = [
+  const columns: Column<Departamento>[] = [
     {
       key: 'codigoExterno',
       label: t('common.code'),
@@ -144,18 +124,23 @@ const Departamentos = () => {
       label: t('common.description'),
       className: 'hidden md:table-cell',
       render: (item) => (
-        <span className="text-muted-foreground max-w-xs truncate block">{item.descricao || '-'}</span>
+        <span className="text-muted-foreground max-w-xs truncate block">
+          {item.descricao || '-'}
+        </span>
       ),
     },
     {
       key: 'dataCadastro',
       label: t('common.registrationDate'),
       className: 'w-32',
+      render: (item) =>
+        item.dataCadastro ? new Date(item.dataCadastro).toLocaleDateString('pt-BR') : '-',
     },
     {
       key: 'usuarioCadastro',
       label: t('common.user'),
       className: 'w-32',
+      render: (item) => item.usuarioCadastro || '-',
     },
     {
       key: 'actions',
@@ -164,17 +149,28 @@ const Departamentos = () => {
       sortable: false,
       render: (item) => (
         <div className="flex justify-end gap-1">
-          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => handleEdit(item)}>
-            <Edit className="w-3.5 h-3.5" />
-          </Button>
           <Button
             size="icon"
             variant="ghost"
-            className="h-7 w-7 text-destructive hover:text-destructive"
-            onClick={() => handleDelete(item.id)}
+            className="h-7 w-7"
+            onClick={() => {
+              setEditingItem(item);
+              setIsModalOpen(true);
+            }}
+            disabled={!podeAlterar}
           >
-            <Trash2 className="w-3.5 h-3.5" />
+            <Edit className="w-3.5 h-3.5" />
           </Button>
+          {podeExcluir && (
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-7 w-7 text-destructive hover:text-destructive"
+              onClick={() => void handleDelete(item.id)}
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </Button>
+          )}
         </div>
       ),
     },
@@ -182,13 +178,18 @@ const Departamentos = () => {
 
   return (
     <div>
-      <PageHeader
-        title="Departamentos"
-        description="Gerencie os departamentos da organização"
-      />
+      <PageHeader title="Departamentos" description="Gerencie os departamentos da organizacao" />
 
       <ListActionBar>
-        <NewButton tooltip={`${t('common.new')} Departamento`} onClick={() => { setEditingItem(null); setIsModalOpen(true); }} />
+        {podeIncluir && (
+          <NewButton
+            tooltip={`${t('common.new')} Departamento`}
+            onClick={() => {
+              setEditingItem(null);
+              setIsModalOpen(true);
+            }}
+          />
+        )}
         <div className="flex-1" />
         <SearchBar value={search} onChange={setSearch} placeholder={t('common.search')} />
       </ListActionBar>
@@ -203,7 +204,7 @@ const Departamentos = () => {
             title={t('common.noResults')}
             description="Adicione um departamento."
             icon={Building2}
-            onAction={() => setIsModalOpen(true)}
+            onAction={podeIncluir ? () => setIsModalOpen(true) : undefined}
             actionLabel="Adicionar Departamento"
           />
         ) : (
@@ -222,9 +223,9 @@ const Departamentos = () => {
           setIsModalOpen(false);
           setEditingItem(null);
         }}
-        onSave={(data) => handleSave(data as Departamento)}
+        onSave={handleSave}
         data={editingItem}
-        readOnly={!!editingItem && !canAlterar('Recursos', 'Departamentos')}
+        readOnly={!!editingItem && !podeAlterar}
       />
     </div>
   );

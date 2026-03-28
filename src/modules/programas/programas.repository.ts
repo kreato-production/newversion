@@ -1,5 +1,3 @@
-import type { SupabaseClient } from '@supabase/supabase-js';
-import { supabase } from '@/integrations/supabase/client';
 import type { Programa, ProgramaInput } from './programas.types';
 
 type ProgramaRow = {
@@ -34,8 +32,23 @@ export interface ProgramasRepository {
   remove(id: string): Promise<void>;
 }
 
+type LegacyClient = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  from: (table: string) => any;
+};
+
+function createDisabledLegacyClient(): LegacyClient {
+  return {
+    from: () => {
+      throw new Error(
+        'O repositório legado de programas via Supabase foi desativado. Use a API local.',
+      );
+    },
+  };
+}
+
 export class SupabaseProgramasRepository implements ProgramasRepository {
-  constructor(private readonly client: SupabaseClient = supabase) {}
+  constructor(private readonly client: LegacyClient = createDisabledLegacyClient()) {}
 
   async list(): Promise<Programa[]> {
     const { data, error } = await this.client

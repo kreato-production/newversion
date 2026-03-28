@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -15,7 +15,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import PermissoesTab from './PermissoesTab';
-import { createDefaultPermissions, savePerfilPermissions } from '@/data/permissionsMatrix';
 
 interface PerfilFormData {
   id?: string;
@@ -29,7 +28,7 @@ interface PerfilFormData {
 interface PerfilFormModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (data: PerfilFormData) => void;
+  onSave: (data: PerfilFormData) => void | Promise<void>;
   data?: PerfilFormData | null;
   readOnly?: boolean;
 }
@@ -53,35 +52,26 @@ const PerfilFormModal = ({
   const [activeTab, setActiveTab] = useState('dados');
 
   useEffect(() => {
-    if (isOpen) {
-      if (data) {
-        setFormData({ ...data });
-      } else {
-        setFormData({ ...emptyFormData });
-      }
-      setActiveTab('dados');
+    if (!isOpen) {
+      return;
     }
+
+    setFormData(data ? { ...data } : { ...emptyFormData });
+    setActiveTab('dados');
   }, [isOpen, data]);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+
     const perfilId = data?.id || crypto.randomUUID();
-    
     const savedData = {
       ...formData,
       id: perfilId,
       dataCadastro: data?.dataCadastro || new Date().toLocaleDateString('pt-BR'),
       usuarioCadastro: data?.usuarioCadastro || user?.nome || 'Admin',
     };
-    
-    // Se for um novo perfil, cria as permissões padrão (REGRA 1)
-    if (!data?.id) {
-      const defaultPermissions = createDefaultPermissions(perfilId);
-      savePerfilPermissions(defaultPermissions);
-    }
-    
-    onSave(savedData);
+
+    await onSave(savedData);
     onClose();
   };
 
@@ -96,48 +86,58 @@ const PerfilFormModal = ({
             {data ? t('common.edit') : t('common.add')} perfil de acesso.
           </DialogDescription>
         </DialogHeader>
-        
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 overflow-hidden flex flex-col">
+
+        <Tabs
+          value={activeTab}
+          onValueChange={setActiveTab}
+          className="flex-1 overflow-hidden flex flex-col"
+        >
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="dados">Dados Gerais</TabsTrigger>
             <TabsTrigger value="permissoes" disabled={!data?.id}>
               Permissões
             </TabsTrigger>
           </TabsList>
-          
+
           <TabsContent value="dados" className="flex-1 overflow-auto">
-            <form onSubmit={handleSubmit} className="space-y-4 p-1">
+            <form onSubmit={(event) => void handleSubmit(event)} className="space-y-4 p-1">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="codigoExterno">{t('common.externalCode')}</Label>
                   <Input
                     id="codigoExterno"
                     value={formData.codigoExterno}
-                    onChange={(e) => setFormData({ ...formData, codigoExterno: e.target.value })}
+                    onChange={(event) =>
+                      setFormData({ ...formData, codigoExterno: event.target.value })
+                    }
                     maxLength={10}
                     placeholder={t('common.maxChars')}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="nome">{t('common.name')} <span className="text-destructive">*</span></Label>
+                  <Label htmlFor="nome">
+                    {t('common.name')} <span className="text-destructive">*</span>
+                  </Label>
                   <Input
                     id="nome"
                     value={formData.nome}
-                    onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
+                    onChange={(event) => setFormData({ ...formData, nome: event.target.value })}
                     maxLength={100}
                     required
                   />
                 </div>
               </div>
+
               <div className="space-y-2">
                 <Label htmlFor="descricao">{t('common.description')}</Label>
                 <Textarea
                   id="descricao"
                   value={formData.descricao}
-                  onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
+                  onChange={(event) => setFormData({ ...formData, descricao: event.target.value })}
                   rows={3}
                 />
               </div>
+
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={onClose}>
                   {readOnly ? 'Fechar' : t('common.cancel')}
@@ -150,11 +150,9 @@ const PerfilFormModal = ({
               </DialogFooter>
             </form>
           </TabsContent>
-          
+
           <TabsContent value="permissoes" className="flex-1 overflow-auto">
-            {data?.id && (
-              <PermissoesTab perfilId={data.id} perfilNome={data.nome} />
-            )}
+            {data?.id ? <PermissoesTab perfilId={data.id} perfilNome={data.nome} /> : null}
           </TabsContent>
         </Tabs>
       </DialogContent>

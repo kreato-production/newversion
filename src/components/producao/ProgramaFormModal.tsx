@@ -1,6 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { SearchableSelect } from '@/components/shared/SearchableSelect';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { unidadesRepository } from '@/modules/unidades/unidades.repository';
+import { unidadesRepository } from '@/modules/unidades/unidades.repository.provider';
 import type { Programa, ProgramaInput } from '@/modules/programas/programas.types';
 
 interface ProgramaFormModalProps {
@@ -19,9 +24,20 @@ interface ProgramaFormModalProps {
   readOnly?: boolean;
 }
 
-export const ProgramaFormModal = ({ isOpen, onClose, onSave, data, readOnly = false }: ProgramaFormModalProps) => {
+export const ProgramaFormModal = ({
+  isOpen,
+  onClose,
+  onSave,
+  data,
+  readOnly = false,
+}: ProgramaFormModalProps) => {
   const { t } = useLanguage();
-  const [formData, setFormData] = useState({ codigoExterno: '', nome: '', descricao: '', unidadeNegocioId: '' });
+  const [formData, setFormData] = useState({
+    codigoExterno: '',
+    nome: '',
+    descricao: '',
+    unidadeNegocioId: '',
+  });
   const [unidades, setUnidades] = useState<{ id: string; nome: string }[]>([]);
 
   const fetchUnidades = useCallback(async () => {
@@ -38,7 +54,12 @@ export const ProgramaFormModal = ({ isOpen, onClose, onSave, data, readOnly = fa
     if (isOpen) {
       fetchUnidades();
       if (data) {
-        setFormData({ codigoExterno: data.codigoExterno, nome: data.nome, descricao: data.descricao, unidadeNegocioId: data.unidadeNegocioId });
+        setFormData({
+          codigoExterno: data.codigoExterno,
+          nome: data.nome,
+          descricao: data.descricao,
+          unidadeNegocioId: data.unidadeNegocioId,
+        });
       } else {
         setFormData({ codigoExterno: '', nome: '', descricao: '', unidadeNegocioId: '' });
       }
@@ -69,11 +90,27 @@ export const ProgramaFormModal = ({ isOpen, onClose, onSave, data, readOnly = fa
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="codigoExterno">{t('common.externalCode')}</Label>
-              <Input id="codigoExterno" value={formData.codigoExterno} onChange={(e) => setFormData({ ...formData, codigoExterno: e.target.value })} maxLength={10} placeholder="Máx. 10 caracteres" disabled={readOnly} />
+              <Input
+                id="codigoExterno"
+                value={formData.codigoExterno}
+                onChange={(e) => setFormData({ ...formData, codigoExterno: e.target.value })}
+                maxLength={10}
+                placeholder="Máx. 10 caracteres"
+                disabled={readOnly}
+              />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="nome">{t('common.name')} <span className="text-destructive">*</span></Label>
-              <Input id="nome" value={formData.nome} onChange={(e) => setFormData({ ...formData, nome: e.target.value })} maxLength={200} required disabled={readOnly} />
+              <Label htmlFor="nome">
+                {t('common.name')} <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="nome"
+                value={formData.nome}
+                onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
+                maxLength={200}
+                required
+                disabled={readOnly}
+              />
             </div>
           </div>
           <div className="space-y-2">
@@ -90,11 +127,23 @@ export const ProgramaFormModal = ({ isOpen, onClose, onSave, data, readOnly = fa
           </div>
           <div className="space-y-2">
             <Label htmlFor="descricao">{t('common.description')}</Label>
-            <Textarea id="descricao" value={formData.descricao} onChange={(e) => setFormData({ ...formData, descricao: e.target.value })} rows={3} disabled={readOnly} />
+            <Textarea
+              id="descricao"
+              value={formData.descricao}
+              onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
+              rows={3}
+              disabled={readOnly}
+            />
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>{readOnly ? 'Fechar' : t('common.cancel')}</Button>
-            {!readOnly && <Button type="submit" className="gradient-primary hover:opacity-90">{t('common.save')}</Button>}
+            <Button type="button" variant="outline" onClick={onClose}>
+              {readOnly ? 'Fechar' : t('common.cancel')}
+            </Button>
+            {!readOnly && (
+              <Button type="submit" className="gradient-primary hover:opacity-90">
+                {t('common.save')}
+              </Button>
+            )}
           </DialogFooter>
         </form>
       </DialogContent>

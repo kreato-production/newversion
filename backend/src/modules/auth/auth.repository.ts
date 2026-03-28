@@ -185,7 +185,7 @@ export class PrismaAuthRepository implements AuthRepository {
       const moduleRows = resolvedTenantId
         ? await prisma.$queryRaw<Array<{ modulo: string }>>`
             SELECT modulo
-            FROM tenant_modulos
+            FROM tenant_modulos_backend
             WHERE tenant_id = ${resolvedTenantId}
           `
         : [];

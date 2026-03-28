@@ -1,19 +1,43 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
 import { ListActionBar } from '@/components/shared/ListActionBar';
-import { Edit, Trash2, Globe, Loader2, Key } from 'lucide-react';
+import { Edit, Globe, Loader2, Key } from 'lucide-react';
 import { NewButton } from '@/components/shared/NewButton';
 import { useToast } from '@/hooks/use-toast';
-import { SortableTable, Column } from '@/components/shared/SortableTable';
+import { SortableTable, type Column } from '@/components/shared/SortableTable';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { supabase } from '@/integrations/supabase/client';
 import { Usuario } from './Usuarios';
 import { UsuarioFormModal } from '@/components/admin/UsuarioFormModal';
+import { ApiUsuariosRepository } from '@/modules/usuarios/usuarios.api.repository';
+import { type UsuarioApiModel } from '@/modules/usuarios/usuarios.types';
+import { useAuth } from '@/contexts/AuthContext';
+
+const apiRepository = new ApiUsuariosRepository();
+
+const mapToGlobalUser = (item: UsuarioApiModel): Usuario => ({
+  id: item.id,
+  codigoExterno: item.codigoExterno || '',
+  nome: item.nome,
+  email: item.email,
+  usuario: item.usuario,
+  senha: '',
+  foto: item.foto,
+  perfil: item.perfil || 'Admin Global',
+  perfilId: undefined,
+  descricao: item.descricao || '',
+  status: item.status || 'Ativo',
+  tipoAcesso: 'Global',
+  recursoHumanoId: undefined,
+  dataCadastro: item.dataCadastro || '',
+  usuarioCadastro: item.usuarioCadastro || '',
+  role: 'GLOBAL_ADMIN',
+});
 
 const GlobalUsers = () => {
   const { toast } = useToast();
+  const { session } = useAuth();
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Usuario | null>(null);
@@ -21,53 +45,17 @@ const GlobalUsers = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchData = useCallback(async () => {
+    if (!session) {
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     try {
-      // Fetch users who are global admins (via role 'global_admin')
-      // Note: We need a way to filter profiles that are global admins.
-      // Since 'role' is in user_roles table, we first get global admins from there
-      
-      const { data: globalRoles, error: rolesError } = await supabase
-        .from('user_roles')
-        .select('user_id')
-        .eq('role', 'global_admin');
-
-      if (rolesError) throw rolesError;
-
-      const globalIds = globalRoles.map(r => r.user_id);
-
-      if (globalIds.length === 0) {
-        setItems([]);
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .in('id', globalIds)
-        .order('nome');
-
-      if (error) throw error;
-
-      setItems((data || []).map((item: any) => ({
-        id: item.id,
-        codigoExterno: item.codigo_externo || '',
-        nome: item.nome,
-        email: item.email,
-        usuario: item.usuario,
-        senha: '',
-        foto: item.foto_url,
-        perfil: 'Admin Global',
-        perfilId: item.perfil_id,
-        descricao: item.descricao || '',
-        status: item.status || 'Ativo',
-        tipoAcesso: 'Global',
-        recursoHumanoId: undefined,
-        dataCadastro: item.created_at,
-        usuarioCadastro: '',
-      })));
-    } catch (err) {
-      console.error('Error fetching global users:', err);
+      const data = await apiRepository.list();
+      setItems(data.filter((item) => item.role === 'GLOBAL_ADMIN').map(mapToGlobalUser));
+    } catch (error) {
+      console.error('Error fetching global users:', error);
       toast({
         title: 'Erro',
         description: 'Erro ao carregar usuários globais',
@@ -76,31 +64,73 @@ const GlobalUsers = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [toast]);
+  }, [session, toast]);
 
   useEffect(() => {
-    fetchData();
+    void fetchData();
   }, [fetchData]);
 
-  // Using same form modal as regular users but with special handling
-  // We'll need to adapt the save logic slightly
   const handleSave = async (data: Usuario) => {
-    // Note: The admin-create-user function needs to be updated to support 'role' parameter
-    // For now, we will assume manual role assignment or update function later
-    
-    // TEMPORARY: Just show toast, as we need backend support for creating global admins properly
-    toast({
-      title: 'Em breve',
-      description: 'A criação de usuários globais via interface será implementada na próxima etapa.',
-    });
-    setIsModalOpen(false);
+    try {
+      if (!data.email || !data.nome || !data.usuario) {
+        toast({
+          title: 'Erro',
+          description: 'Preencha todos os campos obrigatórios',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      if (!editingItem && (!data.senha || data.senha.length < 6)) {
+        toast({
+          title: 'Erro',
+          description: 'A senha deve ter pelo menos 6 caracteres',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      await apiRepository.save({
+        ...(editingItem ? { id: data.id } : {}),
+        codigoExterno: data.codigoExterno || '',
+        nome: data.nome,
+        email: data.email,
+        usuario: data.usuario,
+        ...(data.senha ? { senha: data.senha } : {}),
+        foto: data.foto || '',
+        perfil: data.perfil || 'Admin Global',
+        descricao: data.descricao || '',
+        status: data.status || 'Ativo',
+        tipoAcesso: 'Global',
+        role: 'GLOBAL_ADMIN',
+        dataCadastro: data.dataCadastro,
+        usuarioCadastro: data.usuarioCadastro,
+      });
+
+      toast({
+        title: 'Sucesso',
+        description: editingItem ? 'Admin global atualizado!' : 'Admin global criado com sucesso!',
+      });
+
+      await fetchData();
+      setIsModalOpen(false);
+      setEditingItem(null);
+    } catch (error: unknown) {
+      console.error('Error saving global user:', error);
+      toast({
+        title: 'Erro',
+        description: (error as Error).message || 'Erro ao salvar admin global',
+        variant: 'destructive',
+      });
+      throw error;
+    }
   };
 
   const filteredItems = items.filter(
     (item) =>
       item.nome.toLowerCase().includes(search.toLowerCase()) ||
       item.usuario.toLowerCase().includes(search.toLowerCase()) ||
-      item.email.toLowerCase().includes(search.toLowerCase())
+      item.email.toLowerCase().includes(search.toLowerCase()),
   );
 
   const columns: Column<Usuario>[] = [
@@ -141,9 +171,7 @@ const GlobalUsers = () => {
       key: 'status',
       label: 'Status',
       render: (item) => (
-        <Badge variant={item.status === 'Ativo' ? 'default' : 'secondary'}>
-          {item.status}
-        </Badge>
+        <Badge variant={item.status === 'Ativo' ? 'default' : 'secondary'}>{item.status}</Badge>
       ),
     },
     {
@@ -156,9 +184,8 @@ const GlobalUsers = () => {
           <Button
             size="icon"
             variant="ghost"
-            onClick={(e) => {
-              e.stopPropagation();
-              // Prevent editing admin_global for safety in this demo phase
+            onClick={(event) => {
+              event.stopPropagation();
               if (item.usuario === 'admin_global') {
                 toast({ description: 'O usuário root não pode ser editado aqui.' });
                 return;
@@ -190,7 +217,13 @@ const GlobalUsers = () => {
       />
 
       <ListActionBar>
-        <NewButton tooltip="Novo Admin Global" onClick={() => { setEditingItem(null); setIsModalOpen(true); }} />
+        <NewButton
+          tooltip="Novo Admin Global"
+          onClick={() => {
+            setEditingItem(null);
+            setIsModalOpen(true);
+          }}
+        />
         <div className="flex-1" />
         <SearchBar value={search} onChange={setSearch} />
       </ListActionBar>
@@ -214,7 +247,6 @@ const GlobalUsers = () => {
         )}
       </DataCard>
 
-      {/* Reusing form modal - will need adaptations for global context later */}
       <UsuarioFormModal
         isOpen={isModalOpen}
         onClose={() => {

@@ -1,34 +1,30 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Plus, Trash2, Search, Image as ImageIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
-import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-
-interface Figurino {
-  id: string;
-  codigoFigurino: string;
-  descricao: string;
-  tipoFigurino?: string;
-  tamanhoPeca?: string;
-  imagens?: { url: string; isPrincipal: boolean }[];
-}
-
-interface FigurinoAlocado {
-  id: string;
-  figurinoId: string;
-  codigoFigurino: string;
-  descricao: string;
-  tipoFigurino?: string;
-  tamanhoPeca?: string;
-  imagemPrincipal?: string;
-  observacoes?: string;
-  pessoaId?: string;
-}
+import {
+  gravacoesRelacionamentosApi,
+  type GravacaoFigurinoItem,
+  type GravacaoFigurinoOption,
+} from '@/modules/gravacoes/gravacoes-relacionamentos.api';
 
 interface FigurinosTabProps {
   gravacaoId: string;
@@ -36,202 +32,112 @@ interface FigurinosTabProps {
 
 const FigurinosTab = ({ gravacaoId }: FigurinosTabProps) => {
   const { toast } = useToast();
-  const [figurinos, setFigurinos] = useState<Figurino[]>([]);
-  const [figurinosAlocados, setFigurinosAlocados] = useState<FigurinoAlocado[]>([]);
-  const [selectedFigurino, setSelectedFigurino] = useState<string>('');
-  const [observacoes, setObservacoes] = useState<string>('');
+  const [figurinos, setFigurinos] = useState<GravacaoFigurinoOption[]>([]);
+  const [figurinosAlocados, setFigurinosAlocados] = useState<GravacaoFigurinoItem[]>([]);
+  const [selectedFigurino, setSelectedFigurino] = useState('');
+  const [observacoes, setObservacoes] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
 
-  const loadFigurinos = useCallback(async () => {
+  const loadData = useCallback(async () => {
     try {
-      const { data, error } = await supabase
-        .from('figurinos')
-        .select('id, codigo_figurino, descricao, tamanho_peca, tipo_figurino_id, tipos_figurino:tipo_figurino_id(nome)')
-        .order('codigo_figurino');
-
-      if (error) throw error;
-
-      // Load images for each figurino
-      const figurinosWithImages = await Promise.all((data || []).map(async (f: any) => {
-        const { data: imgData } = await supabase
-          .from('figurino_imagens')
-          .select('url, is_principal')
-          .eq('figurino_id', f.id);
-
-        return {
-          id: f.id,
-          codigoFigurino: f.codigo_figurino,
-          descricao: f.descricao,
-          tipoFigurino: f.tipos_figurino?.nome || '',
-          tamanhoPeca: f.tamanho_peca || '',
-          imagens: (imgData || []).map((img: any) => ({ url: img.url, isPrincipal: img.is_principal })),
-        };
-      }));
-
-      setFigurinos(figurinosWithImages);
-    } catch (err) {
-      console.error('Error loading figurinos:', err);
+      const response = await gravacoesRelacionamentosApi.listFigurinos(gravacaoId);
+      setFigurinos(response.figurinos);
+      setFigurinosAlocados(response.items);
+    } catch (error) {
+      console.error('Error loading gravacao figurinos from backend:', error);
+      toast({
+        title: 'Erro',
+        description: `Nao foi possivel carregar os figurinos: ${(error as Error).message}`,
+        variant: 'destructive',
+      });
     }
-  }, []);
-
-  const loadAlocados = useCallback(async () => {
-    try {
-      const { data, error } = await supabase
-        .from('gravacao_figurinos')
-        .select('id, figurino_id, observacao, pessoa_id, figurinos:figurino_id(id, codigo_figurino, descricao, tamanho_peca, tipo_figurino_id)')
-        .eq('gravacao_id', gravacaoId);
-
-      if (error) throw error;
-
-      const mapped: FigurinoAlocado[] = await Promise.all((data || []).map(async (gf: any) => {
-        // Get main image
-        const { data: imgData } = await supabase
-          .from('figurino_imagens')
-          .select('url')
-          .eq('figurino_id', gf.figurino_id)
-          .eq('is_principal', true)
-          .limit(1);
-
-        let imagemPrincipal = imgData?.[0]?.url;
-        if (!imagemPrincipal) {
-          const { data: anyImg } = await supabase
-            .from('figurino_imagens')
-            .select('url')
-            .eq('figurino_id', gf.figurino_id)
-            .limit(1);
-          imagemPrincipal = anyImg?.[0]?.url;
-        }
-
-        // Get tipo figurino name
-        let tipoFigurino = '';
-        if (gf.figurinos?.tipo_figurino_id) {
-          const { data: tipoData } = await supabase
-            .from('tipos_figurino')
-            .select('nome')
-            .eq('id', gf.figurinos.tipo_figurino_id)
-            .single();
-          tipoFigurino = tipoData?.nome || '';
-        }
-
-        return {
-          id: gf.id,
-          figurinoId: gf.figurino_id,
-          codigoFigurino: gf.figurinos?.codigo_figurino || '',
-          descricao: gf.figurinos?.descricao || '',
-          tipoFigurino,
-          tamanhoPeca: gf.figurinos?.tamanho_peca || '',
-          imagemPrincipal,
-          observacoes: gf.observacao || '',
-          pessoaId: gf.pessoa_id,
-        };
-      }));
-
-      setFigurinosAlocados(mapped);
-    } catch (err) {
-      console.error('Error loading alocados:', err);
-    }
-  }, [gravacaoId]);
+  }, [gravacaoId, toast]);
 
   useEffect(() => {
-    loadFigurinos();
-    loadAlocados();
-  }, [loadFigurinos, loadAlocados]);
+    void loadData();
+  }, [loadData]);
 
-  const getImagemPrincipal = (figurino: Figurino): string | undefined => {
-    const principal = figurino.imagens?.find(img => img.isPrincipal);
-    return principal?.url || figurino.imagens?.[0]?.url;
+  const getImagemPrincipal = (figurino: GravacaoFigurinoOption): string | undefined => {
+    const principal = figurino.imagens.find((img) => img.isPrincipal);
+    return principal?.url || figurino.imagens[0]?.url;
   };
 
   const handleAddFigurino = async () => {
     if (!selectedFigurino) return;
 
-    const figurino = figurinos.find(f => f.id === selectedFigurino);
+    const figurino = figurinos.find((item) => item.id === selectedFigurino);
     if (!figurino) return;
 
-    const exists = figurinosAlocados.find(f => f.figurinoId === selectedFigurino);
+    const exists = figurinosAlocados.find((item) => item.figurinoId === selectedFigurino);
     if (exists) {
-      toast({ title: 'Atenção', description: 'Figurino já adicionado a esta gravação.', variant: 'destructive' });
+      toast({
+        title: 'Atencao',
+        description: 'Figurino ja adicionado a esta gravacao.',
+        variant: 'destructive',
+      });
       return;
     }
 
     try {
-      const { data: inserted, error } = await supabase
-        .from('gravacao_figurinos')
-        .insert({
-          gravacao_id: gravacaoId,
-          figurino_id: selectedFigurino,
-          observacao: observacoes || null,
-        })
-        .select()
-        .single();
+      const inserted = await gravacoesRelacionamentosApi.addFigurino(gravacaoId, {
+        figurinoId: selectedFigurino,
+        observacao: observacoes,
+      });
 
-      if (error) throw error;
-
-      const novoFigurino: FigurinoAlocado = {
-        id: inserted.id,
-        figurinoId: figurino.id,
-        codigoFigurino: figurino.codigoFigurino,
-        descricao: figurino.descricao,
-        tipoFigurino: figurino.tipoFigurino,
-        tamanhoPeca: figurino.tamanhoPeca,
-        imagemPrincipal: getImagemPrincipal(figurino),
-        observacoes: observacoes,
-      };
-
-      setFigurinosAlocados([...figurinosAlocados, novoFigurino]);
+      setFigurinosAlocados((current) => [...current, inserted]);
       setSelectedFigurino('');
       setObservacoes('');
-    } catch (err) {
-      console.error('Error adding figurino:', err);
-      toast({ title: 'Erro', description: 'Erro ao adicionar figurino.', variant: 'destructive' });
+    } catch (error) {
+      console.error('Error adding figurino from backend:', error);
+      toast({
+        title: 'Erro',
+        description: `Erro ao adicionar figurino: ${(error as Error).message}`,
+        variant: 'destructive',
+      });
     }
   };
 
   const handleRemoveFigurino = async (id: string) => {
     try {
-      const { error } = await supabase
-        .from('gravacao_figurinos')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
-
-      setFigurinosAlocados(figurinosAlocados.filter(f => f.id !== id));
-    } catch (err) {
-      console.error('Error removing figurino:', err);
-      toast({ title: 'Erro', description: 'Erro ao remover figurino.', variant: 'destructive' });
+      await gravacoesRelacionamentosApi.removeFigurino(gravacaoId, id);
+      setFigurinosAlocados((current) => current.filter((item) => item.id !== id));
+    } catch (error) {
+      console.error('Error removing figurino from backend:', error);
+      toast({
+        title: 'Erro',
+        description: `Erro ao remover figurino: ${(error as Error).message}`,
+        variant: 'destructive',
+      });
     }
   };
 
-  const handleUpdateFigurino = async (id: string, field: string, value: string) => {
+  const handleUpdateFigurino = async (id: string, observacao: string) => {
     try {
-      const dbField = field === 'observacoes' ? 'observacao' : field;
-      const { error } = await supabase
-        .from('gravacao_figurinos')
-        .update({ [dbField]: value })
-        .eq('id', id);
-
-      if (error) throw error;
-
-      setFigurinosAlocados(figurinosAlocados.map(f =>
-        f.id === id ? { ...f, [field]: value } : f
-      ));
-    } catch (err) {
-      console.error('Error updating figurino:', err);
+      const updated = await gravacoesRelacionamentosApi.updateFigurino(gravacaoId, id, {
+        observacao,
+      });
+      setFigurinosAlocados((current) => current.map((item) => (item.id === id ? updated : item)));
+    } catch (error) {
+      console.error('Error updating figurino from backend:', error);
+      toast({
+        title: 'Erro',
+        description: `Erro ao atualizar figurino: ${(error as Error).message}`,
+        variant: 'destructive',
+      });
     }
   };
 
-  const filteredFigurinos = figurinos.filter(f =>
-    f.descricao?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    f.codigoFigurino?.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredFigurinos = figurinos.filter(
+    (item) =>
+      item.descricao.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.codigoFigurino.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
   return (
     <div className="space-y-6">
-      {/* Adicionar Figurino */}
       <div className="border rounded-lg p-4 space-y-4">
         <h3 className="font-medium">Adicionar Figurino</h3>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="md:col-span-2 space-y-2">
             <Label>Figurino</Label>
@@ -253,8 +159,8 @@ const FigurinosTab = ({ gravacaoId }: FigurinosTabProps) => {
                   <SelectItem key={figurino.id} value={figurino.id}>
                     <div className="flex items-center gap-2">
                       {getImagemPrincipal(figurino) ? (
-                        <img 
-                          src={getImagemPrincipal(figurino)} 
+                        <img
+                          src={getImagemPrincipal(figurino)}
                           alt={figurino.descricao}
                           className="w-6 h-6 rounded object-cover"
                         />
@@ -263,7 +169,9 @@ const FigurinosTab = ({ gravacaoId }: FigurinosTabProps) => {
                           <ImageIcon className="w-3 h-3" />
                         </div>
                       )}
-                      <span>{figurino.codigoFigurino} - {figurino.descricao}</span>
+                      <span>
+                        {figurino.codigoFigurino} - {figurino.descricao}
+                      </span>
                     </div>
                   </SelectItem>
                 ))}
@@ -272,7 +180,7 @@ const FigurinosTab = ({ gravacaoId }: FigurinosTabProps) => {
           </div>
 
           <div className="flex items-end">
-            <Button onClick={handleAddFigurino} disabled={!selectedFigurino}>
+            <Button onClick={() => void handleAddFigurino()} disabled={!selectedFigurino}>
               <Plus className="h-4 w-4 mr-2" />
               Adicionar
             </Button>
@@ -280,29 +188,28 @@ const FigurinosTab = ({ gravacaoId }: FigurinosTabProps) => {
         </div>
 
         <div className="space-y-2">
-          <Label>Observações</Label>
+          <Label>Observacoes</Label>
           <Textarea
             value={observacoes}
             onChange={(e) => setObservacoes(e.target.value)}
-            placeholder="Observações sobre o uso do figurino na gravação..."
+            placeholder="Observacoes sobre o uso do figurino na gravacao..."
             rows={2}
           />
         </div>
       </div>
 
-      {/* Lista de Figurinos Alocados */}
       {figurinosAlocados.length > 0 ? (
         <div className="border rounded-lg overflow-hidden">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead className="w-16">Imagem</TableHead>
-                <TableHead>Código</TableHead>
-                <TableHead>Descrição</TableHead>
+                <TableHead>Codigo</TableHead>
+                <TableHead>Descricao</TableHead>
                 <TableHead>Tipo</TableHead>
                 <TableHead>Tamanho</TableHead>
-                <TableHead>Observações</TableHead>
-                <TableHead className="w-16">Ações</TableHead>
+                <TableHead>Observacoes</TableHead>
+                <TableHead className="w-16">Acoes</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -327,9 +234,19 @@ const FigurinosTab = ({ gravacaoId }: FigurinosTabProps) => {
                   <TableCell>{figurino.tamanhoPeca || '-'}</TableCell>
                   <TableCell>
                     <Input
-                      value={figurino.observacoes || ''}
-                      onChange={(e) => handleUpdateFigurino(figurino.id, 'observacoes', e.target.value)}
-                      placeholder="Observações..."
+                      value={figurino.observacao || ''}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setFigurinosAlocados((current) =>
+                          current.map((item) =>
+                            item.id === figurino.id ? { ...item, observacao: value } : item,
+                          ),
+                        );
+                      }}
+                      onBlur={(e) => {
+                        void handleUpdateFigurino(figurino.id, e.target.value);
+                      }}
+                      placeholder="Observacoes..."
                       className="min-w-32"
                     />
                   </TableCell>
@@ -337,7 +254,7 @@ const FigurinosTab = ({ gravacaoId }: FigurinosTabProps) => {
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => handleRemoveFigurino(figurino.id)}
+                      onClick={() => void handleRemoveFigurino(figurino.id)}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -350,7 +267,7 @@ const FigurinosTab = ({ gravacaoId }: FigurinosTabProps) => {
       ) : (
         <div className="text-center py-8 text-muted-foreground border rounded-lg">
           <ImageIcon className="w-12 h-12 mx-auto mb-2 opacity-50" />
-          <p>Nenhum figurino adicionado a esta gravação</p>
+          <p>Nenhum figurino adicionado a esta gravacao</p>
         </div>
       )}
     </div>

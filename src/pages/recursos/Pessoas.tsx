@@ -1,157 +1,98 @@
-import { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
+import { useCallback, useEffect, useState } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
-import { ListActionBar } from '@/components/shared/ListActionBar';
-import { Edit, Trash2, Users, Loader2 } from 'lucide-react';
-import { NewButton } from '@/components/shared/NewButton';
 import { Badge } from '@/components/ui/badge';
-import { useToast } from '@/hooks/use-toast';
+import { Button } from '@/components/ui/button';
+import { DataCard, EmptyState, PageHeader, SearchBar } from '@/components/shared/PageComponents';
+import { ListActionBar } from '@/components/shared/ListActionBar';
+import { NewButton } from '@/components/shared/NewButton';
+import { SortableTable, type Column } from '@/components/shared/SortableTable';
 import { PessoaFormModal } from '@/components/recursos/PessoaFormModal';
-import { SortableTable, Column } from '@/components/shared/SortableTable';
-import { supabase } from '@/integrations/supabase/client';
-import type { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
+import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { usePermissions } from '@/hooks/usePermissions';
-
-type PessoaDB = Tables<'pessoas'>;
-
-export interface Pessoa {
-  id: string;
-  codigoExterno: string;
-  nome: string;
-  sobrenome: string;
-  nomeTrabalho: string;
-  foto?: string;
-  dataNascimento: string;
-  sexo: string;
-  telefone: string;
-  email: string;
-  classificacao: string;
-  classificacaoId?: string;
-  documento: string;
-  endereco: string;
-  cidade: string;
-  estado: string;
-  cep: string;
-  observacoes: string;
-  status: 'Ativo' | 'Inativo';
-  dataCadastro: string;
-  usuarioCadastro: string;
-}
-
-const mapDbToPessoa = (db: PessoaDB & { classificacoes_pessoa?: { nome: string } | null }): Pessoa => ({
-  id: db.id,
-  codigoExterno: db.codigo_externo || '',
-  nome: db.nome,
-  sobrenome: db.sobrenome,
-  nomeTrabalho: db.nome_trabalho || '',
-  foto: db.foto_url || undefined,
-  dataNascimento: db.data_nascimento || '',
-  sexo: db.sexo || '',
-  telefone: db.telefone || '',
-  email: db.email || '',
-  classificacao: db.classificacoes_pessoa?.nome || '',
-  classificacaoId: db.classificacao_id || undefined,
-  documento: db.documento || '',
-  endereco: db.endereco || '',
-  cidade: db.cidade || '',
-  estado: db.estado || '',
-  cep: db.cep || '',
-  observacoes: db.observacoes || '',
-  status: db.status || 'Ativo',
-  dataCadastro: db.created_at ? new Date(db.created_at).toLocaleDateString('pt-BR') : '',
-  usuarioCadastro: '',
-});
+import { useToast } from '@/hooks/use-toast';
+import { pessoasRepository } from '@/modules/pessoas/pessoas.repository.provider';
+import type { Pessoa, PessoaInput } from '@/modules/pessoas/pessoas.types';
+import { Edit, Loader2, Trash2, Users } from 'lucide-react';
 
 const Pessoas = () => {
   const { toast } = useToast();
   const { t } = useLanguage();
-  const { canAlterar } = usePermissions();
+  const { user, session } = useAuth();
+  const { canIncluir, canAlterar, canExcluir } = usePermissions();
+  const podeIncluir = canIncluir('Recursos', 'Pessoas');
+  const podeAlterar = canAlterar('Recursos', 'Pessoas');
+  const podeExcluir = canExcluir('Recursos', 'Pessoas');
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Pessoa | null>(null);
   const [items, setItems] = useState<Pessoa[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const fetchPessoas = async () => {
+  const fetchPessoas = useCallback(async () => {
+    if (!session) {
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('pessoas')
-        .select('*, classificacoes_pessoa:classificacao_id(nome)')
-        .order('nome');
-
-      if (error) throw error;
-      setItems((data || []).map(mapDbToPessoa));
+      setItems(await pessoasRepository.list());
     } catch (error) {
       console.error('Error fetching pessoas:', error);
-      toast({ title: 'Erro', description: 'Erro ao carregar pessoas', variant: 'destructive' });
+      toast({
+        title: t('common.error'),
+        description: `Erro ao carregar pessoas: ${(error as Error).message}`,
+        variant: 'destructive',
+      });
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [session, t, toast]);
 
   useEffect(() => {
     fetchPessoas();
-  }, []);
+  }, [fetchPessoas]);
 
-  const handleSave = async (data: Pessoa) => {
+  const handleSave = async (input: PessoaInput) => {
     try {
-      const dbData: TablesInsert<'pessoas'> = {
-        id: data.id || undefined,
-        codigo_externo: data.codigoExterno || null,
-        nome: data.nome,
-        sobrenome: data.sobrenome,
-        nome_trabalho: data.nomeTrabalho || null,
-        foto_url: data.foto || null,
-        data_nascimento: data.dataNascimento || null,
-        sexo: data.sexo as 'Masculino' | 'Feminino' | 'Outro' | null,
-        telefone: data.telefone || null,
-        email: data.email || null,
-        classificacao_id: data.classificacaoId || null,
-        documento: data.documento || null,
-        endereco: data.endereco || null,
-        cidade: data.cidade || null,
-        estado: data.estado || null,
-        cep: data.cep || null,
-        observacoes: data.observacoes || null,
-        status: data.status as 'Ativo' | 'Inativo',
-      };
-
-      if (editingItem) {
-        const { error } = await supabase
-          .from('pessoas')
-          .update(dbData as TablesUpdate<'pessoas'>)
-          .eq('id', data.id);
-
-        if (error) throw error;
-        toast({ title: 'Sucesso', description: 'Pessoa atualizada!' });
-      } else {
-        const { error } = await supabase.from('pessoas').insert(dbData);
-        if (error) throw error;
-        toast({ title: 'Sucesso', description: 'Pessoa cadastrada!' });
-      }
-
+      await pessoasRepository.save({
+        ...input,
+        tenantId: user?.tenantId ?? null,
+      });
+      toast({
+        title: t('common.success'),
+        description: editingItem ? 'Pessoa atualizada!' : 'Pessoa cadastrada!',
+      });
       await fetchPessoas();
       setEditingItem(null);
     } catch (error) {
       console.error('Error saving pessoa:', error);
-      toast({ title: 'Erro', description: 'Erro ao salvar pessoa', variant: 'destructive' });
+      toast({
+        title: t('common.error'),
+        description: `Erro ao salvar: ${(error as Error).message}`,
+        variant: 'destructive',
+      });
+      throw error;
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm('Deseja realmente excluir esta pessoa?')) {
-      try {
-        const { error } = await supabase.from('pessoas').delete().eq('id', id);
-        if (error) throw error;
-        toast({ title: 'Excluído', description: 'Pessoa removida!' });
-        await fetchPessoas();
-      } catch (error) {
-        console.error('Error deleting pessoa:', error);
-        toast({ title: 'Erro', description: 'Erro ao excluir pessoa', variant: 'destructive' });
-      }
+    if (!confirm('Deseja realmente excluir esta pessoa?')) {
+      return;
+    }
+
+    try {
+      await pessoasRepository.remove(id);
+      toast({ title: t('common.deleted'), description: 'Pessoa removida!' });
+      await fetchPessoas();
+    } catch (error) {
+      console.error('Error deleting pessoa:', error);
+      toast({
+        title: t('common.error'),
+        description: `Erro ao excluir: ${(error as Error).message}`,
+        variant: 'destructive',
+      });
     }
   };
 
@@ -160,7 +101,7 @@ const Pessoas = () => {
       item.nome.toLowerCase().includes(search.toLowerCase()) ||
       item.sobrenome.toLowerCase().includes(search.toLowerCase()) ||
       item.email.toLowerCase().includes(search.toLowerCase()) ||
-      item.classificacao?.toLowerCase().includes(search.toLowerCase())
+      item.classificacao.toLowerCase().includes(search.toLowerCase()),
   );
 
   const columns: Column<Pessoa>[] = [
@@ -173,7 +114,8 @@ const Pessoas = () => {
         <Avatar className="w-8 h-8">
           <AvatarImage src={item.foto} />
           <AvatarFallback className="text-xs gradient-brand text-primary-foreground">
-            {item.nome.charAt(0)}{item.sobrenome.charAt(0)}
+            {item.nome.charAt(0)}
+            {item.sobrenome.charAt(0)}
           </AvatarFallback>
         </Avatar>
       ),
@@ -182,12 +124,15 @@ const Pessoas = () => {
       key: 'nome',
       label: t('common.name'),
       render: (item) => (
-        <span className="font-medium">{item.nome} {item.sobrenome}</span>
+        <span className="font-medium">
+          {item.nome} {item.sobrenome}
+        </span>
       ),
     },
     {
       key: 'email',
       label: t('common.email'),
+      render: (item) => item.email || '-',
     },
     {
       key: 'telefone',
@@ -202,15 +147,13 @@ const Pessoas = () => {
     {
       key: 'cidade',
       label: t('field.cityState'),
-      render: (item) => item.cidade && item.estado ? `${item.cidade}/${item.estado}` : '-',
+      render: (item) => (item.cidade && item.estado ? `${item.cidade}/${item.estado}` : '-'),
     },
     {
       key: 'status',
       label: t('common.status'),
       render: (item) => (
-        <Badge variant={item.status === 'Ativo' ? 'default' : 'secondary'}>
-          {item.status}
-        </Badge>
+        <Badge variant={item.status === 'Ativo' ? 'default' : 'secondary'}>{item.status}</Badge>
       ),
     },
     {
@@ -223,25 +166,28 @@ const Pessoas = () => {
           <Button
             size="icon"
             variant="ghost"
-            onClick={(e) => {
-              e.stopPropagation();
+            disabled={!podeAlterar}
+            onClick={(event) => {
+              event.stopPropagation();
               setEditingItem(item);
               setIsModalOpen(true);
             }}
           >
             <Edit className="w-4 h-4" />
           </Button>
-          <Button
-            size="icon"
-            variant="ghost"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleDelete(item.id);
-            }}
-            className="text-destructive hover:text-destructive"
-          >
-            <Trash2 className="w-4 h-4" />
-          </Button>
+          {podeExcluir && (
+            <Button
+              size="icon"
+              variant="ghost"
+              className="text-destructive hover:text-destructive"
+              onClick={(event) => {
+                event.stopPropagation();
+                handleDelete(item.id);
+              }}
+            >
+              <Trash2 className="w-4 h-4" />
+            </Button>
+          )}
         </div>
       ),
     },
@@ -249,13 +195,18 @@ const Pessoas = () => {
 
   return (
     <div>
-      <PageHeader
-        title={t('people.title')}
-        description={t('field.managePeople')}
-      />
+      <PageHeader title={t('people.title')} description={t('field.managePeople')} />
 
       <ListActionBar>
-        <NewButton tooltip={t('field.newPerson')} onClick={() => { setEditingItem(null); setIsModalOpen(true); }} />
+        {podeIncluir && (
+          <NewButton
+            tooltip={t('field.newPerson')}
+            onClick={() => {
+              setEditingItem(null);
+              setIsModalOpen(true);
+            }}
+          />
+        )}
         <div className="flex-1" />
         <SearchBar value={search} onChange={setSearch} />
       </ListActionBar>
@@ -270,7 +221,7 @@ const Pessoas = () => {
             title={t('field.noPersonRegistered')}
             description={t('field.peopleHint')}
             icon={Users}
-            onAction={() => setIsModalOpen(true)}
+            onAction={podeIncluir ? () => setIsModalOpen(true) : undefined}
             actionLabel={t('field.addPerson')}
           />
         ) : (
@@ -291,7 +242,7 @@ const Pessoas = () => {
         }}
         onSave={handleSave}
         data={editingItem}
-        readOnly={!!editingItem && !canAlterar('Recursos', 'Pessoas')}
+        readOnly={!!editingItem && !podeAlterar}
       />
     </div>
   );

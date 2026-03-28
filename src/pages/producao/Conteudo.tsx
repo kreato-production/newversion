@@ -1,41 +1,33 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
 import { ListActionBar } from '@/components/shared/ListActionBar';
-import { Edit, Trash2, Film, Loader2, Copy } from 'lucide-react';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
+import { Edit, Trash2, Film, Loader2 } from 'lucide-react';
 import { NewButton } from '@/components/shared/NewButton';
 import { useToast } from '@/hooks/use-toast';
-import { ConteudoFormModal } from '@/components/producao/ConteudoFormModal';
+import { ConteudoBackendFormModal } from '@/components/producao/ConteudoBackendFormModal';
 import { SortableTable, type Column } from '@/components/shared/SortableTable';
 import { usePermissions } from '@/hooks/usePermissions';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { isBackendDataProviderEnabled } from '@/lib/api/http';
 import { conteudosRepository } from '@/modules/conteudos/conteudos.repository.provider';
-import type { Conteudo, ConteudoInput } from '@/modules/conteudos/conteudos.types';
-import { generateCodigoConteudo } from '@/modules/conteudos/conteudos.types';
+import type { Conteudo as ConteudoItem, ConteudoInput } from '@/modules/conteudos/conteudos.types';
 
 const Conteudo = () => {
   const { toast } = useToast();
   const { t } = useLanguage();
   const { user, session } = useAuth();
   const { canIncluir, canAlterar, canExcluir } = usePermissions();
-  const shouldUseBackend = useMemo(() => isBackendDataProviderEnabled(), []);
 
-  const podeIncluir = canIncluir('ProduÃ§Ã£o', 'ConteÃºdo');
-  const podeAlterar = canAlterar('ProduÃ§Ã£o', 'ConteÃºdo');
-  const podeExcluir = canExcluir('ProduÃ§Ã£o', 'ConteÃºdo');
+  const podeIncluir = canIncluir('ProduÃƒÂ§ÃƒÂ£o', 'ConteÃƒÂºdo');
+  const podeAlterar = canAlterar('ProduÃƒÂ§ÃƒÂ£o', 'ConteÃƒÂºdo');
+  const podeExcluir = canExcluir('ProduÃƒÂ§ÃƒÂ£o', 'ConteÃƒÂºdo');
 
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<Conteudo | null>(null);
-  const [items, setItems] = useState<Conteudo[]>([]);
+  const [editingItem, setEditingItem] = useState<ConteudoItem | null>(null);
+  const [items, setItems] = useState<ConteudoItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [isCloning, setIsCloning] = useState(false);
 
   const fetchConteudos = useCallback(async () => {
     if (!session) {
@@ -57,7 +49,7 @@ const Conteudo = () => {
       console.error('Error fetching conteudos:', error);
       toast({
         title: t('common.error'),
-        description: `Erro ao carregar conteúdos: ${(error as Error).message}`,
+        description: `Erro ao carregar conteÃºdos: ${(error as Error).message}`,
         variant: 'destructive',
       });
     } finally {
@@ -66,133 +58,8 @@ const Conteudo = () => {
   }, [session, t, toast, user?.unidadeIds]);
 
   useEffect(() => {
-    fetchConteudos();
+    void fetchConteudos();
   }, [fetchConteudos]);
-
-  const toggleSelection = (id: string) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
-      return next;
-    });
-  };
-
-  const handleClone = async () => {
-    if (shouldUseBackend) {
-      toast({
-        title: t('common.warning') || 'Aviso',
-        description: 'A clonagem de conteúdo ainda não foi migrada para o backend local.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    if (selectedIds.size === 0) {
-      toast({
-        title: t('common.warning') || 'Aviso',
-        description: 'Selecione ao menos um registro para clonar.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    setIsCloning(true);
-    try {
-      for (const sourceId of selectedIds) {
-        const { data: original, error: fetchErr } = await supabase
-          .from('conteudos')
-          .select('*')
-          .eq('id', sourceId)
-          .single();
-
-        if (fetchErr || !original) {
-          throw fetchErr || new Error('Not found');
-        }
-
-        const { id: _id, created_at: _createdAt, updated_at: _updatedAt, ...rest } = original;
-        const cloneData = {
-          ...rest,
-          descricao: `Clone de : ${original.descricao}`,
-          codigo_externo: generateCodigoConteudo(),
-        };
-
-        const { data: newConteudo, error: insertErr } = await supabase
-          .from('conteudos')
-          .insert(cloneData)
-          .select()
-          .single();
-
-        if (insertErr || !newConteudo) {
-          throw insertErr;
-        }
-
-        const { data: recursosFisicos } = await supabase
-          .from('conteudo_recursos_fisicos')
-          .select('*')
-          .eq('conteudo_id', sourceId);
-
-        if (recursosFisicos && recursosFisicos.length > 0) {
-          const clonedRF = recursosFisicos.map(
-            ({ id: _id, created_at: _createdAt, conteudo_id: _conteudoId, ...resource }) => ({
-              ...resource,
-              conteudo_id: newConteudo.id,
-            }),
-          );
-          await supabase.from('conteudo_recursos_fisicos').insert(clonedRF);
-        }
-
-        const { data: recursosTecnicos } = await supabase
-          .from('conteudo_recursos_tecnicos')
-          .select('*')
-          .eq('conteudo_id', sourceId);
-
-        if (recursosTecnicos && recursosTecnicos.length > 0) {
-          const clonedRT = recursosTecnicos.map(
-            ({ id: _id, created_at: _createdAt, conteudo_id: _conteudoId, ...resource }) => ({
-              ...resource,
-              conteudo_id: newConteudo.id,
-            }),
-          );
-          await supabase.from('conteudo_recursos_tecnicos').insert(clonedRT);
-        }
-
-        const { data: terceiros } = await supabase
-          .from('conteudo_terceiros')
-          .select('*')
-          .eq('conteudo_id', sourceId);
-
-        if (terceiros && terceiros.length > 0) {
-          const clonedT = terceiros.map(
-            ({ id: _id, created_at: _createdAt, conteudo_id: _conteudoId, ...thirdParty }) => ({
-              ...thirdParty,
-              conteudo_id: newConteudo.id,
-            }),
-          );
-          await supabase.from('conteudo_terceiros').insert(clonedT);
-        }
-      }
-
-      toast({
-        title: t('common.success'),
-        description: `${selectedIds.size} registro(s) clonado(s) com sucesso.`,
-      });
-      setSelectedIds(new Set());
-      await fetchConteudos();
-    } catch (error) {
-      console.error('Error cloning conteudo:', error);
-      toast({
-        title: t('common.error'),
-        description: 'Erro ao clonar registro.',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsCloning(false);
-    }
-  };
 
   const handleSave = async (data: ConteudoInput) => {
     try {
@@ -215,7 +82,7 @@ const Conteudo = () => {
       console.error('Error saving conteudo:', error);
       toast({
         title: t('common.error'),
-        description: `Erro ao salvar conteúdo: ${(error as Error).message}`,
+        description: `Erro ao salvar conteÃºdo: ${(error as Error).message}`,
         variant: 'destructive',
       });
       throw error;
@@ -235,7 +102,7 @@ const Conteudo = () => {
       console.error('Error deleting conteudo:', error);
       toast({
         title: t('common.error'),
-        description: `Erro ao excluir conteúdo: ${(error as Error).message}`,
+        description: `Erro ao excluir conteÃºdo: ${(error as Error).message}`,
         variant: 'destructive',
       });
     }
@@ -247,20 +114,7 @@ const Conteudo = () => {
       item.codigoExterno?.toLowerCase().includes(search.toLowerCase()),
   );
 
-  const columns: Column<Conteudo>[] = [
-    {
-      key: 'select',
-      label: '',
-      className: 'w-10',
-      sortable: false,
-      render: (item) => (
-        <Checkbox
-          checked={selectedIds.has(item.id)}
-          onCheckedChange={() => toggleSelection(item.id)}
-          onClick={(event) => event.stopPropagation()}
-        />
-      ),
-    },
+  const columns: Column<ConteudoItem>[] = [
     {
       key: 'descricao',
       label: t('common.description'),
@@ -312,7 +166,7 @@ const Conteudo = () => {
               variant="ghost"
               onClick={(event) => {
                 event.stopPropagation();
-                handleDelete(item.id);
+                void handleDelete(item.id);
               }}
               className="text-destructive hover:text-destructive"
             >
@@ -337,27 +191,6 @@ const Conteudo = () => {
               setIsModalOpen(true);
             }}
           />
-        )}
-        {podeIncluir && !shouldUseBackend && (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  size="icon"
-                  onClick={handleClone}
-                  disabled={selectedIds.size === 0 || isCloning}
-                  className="bg-primary text-primary-foreground hover:bg-primary/90"
-                >
-                  {isCloning ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Copy className="w-4 h-4" />
-                  )}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Clone</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
         )}
         <div className="flex-1" />
         <SearchBar value={search} onChange={setSearch} />
@@ -386,7 +219,7 @@ const Conteudo = () => {
         )}
       </DataCard>
 
-      <ConteudoFormModal
+      <ConteudoBackendFormModal
         isOpen={isModalOpen}
         onClose={() => {
           setIsModalOpen(false);

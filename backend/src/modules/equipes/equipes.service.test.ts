@@ -30,6 +30,13 @@ class InMemoryEquipesRepository implements EquipesRepository {
   async remove(id: string) {
     this.items.delete(id);
   }
+
+  async listUsuariosAtivos() { return []; }
+  async listMembros() { return []; }
+  async addMembro() {
+    return { id: 'member-1', recursoHumanoId: 'user-1', dataAssociacao: new Date('2026-03-25T12:00:00.000Z') };
+  }
+  async removeMembro() {}
 }
 
 const actor: SessionUser = {
@@ -67,4 +74,3 @@ describe('EquipesService', () => {
     await expect(service.remove(actor, saved.id)).rejects.toThrow('Operacao fora do tenant permitido');
   });
 });
-

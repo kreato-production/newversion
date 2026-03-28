@@ -1,7 +1,13 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { createAuthenticate, createRequireRole } from '../../../plugins/auth.js';
 import type { AuthService } from '../../auth/auth.service.js';
-import { saveTenantSchema, TenantsService } from '../tenants.service.js';
+import {
+  saveTenantLicencaSchema,
+  saveTenantModuloSchema,
+  saveTenantSchema,
+  saveTenantUnidadeSchema,
+  TenantsService,
+} from '../tenants.service.js';
 
 export function createTenantsRoutes(authService: AuthService, tenantsService: TenantsService): FastifyPluginAsync {
   return async (app) => {
@@ -27,6 +33,46 @@ export function createTenantsRoutes(authService: AuthService, tenantsService: Te
       const params = request.params as { id: string };
       await tenantsService.remove(request.user!, params.id);
       return reply.status(204).send();
+    });
+
+    app.get('/tenants/:id/licencas', { preHandler: [authenticate, requireGlobalAdmin] }, async (request, reply) => {
+      const params = request.params as { id: string };
+      return reply.status(200).send(await tenantsService.listLicencas(request.user!, params.id));
+    });
+
+    app.post('/tenants/:id/licencas', { preHandler: [authenticate, requireGlobalAdmin] }, async (request, reply) => {
+      const params = request.params as { id: string };
+      const body = saveTenantLicencaSchema.parse(request.body);
+      return reply.status(200).send(await tenantsService.addLicenca(request.user!, params.id, body));
+    });
+
+    app.delete('/tenants/:id/licencas/:licencaId', { preHandler: [authenticate, requireGlobalAdmin] }, async (request, reply) => {
+      const params = request.params as { id: string; licencaId: string };
+      await tenantsService.removeLicenca(request.user!, params.id, params.licencaId);
+      return reply.status(204).send();
+    });
+
+    app.get('/tenants/:id/modulos', { preHandler: [authenticate, requireGlobalAdmin] }, async (request, reply) => {
+      const params = request.params as { id: string };
+      return reply.status(200).send(await tenantsService.listModulos(request.user!, params.id));
+    });
+
+    app.post('/tenants/:id/modulos', { preHandler: [authenticate, requireGlobalAdmin] }, async (request, reply) => {
+      const params = request.params as { id: string };
+      const body = saveTenantModuloSchema.parse(request.body);
+      await tenantsService.setModulo(request.user!, params.id, body);
+      return reply.status(204).send();
+    });
+
+    app.get('/tenants/:id/unidades', { preHandler: [authenticate, requireGlobalAdmin] }, async (request, reply) => {
+      const params = request.params as { id: string };
+      return reply.status(200).send(await tenantsService.listUnidades(request.user!, params.id));
+    });
+
+    app.post('/tenants/:id/unidades', { preHandler: [authenticate, requireGlobalAdmin] }, async (request, reply) => {
+      const params = request.params as { id: string };
+      const body = saveTenantUnidadeSchema.parse(request.body);
+      return reply.status(200).send(await tenantsService.createUnidade(request.user!, params.id, body));
     });
   };
 }
