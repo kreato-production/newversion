@@ -15,6 +15,10 @@ dist-ssr
 .env.*
 backend/.env
 
+# Next.js build output
+.next/
+out/
+
 # Runtime artifacts
 .codex-runtime/
 
