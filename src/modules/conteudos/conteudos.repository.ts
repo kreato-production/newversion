@@ -178,25 +178,41 @@ export class SupabaseConteudosRepository implements ConteudosRepository {
     ]);
 
     return {
-      centrosLucro: (centrosRes.data || []).map((item) => ({
+      centrosLucro: (
+        (centrosRes.data || []) as Array<{
+          id: string;
+          nome: string;
+          parent_id: string | null;
+          status: string | null;
+        }>
+      ).map((item) => ({
         id: item.id,
         nome: item.nome,
         parentId: item.parent_id,
         status: item.status || 'Ativo',
       })),
-      statusList: (statusRes.data || []).map((item) => ({
+      statusList: (
+        (statusRes.data || []) as Array<{ id: string; nome: string; cor: string | null }>
+      ).map((item) => ({
         id: item.id,
         nome: item.nome,
         cor: item.cor || '#888888',
       })),
-      unidades: (unidadesRes.data || []).map((item) => ({
+      unidades: (
+        (unidadesRes.data || []) as Array<{ id: string; nome: string; moeda: string | null }>
+      ).map((item) => ({
         id: item.id,
         nome: item.nome,
         moeda: item.moeda,
       })),
       tipos: tiposRes.data || [],
       classificacoes: classificacoesRes.data || [],
-      centroLucroUnidades: (centroLucroUnidadesRes.data || []).map((item) => ({
+      centroLucroUnidades: (
+        (centroLucroUnidadesRes.data || []) as Array<{
+          centro_lucro_id: string;
+          unidade_negocio_id: string;
+        }>
+      ).map((item) => ({
         centroLucroId: item.centro_lucro_id,
         unidadeNegocioId: item.unidade_negocio_id,
       })),
@@ -211,7 +227,13 @@ export class SupabaseConteudosRepository implements ConteudosRepository {
         nome: item.nome,
         unidadeNegocioId: item.unidade_negocio_id,
       })),
-      programas: (programasRes.data || []).map((item) => ({
+      programas: (
+        (programasRes.data || []) as Array<{
+          id: string;
+          nome: string;
+          unidade_negocio_id: string | null;
+        }>
+      ).map((item) => ({
         id: item.id,
         nome: item.nome,
         unidadeNegocioId: item.unidade_negocio_id,

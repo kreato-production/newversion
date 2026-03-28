@@ -1,4 +1,6 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+'use client';
+
+import { useTheme as useNextTheme } from 'next-themes';
 
 type Theme = 'light' | 'dark';
 
@@ -8,36 +10,20 @@ interface ThemeContextValue {
   toggleTheme: () => void;
 }
 
-const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
-
-export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>(() => {
-    const stored = localStorage.getItem('kreato_theme') as Theme | null;
-    if (stored) return stored;
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-  });
-
-  useEffect(() => {
-    const root = document.documentElement;
-    root.classList.remove('light', 'dark');
-    root.classList.add(theme);
-    localStorage.setItem('kreato_theme', theme);
-  }, [theme]);
-
-  const setTheme = (newTheme: Theme) => setThemeState(newTheme);
-  const toggleTheme = () => setThemeState((prev) => (prev === 'light' ? 'dark' : 'light'));
-
-  return (
-    <ThemeContext.Provider value={{ theme, setTheme, toggleTheme }}>
-      {children}
-    </ThemeContext.Provider>
-  );
+// Shim: keeps the same API as the old custom ThemeProvider
+// Actual ThemeProvider is now next-themes in src/components/layout/Providers.tsx
+export function ThemeProvider({ children }: { children: React.ReactNode }) {
+  return <>{children}</>;
 }
 
-export function useTheme() {
-  const context = useContext(ThemeContext);
-  if (!context) {
-    throw new Error('useTheme must be used within a ThemeProvider');
-  }
-  return context;
+export function useTheme(): ThemeContextValue {
+  const { resolvedTheme, setTheme } = useNextTheme();
+
+  const theme: Theme = resolvedTheme === 'dark' ? 'dark' : 'light';
+
+  return {
+    theme,
+    setTheme: (t: Theme) => setTheme(t),
+    toggleTheme: () => setTheme(theme === 'light' ? 'dark' : 'light'),
+  };
 }

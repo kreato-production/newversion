@@ -14,7 +14,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ApiTenantsRepository } from '@/modules/tenants/tenants.api.repository';
 import { useToast } from '@/hooks/use-toast';
-import type { Tenant } from '@/pages/admin/Tenants';
+import type { Tenant } from '@/views/admin/Tenants';
 import { Loader2 } from 'lucide-react';
 import { TenantLicencasTab } from './TenantLicencasTab';
 import { TenantModulosTab } from './TenantModulosTab';

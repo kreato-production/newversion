@@ -2,12 +2,12 @@ import { apiRequest } from '@/lib/api/http';
 import type { UnidadeNegocio } from './unidades.types';
 
 export class ApiUnidadesRepository {
-  async list(): Promise<UnidadeNegocio[]> {
+  async list(_userName?: string): Promise<UnidadeNegocio[]> {
     const response = await apiRequest<{ data: UnidadeNegocio[] }>('/unidades?limit=200&offset=0');
     return response.data;
   }
 
-  async save(data: UnidadeNegocio): Promise<void> {
+  async save(data: UnidadeNegocio, _userId?: string): Promise<void> {
     const normalizedId = data.id || undefined;
     const payload = normalizedId ? data : { ...data, id: undefined };
     const path = normalizedId ? `/unidades/${normalizedId}` : '/unidades';
@@ -25,7 +25,7 @@ export class ApiUnidadesRepository {
     });
   }
 
-  async uploadLogo(): Promise<string | null> {
+  async uploadLogo(_file?: File, _unidadeId?: string): Promise<string | null> {
     return null;
   }
 }

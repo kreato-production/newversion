@@ -55,7 +55,13 @@ export const TenantUnidadesTab = ({ tenantId }: { tenantId: string }) => {
     void fetchUnidades();
   }, [tenantId]);
 
-  const handleCreateNew = async (data: Record<string, unknown>) => {
+  const handleCreateNew = async (data: {
+    codigoExterno?: string;
+    nome: string;
+    descricao?: string;
+    imagem?: string;
+    moeda?: string;
+  }) => {
     try {
       await apiRepository.createUnidade(tenantId, {
         codigoExterno: data.codigoExterno || undefined,

@@ -511,7 +511,9 @@ export const MapaRecursosFisicosModal = ({
                       );
                     }, 0);
 
-                    const ocupacaoDetalhada = ocupacaoData || {
+                    const ocupacaoDetalhada: OcupacaoData = ocupacaoData || {
+                      recursoId: recurso.id,
+                      data: dataStr,
                       ocupacoes: [],
                       totalOcupado: 0,
                       totalDisponivel: totalDisponivelCalc,

@@ -1,3 +1,5 @@
+'use client';
+
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
 export type Language = 'pt' | 'en' | 'es';
@@ -26,7 +28,7 @@ const translations: Record<Language, Record<string, string>> = {
     'login.loading': 'Entrando...',
     'login.error': 'Usuário ou senha inválidos',
     'login.hint': 'Acesso inicial: Admin / kreato',
-    
+
     // Common
     'common.save': 'Salvar',
     'common.cancel': 'Cancelar',
@@ -128,13 +130,13 @@ const translations: Record<Language, Record<string, string>> = {
     'common.required': 'Campo obrigatório',
     'common.startTime': 'Hora Início',
     'common.endTime': 'Hora Fim',
-    
+
     // Theme
     'theme.dark': 'Tema Escuro',
     'theme.light': 'Tema Claro',
-    'settings': 'Configurações',
-    'language': 'Idioma',
-    
+    settings: 'Configurações',
+    language: 'Idioma',
+
     // Menu / Sidebar
     'menu.dashboard': 'Dashboard',
     'menu.production': 'Produção',
@@ -175,7 +177,7 @@ const translations: Record<Language, Record<string, string>> = {
     'menu.incidentCategories': 'Categorias de Incidência',
     'menu.incidentSeverities': 'Severidades de Incidência',
     'menu.incidentImpacts': 'Impactos de Incidência',
-    
+
     // Incident Categories
     'incidentCategory.pageTitle': 'Categorias de Incidência',
     'incidentCategory.pageDescription': 'Gerencie as categorias de incidência de gravação',
@@ -188,7 +190,7 @@ const translations: Record<Language, Record<string, string>> = {
     'incidentCategory.classification': 'Classificação',
     'incidentCategory.noClassifications': 'Nenhuma classificação cadastrada',
     'incidentCategory.user': 'Usuário',
-    
+
     // Incident Severities
     'incidentSeverity.pageTitle': 'Severidades de Incidência',
     'incidentSeverity.pageDescription': 'Gerencie as severidades de incidência de gravação',
@@ -197,7 +199,7 @@ const translations: Record<Language, Record<string, string>> = {
     'incidentSeverity.titleRequired': 'O título é obrigatório',
     'incidentSeverity.formDescription': 'Preencha os dados da severidade de incidência',
     'incidentSeverity.user': 'Usuário',
-    
+
     // Incident Impacts
     'incidentImpact.pageTitle': 'Impactos de Incidência',
     'incidentImpact.pageDescription': 'Gerencie os impactos de incidência de gravação',
@@ -206,7 +208,7 @@ const translations: Record<Language, Record<string, string>> = {
     'incidentImpact.titleRequired': 'O título é obrigatório',
     'incidentImpact.formDescription': 'Preencha os dados do impacto de incidência',
     'incidentImpact.user': 'Usuário',
-    
+
     // Recording Incidents
     'menu.recordingIncidents': 'Incidências de Gravação',
     'incident.pageTitle': 'Incidências de Gravação',
@@ -241,7 +243,7 @@ const translations: Record<Language, Record<string, string>> = {
     'incident.totalIncidents': 'Total de Incidências',
     'incident.clearFilters': 'Limpar Filtros',
     'incident.filters': 'Filtros',
-    
+
     // Tasks
     'tasks.title': 'Tarefas',
     'tasks.description': 'Gerencie as tarefas da produção',
@@ -272,11 +274,11 @@ const translations: Record<Language, Record<string, string>> = {
     'tasks.deleteConfirmation': 'Esta ação não pode ser desfeita.',
     'tasks.filterByStatus': 'Filtrar por status',
     'tasks.filterByRecording': 'Filtrar por gravação',
-    
+
     // Parameters
     'parameters.taskStatus': 'Status de Tarefa',
     'parameters.taskStatusDescription': 'Configure os status disponíveis para as tarefas',
-    
+
     // Dashboard
     'dashboard.title': 'Dashboard',
     'dashboard.hello': 'Olá',
@@ -296,36 +298,37 @@ const translations: Record<Language, Record<string, string>> = {
     'dashboard.registryOverview': 'Visão geral dos cadastros',
     'dashboard.totalRecordings': 'Total de Gravações',
     'dashboard.totalContents': 'Total de Conteúdos',
-    
+
     // Business Units
     'businessUnits.title': 'Unidades de Negócio',
     'businessUnits.description': 'Gerencie as unidades de negócio da organização',
     'businessUnits.new': 'Nova Unidade de Negócio',
     'businessUnits.edit': 'Editar Unidade de Negócio',
     'businessUnits.empty': 'Nenhuma unidade de negócio cadastrada',
-    'businessUnits.emptyDescription': 'Comece adicionando unidades de negócio para organizar seu sistema.',
+    'businessUnits.emptyDescription':
+      'Comece adicionando unidades de negócio para organizar seu sistema.',
     'businessUnits.deleted': 'Unidade de Negócio removida com sucesso!',
     'businessUnits.saved': 'Unidade de Negócio salva com sucesso!',
     'businessUnits.updated': 'Unidade de Negócio atualizada com sucesso!',
-    
+
     // Cost Centers
     'profitCenters.title': 'Centros de Custos',
     'profitCenters.description': 'Gerencie os centros de custos da organização',
     'profitCenters.new': 'Novo Centro de Custos',
     'profitCenters.edit': 'Editar Centro de Custos',
-    
+
     // Users
     'users.title': 'Usuários',
     'users.description': 'Gerencie os usuários do sistema',
     'users.new': 'Novo Usuário',
     'users.edit': 'Editar Usuário',
-    
+
     // Access Profiles
     'accessProfiles.title': 'Perfis de Acesso',
     'accessProfiles.description': 'Gerencie os perfis de acesso do sistema',
     'accessProfiles.new': 'Novo Perfil de Acesso',
     'accessProfiles.edit': 'Editar Perfil de Acesso',
-    
+
     // Content
     'content.title': 'Conteúdo',
     'content.description': 'Gerencie os conteúdos de produção',
@@ -341,7 +344,7 @@ const translations: Record<Language, Record<string, string>> = {
     'content.noRecordings': 'Nenhuma gravação associada.',
     'content.clickGenerate': 'Clique em "Gerar" para criar as gravações automaticamente.',
     'content.contentRecordings': 'Gravações do Conteúdo',
-    
+
     // Recordings
     'recordings.title': 'Gravações',
     'recordings.description': 'Gerencie as gravações de produção',
@@ -359,7 +362,7 @@ const translations: Record<Language, Record<string, string>> = {
     'recordings.emptyDescription': 'Comece adicionando gravações para gerenciar sua produção.',
     'recordings.businessUnit': 'Unidade de Negócio',
     'recordings.profitCenter': 'Centro de Custos',
-    
+
     // Cast
     'cast.title': 'Elenco',
     'cast.add': 'Adicionar ao Elenco',
@@ -370,7 +373,7 @@ const translations: Record<Language, Record<string, string>> = {
     'cast.actor': 'Ator/Atriz',
     'cast.empty': 'Nenhum membro do elenco adicionado',
     'cast.total': 'membro(s) do elenco',
-    
+
     // Guests
     'guests.title': 'Convidados',
     'guests.add': 'Adicionar Convidado',
@@ -378,7 +381,7 @@ const translations: Record<Language, Record<string, string>> = {
     'guests.contact': 'Contato',
     'guests.empty': 'Nenhum convidado adicionado',
     'guests.total': 'convidado(s)',
-    
+
     // Costumes / Figurinos
     'costumes.title': 'Figurinos',
     'costumes.description': 'Gerencie os figurinos disponíveis',
@@ -396,7 +399,7 @@ const translations: Record<Language, Record<string, string>> = {
     'costumes.emptyDescription': 'Comece adicionando figurinos para sua produção.',
     'costumes.addToCostume': 'Adicionar Figurino',
     'costumes.noCostumesAdded': 'Nenhum figurino adicionado a esta gravação',
-    
+
     // People
     'people.title': 'Pessoas',
     'people.description': 'Gerencie o cadastro de pessoas',
@@ -410,42 +413,42 @@ const translations: Record<Language, Record<string, string>> = {
     'people.photo': 'Foto',
     'people.empty': 'Nenhuma pessoa cadastrada',
     'people.emptyDescription': 'Comece adicionando pessoas ao sistema.',
-    
+
     // Human Resources
     'humanResources.title': 'Recursos Humanos',
     'humanResources.description': 'Gerencie os recursos humanos disponíveis',
     'humanResources.new': 'Novo Recurso Humano',
     'humanResources.edit': 'Editar Recurso Humano',
     'humanResources.empty': 'Nenhum recurso humano cadastrado',
-    
+
     // Technical Resources
     'technicalResources.title': 'Recursos Técnicos',
     'technicalResources.description': 'Gerencie os recursos técnicos disponíveis',
     'technicalResources.new': 'Novo Recurso Técnico',
     'technicalResources.edit': 'Editar Recurso Técnico',
     'technicalResources.empty': 'Nenhum recurso técnico cadastrado',
-    
+
     // Physical Resources
     'physicalResources.title': 'Recursos Físicos',
     'physicalResources.description': 'Gerencie os recursos físicos disponíveis',
     'physicalResources.new': 'Novo Recurso Físico',
     'physicalResources.edit': 'Editar Recurso Físico',
     'physicalResources.empty': 'Nenhum recurso físico cadastrado',
-    
+
     // Suppliers
     'suppliers.title': 'Fornecedores',
     'suppliers.description': 'Gerencie os fornecedores',
     'suppliers.new': 'Novo Fornecedor',
     'suppliers.edit': 'Editar Fornecedor',
     'suppliers.empty': 'Nenhum fornecedor cadastrado',
-    
+
     // Services
     'services.title': 'Serviços',
     'services.description': 'Gerencie os serviços disponíveis',
     'services.new': 'Novo Serviço',
     'services.edit': 'Editar Serviço',
     'services.empty': 'Nenhum serviço cadastrado',
-    
+
     // Maps
     'maps.title': 'Mapas',
     'maps.description': 'Visualize os mapas de produção',
@@ -453,7 +456,7 @@ const translations: Record<Language, Record<string, string>> = {
     'maps.humanResources': 'Recursos Humanos',
     'maps.costAppropriation': 'Apropriação de Custos',
     'maps.requisitions': 'Requisições',
-    
+
     // Parameters
     'parameters.positions': 'Cargos',
     'parameters.departments': 'Departamentos',
@@ -465,7 +468,7 @@ const translations: Record<Language, Record<string, string>> = {
     'parameters.recordingTypes': 'Tipos de Gravação',
     'parameters.recordingStatus': 'Status de Gravação',
     'parameters.classification': 'Classificação',
-    
+
     // Costs
     'costs.title': 'Custos',
     'costs.estimatedCost': 'Custo Estimado',
@@ -473,18 +476,18 @@ const translations: Record<Language, Record<string, string>> = {
     'costs.dailyRate': 'Diária',
     'costs.hourlyRate': 'Valor Hora',
     'costs.totalCost': 'Custo Total',
-    
+
     // Third Parties
     'thirdParties.title': 'Terceiros',
     'thirdParties.add': 'Adicionar Terceiro',
     'thirdParties.empty': 'Nenhum terceiro adicionado',
-    
+
     // Resources Tab
     'resourcesTab.allocate': 'Alocar Recurso',
     'resourcesTab.startDate': 'Data Início',
     'resourcesTab.endDate': 'Data Fim',
     'resourcesTab.noResourcesAllocated': 'Nenhum recurso alocado',
-    
+
     // Script/Roteiro
     'script.title': 'Roteiro de Gravação',
     'script.description': 'Organize a ordem das cenas a serem gravadas',
@@ -504,7 +507,8 @@ const translations: Record<Language, Record<string, string>> = {
     'script.charactersInScene': 'Personagens em Cena (do Elenco)',
     'script.noCast': 'Nenhum elenco cadastrado. Adicione membros ao elenco no tabulador "Elenco".',
     'script.extras': 'Figurantes (Pessoas classificadas como Figurante)',
-    'script.noExtras': 'Nenhuma pessoa classificada como "Figurante". Cadastre pessoas no módulo Recursos > Pessoas.',
+    'script.noExtras':
+      'Nenhuma pessoa classificada como "Figurante". Cadastre pessoas no módulo Recursos > Pessoas.',
     'script.sceneDescription': 'Descrição da Cena',
     'script.formatHint': 'Use marcações de texto: *texto* para itálico, **texto** para negrito',
     'script.external': 'Externo',
@@ -526,10 +530,11 @@ const translations: Record<Language, Record<string, string>> = {
     'script.exportSuccess': 'Roteiro exportado com sucesso!',
     'script.noScenesToExport': 'Nenhuma cena para exportar',
     'common.of': 'de',
-    
+
     // Costs Tab
     'costsTab.noCosts': 'Nenhum custo estimado',
-    'costsTab.noCostsDescription': 'Aloque recursos com horários definidos na aba "Recursos" para visualizar a estimativa de custos.',
+    'costsTab.noCostsDescription':
+      'Aloque recursos com horários definidos na aba "Recursos" para visualizar a estimativa de custos.',
     'costsTab.totalHours': 'Total de Horas',
     'costsTab.estimatedHours': 'Horas estimadas de trabalho',
     'costsTab.totalCost': 'Custo Total',
@@ -546,7 +551,7 @@ const translations: Record<Language, Record<string, string>> = {
     'costsTab.subtotal': 'Subtotal',
     'costsTab.totalEstimatedCost': 'Custo Total Estimado',
     'costsTab.workHours': 'horas de trabalho',
-    
+
     // Fields / Columns / Modals
     'field.department': 'Departamento',
     'field.function': 'Função',
@@ -595,11 +600,13 @@ const translations: Record<Language, Record<string, string>> = {
     'field.addAbsencePeriod': 'Adicionar Período de Ausência',
     'field.noAbsences': 'Nenhuma ausência cadastrada',
     'field.absencesHint': 'Adicione períodos de férias, folgas ou licenças',
-    'field.absenceOverlapWarning': 'O sistema não permite cadastrar ausências com datas sobrepostas. Verifique se o período informado não conflita com ausências já existentes.',
+    'field.absenceOverlapWarning':
+      'O sistema não permite cadastrar ausências com datas sobrepostas. Verifique se o período informado não conflita com ausências já existentes.',
     'field.addSchedule': 'Adicionar Escala',
     'field.noSchedules': 'Nenhuma escala cadastrada',
     'field.schedulesHint': 'Adicione escalas de trabalho com horários e dias da semana',
-    'field.scheduleOverlapWarning': 'O sistema não permite cadastrar escalas com períodos sobrepostos.',
+    'field.scheduleOverlapWarning':
+      'O sistema não permite cadastrar escalas com períodos sobrepostos.',
     'field.scaleMap': 'Mapa de Escalas',
     'field.availabilityMap': 'Mapa de Disponibilidade',
     'field.days': 'Dias',
@@ -661,8 +668,10 @@ const translations: Record<Language, Record<string, string>> = {
     'field.descriptionRequired': 'Descrição é obrigatória.',
     'field.fillContentData': 'Preencha os campos para cadastrar o conteúdo.',
     'field.editContentData': 'Preencha os campos para editar o conteúdo.',
-    'field.confirmDeleteContent': 'Deseja realmente excluir este conteúdo? Todas as gravações associadas também serão removidas.',
-    'field.contentDeleteBlocked': 'Este conteúdo possui gravações com recursos, técnicos, físicos ou terceiros associados.',
+    'field.confirmDeleteContent':
+      'Deseja realmente excluir este conteúdo? Todas as gravações associadas também serão removidas.',
+    'field.contentDeleteBlocked':
+      'Este conteúdo possui gravações com recursos, técnicos, físicos ou terceiros associados.',
     'field.contentDeleted': 'Conteúdo e gravações associadas removidos!',
     'field.contentUpdated': 'Conteúdo atualizado!',
     'field.contentCreated': 'Conteúdo cadastrado!',
@@ -683,7 +692,7 @@ const translations: Record<Language, Record<string, string>> = {
     'field.thu': 'Qui',
     'field.fri': 'Sex',
     'field.sat': 'Sáb',
-    
+
     // Teams
     'teams.title': 'Equipes',
     'teams.description': 'Gerencie as equipes de recursos humanos',
@@ -759,7 +768,7 @@ const translations: Record<Language, Record<string, string>> = {
     'login.loading': 'Signing in...',
     'login.error': 'Invalid user or password',
     'login.hint': 'Initial access: Admin / kreato',
-    
+
     // Common
     'common.save': 'Save',
     'common.cancel': 'Cancel',
@@ -861,13 +870,13 @@ const translations: Record<Language, Record<string, string>> = {
     'common.required': 'Required field',
     'common.startTime': 'Start Time',
     'common.endTime': 'End Time',
-    
+
     // Theme
     'theme.dark': 'Dark Theme',
     'theme.light': 'Light Theme',
-    'settings': 'Settings',
-    'language': 'Language',
-    
+    settings: 'Settings',
+    language: 'Language',
+
     // Menu / Sidebar
     'menu.dashboard': 'Dashboard',
     'menu.production': 'Production',
@@ -908,7 +917,7 @@ const translations: Record<Language, Record<string, string>> = {
     'menu.incidentCategories': 'Incident Categories',
     'menu.incidentSeverities': 'Incident Severities',
     'menu.incidentImpacts': 'Incident Impacts',
-    
+
     // Incident Categories
     'incidentCategory.pageTitle': 'Incident Categories',
     'incidentCategory.pageDescription': 'Manage recording incident categories',
@@ -921,7 +930,7 @@ const translations: Record<Language, Record<string, string>> = {
     'incidentCategory.classification': 'Classification',
     'incidentCategory.noClassifications': 'No classifications registered',
     'incidentCategory.user': 'User',
-    
+
     // Incident Severities
     'incidentSeverity.pageTitle': 'Incident Severities',
     'incidentSeverity.pageDescription': 'Manage recording incident severities',
@@ -930,7 +939,7 @@ const translations: Record<Language, Record<string, string>> = {
     'incidentSeverity.titleRequired': 'Title is required',
     'incidentSeverity.formDescription': 'Fill in the incident severity details',
     'incidentSeverity.user': 'User',
-    
+
     // Incident Impacts
     'incidentImpact.pageTitle': 'Incident Impacts',
     'incidentImpact.pageDescription': 'Manage recording incident impacts',
@@ -939,7 +948,7 @@ const translations: Record<Language, Record<string, string>> = {
     'incidentImpact.titleRequired': 'Title is required',
     'incidentImpact.formDescription': 'Fill in the incident impact details',
     'incidentImpact.user': 'User',
-    
+
     // Recording Incidents
     'menu.recordingIncidents': 'Recording Incidents',
     'incident.pageTitle': 'Recording Incidents',
@@ -974,7 +983,7 @@ const translations: Record<Language, Record<string, string>> = {
     'incident.totalIncidents': 'Total Incidents',
     'incident.clearFilters': 'Clear Filters',
     'incident.filters': 'Filters',
-    
+
     // Tasks
     'tasks.title': 'Tasks',
     'tasks.description': 'Manage production tasks',
@@ -1005,11 +1014,11 @@ const translations: Record<Language, Record<string, string>> = {
     'tasks.deleteConfirmation': 'This action cannot be undone.',
     'tasks.filterByStatus': 'Filter by status',
     'tasks.filterByRecording': 'Filter by recording',
-    
+
     // Parameters
     'parameters.taskStatus': 'Task Status',
     'parameters.taskStatusDescription': 'Configure available task statuses',
-    
+
     // Dashboard
     'dashboard.title': 'Dashboard',
     'dashboard.hello': 'Hello',
@@ -1029,7 +1038,7 @@ const translations: Record<Language, Record<string, string>> = {
     'dashboard.registryOverview': 'Registry overview',
     'dashboard.totalRecordings': 'Total Recordings',
     'dashboard.totalContents': 'Total Contents',
-    
+
     // Business Units
     'businessUnits.title': 'Business Units',
     'businessUnits.description': 'Manage organization business units',
@@ -1040,25 +1049,25 @@ const translations: Record<Language, Record<string, string>> = {
     'businessUnits.deleted': 'Business Unit deleted successfully!',
     'businessUnits.saved': 'Business Unit saved successfully!',
     'businessUnits.updated': 'Business Unit updated successfully!',
-    
+
     // Cost Centers
     'profitCenters.title': 'Cost Centers',
     'profitCenters.description': 'Manage organization cost centers',
     'profitCenters.new': 'New Cost Center',
     'profitCenters.edit': 'Edit Cost Center',
-    
+
     // Users
     'users.title': 'Users',
     'users.description': 'Manage system users',
     'users.new': 'New User',
     'users.edit': 'Edit User',
-    
+
     // Access Profiles
     'accessProfiles.title': 'Access Profiles',
     'accessProfiles.description': 'Manage system access profiles',
     'accessProfiles.new': 'New Access Profile',
     'accessProfiles.edit': 'Edit Access Profile',
-    
+
     // Content
     'content.title': 'Content',
     'content.description': 'Manage production content',
@@ -1074,7 +1083,7 @@ const translations: Record<Language, Record<string, string>> = {
     'content.noRecordings': 'No recordings associated.',
     'content.clickGenerate': 'Click "Generate" to create recordings automatically.',
     'content.contentRecordings': 'Content Recordings',
-    
+
     // Recordings
     'recordings.title': 'Recordings',
     'recordings.description': 'Manage production recordings',
@@ -1092,7 +1101,7 @@ const translations: Record<Language, Record<string, string>> = {
     'recordings.emptyDescription': 'Start adding recordings to manage your production.',
     'recordings.businessUnit': 'Business Unit',
     'recordings.profitCenter': 'Cost Center',
-    
+
     // Cast
     'cast.title': 'Cast',
     'cast.add': 'Add to Cast',
@@ -1103,7 +1112,7 @@ const translations: Record<Language, Record<string, string>> = {
     'cast.actor': 'Actor/Actress',
     'cast.empty': 'No cast members added',
     'cast.total': 'cast member(s)',
-    
+
     // Guests
     'guests.title': 'Guests',
     'guests.add': 'Add Guest',
@@ -1111,7 +1120,7 @@ const translations: Record<Language, Record<string, string>> = {
     'guests.contact': 'Contact',
     'guests.empty': 'No guests added',
     'guests.total': 'guest(s)',
-    
+
     // Costumes
     'costumes.title': 'Costumes',
     'costumes.description': 'Manage available costumes',
@@ -1129,7 +1138,7 @@ const translations: Record<Language, Record<string, string>> = {
     'costumes.emptyDescription': 'Start adding costumes for your production.',
     'costumes.addToCostume': 'Add Costume',
     'costumes.noCostumesAdded': 'No costumes added to this recording',
-    
+
     // People
     'people.title': 'People',
     'people.description': 'Manage people registry',
@@ -1143,42 +1152,42 @@ const translations: Record<Language, Record<string, string>> = {
     'people.photo': 'Photo',
     'people.empty': 'No people registered',
     'people.emptyDescription': 'Start adding people to the system.',
-    
+
     // Human Resources
     'humanResources.title': 'Human Resources',
     'humanResources.description': 'Manage available human resources',
     'humanResources.new': 'New Human Resource',
     'humanResources.edit': 'Edit Human Resource',
     'humanResources.empty': 'No human resources registered',
-    
+
     // Technical Resources
     'technicalResources.title': 'Technical Resources',
     'technicalResources.description': 'Manage available technical resources',
     'technicalResources.new': 'New Technical Resource',
     'technicalResources.edit': 'Edit Technical Resource',
     'technicalResources.empty': 'No technical resources registered',
-    
+
     // Physical Resources
     'physicalResources.title': 'Physical Resources',
     'physicalResources.description': 'Manage available physical resources',
     'physicalResources.new': 'New Physical Resource',
     'physicalResources.edit': 'Edit Physical Resource',
     'physicalResources.empty': 'No physical resources registered',
-    
+
     // Suppliers
     'suppliers.title': 'Suppliers',
     'suppliers.description': 'Manage suppliers',
     'suppliers.new': 'New Supplier',
     'suppliers.edit': 'Edit Supplier',
     'suppliers.empty': 'No suppliers registered',
-    
+
     // Services
     'services.title': 'Services',
     'services.description': 'Manage available services',
     'services.new': 'New Service',
     'services.edit': 'Edit Service',
     'services.empty': 'No services registered',
-    
+
     // Maps
     'maps.title': 'Maps',
     'maps.description': 'View production maps',
@@ -1186,7 +1195,7 @@ const translations: Record<Language, Record<string, string>> = {
     'maps.humanResources': 'Human Resources',
     'maps.costAppropriation': 'Cost Appropriation',
     'maps.requisitions': 'Requisitions',
-    
+
     // Parameters
     'parameters.positions': 'Positions',
     'parameters.departments': 'Departments',
@@ -1198,7 +1207,7 @@ const translations: Record<Language, Record<string, string>> = {
     'parameters.recordingTypes': 'Recording Types',
     'parameters.recordingStatus': 'Recording Status',
     'parameters.classification': 'Classification',
-    
+
     // Costs
     'costs.title': 'Costs',
     'costs.estimatedCost': 'Estimated Cost',
@@ -1206,18 +1215,18 @@ const translations: Record<Language, Record<string, string>> = {
     'costs.dailyRate': 'Daily Rate',
     'costs.hourlyRate': 'Hourly Rate',
     'costs.totalCost': 'Total Cost',
-    
+
     // Third Parties
     'thirdParties.title': 'Third Parties',
     'thirdParties.add': 'Add Third Party',
     'thirdParties.empty': 'No third parties added',
-    
+
     // Resources Tab
     'resourcesTab.allocate': 'Allocate Resource',
     'resourcesTab.startDate': 'Start Date',
     'resourcesTab.endDate': 'End Date',
     'resourcesTab.noResourcesAllocated': 'No resources allocated',
-    
+
     // Script/Roteiro
     'script.title': 'Recording Script',
     'script.description': 'Organize the order of scenes to be recorded',
@@ -1259,10 +1268,11 @@ const translations: Record<Language, Record<string, string>> = {
     'script.exportSuccess': 'Script exported successfully!',
     'script.noScenesToExport': 'No scenes to export',
     'common.of': 'of',
-    
+
     // Costs Tab
     'costsTab.noCosts': 'No estimated costs',
-    'costsTab.noCostsDescription': 'Allocate resources with defined schedules in the "Resources" tab to view cost estimates.',
+    'costsTab.noCostsDescription':
+      'Allocate resources with defined schedules in the "Resources" tab to view cost estimates.',
     'costsTab.totalHours': 'Total Hours',
     'costsTab.estimatedHours': 'Estimated work hours',
     'costsTab.totalCost': 'Total Cost',
@@ -1279,7 +1289,7 @@ const translations: Record<Language, Record<string, string>> = {
     'costsTab.subtotal': 'Subtotal',
     'costsTab.totalEstimatedCost': 'Total Estimated Cost',
     'costsTab.workHours': 'work hours',
-    
+
     // Fields / Columns / Modals
     'field.department': 'Department',
     'field.function': 'Function',
@@ -1328,7 +1338,8 @@ const translations: Record<Language, Record<string, string>> = {
     'field.addAbsencePeriod': 'Add Absence Period',
     'field.noAbsences': 'No absences registered',
     'field.absencesHint': 'Add vacation, day off, or leave periods',
-    'field.absenceOverlapWarning': 'The system does not allow overlapping absence dates. Verify that the period does not conflict with existing absences.',
+    'field.absenceOverlapWarning':
+      'The system does not allow overlapping absence dates. Verify that the period does not conflict with existing absences.',
     'field.addSchedule': 'Add Schedule',
     'field.noSchedules': 'No schedules registered',
     'field.schedulesHint': 'Add work schedules with times and weekdays',
@@ -1394,8 +1405,10 @@ const translations: Record<Language, Record<string, string>> = {
     'field.descriptionRequired': 'Description is required.',
     'field.fillContentData': 'Fill in the fields to register the content.',
     'field.editContentData': 'Fill in the fields to edit the content.',
-    'field.confirmDeleteContent': 'Do you really want to delete this content? All associated recordings will also be removed.',
-    'field.contentDeleteBlocked': 'This content has recordings with associated resources, technicians, physical or third-party.',
+    'field.confirmDeleteContent':
+      'Do you really want to delete this content? All associated recordings will also be removed.',
+    'field.contentDeleteBlocked':
+      'This content has recordings with associated resources, technicians, physical or third-party.',
     'field.contentDeleted': 'Content and associated recordings removed!',
     'field.contentUpdated': 'Content updated!',
     'field.contentCreated': 'Content registered!',
@@ -1416,7 +1429,7 @@ const translations: Record<Language, Record<string, string>> = {
     'field.thu': 'Thu',
     'field.fri': 'Fri',
     'field.sat': 'Sat',
-    
+
     // Teams
     'teams.title': 'Teams',
     'teams.description': 'Manage human resources teams',
@@ -1492,7 +1505,7 @@ const translations: Record<Language, Record<string, string>> = {
     'login.loading': 'Iniciando...',
     'login.error': 'Usuario o contraseña inválidos',
     'login.hint': 'Acceso inicial: Admin / kreato',
-    
+
     // Common
     'common.save': 'Guardar',
     'common.cancel': 'Cancelar',
@@ -1594,13 +1607,13 @@ const translations: Record<Language, Record<string, string>> = {
     'common.required': 'Campo obligatorio',
     'common.startTime': 'Hora Inicio',
     'common.endTime': 'Hora Fin',
-    
+
     // Theme
     'theme.dark': 'Tema Oscuro',
     'theme.light': 'Tema Claro',
-    'settings': 'Configuración',
-    'language': 'Idioma',
-    
+    settings: 'Configuración',
+    language: 'Idioma',
+
     // Menu / Sidebar
     'menu.dashboard': 'Panel',
     'menu.production': 'Producción',
@@ -1641,7 +1654,7 @@ const translations: Record<Language, Record<string, string>> = {
     'menu.incidentCategories': 'Categorías de Incidencia',
     'menu.incidentSeverities': 'Severidades de Incidencia',
     'menu.incidentImpacts': 'Impactos de Incidencia',
-    
+
     // Incident Categories
     'incidentCategory.pageTitle': 'Categorías de Incidencia',
     'incidentCategory.pageDescription': 'Gestione las categorías de incidencia de grabación',
@@ -1654,7 +1667,7 @@ const translations: Record<Language, Record<string, string>> = {
     'incidentCategory.classification': 'Clasificación',
     'incidentCategory.noClassifications': 'No hay clasificaciones registradas',
     'incidentCategory.user': 'Usuario',
-    
+
     // Incident Severities
     'incidentSeverity.pageTitle': 'Severidades de Incidencia',
     'incidentSeverity.pageDescription': 'Gestione las severidades de incidencia de grabación',
@@ -1663,7 +1676,7 @@ const translations: Record<Language, Record<string, string>> = {
     'incidentSeverity.titleRequired': 'El título es obligatorio',
     'incidentSeverity.formDescription': 'Complete los datos de la severidad de incidencia',
     'incidentSeverity.user': 'Usuario',
-    
+
     // Incident Impacts
     'incidentImpact.pageTitle': 'Impactos de Incidencia',
     'incidentImpact.pageDescription': 'Gestione los impactos de incidencia de grabación',
@@ -1672,7 +1685,7 @@ const translations: Record<Language, Record<string, string>> = {
     'incidentImpact.titleRequired': 'El título es obligatorio',
     'incidentImpact.formDescription': 'Complete los datos del impacto de incidencia',
     'incidentImpact.user': 'Usuario',
-    
+
     // Recording Incidents
     'menu.recordingIncidents': 'Incidencias de Grabación',
     'incident.pageTitle': 'Incidencias de Grabación',
@@ -1707,7 +1720,7 @@ const translations: Record<Language, Record<string, string>> = {
     'incident.totalIncidents': 'Total de Incidencias',
     'incident.clearFilters': 'Limpiar Filtros',
     'incident.filters': 'Filtros',
-    
+
     // Tasks
     'tasks.title': 'Tareas',
     'tasks.description': 'Gestione las tareas de producción',
@@ -1738,7 +1751,7 @@ const translations: Record<Language, Record<string, string>> = {
     'tasks.deleteConfirmation': 'Esta acción no se puede deshacer.',
     'tasks.filterByStatus': 'Filtrar por estado',
     'tasks.filterByRecording': 'Filtrar por grabación',
-    
+
     // Dashboard
     'dashboard.title': 'Panel',
     'dashboard.hello': 'Hola',
@@ -1758,36 +1771,37 @@ const translations: Record<Language, Record<string, string>> = {
     'dashboard.registryOverview': 'Visión general de registros',
     'dashboard.totalRecordings': 'Total de Grabaciones',
     'dashboard.totalContents': 'Total de Contenidos',
-    
+
     // Business Units
     'businessUnits.title': 'Unidades de Negocio',
     'businessUnits.description': 'Gestione las unidades de negocio de la organización',
     'businessUnits.new': 'Nueva Unidad de Negocio',
     'businessUnits.edit': 'Editar Unidad de Negocio',
     'businessUnits.empty': 'No hay unidades de negocio registradas',
-    'businessUnits.emptyDescription': 'Comience agregando unidades de negocio para organizar su sistema.',
+    'businessUnits.emptyDescription':
+      'Comience agregando unidades de negocio para organizar su sistema.',
     'businessUnits.deleted': '¡Unidad de Negocio eliminada con éxito!',
     'businessUnits.saved': '¡Unidad de Negocio guardada con éxito!',
     'businessUnits.updated': '¡Unidad de Negocio actualizada con éxito!',
-    
+
     // Cost Centers
     'profitCenters.title': 'Centros de Costos',
     'profitCenters.description': 'Gestione los centros de costos de la organización',
     'profitCenters.new': 'Nuevo Centro de Costos',
     'profitCenters.edit': 'Editar Centro de Costos',
-    
+
     // Users
     'users.title': 'Usuarios',
     'users.description': 'Gestione los usuarios del sistema',
     'users.new': 'Nuevo Usuario',
     'users.edit': 'Editar Usuario',
-    
+
     // Access Profiles
     'accessProfiles.title': 'Perfiles de Acceso',
     'accessProfiles.description': 'Gestione los perfiles de acceso del sistema',
     'accessProfiles.new': 'Nuevo Perfil de Acceso',
     'accessProfiles.edit': 'Editar Perfil de Acceso',
-    
+
     // Content
     'content.title': 'Contenido',
     'content.description': 'Gestione los contenidos de producción',
@@ -1803,7 +1817,7 @@ const translations: Record<Language, Record<string, string>> = {
     'content.noRecordings': 'No hay grabaciones asociadas.',
     'content.clickGenerate': 'Haga clic en "Generar" para crear las grabaciones automáticamente.',
     'content.contentRecordings': 'Grabaciones del Contenido',
-    
+
     // Recordings
     'recordings.title': 'Grabaciones',
     'recordings.description': 'Gestione las grabaciones de producción',
@@ -1821,7 +1835,7 @@ const translations: Record<Language, Record<string, string>> = {
     'recordings.emptyDescription': 'Comience agregando grabaciones para gestionar su producción.',
     'recordings.businessUnit': 'Unidad de Negocio',
     'recordings.profitCenter': 'Centro de Costos',
-    
+
     // Cast
     'cast.title': 'Elenco',
     'cast.add': 'Agregar al Elenco',
@@ -1832,7 +1846,7 @@ const translations: Record<Language, Record<string, string>> = {
     'cast.actor': 'Actor/Actriz',
     'cast.empty': 'Ningún miembro del elenco agregado',
     'cast.total': 'miembro(s) del elenco',
-    
+
     // Guests
     'guests.title': 'Invitados',
     'guests.add': 'Agregar Invitado',
@@ -1840,7 +1854,7 @@ const translations: Record<Language, Record<string, string>> = {
     'guests.contact': 'Contacto',
     'guests.empty': 'Ningún invitado agregado',
     'guests.total': 'invitado(s)',
-    
+
     // Costumes
     'costumes.title': 'Vestuarios',
     'costumes.description': 'Gestione los vestuarios disponibles',
@@ -1858,7 +1872,7 @@ const translations: Record<Language, Record<string, string>> = {
     'costumes.emptyDescription': 'Comience agregando vestuarios para su producción.',
     'costumes.addToCostume': 'Agregar Vestuario',
     'costumes.noCostumesAdded': 'No hay vestuarios agregados a esta grabación',
-    
+
     // People
     'people.title': 'Personas',
     'people.description': 'Gestione el registro de personas',
@@ -1872,42 +1886,42 @@ const translations: Record<Language, Record<string, string>> = {
     'people.photo': 'Foto',
     'people.empty': 'No hay personas registradas',
     'people.emptyDescription': 'Comience agregando personas al sistema.',
-    
+
     // Human Resources
     'humanResources.title': 'Recursos Humanos',
     'humanResources.description': 'Gestione los recursos humanos disponibles',
     'humanResources.new': 'Nuevo Recurso Humano',
     'humanResources.edit': 'Editar Recurso Humano',
     'humanResources.empty': 'No hay recursos humanos registrados',
-    
+
     // Technical Resources
     'technicalResources.title': 'Recursos Técnicos',
     'technicalResources.description': 'Gestione los recursos técnicos disponibles',
     'technicalResources.new': 'Nuevo Recurso Técnico',
     'technicalResources.edit': 'Editar Recurso Técnico',
     'technicalResources.empty': 'No hay recursos técnicos registrados',
-    
+
     // Physical Resources
     'physicalResources.title': 'Recursos Físicos',
     'physicalResources.description': 'Gestione los recursos físicos disponibles',
     'physicalResources.new': 'Nuevo Recurso Físico',
     'physicalResources.edit': 'Editar Recurso Físico',
     'physicalResources.empty': 'No hay recursos físicos registrados',
-    
+
     // Suppliers
     'suppliers.title': 'Proveedores',
     'suppliers.description': 'Gestione los proveedores',
     'suppliers.new': 'Nuevo Proveedor',
     'suppliers.edit': 'Editar Proveedor',
     'suppliers.empty': 'No hay proveedores registrados',
-    
+
     // Services
     'services.title': 'Servicios',
     'services.description': 'Gestione los servicios disponibles',
     'services.new': 'Nuevo Servicio',
     'services.edit': 'Editar Servicio',
     'services.empty': 'No hay servicios registrados',
-    
+
     // Maps
     'maps.title': 'Mapas',
     'maps.description': 'Visualice los mapas de producción',
@@ -1915,7 +1929,7 @@ const translations: Record<Language, Record<string, string>> = {
     'maps.humanResources': 'Recursos Humanos',
     'maps.costAppropriation': 'Apropiación de Costos',
     'maps.requisitions': 'Requisiciones',
-    
+
     // Parameters
     'parameters.positions': 'Cargos',
     'parameters.departments': 'Departamentos',
@@ -1927,7 +1941,7 @@ const translations: Record<Language, Record<string, string>> = {
     'parameters.recordingTypes': 'Tipos de Grabación',
     'parameters.recordingStatus': 'Estado de Grabación',
     'parameters.classification': 'Clasificación',
-    
+
     // Costs
     'costs.title': 'Costos',
     'costs.estimatedCost': 'Costo Estimado',
@@ -1935,18 +1949,18 @@ const translations: Record<Language, Record<string, string>> = {
     'costs.dailyRate': 'Tarifa Diaria',
     'costs.hourlyRate': 'Tarifa por Hora',
     'costs.totalCost': 'Costo Total',
-    
+
     // Third Parties
     'thirdParties.title': 'Terceros',
     'thirdParties.add': 'Agregar Tercero',
     'thirdParties.empty': 'No hay terceros agregados',
-    
+
     // Resources Tab
     'resourcesTab.allocate': 'Asignar Recurso',
     'resourcesTab.startDate': 'Fecha Inicio',
     'resourcesTab.endDate': 'Fecha Fin',
     'resourcesTab.noResourcesAllocated': 'No hay recursos asignados',
-    
+
     // Script/Roteiro
     'script.title': 'Guión de Grabación',
     'script.description': 'Organice el orden de las escenas a grabar',
@@ -1966,7 +1980,8 @@ const translations: Record<Language, Record<string, string>> = {
     'script.charactersInScene': 'Personajes en Escena (del Elenco)',
     'script.noCast': 'No hay elenco registrado. Agregue miembros al elenco en la pestaña "Elenco".',
     'script.extras': 'Figurantes (Personas clasificadas como Figurante)',
-    'script.noExtras': 'No hay persona clasificada como "Figurante". Registre personas en Recursos > Personas.',
+    'script.noExtras':
+      'No hay persona clasificada como "Figurante". Registre personas en Recursos > Personas.',
     'script.sceneDescription': 'Descripción de la Escena',
     'script.formatHint': 'Use marcadores de texto: *texto* para cursiva, **texto** para negrita',
     'script.external': 'Externo',
@@ -1988,10 +2003,11 @@ const translations: Record<Language, Record<string, string>> = {
     'script.exportSuccess': '¡Guión exportado con éxito!',
     'script.noScenesToExport': 'No hay escenas para exportar',
     'common.of': 'de',
-    
+
     // Costs Tab
     'costsTab.noCosts': 'Sin costos estimados',
-    'costsTab.noCostsDescription': 'Asigne recursos con horarios definidos en la pestaña "Recursos" para ver los costos estimados.',
+    'costsTab.noCostsDescription':
+      'Asigne recursos con horarios definidos en la pestaña "Recursos" para ver los costos estimados.',
     'costsTab.totalHours': 'Total de Horas',
     'costsTab.estimatedHours': 'Horas estimadas de trabajo',
     'costsTab.totalCost': 'Costo Total',
@@ -2056,11 +2072,13 @@ const translations: Record<Language, Record<string, string>> = {
     'field.addAbsencePeriod': 'Agregar Período de Ausencia',
     'field.noAbsences': 'Ninguna ausencia registrada',
     'field.absencesHint': 'Agregue períodos de vacaciones, descansos o licencias',
-    'field.absenceOverlapWarning': 'El sistema no permite registrar ausencias con fechas superpuestas. Verifique que el período no conflicte con ausencias existentes.',
+    'field.absenceOverlapWarning':
+      'El sistema no permite registrar ausencias con fechas superpuestas. Verifique que el período no conflicte con ausencias existentes.',
     'field.addSchedule': 'Agregar Escala',
     'field.noSchedules': 'Ninguna escala registrada',
     'field.schedulesHint': 'Agregue escalas de trabajo con horarios y días de la semana',
-    'field.scheduleOverlapWarning': 'El sistema no permite registrar escalas con períodos superpuestos.',
+    'field.scheduleOverlapWarning':
+      'El sistema no permite registrar escalas con períodos superpuestos.',
     'field.scaleMap': 'Mapa de Escalas',
     'field.availabilityMap': 'Mapa de Disponibilidad',
     'field.days': 'Días',
@@ -2117,13 +2135,16 @@ const translations: Record<Language, Record<string, string>> = {
     'field.noStatus': 'Sin estado',
     'field.saveBeforeGenerating': 'Guarde el contenido antes de generar grabaciones.',
     'field.defineEpisodesFirst': 'Defina la cantidad de episodios antes de generar.',
-    'field.allRecordingsGenerated': 'Todas las grabaciones ya fueron generadas para este contenido.',
+    'field.allRecordingsGenerated':
+      'Todas las grabaciones ya fueron generadas para este contenido.',
     'field.recordingsGenerated': 'grabaciones generadas con éxito!',
     'field.descriptionRequired': 'La descripción es obligatoria.',
     'field.fillContentData': 'Complete los campos para registrar el contenido.',
     'field.editContentData': 'Complete los campos para editar el contenido.',
-    'field.confirmDeleteContent': '¿Desea realmente eliminar este contenido? Todas las grabaciones asociadas también serán eliminadas.',
-    'field.contentDeleteBlocked': 'Este contenido tiene grabaciones con recursos, técnicos, físicos o terceros asociados.',
+    'field.confirmDeleteContent':
+      '¿Desea realmente eliminar este contenido? Todas las grabaciones asociadas también serán eliminadas.',
+    'field.contentDeleteBlocked':
+      'Este contenido tiene grabaciones con recursos, técnicos, físicos o terceros asociados.',
     'field.contentDeleted': '¡Contenido y grabaciones asociadas eliminados!',
     'field.contentUpdated': '¡Contenido actualizado!',
     'field.contentCreated': '¡Contenido registrado!',
@@ -2144,7 +2165,7 @@ const translations: Record<Language, Record<string, string>> = {
     'field.thu': 'Jue',
     'field.fri': 'Vie',
     'field.sat': 'Sáb',
-    
+
     // Teams
     'teams.title': 'Equipos',
     'teams.description': 'Gestione los equipos de recursos humanos',
@@ -2229,10 +2250,12 @@ interface LanguageProviderProps {
 }
 
 export const LanguageProvider = ({ children }: LanguageProviderProps) => {
-  const [language, setLanguageState] = useState<Language>(() => {
+  const [language, setLanguageState] = useState<Language>('pt');
+
+  useEffect(() => {
     const stored = localStorage.getItem('kreato_language');
-    return (stored as Language) || 'pt';
-  });
+    if (stored) setLanguageState(stored as Language);
+  }, []);
 
   useEffect(() => {
     localStorage.setItem('kreato_language', language);

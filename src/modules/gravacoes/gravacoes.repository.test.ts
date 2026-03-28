@@ -17,7 +17,10 @@ describe('ApiGravacoesRepository', () => {
     const repository = new ApiGravacoesRepository();
     await repository.list();
 
-    expect(global.fetch).toHaveBeenCalledWith('http://localhost:3333/gravacoes', expect.objectContaining({ headers: expect.any(Headers) }));
+    expect(global.fetch).toHaveBeenCalledWith(
+      'http://localhost:3333/gravacoes?limit=200&offset=0',
+      expect.objectContaining({ credentials: 'include' }),
+    );
   });
 
   it('salva gravacao com POST quando nao ha id', async () => {
@@ -34,11 +37,13 @@ describe('ApiGravacoesRepository', () => {
       dataPrevista: '',
     });
 
-    expect(global.fetch).toHaveBeenCalledWith('http://localhost:3333/gravacoes', expect.objectContaining({ method: 'POST' }));
+    expect(global.fetch).toHaveBeenCalledWith(
+      'http://localhost:3333/gravacoes',
+      expect.objectContaining({ method: 'POST' }),
+    );
   });
 });
 
 afterAll(() => {
   global.fetch = originalFetch;
 });
-

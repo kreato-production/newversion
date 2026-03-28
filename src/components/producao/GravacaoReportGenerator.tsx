@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import type jsPDF from 'jspdf';
 
 type JsPDFWithAutoTable = jsPDF & { lastAutoTable: { finalY: number } };
 import { format, parse } from 'date-fns';
@@ -83,7 +82,9 @@ export const GravacaoReportGenerator = ({ gravacaoId, disabled }: GravacaoReport
       const currency = data.basicInfo.unidadeNegocioMoeda || 'BRL';
       const formatValue = (value: number) => formatCurrency(value, currency);
 
-      const pdf = new jsPDF('p', 'mm', 'a4');
+      const { default: jsPDF } = await import('jspdf');
+      const { default: autoTable } = await import('jspdf-autotable');
+      const pdf = new jsPDF('p', 'mm', 'a4') as JsPDFWithAutoTable;
       const pageWidth = pdf.internal.pageSize.getWidth();
       const margin = 15;
       const contentWidth = pageWidth - margin * 2;

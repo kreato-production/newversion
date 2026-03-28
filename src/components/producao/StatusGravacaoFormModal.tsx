@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/contexts/AuthContext';
 import { Badge } from '@/components/ui/badge';
-import { type StatusGravacaoItem } from '@/pages/producao/StatusGravacao';
+import { type StatusGravacaoItem } from '@/views/producao/StatusGravacao';
 
 interface StatusGravacaoFormModalProps {
   isOpen: boolean;

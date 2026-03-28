@@ -26,12 +26,12 @@ function sanitizeInput(input: GravacaoInput) {
 }
 
 export class ApiGravacoesRepository implements GravacoesRepository {
-  async list(): Promise<Gravacao[]> {
+  async list(_unidadeIds?: string[]): Promise<Gravacao[]> {
     const response = await apiRequest<{ data: Gravacao[] }>('/gravacoes?limit=200&offset=0');
     return response.data;
   }
 
-  async save(input: GravacaoInput): Promise<void> {
+  async save(input: GravacaoInput, _userId?: string): Promise<void> {
     const path = input.id ? `/gravacoes/${input.id}` : '/gravacoes';
     const method = input.id ? 'PUT' : 'POST';
     const payload = sanitizeInput(input);

@@ -1,3 +1,5 @@
+'use client';
+
 import React, { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { clearKreatoLocalStorage } from '@/hooks/useSupabaseData';
 import { useToast } from '@/hooks/use-toast';

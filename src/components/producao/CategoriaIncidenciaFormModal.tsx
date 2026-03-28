@@ -17,7 +17,7 @@ import { Edit, Trash2, Plus, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useToast } from '@/hooks/use-toast';
-import type { CategoriaIncidencia } from '@/pages/producao/CategoriasIncidencia';
+import type { CategoriaIncidencia } from '@/views/producao/CategoriasIncidencia';
 import { ApiParametrizacoesRepository } from '@/modules/parametrizacoes/parametrizacoes.api.repository';
 
 interface ClassificacaoIncidencia {

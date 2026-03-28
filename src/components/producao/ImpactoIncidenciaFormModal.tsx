@@ -18,8 +18,12 @@ import { useAuth } from '@/contexts/AuthContext';
 interface ImpactoIncidenciaFormModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (data: Record<string, unknown>) => Promise<void>;
-  data?: Record<string, unknown>;
+  onSave: (data: { titulo: string; descricao: string; codigo_externo: string }) => Promise<void>;
+  data?: {
+    titulo?: string | null;
+    descricao?: string | null;
+    codigo_externo?: string | null;
+  } | null;
   readOnly?: boolean;
 }
 

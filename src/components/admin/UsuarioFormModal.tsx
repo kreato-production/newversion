@@ -22,7 +22,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Camera, X } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import type { Usuario } from '@/pages/admin/Usuarios';
+import type { Usuario } from '@/views/admin/Usuarios';
 import { UnidadesNegocioTab } from './UnidadesNegocioTab';
 import { UsuarioProgramasTab } from './UsuarioProgramasTab';
 import { UsuarioEquipesTab } from './UsuarioEquipesTab';

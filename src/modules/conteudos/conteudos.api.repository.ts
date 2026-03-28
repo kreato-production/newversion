@@ -8,7 +8,7 @@ export class ApiConteudosRepository implements ConteudosRepository {
     return response.data;
   }
 
-  async save(input: ConteudoInput): Promise<void> {
+  async save(input: ConteudoInput, _userId?: string): Promise<void> {
     const path = input.id ? `/conteudos/${input.id}` : '/conteudos';
     const method = input.id ? 'PUT' : 'POST';
 
@@ -22,7 +22,7 @@ export class ApiConteudosRepository implements ConteudosRepository {
     await apiRequest(`/conteudos/${id}`, { method: 'DELETE' });
   }
 
-  async listOptions(): Promise<ConteudoFormOptions> {
+  async listOptions(_unidadeIds?: string[]): Promise<ConteudoFormOptions> {
     return apiRequest<ConteudoFormOptions>('/conteudos/options');
   }
 }

@@ -1,4 +1,5 @@
 import { ZodError } from 'zod';
+import { Prisma } from '@prisma/client';
 import type { FastifyReply, FastifyRequest, preHandlerHookHandler } from 'fastify';
 import type { UserRole } from '@prisma/client';
 import { AuthError, AuthService } from '../modules/auth/auth.service.js';
@@ -53,6 +54,16 @@ export async function authErrorHandler(error: unknown, request: FastifyRequest, 
   if (error instanceof AuthError || error instanceof AccessError) {
     request.log.warn({ correlationId: request.correlationId, message: error.message }, 'domain_error');
     return reply.status(error.statusCode).send({ message: error.message, correlationId: request.correlationId });
+  }
+
+  if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+    request.log.warn({ correlationId: request.correlationId, meta: error.meta }, 'unique_constraint_violation');
+    return reply.status(409).send({ message: 'Já existe um registro com este nome.', correlationId: request.correlationId });
+  }
+
+  if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+    request.log.warn({ correlationId: request.correlationId, meta: error.meta }, 'record_not_found');
+    return reply.status(404).send({ message: 'Registro não encontrado.', correlationId: request.correlationId });
   }
 
   if (error instanceof Error) {

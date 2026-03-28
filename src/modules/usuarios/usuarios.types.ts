@@ -4,7 +4,7 @@ export interface UsuarioApiModel {
   nome: string;
   email: string;
   usuario: string;
-  senha: string;
+  senha?: string;
   foto?: string;
   perfil: string;
   descricao: string;

@@ -1,12 +1,8 @@
-import { Link, useLocation } from 'react-router-dom';
-import {
-  Video,
-  Users,
-  Building2,
-  LayoutDashboard,
-  LogOut,
-  Globe,
-} from 'lucide-react';
+'use client';
+
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { Video, Users, Building2, LayoutDashboard, LogOut, Globe } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -65,7 +61,7 @@ const AppSidebar = () => {
   const { user, logout } = useAuth();
   const { t } = useLanguage();
   const { isVisible } = usePermissions();
-  const location = useLocation();
+  const pathname = usePathname();
 
   const isGlobalAdmin = user?.role === 'GLOBAL_ADMIN';
   const moduleItems = getModuleItems(isGlobalAdmin);
@@ -77,16 +73,20 @@ const AppSidebar = () => {
 
   // Check if current path belongs to a module
   const isModuleActive = (modulePath: string): boolean => {
-    if (modulePath === '/dashboard') return location.pathname === '/dashboard';
+    if (modulePath === '/dashboard') return pathname === '/dashboard';
     // e.g. /module/producao -> check if current path starts with /producao or /module/producao
     const moduleKey = modulePath.replace('/module/', '/');
-    return location.pathname.startsWith(modulePath) || location.pathname.startsWith(moduleKey);
+    return pathname.startsWith(modulePath) || pathname.startsWith(moduleKey);
   };
 
   return (
     <aside className="w-64 h-screen bg-sidebar flex flex-col border-r border-sidebar-border">
       <div className="p-4 border-b border-sidebar-border">
-        <img src={kreatoLogo} alt="Kreato" className="h-10 object-contain dark:brightness-0 dark:invert" />
+        <img
+          src={typeof kreatoLogo === 'string' ? kreatoLogo : kreatoLogo.src}
+          alt="Kreato"
+          className="h-10 object-contain dark:brightness-0 dark:invert"
+        />
       </div>
 
       <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
@@ -101,11 +101,11 @@ const AppSidebar = () => {
           return (
             <Link
               key={idx}
-              to={item.path}
+              href={item.path}
               className={cn(
                 'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-200',
                 'hover:bg-sidebar-accent text-sidebar-foreground',
-                active && 'bg-sidebar-primary text-sidebar-primary-foreground'
+                active && 'bg-sidebar-primary text-sidebar-primary-foreground',
               )}
             >
               <Icon size={20} className="shrink-0" />

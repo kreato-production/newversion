@@ -3,15 +3,18 @@ const DEFAULT_BACKEND_URL = 'http://localhost:3333';
 let refreshPromise: Promise<boolean> | null = null;
 
 export function getBackendBaseUrl() {
-  return (import.meta.env.VITE_BACKEND_API_URL as string | undefined) || DEFAULT_BACKEND_URL;
+  return (process.env.NEXT_PUBLIC_BACKEND_API_URL as string | undefined) || DEFAULT_BACKEND_URL;
 }
 
 export function isBackendDataProviderEnabled() {
-  return (import.meta.env.VITE_DATA_PROVIDER as string | undefined) === 'backend';
+  return (process.env.NEXT_PUBLIC_DATA_PROVIDER as string | undefined) === 'backend';
 }
 
 export function isBackendAuthProviderEnabled() {
-  return (import.meta.env.VITE_AUTH_PROVIDER as string | undefined) === 'backend' || isBackendDataProviderEnabled();
+  return (
+    (process.env.NEXT_PUBLIC_AUTH_PROVIDER as string | undefined) === 'backend' ||
+    isBackendDataProviderEnabled()
+  );
 }
 
 async function parseApiResponse<T>(response: Response): Promise<T> {
@@ -52,7 +55,7 @@ export async function refreshBackendSession(): Promise<boolean> {
 }
 
 export async function logoutBackendSession(): Promise<void> {
-  await fetchBackend('/auth/logout', { method: 'POST' }).catch(() => undefined);
+  await fetchBackend('/auth/logout', { method: 'POST' }).catch((): undefined => undefined);
 }
 
 export async function apiRequest<T>(path: string, init?: RequestInit): Promise<T> {
@@ -73,6 +76,18 @@ export async function apiRequest<T>(path: string, init?: RequestInit): Promise<T
         retryHeaders.set('Content-Type', 'application/json');
       }
       response = await fetchBackend(path, { ...init, headers: retryHeaders });
+    } else {
+      // Refresh failed — session fully expired.
+      // Only redirect to login if we're on a protected page (not during auth checks).
+      if (
+        typeof window !== 'undefined' &&
+        !window.location.pathname.startsWith('/login') &&
+        path !== '/auth/me'
+      ) {
+        const loginUrl = `/login?from=${encodeURIComponent(window.location.pathname)}`;
+        window.location.replace(loginUrl);
+      }
+      throw new Error('Sessão expirada');
     }
   }
 

@@ -9,7 +9,7 @@ import {
   Trash2,
   X,
 } from 'lucide-react';
-import jsPDF from 'jspdf';
+import type jsPDF from 'jspdf';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -360,12 +360,13 @@ export const RoteiroTab = ({ gravacaoId, conteudoId }: RoteiroTabProps) => {
     return tmp.textContent || tmp.innerText || '';
   };
 
-  const handleExportPDF = () => {
+  const handleExportPDF = async () => {
     if (cenas.length === 0) {
       toast.error(t('script.noScenesToExport'));
       return;
     }
 
+    const { default: jsPDF } = await import('jspdf');
     const pdf = new jsPDF('p', 'mm', 'a4');
     const pageWidth = pdf.internal.pageSize.getWidth();
     const pageHeight = pdf.internal.pageSize.getHeight();

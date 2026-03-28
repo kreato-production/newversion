@@ -1,16 +1,26 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { apiRequest, getBackendBaseUrl, isBackendAuthProviderEnabled, isBackendDataProviderEnabled, refreshBackendSession } from './http';
+import {
+  apiRequest,
+  getBackendBaseUrl,
+  isBackendAuthProviderEnabled,
+  isBackendDataProviderEnabled,
+  refreshBackendSession,
+} from './http';
 
 describe('api/http', () => {
   const originalFetch = global.fetch;
 
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn());
+    process.env.NEXT_PUBLIC_DATA_PROVIDER = 'backend';
+    process.env.NEXT_PUBLIC_AUTH_PROVIDER = 'backend';
   });
 
   afterEach(() => {
     vi.unstubAllGlobals();
     global.fetch = originalFetch;
+    delete process.env.NEXT_PUBLIC_DATA_PROVIDER;
+    delete process.env.NEXT_PUBLIC_AUTH_PROVIDER;
   });
 
   it('usa a url padrao do backend e respeita as flags do ambiente atual', () => {
@@ -41,7 +51,9 @@ describe('api/http', () => {
 
   it('renova sessao quando recebe 401 e retrya a requisicao', async () => {
     vi.mocked(fetch)
-      .mockResolvedValueOnce(new Response(JSON.stringify({ message: 'Token expirado' }), { status: 401 }))
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ message: 'Token expirado' }), { status: 401 }),
+      )
       .mockResolvedValueOnce(new Response(null, { status: 200 }))
       .mockResolvedValueOnce(new Response(JSON.stringify({ ok: true }), { status: 200 }));
 
@@ -56,7 +68,9 @@ describe('api/http', () => {
   });
 
   it('refreshBackendSession retorna false quando refresh falha', async () => {
-    vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({ message: 'falha' }), { status: 401 }));
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(JSON.stringify({ message: 'falha' }), { status: 401 }),
+    );
 
     const refreshed = await refreshBackendSession();
 
