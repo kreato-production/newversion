@@ -9,12 +9,8 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
-import { useLanguage } from '@/contexts/LanguageContext';
 
-interface Segment {
-  label: string;
-  href?: string;
-}
+// ─── Label maps ──────────────────────────────────────────────────────────────
 
 const MODULE_LABELS: Record<string, string> = {
   dashboard: 'Dashboard',
@@ -22,108 +18,163 @@ const MODULE_LABELS: Record<string, string> = {
   recursos: 'Recursos',
   admin: 'Administração',
   global: 'Global',
-  module: '',
+};
+
+const MODULE_PATHS: Record<string, string> = {
+  producao: '/module/producao',
+  recursos: '/module/recursos',
+  admin: '/module/admin',
+  global: '/module/global',
 };
 
 const SUB_LABELS: Record<string, string> = {
+  // Produção — principais
   programas: 'Programas',
   conteudo: 'Conteúdo',
   gravacao: 'Gravações',
   tarefas: 'Tarefas',
   incidencias: 'Incidências',
   mapas: 'Mapas',
+  // Produção — parametrizações
   'tipos-gravacao': 'Tipos de Gravação',
   classificacao: 'Classificação',
   status: 'Status de Gravação',
   'status-tarefa': 'Status de Tarefa',
   'tabelas-preco': 'Tabelas de Preço',
-  'categorias-incidencia': 'Categorias de Incidência',
-  'severidades-incidencia': 'Severidades de Incidência',
-  'impactos-incidencia': 'Impactos de Incidência',
-  humanos: 'Recursos Humanos',
-  tecnicos: 'Recursos Técnicos',
-  fisicos: 'Recursos Físicos',
+  'categorias-incidencia': 'Cat. de Incidência',
+  'severidades-incidencia': 'Sev. de Incidência',
+  'impactos-incidencia': 'Imp. de Incidência',
+  // Recursos — principais
+  humanos: 'Rec. Humanos',
+  tecnicos: 'Rec. Técnicos',
+  fisicos: 'Rec. Físicos',
   fornecedores: 'Fornecedores',
   pessoas: 'Pessoas',
   figurinos: 'Figurinos',
   equipes: 'Equipes',
+  // Recursos — parametrizações
   cargos: 'Cargos',
   departamentos: 'Departamentos',
   funcoes: 'Funções',
   servicos: 'Serviços',
-  'categoria-fornecedores': 'Categoria de Fornecedores',
-  'classificacao-pessoas': 'Classificação de Pessoas',
+  'categoria-fornecedores': 'Cat. Fornecedores',
+  'classificacao-pessoas': 'Class. de Pessoas',
   'tipo-figurino': 'Tipo de Figurino',
   material: 'Material',
+  // Admin
   unidades: 'Unidades de Negócio',
   'centros-lucro': 'Centros de Custos',
   usuarios: 'Usuários',
   perfis: 'Perfis de Acesso',
   formularios: 'Formulários',
+  // Global
   tenants: 'Tenants',
 };
 
-function buildSegments(pathname: string): Segment[] {
+// Sub-items that belong to a "Parametrizações" group
+const PARAM_SLUGS = new Set([
+  'tipos-gravacao',
+  'classificacao',
+  'status',
+  'status-tarefa',
+  'tabelas-preco',
+  'categorias-incidencia',
+  'severidades-incidencia',
+  'impactos-incidencia',
+  'cargos',
+  'departamentos',
+  'funcoes',
+  'servicos',
+  'categoria-fornecedores',
+  'classificacao-pessoas',
+  'tipo-figurino',
+  'material',
+]);
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface Crumb {
+  label: string;
+  href?: string;
+}
+
+// ─── Builder ─────────────────────────────────────────────────────────────────
+
+function buildCrumbs(pathname: string): Crumb[] {
   const parts = pathname.split('/').filter(Boolean);
 
-  if (parts.length === 0) return [{ label: 'Home' }];
+  if (parts.length === 0 || parts[0] === 'dashboard') {
+    return [{ label: 'Dashboard' }];
+  }
 
   // /module/producao → [Produção]
-  if (parts[0] === 'module' && parts[1]) {
-    const label = MODULE_LABELS[parts[1]] ?? parts[1];
-    return [{ label }];
+  if (parts[0] === 'module') {
+    const key = parts[1];
+    return [{ label: MODULE_LABELS[key] ?? key }];
   }
 
-  const segments: Segment[] = [];
+  const [module, sub, ...rest] = parts;
+  const crumbs: Crumb[] = [];
 
-  // First segment: module
-  const moduleLabel = MODULE_LABELS[parts[0]];
-  if (moduleLabel !== undefined && moduleLabel !== '') {
-    const modulePath = `/module/${parts[0]}`;
-    segments.push({
+  // Module level
+  const moduleLabel = MODULE_LABELS[module];
+  if (moduleLabel) {
+    crumbs.push({
       label: moduleLabel,
-      href: parts.length > 1 ? modulePath : undefined,
-    });
-  } else if (parts[0] !== 'module') {
-    segments.push({
-      label: parts[0].charAt(0).toUpperCase() + parts[0].slice(1),
-      href: parts.length > 1 ? `/${parts[0]}` : undefined,
+      href: sub ? MODULE_PATHS[module] : undefined,
     });
   }
 
-  // Subsequent segments
-  for (let i = 1; i < parts.length; i++) {
-    const label = SUB_LABELS[parts[i]] ?? parts[i];
-    const isLast = i === parts.length - 1;
-    segments.push({
-      label,
-      href: isLast ? undefined : `/${parts.slice(0, i + 1).join('/')}`,
+  // Sub level
+  if (sub) {
+    // If sub is a parametrizações item, insert the group crumb
+    if (PARAM_SLUGS.has(sub)) {
+      crumbs.push({ label: 'Parametrizações' });
+    }
+
+    const subLabel = SUB_LABELS[sub] ?? sub;
+    crumbs.push({
+      label: subLabel,
+      href: rest.length > 0 ? `/${module}/${sub}` : undefined,
     });
   }
 
-  return segments;
+  // Deeper segments (e.g. detail/edit pages with an id)
+  rest.forEach((part, i) => {
+    const isLast = i === rest.length - 1;
+    // Try to resolve as a label; if it looks like a UUID/ID, show "Detalhe"
+    const isId = /^[0-9a-f-]{8,}$/i.test(part);
+    crumbs.push({
+      label: isId ? 'Detalhe' : (SUB_LABELS[part] ?? part),
+      href: isLast ? undefined : `/${[module, sub, ...rest.slice(0, i + 1)].join('/')}`,
+    });
+  });
+
+  return crumbs;
 }
+
+// ─── Component ────────────────────────────────────────────────────────────────
 
 export function AppBreadcrumb() {
   const pathname = usePathname();
-  const segments = buildSegments(pathname);
+  const crumbs = buildCrumbs(pathname);
 
-  if (segments.length === 0) return null;
+  if (crumbs.length === 0) return null;
 
   return (
     <Breadcrumb>
       <BreadcrumbList>
-        {segments.map((segment, index) => {
-          const isLast = index === segments.length - 1;
+        {crumbs.map((crumb, index) => {
+          const isLast = index === crumbs.length - 1;
 
           return (
             <span key={index} className="flex items-center gap-1.5">
               {index > 0 && <BreadcrumbSeparator />}
               <BreadcrumbItem>
-                {isLast || !segment.href ? (
-                  <BreadcrumbPage>{segment.label}</BreadcrumbPage>
+                {isLast || !crumb.href ? (
+                  <BreadcrumbPage>{crumb.label}</BreadcrumbPage>
                 ) : (
-                  <BreadcrumbLink href={segment.href}>{segment.label}</BreadcrumbLink>
+                  <BreadcrumbLink href={crumb.href}>{crumb.label}</BreadcrumbLink>
                 )}
               </BreadcrumbItem>
             </span>
