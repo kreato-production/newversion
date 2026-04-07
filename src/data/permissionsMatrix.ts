@@ -2402,6 +2402,55 @@ export const basePermissionsMatrix: Omit<PermissionItem, 'id'>[] = [
   {
     modulo: 'Recursos',
     subModulo1: 'Parametrizações',
+    subModulo2: 'Feriados',
+    campo: '-',
+    acao: 'visible',
+    somenteLeitura: false,
+    incluir: true,
+    alterar: true,
+    excluir: true,
+    tipo: 'submodulo2',
+  },
+  {
+    modulo: 'Recursos',
+    subModulo1: 'Parametrizações',
+    subModulo2: 'Feriados',
+    campo: 'Data',
+    acao: 'visible',
+    somenteLeitura: false,
+    incluir: true,
+    alterar: true,
+    excluir: true,
+    tipo: 'campo',
+  },
+  {
+    modulo: 'Recursos',
+    subModulo1: 'Parametrizações',
+    subModulo2: 'Feriados',
+    campo: 'Feriado',
+    acao: 'visible',
+    somenteLeitura: false,
+    incluir: true,
+    alterar: true,
+    excluir: true,
+    tipo: 'campo',
+  },
+  {
+    modulo: 'Recursos',
+    subModulo1: 'Parametrizações',
+    subModulo2: 'Feriados',
+    campo: 'Observações',
+    acao: 'visible',
+    somenteLeitura: false,
+    incluir: true,
+    alterar: true,
+    excluir: true,
+    tipo: 'campo',
+  },
+
+  {
+    modulo: 'Recursos',
+    subModulo1: 'Parametrizações',
     subModulo2: 'Cargos',
     campo: '-',
     acao: 'visible',
@@ -3076,6 +3125,252 @@ export const basePermissionsMatrix: Omit<PermissionItem, 'id'>[] = [
     excluir: true,
     tipo: 'submodulo1',
   },
+
+  // Financeiro
+  {
+    modulo: 'Financeiro',
+    subModulo1: '-',
+    subModulo2: '-',
+    campo: '-',
+    acao: 'visible',
+    somenteLeitura: false,
+    incluir: true,
+    alterar: true,
+    excluir: true,
+    tipo: 'modulo',
+  },
+
+  // Financeiro > Contas a Pagar
+  {
+    modulo: 'Financeiro',
+    subModulo1: 'Contas a Pagar',
+    subModulo2: '-',
+    campo: '-',
+    acao: 'visible',
+    somenteLeitura: false,
+    incluir: true,
+    alterar: true,
+    excluir: true,
+    tipo: 'submodulo1',
+  },
+  {
+    modulo: 'Financeiro',
+    subModulo1: 'Contas a Pagar',
+    subModulo2: '-',
+    campo: 'Nº Documento',
+    acao: 'visible',
+    somenteLeitura: false,
+    incluir: true,
+    alterar: true,
+    excluir: true,
+    tipo: 'campo',
+  },
+  {
+    modulo: 'Financeiro',
+    subModulo1: 'Contas a Pagar',
+    subModulo2: '-',
+    campo: 'Descrição',
+    acao: 'visible',
+    somenteLeitura: false,
+    incluir: true,
+    alterar: true,
+    excluir: true,
+    tipo: 'campo',
+  },
+  {
+    modulo: 'Financeiro',
+    subModulo1: 'Contas a Pagar',
+    subModulo2: '-',
+    campo: 'Fornecedor',
+    acao: 'visible',
+    somenteLeitura: false,
+    incluir: true,
+    alterar: true,
+    excluir: true,
+    tipo: 'campo',
+  },
+  {
+    modulo: 'Financeiro',
+    subModulo1: 'Contas a Pagar',
+    subModulo2: '-',
+    campo: 'Vencimento',
+    acao: 'visible',
+    somenteLeitura: false,
+    incluir: true,
+    alterar: true,
+    excluir: true,
+    tipo: 'campo',
+  },
+  {
+    modulo: 'Financeiro',
+    subModulo1: 'Contas a Pagar',
+    subModulo2: '-',
+    campo: 'Valor',
+    acao: 'visible',
+    somenteLeitura: false,
+    incluir: true,
+    alterar: true,
+    excluir: true,
+    tipo: 'campo',
+  },
+  {
+    modulo: 'Financeiro',
+    subModulo1: 'Contas a Pagar',
+    subModulo2: '-',
+    campo: 'Status',
+    acao: 'visible',
+    somenteLeitura: false,
+    incluir: true,
+    alterar: true,
+    excluir: true,
+    tipo: 'campo',
+  },
+  {
+    modulo: 'Financeiro',
+    subModulo1: 'Contas a Pagar',
+    subModulo2: '-',
+    campo: 'Data Pagamento',
+    acao: 'visible',
+    somenteLeitura: false,
+    incluir: true,
+    alterar: true,
+    excluir: true,
+    tipo: 'campo',
+  },
+  {
+    modulo: 'Financeiro',
+    subModulo1: 'Contas a Pagar',
+    subModulo2: '-',
+    campo: 'Valor Pago',
+    acao: 'visible',
+    somenteLeitura: false,
+    incluir: true,
+    alterar: true,
+    excluir: true,
+    tipo: 'campo',
+  },
+  {
+    modulo: 'Financeiro',
+    subModulo1: 'Contas a Pagar',
+    subModulo2: '-',
+    campo: 'Categoria de Despesa',
+    acao: 'visible',
+    somenteLeitura: false,
+    incluir: true,
+    alterar: true,
+    excluir: true,
+    tipo: 'campo',
+  },
+  {
+    modulo: 'Financeiro',
+    subModulo1: 'Contas a Pagar',
+    subModulo2: '-',
+    campo: 'Forma de Pagamento',
+    acao: 'visible',
+    somenteLeitura: false,
+    incluir: true,
+    alterar: true,
+    excluir: true,
+    tipo: 'campo',
+  },
+  {
+    modulo: 'Financeiro',
+    subModulo1: 'Contas a Pagar',
+    subModulo2: '-',
+    campo: 'Tipo de Documento',
+    acao: 'visible',
+    somenteLeitura: false,
+    incluir: true,
+    alterar: true,
+    excluir: true,
+    tipo: 'campo',
+  },
+  {
+    modulo: 'Financeiro',
+    subModulo1: 'Contas a Pagar',
+    subModulo2: '-',
+    campo: 'Observações',
+    acao: 'visible',
+    somenteLeitura: false,
+    incluir: true,
+    alterar: true,
+    excluir: true,
+    tipo: 'campo',
+  },
+
+  // Financeiro > Apropriação de Custos
+  {
+    modulo: 'Financeiro',
+    subModulo1: 'Apropriação de Custos',
+    subModulo2: '-',
+    campo: '-',
+    acao: 'visible',
+    somenteLeitura: false,
+    incluir: false,
+    alterar: false,
+    excluir: false,
+    tipo: 'submodulo1',
+  },
+  {
+    modulo: 'Financeiro',
+    subModulo1: 'Apropriação de Custos',
+    subModulo2: '-',
+    campo: 'Ano',
+    acao: 'visible',
+    somenteLeitura: true,
+    incluir: false,
+    alterar: false,
+    excluir: false,
+    tipo: 'campo',
+  },
+  {
+    modulo: 'Financeiro',
+    subModulo1: 'Apropriação de Custos',
+    subModulo2: '-',
+    campo: 'Centro de Lucro',
+    acao: 'visible',
+    somenteLeitura: true,
+    incluir: false,
+    alterar: false,
+    excluir: false,
+    tipo: 'campo',
+  },
+  {
+    modulo: 'Financeiro',
+    subModulo1: 'Apropriação de Custos',
+    subModulo2: '-',
+    campo: 'Unidade de Negócio',
+    acao: 'visible',
+    somenteLeitura: true,
+    incluir: false,
+    alterar: false,
+    excluir: false,
+    tipo: 'campo',
+  },
+  {
+    modulo: 'Financeiro',
+    subModulo1: 'Apropriação de Custos',
+    subModulo2: '-',
+    campo: 'Custos por Unidade',
+    acao: 'visible',
+    somenteLeitura: true,
+    incluir: false,
+    alterar: false,
+    excluir: false,
+    tipo: 'campo',
+  },
+  {
+    modulo: 'Financeiro',
+    subModulo1: 'Apropriação de Custos',
+    subModulo2: '-',
+    campo: 'Custos por Centro de Lucro',
+    acao: 'visible',
+    somenteLeitura: true,
+    incluir: false,
+    alterar: false,
+    excluir: false,
+    tipo: 'campo',
+  },
 ];
 
 // Gera a matriz com IDs
@@ -3094,7 +3389,7 @@ export const createDefaultPermissions = (perfilId: string): PerfilPermissoes => 
   };
 };
 
-// Clona permissões de um perfil para outro (async version using Supabase)
+// Clona permissões de um perfil para outro (async version)
 export const clonePermissionsAsync = async (
   sourcePerfilId: string,
   targetPerfilId: string,
@@ -3125,15 +3420,15 @@ export const clonePermissionsAsync = async (
 
 // Legacy sync version for backward compatibility
 export const clonePermissions = (
-  sourcePerfilId: string,
-  targetPerfilId: string,
+  _sourcePerfilId: string,
+  _targetPerfilId: string,
 ): PerfilPermissoes | null => {
   // This is a fallback - prefer clonePermissionsAsync
   console.warn('clonePermissions is deprecated, use clonePermissionsAsync instead');
   return null;
 };
 
-// Salva permissões de um perfil no Supabase
+// Salva permissões de um perfil
 export const savePerfilPermissionsAsync = async (
   perfilPermissoes: PerfilPermissoes,
 ): Promise<void> =>
@@ -3145,7 +3440,7 @@ export const savePerfilPermissions = (perfilPermissoes: PerfilPermissoes): void 
   savePerfilPermissionsAsync(perfilPermissoes).catch(console.error);
 };
 
-// Obtém permissões de um perfil do Supabase
+// Obtém permissões de um perfil
 export const getPerfilPermissionsAsync = async (
   perfilId: string,
 ): Promise<PerfilPermissoes | null> => {
@@ -3155,7 +3450,7 @@ export const getPerfilPermissionsAsync = async (
 };
 
 // Legacy sync version - deprecated
-export const getPerfilPermissions = (perfilId: string): PerfilPermissoes | null => {
+export const getPerfilPermissions = (_perfilId: string): PerfilPermissoes | null => {
   console.warn('getPerfilPermissions is deprecated, use getPerfilPermissionsAsync instead');
   return null;
 };

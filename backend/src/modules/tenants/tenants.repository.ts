@@ -73,7 +73,10 @@ export interface TenantsRepository {
   listModulos(tenantId: string): Promise<TenantModuleRecord[]>;
   setModulo(input: { tenantId: string; modulo: string; enabled: boolean }): Promise<void>;
   listUnidades(tenantId: string): Promise<TenantUnidadeRecord[]>;
+  findUnidadeById(tenantId: string, unidadeId: string): Promise<TenantUnidadeRecord | null>;
   createUnidade(input: SaveTenantUnidadeInput): Promise<TenantUnidadeRecord>;
+  updateUnidade(unidadeId: string, input: SaveTenantUnidadeInput): Promise<TenantUnidadeRecord>;
+  removeUnidade(tenantId: string, unidadeId: string): Promise<void>;
 }
 
 function mapTenant(row: TenantRow): TenantRecord {
@@ -117,20 +120,20 @@ const tenantSelection = Prisma.sql`
   FROM "Tenant" t
 `;
 
-const DEFAULT_TENANT_MODULES = ['Dashboard', 'ProduÃ§Ã£o', 'Recursos', 'AdministraÃ§Ã£o'];
+const DEFAULT_TENANT_MODULES = ['Dashboard', 'Produção', 'Recursos', 'Financeiro', 'Administração'];
 
+// Normalize legacy mojibake values stored in DB back to correct UTF-8
 function normalizeModuloName(value: string): string {
-  if (value === 'Produção' || value === 'ProduÃ§Ã£o') return 'ProduÃ§Ã£o';
-  if (value === 'Administração' || value === 'AdministraÃ§Ã£o') return 'AdministraÃ§Ã£o';
+  if (value === 'ProduÃ§Ã£o') return 'Produção';
+  if (value === 'AdministraÃ§Ã£o') return 'Administração';
   return value;
 }
 
+// Include legacy mojibake variants when deleting so old rows are also removed
 function moduloVariants(value: string): string[] {
-  const normalized = normalizeModuloName(value);
-
-  if (normalized === 'ProduÃ§Ã£o') return ['ProduÃ§Ã£o', 'Produção'];
-  if (normalized === 'AdministraÃ§Ã£o') return ['AdministraÃ§Ã£o', 'Administração'];
-  return [normalized];
+  if (value === 'Produção') return ['Produção', 'ProduÃ§Ã£o'];
+  if (value === 'Administração') return ['Administração', 'AdministraÃ§Ã£o'];
+  return [value];
 }
 
 export class PrismaTenantsRepository implements TenantsRepository {
@@ -326,6 +329,24 @@ export class PrismaTenantsRepository implements TenantsRepository {
     }));
   }
 
+  async findUnidadeById(tenantId: string, unidadeId: string): Promise<TenantUnidadeRecord | null> {
+    const item = await prisma.unidadeNegocio.findFirst({
+      where: { id: unidadeId, tenantId },
+    });
+
+    if (!item) {
+      return null;
+    }
+
+    return {
+      id: item.id,
+      codigoExterno: item.codigoExterno,
+      nome: item.nome,
+      descricao: item.descricao,
+      moeda: item.moeda,
+    };
+  }
+
   async createUnidade(input: SaveTenantUnidadeInput): Promise<TenantUnidadeRecord> {
     const item = await prisma.unidadeNegocio.create({
       data: {
@@ -346,6 +367,34 @@ export class PrismaTenantsRepository implements TenantsRepository {
       descricao: item.descricao,
       moeda: item.moeda,
     };
+  }
+
+  async updateUnidade(unidadeId: string, input: SaveTenantUnidadeInput): Promise<TenantUnidadeRecord> {
+    const item = await prisma.unidadeNegocio.update({
+      where: { id: unidadeId },
+      data: {
+        codigoExterno: input.codigoExterno ?? null,
+        nome: input.nome,
+        descricao: input.descricao ?? null,
+        imagemUrl: input.imagemUrl ?? null,
+        moeda: input.moeda ?? 'BRL',
+        createdByName: input.createdByName ?? null,
+      },
+    });
+
+    return {
+      id: item.id,
+      codigoExterno: item.codigoExterno,
+      nome: item.nome,
+      descricao: item.descricao,
+      moeda: item.moeda,
+    };
+  }
+
+  async removeUnidade(tenantId: string, unidadeId: string): Promise<void> {
+    await prisma.unidadeNegocio.deleteMany({
+      where: { id: unidadeId, tenantId },
+    });
   }
 
   private async generateUniqueSlug(nome: string, currentId?: string): Promise<string> {
@@ -384,6 +433,16 @@ export class PrismaTenantsRepository implements TenantsRepository {
           CREATE UNIQUE INDEX IF NOT EXISTS tenant_modulos_backend_tenant_modulo_key
           ON tenant_modulos_backend (tenant_id, modulo)
         `);
+
+        // Migrate any legacy mojibake rows to correct UTF-8
+        await prisma.$executeRawUnsafe(
+          `UPDATE tenant_modulos_backend SET modulo = $1 WHERE modulo = $2`,
+          'Produção', 'ProduÃ§Ã£o',
+        );
+        await prisma.$executeRawUnsafe(
+          `UPDATE tenant_modulos_backend SET modulo = $1 WHERE modulo = $2`,
+          'Administração', 'AdministraÃ§Ã£o',
+        );
       })();
     }
 

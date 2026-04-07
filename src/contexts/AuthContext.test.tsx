@@ -2,26 +2,22 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, act, waitFor } from '@testing-library/react';
 import { AuthProvider, useAuth } from './AuthContext';
 
-vi.mock('@/modules/auth/auth.repository', () => ({
-  authRepository: {
-    onAuthStateChange: vi.fn(() => ({ unsubscribe: vi.fn() })),
-    getSession: vi.fn().mockResolvedValue({ session: null, sessionUser: null }),
-    signInWithPassword: vi.fn(),
-    signOut: vi.fn().mockResolvedValue(undefined),
-    fetchUserProfile: vi.fn(),
-  },
+const mockSignIn = vi.fn();
+const mockSignOut = vi.fn();
+let mockSessionData: { data: object | null; status: string } = {
+  data: null,
+  status: 'unauthenticated',
+};
+
+vi.mock('next-auth/react', () => ({
+  useSession: () => mockSessionData,
+  signIn: (...args: unknown[]) => mockSignIn(...args),
+  signOut: (...args: unknown[]) => mockSignOut(...args),
 }));
 
-vi.mock('@/hooks/useSupabaseData', () => ({
+vi.mock('@/lib/kreato-local-storage', () => ({
   clearKreatoLocalStorage: vi.fn(),
 }));
-
-vi.mock('@/hooks/use-toast', () => ({
-  useToast: () => ({ toast: vi.fn() }),
-}));
-
-import { authRepository } from '@/modules/auth/auth.repository';
-const mockAuthRepo = vi.mocked(authRepository);
 
 function TestConsumer() {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -36,12 +32,25 @@ function TestConsumer() {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mockAuthRepo.onAuthStateChange.mockReturnValue({ unsubscribe: vi.fn() });
-  mockAuthRepo.getSession.mockResolvedValue({ session: null, sessionUser: null });
+  mockSessionData = { data: null, status: 'unauthenticated' };
 });
 
 describe('AuthContext', () => {
-  it('inicia em estado de carregamento e finaliza como nao autenticado', async () => {
+  it('estado loading enquanto useSession retorna loading', () => {
+    mockSessionData = { data: null, status: 'loading' };
+
+    render(
+      <AuthProvider>
+        <TestConsumer />
+      </AuthProvider>,
+    );
+
+    expect(screen.getByTestId('loading')).toHaveTextContent('carregando');
+  });
+
+  it('estado nao-autenticado quando sem sessao', async () => {
+    mockSessionData = { data: null, status: 'unauthenticated' };
+
     render(
       <AuthProvider>
         <TestConsumer />
@@ -53,16 +62,41 @@ describe('AuthContext', () => {
     expect(screen.getByTestId('user')).toHaveTextContent('sem-usuario');
   });
 
-  it('login chama signInWithPassword com credenciais corretas', async () => {
-    mockAuthRepo.signInWithPassword.mockResolvedValue({
-      session: null,
-      user: null,
-      error: 'senha invalida',
-    });
+  it('estado autenticado quando sessao presente', async () => {
+    mockSessionData = {
+      status: 'authenticated',
+      data: {
+        user: {
+          id: 'u1',
+          name: 'Ana Lima',
+          email: 'ana@kreato.tv',
+          usuario: 'ana_lima',
+          perfil: 'Administrador',
+          role: 'TENANT_ADMIN',
+          tenantId: 't1',
+          unidadeIds: [],
+          enabledModules: [],
+          permissions: [],
+        },
+      },
+    };
+
+    render(
+      <AuthProvider>
+        <TestConsumer />
+      </AuthProvider>,
+    );
+
+    await waitFor(() => expect(screen.getByTestId('auth')).toHaveTextContent('autenticado'));
+    expect(screen.getByTestId('user')).toHaveTextContent('Ana Lima');
+  });
+
+  it('login chama signIn com credenciais corretas', async () => {
+    mockSignIn.mockResolvedValue({ error: null });
 
     let loginFn!: (u: string, p: string) => Promise<{ success: boolean; error?: string }>;
 
-    function CaptureLogin() {
+    function CaptureLogin(): null {
       const { login } = useAuth();
       loginFn = login;
       return null;
@@ -73,26 +107,24 @@ describe('AuthContext', () => {
         <CaptureLogin />
       </AuthProvider>,
     );
-
-    await waitFor(() => expect(mockAuthRepo.getSession).toHaveBeenCalled());
 
     await act(async () => {
       await loginFn('ana', '123456');
     });
 
-    expect(mockAuthRepo.signInWithPassword).toHaveBeenCalledWith('ana', '123456');
+    expect(mockSignIn).toHaveBeenCalledWith('credentials', {
+      usuario: 'ana',
+      password: '123456',
+      redirect: false,
+    });
   });
 
   it('login retorna erro quando credenciais invalidas', async () => {
-    mockAuthRepo.signInWithPassword.mockResolvedValue({
-      session: null,
-      user: null,
-      error: 'Usuario ou senha invalidos',
-    });
+    mockSignIn.mockResolvedValue({ error: 'CredentialsSignin' });
 
     let loginFn!: (u: string, p: string) => Promise<{ success: boolean; error?: string }>;
 
-    function CaptureLogin() {
+    function CaptureLogin(): null {
       const { login } = useAuth();
       loginFn = login;
       return null;
@@ -103,8 +135,6 @@ describe('AuthContext', () => {
         <CaptureLogin />
       </AuthProvider>,
     );
-
-    await waitFor(() => expect(mockAuthRepo.getSession).toHaveBeenCalled());
 
     let result!: { success: boolean; error?: string };
     await act(async () => {
@@ -112,13 +142,15 @@ describe('AuthContext', () => {
     });
 
     expect(result.success).toBe(false);
-    expect(result.error).toBe('Usuario ou senha invalidos');
+    expect(result.error).toBe('Usuário ou senha incorretos.');
   });
 
-  it('logout chama signOut no repositorio', async () => {
+  it('logout chama signOut com callbackUrl correto', async () => {
+    mockSignOut.mockResolvedValue(undefined);
+
     let logoutFn!: () => Promise<void>;
 
-    function CaptureLogout() {
+    function CaptureLogout(): null {
       const { logout } = useAuth();
       logoutFn = logout;
       return null;
@@ -130,12 +162,10 @@ describe('AuthContext', () => {
       </AuthProvider>,
     );
 
-    await waitFor(() => expect(mockAuthRepo.getSession).toHaveBeenCalled());
-
     await act(async () => {
       await logoutFn();
     });
 
-    expect(mockAuthRepo.signOut).toHaveBeenCalled();
+    expect(mockSignOut).toHaveBeenCalledWith({ callbackUrl: '/login' });
   });
 });

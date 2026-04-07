@@ -14,6 +14,7 @@ import {
   ChevronsUpDown,
   Check,
   Building,
+  Settings2,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -25,7 +26,6 @@ import {
   SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
@@ -55,25 +55,33 @@ interface NavSubItem {
   permission?: { modulo: string; subModulo1?: string; subModulo2?: string };
 }
 
+/** Agrupa sub-itens sob um título colapsável (ex: "Parametrizações") */
+interface NavSubGroup {
+  label: string;
+  isGroup: true;
+  permission?: { modulo: string };
+  children: NavSubItem[];
+}
+
+type NavChild = NavSubItem | NavSubGroup;
+
 interface NavItem {
   id: string;
   label: string;
   labelKey?: string;
   icon: React.ElementType;
-  // direct link (no children)
   path?: string;
   permission?: { modulo: string };
   globalOnly?: boolean;
-  // collapsible group
-  children?: NavSubItem[];
+  children?: NavChild[];
 }
 
 // ─── Nav config ───────────────────────────────────────────────────────────────
 
-const getNavItems = (isGlobalAdmin: boolean): NavItem[] => [
+const getNavItems = (isGlobalAdmin: boolean, t: (k: string) => string): NavItem[] => [
   {
     id: 'dashboard',
-    label: 'Dashboard',
+    label: t('menu.dashboard'),
     icon: LayoutDashboard,
     path: '/dashboard',
   },
@@ -81,259 +89,284 @@ const getNavItems = (isGlobalAdmin: boolean): NavItem[] => [
     ? [
         {
           id: 'global',
-          label: 'Global',
+          label: t('menu.global'),
           icon: Globe,
           globalOnly: true as const,
           children: [
-            { label: 'Tenants', path: '/global/tenants' },
-            { label: 'Usuários Globais', path: '/global/usuarios' },
+            { label: t('menu.globalTenants'), path: '/global/tenants' },
+            { label: t('menu.globalUsers'), path: '/global/usuarios' },
           ],
         } satisfies NavItem,
       ]
     : []),
   {
     id: 'producao',
-    label: 'Produção',
+    label: t('menu.production'),
     icon: Video,
     permission: { modulo: 'Produção' },
     children: [
       {
-        label: 'Programas',
+        label: t('menu.programs'),
         path: '/producao/programas',
         permission: { modulo: 'Produção', subModulo1: 'Programas' },
       },
       {
-        label: 'Conteúdo',
+        label: t('menu.content'),
         path: '/producao/conteudo',
         permission: { modulo: 'Produção', subModulo1: 'Conteúdo' },
       },
       {
-        label: 'Gravações',
+        label: t('menu.recordings'),
         path: '/producao/gravacao',
         permission: { modulo: 'Produção', subModulo1: 'Gravação' },
       },
       {
-        label: 'Tarefas',
+        label: t('menu.tasks'),
         path: '/producao/tarefas',
         permission: { modulo: 'Produção', subModulo1: 'Tarefas' },
       },
       {
-        label: 'Incidências',
+        label: t('menu.recordingIncidents'),
         path: '/producao/incidencias',
         permission: { modulo: 'Produção', subModulo1: 'Incidências de Gravação' },
       },
       {
-        label: 'Mapas',
+        label: t('menu.maps'),
         path: '/producao/mapas',
         permission: { modulo: 'Produção', subModulo1: 'Mapas' },
       },
       {
-        label: 'Tipos de Gravação',
-        path: '/producao/tipos-gravacao',
-        permission: {
-          modulo: 'Produção',
-          subModulo1: 'Parametrizações',
-          subModulo2: 'Tipo de gravação',
-        },
-      },
-      {
-        label: 'Classificação',
-        path: '/producao/classificacao',
-        permission: {
-          modulo: 'Produção',
-          subModulo1: 'Parametrizações',
-          subModulo2: 'Classificação',
-        },
-      },
-      {
-        label: 'Status de Gravação',
-        path: '/producao/status',
-        permission: {
-          modulo: 'Produção',
-          subModulo1: 'Parametrizações',
-          subModulo2: 'Status de Gravação',
-        },
-      },
-      {
-        label: 'Status de Tarefa',
-        path: '/producao/status-tarefa',
-        permission: {
-          modulo: 'Produção',
-          subModulo1: 'Parametrizações',
-          subModulo2: 'Status da Tarefa',
-        },
-      },
-      {
-        label: 'Tabelas de Preço',
-        path: '/producao/tabelas-preco',
-        permission: {
-          modulo: 'Produção',
-          subModulo1: 'Parametrizações',
-          subModulo2: 'Tabelas de Preços',
-        },
-      },
-      {
-        label: 'Cat. de Incidência',
-        path: '/producao/categorias-incidencia',
-        permission: {
-          modulo: 'Produção',
-          subModulo1: 'Parametrizações',
-          subModulo2: 'Categorias de Incidência',
-        },
-      },
-      {
-        label: 'Sev. de Incidência',
-        path: '/producao/severidades-incidencia',
-        permission: {
-          modulo: 'Produção',
-          subModulo1: 'Parametrizações',
-          subModulo2: 'Severidades de Incidência',
-        },
-      },
-      {
-        label: 'Imp. de Incidência',
-        path: '/producao/impactos-incidencia',
-        permission: {
-          modulo: 'Produção',
-          subModulo1: 'Parametrizações',
-          subModulo2: 'Impactos de Incidência',
-        },
-      },
+        label: t('menu.parameters'),
+        isGroup: true,
+        children: [
+          {
+            label: t('menu.recordingTypes'),
+            path: '/producao/tipos-gravacao',
+            permission: { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Tipo de gravação' },
+          },
+          {
+            label: t('menu.classification'),
+            path: '/producao/classificacao',
+            permission: { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Classificação' },
+          },
+          {
+            label: t('menu.recordingStatus'),
+            path: '/producao/status',
+            permission: { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Status de Gravação' },
+          },
+          {
+            label: t('menu.taskStatus'),
+            path: '/producao/status-tarefa',
+            permission: { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Status da Tarefa' },
+          },
+          {
+            label: t('menu.priceTables'),
+            path: '/producao/tabelas-preco',
+            permission: { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Tabelas de Preços' },
+          },
+          {
+            label: t('menu.incidentCategories'),
+            path: '/producao/categorias-incidencia',
+            permission: { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Categorias de Incidência' },
+          },
+          {
+            label: t('menu.incidentSeverities'),
+            path: '/producao/severidades-incidencia',
+            permission: { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Severidades de Incidência' },
+          },
+          {
+            label: t('menu.incidentImpacts'),
+            path: '/producao/impactos-incidencia',
+            permission: { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Impactos de Incidência' },
+          },
+        ],
+      } satisfies NavSubGroup,
     ],
   },
   {
     id: 'recursos',
-    label: 'Recursos',
+    label: t('menu.resources'),
     icon: Users,
     permission: { modulo: 'Recursos' },
     children: [
       {
-        label: 'Rec. Humanos',
+        label: t('menu.humanResources'),
         path: '/recursos/humanos',
         permission: { modulo: 'Recursos', subModulo1: 'Recursos Humanos' },
       },
       {
-        label: 'Rec. Técnicos',
+        label: t('menu.technicalResources'),
         path: '/recursos/tecnicos',
         permission: { modulo: 'Recursos', subModulo1: 'Recursos Técnicos' },
       },
       {
-        label: 'Rec. Físicos',
+        label: t('menu.physicalResources'),
         path: '/recursos/fisicos',
         permission: { modulo: 'Recursos', subModulo1: 'Recursos Físicos' },
       },
       {
-        label: 'Fornecedores',
+        label: t('menu.suppliers'),
         path: '/recursos/fornecedores',
         permission: { modulo: 'Recursos', subModulo1: 'Fornecedores' },
       },
       {
-        label: 'Pessoas',
+        label: t('menu.people'),
         path: '/recursos/pessoas',
         permission: { modulo: 'Recursos', subModulo1: 'Pessoas' },
       },
       {
-        label: 'Figurinos',
-        path: '/recursos/figurinos',
-        permission: { modulo: 'Recursos', subModulo1: 'Figurinos' },
+        label: t('menu.parameters'),
+        isGroup: true,
+        children: [
+          {
+            label: t('menu.material'),
+            path: '/recursos/material',
+            permission: { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Material' },
+          },
+          {
+            label: t('menu.costumeType'),
+            path: '/recursos/tipo-figurino',
+            permission: { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Tipo de Figurino' },
+          },
+          {
+            label: t('menu.peopleClassification'),
+            path: '/recursos/classificacao-pessoas',
+            permission: { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Classificação de Pessoas' },
+          },
+          {
+            label: t('menu.supplierCategory'),
+            path: '/recursos/categoria-fornecedores',
+            permission: { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Categoria de Fornecedores' },
+          },
+          {
+            label: t('menu.services'),
+            path: '/recursos/servicos',
+            permission: { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Serviços' },
+          },
+          {
+            label: t('menu.departments'),
+            path: '/recursos/departamentos',
+            permission: { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Departamentos' },
+          },
+          {
+            label: t('menu.functions'),
+            path: '/recursos/funcoes',
+            permission: { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Funções' },
+          },
+          {
+            label: t('menu.holidays'),
+            path: '/recursos/feriados',
+            permission: { modulo: 'Recursos', subModulo1: 'Parametrizacoes', subModulo2: 'Feriados' },
+          },
+          {
+            label: t('menu.positions'),
+            path: '/recursos/cargos',
+            permission: { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Cargos' },
+          },
+          {
+            label: t('menu.teams'),
+            path: '/recursos/equipes',
+            permission: { modulo: 'Recursos', subModulo1: 'Equipes' },
+          },
+          {
+            label: t('menu.costumes'),
+            path: '/recursos/figurinos',
+            permission: { modulo: 'Recursos', subModulo1: 'Figurinos' },
+          },
+        ],
+      } satisfies NavSubGroup,
+    ],
+  },
+  {
+    id: 'financeiro',
+    label: t('menu.financeiro'),
+    icon: Settings2,
+    permission: { modulo: 'Financeiro' },
+    children: [
+      {
+        label: t('menu.contasAPagar'),
+        path: '/financeiro/contas-a-pagar',
+        permission: { modulo: 'Financeiro', subModulo1: 'Contas a Pagar' },
       },
       {
-        label: 'Equipes',
-        path: '/recursos/equipes',
-        permission: { modulo: 'Recursos', subModulo1: 'Equipes' },
+        label: t('menu.apropriacaoCustos'),
+        path: '/financeiro/apropriacoes-custo',
+        permission: { modulo: 'Financeiro', subModulo1: 'Apropriação de Custos' },
       },
       {
-        label: 'Cargos',
-        path: '/recursos/cargos',
-        permission: { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Cargos' },
-      },
-      {
-        label: 'Departamentos',
-        path: '/recursos/departamentos',
-        permission: {
-          modulo: 'Recursos',
-          subModulo1: 'Parametrizações',
-          subModulo2: 'Departamentos',
-        },
-      },
-      {
-        label: 'Funções',
-        path: '/recursos/funcoes',
-        permission: { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Funções' },
-      },
-      {
-        label: 'Serviços',
-        path: '/recursos/servicos',
-        permission: { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Serviços' },
-      },
-      {
-        label: 'Cat. Fornecedores',
-        path: '/recursos/categoria-fornecedores',
-        permission: {
-          modulo: 'Recursos',
-          subModulo1: 'Parametrizações',
-          subModulo2: 'Categoria de Fornecedores',
-        },
-      },
-      {
-        label: 'Class. de Pessoas',
-        path: '/recursos/classificacao-pessoas',
-        permission: {
-          modulo: 'Recursos',
-          subModulo1: 'Parametrizações',
-          subModulo2: 'Classificação de Pessoas',
-        },
-      },
-      {
-        label: 'Tipo de Figurino',
-        path: '/recursos/tipo-figurino',
-        permission: {
-          modulo: 'Recursos',
-          subModulo1: 'Parametrizações',
-          subModulo2: 'Tipo de Figurino',
-        },
-      },
-      {
-        label: 'Material',
-        path: '/recursos/material',
-        permission: { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Material' },
-      },
+        label: t('menu.parameters'),
+        isGroup: true,
+        children: [
+          {
+            label: t('menu.statusContasPagar'),
+            path: '/financeiro/status-contas-pagar',
+          },
+          {
+            label: t('menu.tiposDocumentos'),
+            path: '/financeiro/tipos-documentos',
+          },
+          {
+            label: t('menu.tiposPagamento'),
+            path: '/financeiro/tipos-pagamento',
+          },
+          {
+            label: t('menu.categoriasDespesa'),
+            path: '/financeiro/categorias-despesa',
+          },
+          {
+            label: t('menu.formasPagamento'),
+            path: '/financeiro/formas-pagamento',
+          },
+        ],
+      } satisfies NavSubGroup,
     ],
   },
   {
     id: 'admin',
-    label: 'Administração',
+    label: t('menu.admin'),
     icon: Building2,
     permission: { modulo: 'Administração' },
     children: [
       {
-        label: 'Unidades de Negócio',
+        label: t('menu.businessUnits'),
         path: '/admin/unidades',
         permission: { modulo: 'Administração', subModulo1: 'Unidades de Negócio' },
       },
       {
-        label: 'Centros de Custos',
+        label: t('menu.profitCenters'),
         path: '/admin/centros-lucro',
         permission: { modulo: 'Administração', subModulo1: 'Centros de Custos' },
       },
       {
-        label: 'Usuários',
+        label: t('menu.users'),
         path: '/admin/usuarios',
         permission: { modulo: 'Administração', subModulo1: 'Usuários' },
       },
       {
-        label: 'Perfis de Acesso',
+        label: t('menu.accessProfiles'),
         path: '/admin/perfis',
         permission: { modulo: 'Administração', subModulo1: 'Perfis de Acesso' },
       },
       {
-        label: 'Formulários',
+        label: t('menu.forms'),
         path: '/admin/formularios',
         permission: { modulo: 'Administração', subModulo1: 'Formulários' },
       },
     ],
   },
 ];
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function isSubGroup(child: NavChild): child is NavSubGroup {
+  return 'isGroup' in child && child.isGroup === true;
+}
+
+function allPaths(children: NavChild[]): string[] {
+  return children.flatMap((c) =>
+    isSubGroup(c) ? c.children.map((sc) => sc.path) : [c.path],
+  );
+}
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -345,13 +378,12 @@ const AppSidebar = () => {
   const pathname = usePathname();
 
   const isGlobalAdmin = user?.role === 'GLOBAL_ADMIN';
-  const navItems = getNavItems(isGlobalAdmin);
+  const navItems = getNavItems(isGlobalAdmin, t);
 
   const logoSrc = typeof kreatoLogo === 'string' ? kreatoLogo : kreatoLogo.src;
   const userInitial = user?.nome?.charAt(0)?.toUpperCase() ?? 'U';
   const userLabel = isGlobalAdmin ? 'Global Admin' : (user?.perfil ?? '');
 
-  // Check module-level permission
   const canSeeModule = (item: NavItem): boolean => {
     if (item.globalOnly) return isGlobalAdmin;
     if (!item.permission) return true;
@@ -359,7 +391,6 @@ const AppSidebar = () => {
     return isVisible(item.permission.modulo, '-', '-', '-');
   };
 
-  // Check sub-item permission
   const canSeeSubItem = (sub: NavSubItem): boolean => {
     if (!sub.permission) return true;
     if (isGlobalAdmin) return true;
@@ -367,13 +398,17 @@ const AppSidebar = () => {
     return isVisible(modulo, subModulo1 ?? '-', subModulo2 ?? '-', '-');
   };
 
-  // Whether any child under a module path is currently active
   const isModuleActive = (item: NavItem): boolean => {
     if (item.path) return pathname === item.path;
     return (
-      item.children?.some((c) => pathname === c.path || pathname.startsWith(c.path + '/')) ?? false
+      allPaths(item.children ?? []).some(
+        (p) => pathname === p || pathname.startsWith(p + '/'),
+      )
     );
   };
+
+  const isPathActive = (path: string) =>
+    pathname === path || pathname.startsWith(path + '/');
 
   return (
     <Sidebar collapsible="icon">
@@ -382,7 +417,6 @@ const AppSidebar = () => {
         <SidebarMenu>
           <SidebarMenuItem>
             {units.length <= 1 ? (
-              // Single unit or no units — static brand display
               <SidebarMenuButton
                 size="lg"
                 asChild
@@ -405,7 +439,6 @@ const AppSidebar = () => {
                 </Link>
               </SidebarMenuButton>
             ) : (
-              // Multiple units — dropdown switcher
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <SidebarMenuButton
@@ -486,8 +519,17 @@ const AppSidebar = () => {
                   );
                 }
 
-                // Collapsible group
-                const visibleChildren = (item.children ?? []).filter(canSeeSubItem);
+                // Collapsible module group
+                const children = item.children ?? [];
+
+                // Separate regular items from sub-groups
+                const visibleChildren = children.filter((child) => {
+                  if (isSubGroup(child)) {
+                    return child.children.some(canSeeSubItem);
+                  }
+                  return canSeeSubItem(child as NavSubItem);
+                });
+
                 if (visibleChildren.length === 0) return null;
 
                 const defaultOpen = isModuleActive(item);
@@ -509,20 +551,69 @@ const AppSidebar = () => {
                       </CollapsibleTrigger>
                       <CollapsibleContent>
                         <SidebarMenuSub>
-                          {visibleChildren.map((child) => (
-                            <SidebarMenuSubItem key={child.path}>
-                              <SidebarMenuSubButton
-                                asChild
-                                isActive={
-                                  pathname === child.path || pathname.startsWith(child.path + '/')
-                                }
-                              >
-                                <Link href={child.path}>
-                                  <span>{child.label}</span>
-                                </Link>
-                              </SidebarMenuSubButton>
-                            </SidebarMenuSubItem>
-                          ))}
+                          {visibleChildren.map((child) => {
+                            // ── Sub-group (Parametrizações) ──────────────────
+                            if (isSubGroup(child)) {
+                              const visibleGroupItems = child.children.filter(canSeeSubItem);
+                              if (visibleGroupItems.length === 0) return null;
+
+                              const groupActive = visibleGroupItems.some((c) =>
+                                isPathActive(c.path),
+                              );
+
+                              return (
+                                <Collapsible
+                                  key={child.label}
+                                  defaultOpen={groupActive}
+                                  className="group/paramgroup"
+                                >
+                                  <SidebarMenuSubItem>
+                                    <CollapsibleTrigger asChild>
+                                      <SidebarMenuSubButton
+                                        isActive={groupActive}
+                                        className="gap-1.5"
+                                      >
+                                        <Settings2 className="size-3.5 shrink-0 text-muted-foreground" />
+                                        <span>{child.label}</span>
+                                        <ChevronRight className="ml-auto size-3 shrink-0 transition-transform duration-200 group-data-[state=open]/paramgroup:rotate-90" />
+                                      </SidebarMenuSubButton>
+                                    </CollapsibleTrigger>
+                                    <CollapsibleContent>
+                                      <SidebarMenuSub>
+                                        {visibleGroupItems.map((subChild) => (
+                                          <SidebarMenuSubItem key={subChild.path}>
+                                            <SidebarMenuSubButton
+                                              asChild
+                                              isActive={isPathActive(subChild.path)}
+                                            >
+                                              <Link href={subChild.path}>
+                                                <span>{subChild.label}</span>
+                                              </Link>
+                                            </SidebarMenuSubButton>
+                                          </SidebarMenuSubItem>
+                                        ))}
+                                      </SidebarMenuSub>
+                                    </CollapsibleContent>
+                                  </SidebarMenuSubItem>
+                                </Collapsible>
+                              );
+                            }
+
+                            // ── Regular sub-item ─────────────────────────────
+                            const subChild = child as NavSubItem;
+                            return (
+                              <SidebarMenuSubItem key={subChild.path}>
+                                <SidebarMenuSubButton
+                                  asChild
+                                  isActive={isPathActive(subChild.path)}
+                                >
+                                  <Link href={subChild.path}>
+                                    <span>{subChild.label}</span>
+                                  </Link>
+                                </SidebarMenuSubButton>
+                              </SidebarMenuSubItem>
+                            );
+                          })}
                         </SidebarMenuSub>
                       </CollapsibleContent>
                     </SidebarMenuItem>

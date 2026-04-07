@@ -28,6 +28,7 @@ export type PaginatedResult<T> = { data: T[]; total: number };
 
 export interface UnidadesRepository {
   listByTenant(tenantId: string, opts?: ListOptions): Promise<PaginatedResult<UnidadeRecord>>;
+  listAll(opts?: ListOptions): Promise<PaginatedResult<UnidadeRecord>>;
   findById(id: string): Promise<UnidadeRecord | null>;
   save(input: SaveUnidadeInput): Promise<UnidadeRecord>;
   remove(id: string): Promise<void>;
@@ -42,6 +43,31 @@ export class PrismaUnidadesRepository implements UnidadesRepository {
     const [total, data] = await prisma.$transaction([
       prisma.unidadeNegocio.count({ where }),
       prisma.unidadeNegocio.findMany({ where, orderBy: { nome: 'asc' }, take, skip }),
+    ]);
+
+    return {
+      data: data.map((item) => ({
+        id: item.id,
+        tenantId: item.tenantId,
+        codigoExterno: item.codigoExterno,
+        nome: item.nome,
+        descricao: item.descricao,
+        imagemUrl: item.imagemUrl,
+        moeda: item.moeda,
+        createdByName: item.createdByName,
+        createdAt: item.createdAt,
+      })),
+      total,
+    };
+  }
+
+  async listAll(opts?: ListOptions): Promise<PaginatedResult<UnidadeRecord>> {
+    const take = Math.min(opts?.limit ?? 50, 200);
+    const skip = opts?.offset ?? 0;
+
+    const [total, data] = await prisma.$transaction([
+      prisma.unidadeNegocio.count(),
+      prisma.unidadeNegocio.findMany({ orderBy: { nome: 'asc' }, take, skip }),
     ]);
 
     return {

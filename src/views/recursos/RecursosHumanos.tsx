@@ -2,6 +2,18 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
 import { ListActionBar } from '@/components/shared/ListActionBar';
 import { SortableTable, Column } from '@/components/shared/SortableTable';
@@ -22,6 +34,209 @@ import type {
   RecursoHumano,
   RecursoHumanoInput,
 } from '@/modules/recursos-humanos/recursos-humanos.types';
+import {
+  useListingView,
+  ViewSwitcher,
+  ColumnSelector,
+  CardGrid,
+  MasterDetail,
+  type ColumnConfig,
+} from '@/components/listing';
+
+const STORAGE_KEY = 'kreato_recursos_humanos_table';
+
+const COLUMN_CONFIG: ColumnConfig[] = [
+  { key: 'foto',        label: 'Foto',          defaultVisible: true },
+  { key: 'nome',        label: 'Nome',           required: true },
+  { key: 'email',       label: 'E-mail',         defaultVisible: true },
+  { key: 'departamento',label: 'Departamento',   defaultVisible: true },
+  { key: 'funcao',      label: 'Função',         defaultVisible: true },
+  { key: 'custoHora',   label: 'Custo/h',        defaultVisible: false },
+  { key: 'status',      label: 'Status',         defaultVisible: true },
+  { key: 'acoes',       label: 'Ações',          required: true },
+];
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+const hoje = startOfDay(new Date());
+
+function getAusenciaHoje(item: RecursoHumano): Ausencia | null {
+  return (
+    item.ausencias.find((ausencia) => {
+      try {
+        const inicio = startOfDay(parseISO(ausencia.dataInicio));
+        const fim = startOfDay(parseISO(ausencia.dataFim));
+        return isWithinInterval(hoje, { start: inicio, end: fim });
+      } catch {
+        return false;
+      }
+    }) ?? null
+  );
+}
+
+const formatCustoHora = (value: number) =>
+  new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
+
+// ─── Card renderer ────────────────────────────────────────────────────────────
+
+function RecursoHumanoCard({
+  item,
+  podeAlterar,
+  podeExcluir,
+  onEdit,
+  onDelete,
+}: {
+  item: RecursoHumano;
+  podeAlterar: boolean;
+  podeExcluir: boolean;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const ausenciaHoje = getAusenciaHoje(item);
+
+  return (
+    <Card className="flex flex-col hover:shadow-md transition-shadow">
+      <CardHeader className="pb-2 pt-3 px-4">
+        <div className="flex items-start gap-3">
+          <div className="relative shrink-0">
+            <Avatar className="w-10 h-10">
+              <AvatarImage src={item.foto} />
+              <AvatarFallback className="text-xs gradient-brand text-primary-foreground">
+                {item.nome.charAt(0)}{item.sobrenome.charAt(0)}
+              </AvatarFallback>
+            </Avatar>
+            {ausenciaHoje && (
+              <div className="absolute -top-1 -right-1 w-4 h-4 bg-amber-500 rounded-full flex items-center justify-center">
+                <UserX className="w-2.5 h-2.5 text-white" />
+              </div>
+            )}
+          </div>
+          <div className="min-w-0">
+            <p className="font-medium text-sm leading-snug truncate">{item.nome} {item.sobrenome}</p>
+            <p className="text-xs text-muted-foreground truncate">{item.funcao || '-'}</p>
+          </div>
+        </div>
+      </CardHeader>
+
+      <CardContent className="px-4 pb-3 flex-1 space-y-1.5 text-xs text-muted-foreground">
+        {item.departamento && <div>{item.departamento}</div>}
+        {ausenciaHoje && (
+          <Badge variant="outline" className="text-xs bg-amber-500/10 text-amber-600 border-amber-500/30">
+            {ausenciaHoje.motivo}
+          </Badge>
+        )}
+        <Badge variant={item.status === 'Ativo' ? 'default' : 'secondary'} className="text-[10px] h-4 px-1.5">
+          {item.status}
+        </Badge>
+      </CardContent>
+
+      <CardFooter className="px-4 py-2 border-t flex justify-end gap-1">
+        <Button size="icon" variant="ghost" className="h-7 w-7" disabled={!podeAlterar} onClick={onEdit}>
+          <Edit className="h-3.5 w-3.5" />
+        </Button>
+        {podeExcluir && (
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-7 w-7 text-destructive hover:text-destructive"
+            onClick={onDelete}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        )}
+      </CardFooter>
+    </Card>
+  );
+}
+
+// ─── Detail panel renderer ────────────────────────────────────────────────────
+
+function RecursoHumanoDetailPanel({
+  item,
+  podeAlterar,
+  podeExcluir,
+  onEdit,
+  onDelete,
+}: {
+  item: RecursoHumano;
+  podeAlterar: boolean;
+  podeExcluir: boolean;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const ausenciaHoje = getAusenciaHoje(item);
+  const field = (label: string, value: string | undefined | null) =>
+    value ? (
+      <div>
+        <p className="text-xs text-muted-foreground mb-0.5">{label}</p>
+        <p className="text-sm">{value}</p>
+      </div>
+    ) : null;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-3">
+        <div className="relative shrink-0">
+          <Avatar className="w-12 h-12">
+            <AvatarImage src={item.foto} />
+            <AvatarFallback className="text-sm gradient-brand text-primary-foreground">
+              {item.nome.charAt(0)}{item.sobrenome.charAt(0)}
+            </AvatarFallback>
+          </Avatar>
+          {ausenciaHoje && (
+            <div className="absolute -top-1 -right-1 w-4 h-4 bg-amber-500 rounded-full flex items-center justify-center">
+              <UserX className="w-2.5 h-2.5 text-white" />
+            </div>
+          )}
+        </div>
+        <div>
+          <h3 className="font-semibold text-base leading-snug">{item.nome} {item.sobrenome}</h3>
+          <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+            <Badge variant={item.status === 'Ativo' ? 'default' : 'secondary'} className="text-[10px] h-4 px-1.5">
+              {item.status}
+            </Badge>
+            {ausenciaHoje && (
+              <Badge variant="outline" className="text-xs bg-amber-500/10 text-amber-600 border-amber-500/30">
+                {ausenciaHoje.motivo}
+              </Badge>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <Separator />
+
+      <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+        {field('E-mail', item.email)}
+        {field('Departamento', item.departamento)}
+        {field('Função', item.funcao)}
+        {field('Custo/h', formatCustoHora(item.custoHora))}
+      </div>
+
+      <Separator />
+
+      <div className="flex gap-2">
+        <Button size="sm" variant="outline" disabled={!podeAlterar} onClick={onEdit}>
+          <Edit className="h-3.5 w-3.5 mr-1.5" />
+          Editar
+        </Button>
+        {podeExcluir && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="text-destructive hover:text-destructive"
+            onClick={onDelete}
+          >
+            <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+            Excluir
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
 
 const RecursosHumanos = () => {
   const { toast } = useToast();
@@ -36,8 +251,13 @@ const RecursosHumanos = () => {
   const [isMapaOpen, setIsMapaOpen] = useState(false);
   const [isMapaOciosidadeOpen, setIsMapaOciosidadeOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<RecursoHumano | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [selectedItem, setSelectedItem] = useState<RecursoHumano | null>(null);
   const [items, setItems] = useState<RecursoHumano[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  const { mode, setMode, visibleColumnKeys, toggleColumn, resetColumns, optionalColumns } =
+    useListingView({ storageKey: STORAGE_KEY, columns: COLUMN_CONFIG });
 
   const fetchRecursosHumanos = useCallback(async () => {
     if (!session) {
@@ -61,7 +281,7 @@ const RecursosHumanos = () => {
   }, [session, t, toast]);
 
   useEffect(() => {
-    fetchRecursosHumanos();
+    void fetchRecursosHumanos();
   }, [fetchRecursosHumanos]);
 
   const handleSave = async (data: RecursoHumanoInput) => {
@@ -87,14 +307,12 @@ const RecursosHumanos = () => {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm(t('common.confirm.delete'))) {
-      return;
-    }
-
+  const handleDeleteConfirm = async () => {
+    if (!deletingId) return;
     try {
-      await recursosHumanosRepository.remove(id);
+      await recursosHumanosRepository.remove(deletingId);
       toast({ title: t('common.deleted'), description: t('common.deleted') });
+      if (selectedItem?.id === deletingId) setSelectedItem(null);
       await fetchRecursosHumanos();
     } catch (error) {
       console.error('Error deleting recurso humano:', error);
@@ -103,37 +321,22 @@ const RecursosHumanos = () => {
         description: `Erro ao excluir: ${(error as Error).message}`,
         variant: 'destructive',
       });
+    } finally {
+      setDeletingId(null);
     }
   };
 
-  const hoje = useMemo(() => startOfDay(new Date()), []);
-
-  const getAusenciaHoje = (item: RecursoHumano): Ausencia | null => {
-    return (
-      item.ausencias.find((ausencia) => {
-        try {
-          const inicio = startOfDay(parseISO(ausencia.dataInicio));
-          const fim = startOfDay(parseISO(ausencia.dataFim));
-          return isWithinInterval(hoje, { start: inicio, end: fim });
-        } catch {
-          return false;
-        }
-      }) ?? null
-    );
-  };
-
-  const filteredItems = items.filter(
-    (item) =>
-      `${item.nome} ${item.sobrenome}`.toLowerCase().includes(search.toLowerCase()) ||
-      item.email.toLowerCase().includes(search.toLowerCase()) ||
-      item.departamento.toLowerCase().includes(search.toLowerCase()) ||
-      item.funcao.toLowerCase().includes(search.toLowerCase()),
+  const filteredItems = useMemo(
+    () =>
+      items.filter(
+        (item) =>
+          `${item.nome} ${item.sobrenome}`.toLowerCase().includes(search.toLowerCase()) ||
+          item.email.toLowerCase().includes(search.toLowerCase()) ||
+          item.departamento.toLowerCase().includes(search.toLowerCase()) ||
+          item.funcao.toLowerCase().includes(search.toLowerCase()),
+      ),
+    [items, search],
   );
-
-  const formatCustoHora = (value: number) =>
-    new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(
-      value,
-    );
 
   const columns: Column<RecursoHumano>[] = [
     {
@@ -244,7 +447,7 @@ const RecursosHumanos = () => {
               variant="ghost"
               onClick={(e) => {
                 e.stopPropagation();
-                handleDelete(item.id);
+                setDeletingId(item.id);
               }}
               className="text-destructive hover:text-destructive"
             >
@@ -272,6 +475,15 @@ const RecursosHumanos = () => {
         )}
         <div className="flex-1" />
         <SearchBar value={search} onChange={setSearch} />
+        {mode === 'list' && (
+          <ColumnSelector
+            columns={optionalColumns}
+            visibleColumnKeys={visibleColumnKeys}
+            onToggle={toggleColumn}
+            onReset={resetColumns}
+          />
+        )}
+        <ViewSwitcher mode={mode} onModeChange={setMode} />
         <Button
           variant="outline"
           size="sm"
@@ -297,20 +509,92 @@ const RecursosHumanos = () => {
           <div className="flex items-center justify-center py-8">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
-        ) : filteredItems.length === 0 ? (
-          <EmptyState
-            title={t('field.noCollaboratorRegistered')}
-            description={t('field.manageCollaboratorsTeam')}
-            icon={Users}
-            onAction={podeIncluir ? () => setIsModalOpen(true) : undefined}
-            actionLabel={t('field.addCollaborator')}
+        ) : mode === 'list' ? (
+          filteredItems.length === 0 ? (
+            <EmptyState
+              title={t('field.noCollaboratorRegistered')}
+              description={t('field.manageCollaboratorsTeam')}
+              icon={Users}
+              onAction={podeIncluir ? () => setIsModalOpen(true) : undefined}
+              actionLabel={t('field.addCollaborator')}
+            />
+          ) : (
+            <SortableTable
+              data={filteredItems}
+              columns={columns}
+              getRowKey={(item) => item.id}
+              storageKey={STORAGE_KEY}
+              visibleColumnKeys={visibleColumnKeys}
+            />
+          )
+        ) : mode === 'cards' ? (
+          <CardGrid
+            data={filteredItems}
+            getRowKey={(item) => item.id}
+            emptyTitle={t('field.noCollaboratorRegistered')}
+            emptyDescription={t('field.manageCollaboratorsTeam')}
+            onEmptyAction={podeIncluir ? () => setIsModalOpen(true) : undefined}
+            emptyActionLabel={t('field.addCollaborator')}
+            renderCard={(item) => (
+              <RecursoHumanoCard
+                item={item}
+                podeAlterar={podeAlterar}
+                podeExcluir={podeExcluir}
+                onEdit={() => {
+                  setEditingItem(item);
+                  setIsModalOpen(true);
+                }}
+                onDelete={() => setDeletingId(item.id)}
+              />
+            )}
           />
         ) : (
-          <SortableTable
+          <MasterDetail
             data={filteredItems}
-            columns={columns}
+            selectedItem={selectedItem}
+            onSelect={(item) => setSelectedItem(item)}
             getRowKey={(item) => item.id}
-            storageKey="kreato_recursos_humanos_table"
+            detailTitle="Detalhe do Colaborador"
+            emptyDetailTitle="Nenhum colaborador selecionado"
+            emptyDetailDescription="Clique em um colaborador na lista para ver os detalhes."
+            renderRow={(item, isSelected) => {
+              const ausenciaHoje = getAusenciaHoje(item);
+              return (
+                <div className="flex items-center gap-2">
+                  <div className="relative shrink-0">
+                    <Avatar className="w-7 h-7">
+                      <AvatarImage src={item.foto} />
+                      <AvatarFallback className="text-xs gradient-brand text-primary-foreground">
+                        {item.nome.charAt(0)}{item.sobrenome.charAt(0)}
+                      </AvatarFallback>
+                    </Avatar>
+                    {ausenciaHoje && (
+                      <div className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-amber-500 rounded-full flex items-center justify-center">
+                        <UserX className="w-2 h-2 text-white" />
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <p className={`text-sm font-medium truncate ${isSelected ? 'text-primary' : ''}`}>
+                      {item.nome} {item.sobrenome}
+                    </p>
+                    <p className="text-xs text-muted-foreground truncate">{item.funcao}</p>
+                  </div>
+                </div>
+              );
+            }}
+            renderDetail={(item) => (
+              <RecursoHumanoDetailPanel
+                item={item}
+                podeAlterar={podeAlterar}
+                podeExcluir={podeExcluir}
+                onEdit={() => {
+                  setEditingItem(item);
+                  setIsModalOpen(true);
+                }}
+                onDelete={() => setDeletingId(item.id)}
+              />
+            )}
           />
         )}
       </DataCard>
@@ -324,6 +608,19 @@ const RecursosHumanos = () => {
         onSave={handleSave}
         data={editingItem}
         readOnly={!!editingItem && !podeAlterar}
+        navigation={(() => {
+          const navIndex = editingItem
+            ? filteredItems.findIndex((i) => i.id === editingItem.id)
+            : -1;
+          return navIndex >= 0
+            ? {
+                currentIndex: navIndex,
+                total: filteredItems.length,
+                onPrevious: () => setEditingItem(filteredItems[navIndex - 1]),
+                onNext: () => setEditingItem(filteredItems[navIndex + 1]),
+              }
+            : undefined;
+        })()}
       />
 
       <MapaEscalasModal
@@ -338,6 +635,26 @@ const RecursosHumanos = () => {
         onClose={() => setIsMapaOciosidadeOpen(false)}
         recursos={items}
       />
+
+      <AlertDialog open={!!deletingId} onOpenChange={(open) => !open && setDeletingId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir este colaborador? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

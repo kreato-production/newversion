@@ -22,6 +22,59 @@ export type StatusTarefaApiItem = {
   usuarioCadastro: string;
 };
 
+export type StatusContaPagarApiItem = {
+  id: string;
+  codigoExterno: string;
+  titulo: string;
+  descricao: string;
+  cor: string;
+  isInicial: boolean;
+  isBaixa: boolean;
+  dataCadastro: string;
+  usuarioCadastro: string;
+};
+
+export type FormaPagamentoApiItem = {
+  id: string;
+  codigoExterno: string;
+  titulo: string;
+  descricao: string;
+  cor: string;
+  isPadrao: boolean;
+  dataCadastro: string;
+  usuarioCadastro: string;
+};
+
+export type TipoDocumentoFinanceiroApiItem = {
+  id: string;
+  codigo_externo: string;
+  titulo: string;
+  descricao: string;
+  cor: string | null;
+  created_at: string;
+  created_by: string;
+};
+
+export type TipoPagamentoApiItem = {
+  id: string;
+  codigo_externo: string;
+  titulo: string;
+  descricao: string;
+  cor: string | null;
+  created_at: string;
+  created_by: string;
+};
+
+export type CategoriaDespesaApiItem = {
+  id: string;
+  codigo_externo: string;
+  titulo: string;
+  descricao: string;
+  cor: string | null;
+  created_at: string;
+  created_by: string;
+};
+
 export type IncidenciaParametroApiItem = {
   id: string;
   codigo_externo: string;
@@ -109,6 +162,163 @@ export class ApiParametrizacoesRepository {
 
   removeStatusTarefa(id: string): Promise<void> {
     return apiRequest(`/parametrizacoes/status-tarefa/${id}`, { method: 'DELETE' });
+  }
+
+  listStatusContasPagar(): Promise<ListResponse<StatusContaPagarApiItem>> {
+    return apiRequest('/parametrizacoes/status-contas-pagar');
+  }
+
+  saveStatusContaPagar(
+    input: Partial<StatusContaPagarApiItem> & { titulo: string },
+  ): Promise<StatusContaPagarApiItem> {
+    const path = input.id
+      ? `/parametrizacoes/status-contas-pagar/${input.id}`
+      : '/parametrizacoes/status-contas-pagar';
+    const method = input.id ? 'PUT' : 'POST';
+
+    return apiRequest(path, {
+      method,
+      body: JSON.stringify({
+        id: input.id,
+        codigoExterno: input.codigoExterno,
+        titulo: input.titulo,
+        descricao: input.descricao,
+        cor: input.cor,
+        isInicial: input.isInicial,
+        isBaixa: input.isBaixa,
+      }),
+    });
+  }
+
+  toggleStatusContaPagarInicial(id: string, value: boolean): Promise<StatusContaPagarApiItem> {
+    return apiRequest(`/parametrizacoes/status-contas-pagar/${id}/inicial`, {
+      method: 'PATCH',
+      body: JSON.stringify({ value }),
+    });
+  }
+
+  removeStatusContaPagar(id: string): Promise<void> {
+    return apiRequest(`/parametrizacoes/status-contas-pagar/${id}`, { method: 'DELETE' });
+  }
+
+  listFormasPagamento(): Promise<ListResponse<FormaPagamentoApiItem>> {
+    return apiRequest('/parametrizacoes/formas-pagamento');
+  }
+
+  saveFormaPagamento(
+    input: Partial<FormaPagamentoApiItem> & { titulo: string },
+  ): Promise<FormaPagamentoApiItem> {
+    const path = input.id
+      ? `/parametrizacoes/formas-pagamento/${input.id}`
+      : '/parametrizacoes/formas-pagamento';
+    const method = input.id ? 'PUT' : 'POST';
+
+    return apiRequest(path, {
+      method,
+      body: JSON.stringify({
+        id: input.id,
+        codigoExterno: input.codigoExterno,
+        titulo: input.titulo,
+        descricao: input.descricao,
+        cor: input.cor,
+        isPadrao: input.isPadrao,
+      }),
+    });
+  }
+
+  toggleFormaPagamentoPadrao(id: string, value: boolean): Promise<FormaPagamentoApiItem> {
+    return apiRequest(`/parametrizacoes/formas-pagamento/${id}/padrao`, {
+      method: 'PATCH',
+      body: JSON.stringify({ value }),
+    });
+  }
+
+  removeFormaPagamento(id: string): Promise<void> {
+    return apiRequest(`/parametrizacoes/formas-pagamento/${id}`, { method: 'DELETE' });
+  }
+
+  listTiposDocumentosFinanceiro(): Promise<ListResponse<TipoDocumentoFinanceiroApiItem>> {
+    return apiRequest('/parametrizacoes/tipos-documentos-financeiro');
+  }
+
+  saveTipoDocumentoFinanceiro(
+    input: Partial<TipoDocumentoFinanceiroApiItem> & { titulo: string },
+  ): Promise<TipoDocumentoFinanceiroApiItem> {
+    const path = input.id
+      ? `/parametrizacoes/tipos-documentos-financeiro/${input.id}`
+      : '/parametrizacoes/tipos-documentos-financeiro';
+    const method = input.id ? 'PUT' : 'POST';
+
+    return apiRequest(path, {
+      method,
+      body: JSON.stringify({
+        id: input.id,
+        codigoExterno: input.codigo_externo,
+        titulo: input.titulo,
+        descricao: input.descricao,
+        cor: input.cor,
+      }),
+    });
+  }
+
+  removeTipoDocumentoFinanceiro(id: string): Promise<void> {
+    return apiRequest(`/parametrizacoes/tipos-documentos-financeiro/${id}`, { method: 'DELETE' });
+  }
+
+  listTiposPagamento(): Promise<ListResponse<TipoPagamentoApiItem>> {
+    return apiRequest('/parametrizacoes/tipos-pagamento');
+  }
+
+  saveTipoPagamento(
+    input: Partial<TipoPagamentoApiItem> & { titulo: string },
+  ): Promise<TipoPagamentoApiItem> {
+    const path = input.id
+      ? `/parametrizacoes/tipos-pagamento/${input.id}`
+      : '/parametrizacoes/tipos-pagamento';
+    const method = input.id ? 'PUT' : 'POST';
+
+    return apiRequest(path, {
+      method,
+      body: JSON.stringify({
+        id: input.id,
+        codigoExterno: input.codigo_externo,
+        titulo: input.titulo,
+        descricao: input.descricao,
+        cor: input.cor,
+      }),
+    });
+  }
+
+  removeTipoPagamento(id: string): Promise<void> {
+    return apiRequest(`/parametrizacoes/tipos-pagamento/${id}`, { method: 'DELETE' });
+  }
+
+  listCategoriasDespesa(): Promise<ListResponse<CategoriaDespesaApiItem>> {
+    return apiRequest('/parametrizacoes/categorias-despesa');
+  }
+
+  saveCategoriaDespesa(
+    input: Partial<CategoriaDespesaApiItem> & { titulo: string },
+  ): Promise<CategoriaDespesaApiItem> {
+    const path = input.id
+      ? `/parametrizacoes/categorias-despesa/${input.id}`
+      : '/parametrizacoes/categorias-despesa';
+    const method = input.id ? 'PUT' : 'POST';
+
+    return apiRequest(path, {
+      method,
+      body: JSON.stringify({
+        id: input.id,
+        codigoExterno: input.codigo_externo,
+        titulo: input.titulo,
+        descricao: input.descricao,
+        cor: input.cor,
+      }),
+    });
+  }
+
+  removeCategoriaDespesa(id: string): Promise<void> {
+    return apiRequest(`/parametrizacoes/categorias-despesa/${id}`, { method: 'DELETE' });
   }
 
   listCategoriasIncidencia(): Promise<ListResponse<IncidenciaParametroApiItem>> {

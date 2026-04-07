@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { ModalNavigation, type ModalNavigationProps } from '@/components/shared/ModalNavigation';
 import {
   Dialog,
   DialogContent,
@@ -55,6 +56,7 @@ interface TarefaFormModalProps {
   gravacoes: TarefaGravacao[];
   recursosHumanos: TarefaRecursoHumano[];
   readOnly?: boolean;
+  navigation?: ModalNavigationProps;
 }
 
 export const TarefaFormModal = ({
@@ -67,6 +69,7 @@ export const TarefaFormModal = ({
   gravacoes,
   recursosHumanos,
   readOnly: globalReadOnly = false,
+  navigation,
 }: TarefaFormModalProps) => {
   const { t, language } = useLanguage();
   const { isReadOnly, isVisible } = usePermissions();
@@ -487,7 +490,8 @@ export const TarefaFormModal = ({
           )}
 
           <DialogFooter className="flex justify-between">
-            <div>
+            <div className="flex items-center gap-2">
+              {navigation && <ModalNavigation {...navigation} />}
               {onDelete && !globalReadOnly && (
                 <AlertDialog>
                   <AlertDialogTrigger asChild>

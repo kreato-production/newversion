@@ -25,6 +25,7 @@ import { useFormFieldConfig, FieldAsterisk } from '@/hooks/useFormFieldConfig';
 import { TabelaPrecoRecursosTecnicosTab } from '@/components/producao/TabelaPrecoRecursosTecnicosTab';
 import { TabelaPrecoRecursosFisicosTab } from '@/components/producao/TabelaPrecoRecursosFisicosTab';
 import { ApiTabelasPrecoRepository } from '@/modules/tabelas-preco/tabelas-preco.api.repository';
+import { ModalNavigation, type ModalNavigationProps } from '@/components/shared/ModalNavigation';
 import type {
   TabelaPrecoInput,
   TabelaPrecoItem,
@@ -37,6 +38,7 @@ interface TabelaPrecoFormModalProps {
   onSave: () => void | Promise<void>;
   data?: TabelaPrecoItem | null;
   readOnly?: boolean;
+  navigation?: ModalNavigationProps;
 }
 
 const repository = new ApiTabelasPrecoRepository();
@@ -47,6 +49,7 @@ export const TabelaPrecoFormModal = ({
   onSave,
   data,
   readOnly = false,
+  navigation,
 }: TabelaPrecoFormModalProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -331,15 +334,18 @@ export const TabelaPrecoFormModal = ({
             </Tabs>
           )}
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>
-              {readOnly ? 'Fechar' : 'Cancelar'}
-            </Button>
-            {!readOnly && (
-              <Button type="submit" className="gradient-primary hover:opacity-90">
-                Salvar
+          <DialogFooter className={navigation ? 'sm:justify-between' : undefined}>
+            {navigation && <ModalNavigation {...navigation} />}
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" onClick={onClose}>
+                {readOnly ? 'Fechar' : 'Cancelar'}
               </Button>
-            )}
+              {!readOnly && (
+                <Button type="submit" className="gradient-primary hover:opacity-90">
+                  Salvar
+                </Button>
+              )}
+            </div>
           </DialogFooter>
         </form>
       </DialogContent>

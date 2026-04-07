@@ -49,7 +49,7 @@ root/          → Frontend: React 18 + Vite + TypeScript
 backend/       → Backend:  Fastify 5 + Prisma 6 + TypeScript (ESM)
 ```
 
-The two apps are independent npm workspaces. The frontend calls `http://localhost:3333` by default. Feature flags (`VITE_DATA_PROVIDER`, `VITE_AUTH_PROVIDER`) in the root `.env` control whether data comes from the backend or the legacy Supabase integration.
+The two apps are independent npm workspaces. The frontend calls `http://localhost:3333` by default and now runs against the own backend API by default.
 
 ### Backend architecture
 
@@ -86,9 +86,9 @@ backend/src/
 
 **Provider tree** (in `App.tsx`): `QueryClientProvider` → `ThemeProvider` → `AuthProvider` → `LanguageProvider` → `TooltipProvider` → `Router`.
 
-**Auth**: `AuthContext` exposes `user`, `isAuthenticated`, `login()`, `logout()`. It delegates to `authRepository` (from `src/modules/auth/auth.repository.ts`), which is either `SupabaseAuthRepository` or `BackendAuthRepository` based on `isBackendAuthProviderEnabled()`.
+**Auth**: `AuthContext` exposes `user`, `isAuthenticated`, `login()`, `logout()`. It is backed by Auth.js session state and the backend-only `authRepository` implementation from `src/modules/auth/auth.repository.ts`.
 
-**Data fetching**: Legacy Supabase modules use direct Supabase client calls. Migrated modules use `apiRequest()` from `src/lib/api/http.ts` with `credentials: 'include'` (cookie-based auth). The `gravacoesRepository` provider pattern (`gravacoes.repository.provider.ts`) returns the correct implementation based on `isBackendDataProviderEnabled()`.
+**Data fetching**: Frontend modules use `apiRequest()` from `src/lib/api/http.ts` with `credentials: 'include'` (cookie-based auth) and route browser traffic through `/api/proxy`.
 
 **Code splitting**: All 40+ page imports in `App.tsx` use `React.lazy()` grouped by section (produção, recursos, admin), wrapped in `<Suspense fallback={<PageLoader />}>`.
 
@@ -98,7 +98,7 @@ backend/src/
 
 **Backend tests** never hit the database. Each test file defines an `InMemoryXxxRepository` that implements the repository interface. Route tests use `buildApp({ service: new XxxService(new InMemoryXxxRepository()) })` + `app.inject()`. All `listByTenant` methods return `{ data, total }`.
 
-**Frontend tests** use `vitest` + `@testing-library/react` with jsdom. Supabase and repository modules are mocked with `vi.mock()`. Setup file: `src/test/setup.ts` (jest-dom + matchMedia stub).
+**Frontend tests** use `vitest` + `@testing-library/react` with jsdom. Repository/auth modules are mocked with `vi.mock()`. Setup file: `src/test/setup.ts` (jest-dom + matchMedia stub).
 
 ### Key files to understand before making changes
 
@@ -109,18 +109,18 @@ backend/src/
 | `backend/src/fastify.d.ts` | Declares `request.user: SessionUser` on FastifyRequest |
 | `backend/src/config/env.ts` | All env vars validated here; test env overrides applied here |
 | `src/lib/api/http.ts` | All backend HTTP calls go through `apiRequest()`; handles 401 → refresh retry |
-| `src/modules/auth/auth.repository.ts` | Dual implementation (Supabase / Backend); `authRepository` singleton exported at bottom |
+| `src/modules/auth/auth.repository.ts` | Backend auth contract and singleton used by the frontend |
 | `src/contexts/AuthContext.tsx` | Single source of truth for auth state on the frontend |
 
 ### Supabase deprecation status
 
-The codebase is mid-migration from Supabase to a self-hosted backend. ~75 files still reference Supabase — mostly in `src/components/producao/`, `src/components/recursos/`, and `src/pages/`. The migration plan is documented in `docs/operacao/plano-desligamento-supabase.md`. When working on already-migrated modules (gravações, programas, equipes, unidades, users), use the backend API. When working on not-yet-migrated modules, use the existing Supabase pattern.
+The application runtime no longer contains active Supabase integrations. Remaining mentions are historical documentation about the migration and shutdown process.
 
 ### Environment variables
 
 Backend requires `DATABASE_URL`, `JWT_ACCESS_SECRET` (≥32 chars), `JWT_REFRESH_SECRET` (≥32 chars) in `backend/.env`. In `NODE_ENV=test`, the env module supplies safe defaults — tests run without a real `.env`.
 
-Frontend flags in root `.env` that control routing behavior:
-- `VITE_DATA_PROVIDER=backend` — use own backend for data
-- `VITE_AUTH_PROVIDER=backend` — use own backend for auth
-- `VITE_BACKEND_API_URL` — defaults to `http://localhost:3333`
+Frontend vars in root `.env` / `.env.local`:
+- `NEXT_PUBLIC_BACKEND_API_URL` — defaults to `http://localhost:3333`
+- `NEXT_PUBLIC_AUTH_PROVIDER=backend` — use own backend for auth
+- `NEXT_PUBLIC_KEYCLOAK_AUTH_ENABLED=false` — keep SSO toggle hidden by default

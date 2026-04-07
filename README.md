@@ -61,9 +61,9 @@ Variáveis opcionais no `.env` da raiz (frontend):
 
 | Variável | Padrão | Descrição |
 |---|---|---|
-| `VITE_BACKEND_API_URL` | `http://localhost:3333` | URL da API backend |
-| `VITE_DATA_PROVIDER` | `backend` | `backend` ou `supabase` |
-| `VITE_AUTH_PROVIDER` | `backend` | `backend` ou `supabase` |
+| `NEXT_PUBLIC_BACKEND_API_URL` | `http://localhost:3333` | URL da API backend |
+| `NEXT_PUBLIC_AUTH_PROVIDER` | `backend` | Mantém a autenticação via backend próprio |
+| `NEXT_PUBLIC_KEYCLOAK_AUTH_ENABLED` | `false` | Exibe o fluxo de SSO via Keycloak quando ativado |
 
 ### 3. Suba o banco de dados
 

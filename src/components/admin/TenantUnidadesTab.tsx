@@ -1,6 +1,16 @@
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
   Table,
   TableBody,
   TableCell,
@@ -10,8 +20,9 @@ import {
 } from '@/components/ui/table';
 import { ApiTenantsRepository } from '@/modules/tenants/tenants.api.repository';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Building2 } from 'lucide-react';
+import { Plus, Building2, Edit, Trash2 } from 'lucide-react';
 import { UnidadeNegocioFormModal } from './UnidadeNegocioFormModal';
+import type { UnidadeNegocio } from '@/modules/unidades/unidades.types';
 
 interface Unidade {
   id: string;
@@ -29,6 +40,8 @@ export const TenantUnidadesTab = ({ tenantId }: { tenantId: string }) => {
   const [unidades, setUnidades] = useState<Unidade[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
+  const [editingItem, setEditingItem] = useState<Unidade | null>(null);
+  const [deletingItem, setDeletingItem] = useState<Unidade | null>(null);
 
   const fetchUnidades = async () => {
     setIsLoading(true);
@@ -84,6 +97,51 @@ export const TenantUnidadesTab = ({ tenantId }: { tenantId: string }) => {
     }
   };
 
+  const handleEdit = async (data: UnidadeNegocio) => {
+    if (!editingItem) return;
+
+    try {
+      await apiRepository.updateUnidade(tenantId, editingItem.id, {
+        codigoExterno: data.codigoExterno || undefined,
+        nome: data.nome,
+        descricao: data.descricao || undefined,
+        imagem: data.imagem || undefined,
+        moeda: data.moeda || 'BRL',
+      });
+
+      toast({ title: 'Sucesso', description: 'Unidade atualizada com sucesso' });
+      await fetchUnidades();
+      setEditingItem(null);
+    } catch (error: unknown) {
+      console.error('Error updating unit:', error);
+      toast({
+        title: 'Erro',
+        description: (error as Error).message || 'Erro ao atualizar unidade',
+        variant: 'destructive',
+      });
+      throw error;
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deletingItem) return;
+
+    try {
+      await apiRepository.removeUnidade(tenantId, deletingItem.id);
+      toast({ title: 'Sucesso', description: 'Unidade removida com sucesso' });
+      await fetchUnidades();
+    } catch (error: unknown) {
+      console.error('Error deleting unit:', error);
+      toast({
+        title: 'Erro',
+        description: (error as Error).message || 'Erro ao remover unidade',
+        variant: 'destructive',
+      });
+    } finally {
+      setDeletingItem(null);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -108,18 +166,19 @@ export const TenantUnidadesTab = ({ tenantId }: { tenantId: string }) => {
               <TableHead>Codigo</TableHead>
               <TableHead>Nome</TableHead>
               <TableHead>Moeda</TableHead>
+              <TableHead className="w-24 text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
                   Carregando unidades...
                 </TableCell>
               </TableRow>
             ) : unidades.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
                   Nenhuma unidade associada a este tenant
                 </TableCell>
               </TableRow>
@@ -136,6 +195,28 @@ export const TenantUnidadesTab = ({ tenantId }: { tenantId: string }) => {
                     </div>
                   </TableCell>
                   <TableCell>{unidade.moeda}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center justify-end gap-1">
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8"
+                        onClick={() => setEditingItem(unidade)}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8 text-destructive hover:text-destructive"
+                        onClick={() => setDeletingItem(unidade)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
                 </TableRow>
               ))
             )}
@@ -148,6 +229,48 @@ export const TenantUnidadesTab = ({ tenantId }: { tenantId: string }) => {
         onClose={() => setIsCreating(false)}
         onSave={handleCreateNew}
       />
+
+      <UnidadeNegocioFormModal
+        isOpen={Boolean(editingItem)}
+        onClose={() => setEditingItem(null)}
+        onSave={handleEdit}
+        data={
+          editingItem
+            ? {
+                id: editingItem.id,
+                codigoExterno: editingItem.codigo_externo || '',
+                nome: editingItem.nome,
+                descricao: editingItem.descricao || '',
+                imagem: '',
+                moeda: editingItem.moeda || 'BRL',
+                dataCadastro: '',
+                usuarioCadastro: '',
+              }
+            : null
+        }
+      />
+
+      <AlertDialog open={Boolean(deletingItem)} onOpenChange={(open) => !open && setDeletingItem(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remover unidade de negócio</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deletingItem
+                ? `Tem certeza que deseja remover a unidade "${deletingItem.nome}" deste tenant?`
+                : 'Tem certeza que deseja remover esta unidade deste tenant?'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => void handleDelete()}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Remover
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

@@ -25,6 +25,7 @@ import {
 import { gravacoesRepository } from '@/modules/gravacoes/gravacoes.repository.provider';
 import { ApiRecursosFisicosRepository } from '@/modules/recursos-fisicos/recursos-fisicos.api.repository';
 import { ApiParametrizacoesRepository } from '@/modules/parametrizacoes/parametrizacoes.api.repository';
+import { ModalNavigation, type ModalNavigationProps } from '@/components/shared/ModalNavigation';
 
 interface IncidenciaFormData {
   id?: string;
@@ -57,6 +58,7 @@ interface Props {
   data?: IncidenciaFormData;
   readOnly?: boolean;
   defaultGravacaoId?: string;
+  navigation?: ModalNavigationProps;
 }
 
 const incidenciasRepository = new ApiIncidenciasGravacaoRepository();
@@ -79,6 +81,7 @@ export const IncidenciaGravacaoFormModal = ({
   data,
   readOnly = false,
   defaultGravacaoId,
+  navigation,
 }: Props) => {
   const { user } = useAuth();
   const { t } = useLanguage();
@@ -627,21 +630,24 @@ export const IncidenciaGravacaoFormModal = ({
           )}
         </Tabs>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            {readOnly ? t('common.close') : t('common.cancel')}
-          </Button>
-          {!readOnly && (
-            <Button
-              onClick={() => {
-                void handleSubmit();
-              }}
-              disabled={saving || !form.titulo.trim()}
-            >
-              {saving && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
-              {t('common.save')}
+        <DialogFooter className={navigation ? 'sm:justify-between' : undefined}>
+          {navigation && <ModalNavigation {...navigation} />}
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={onClose}>
+              {readOnly ? t('common.close') : t('common.cancel')}
             </Button>
-          )}
+            {!readOnly && (
+              <Button
+                onClick={() => {
+                  void handleSubmit();
+                }}
+                disabled={saving || !form.titulo.trim()}
+              >
+                {saving && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
+                {t('common.save')}
+              </Button>
+            )}
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>

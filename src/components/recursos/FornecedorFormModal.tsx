@@ -23,6 +23,7 @@ import type {
   Fornecedor,
   FornecedorInput,
 } from '@/modules/fornecedores/fornecedores.types';
+import { ModalNavigation, type ModalNavigationProps } from '@/components/shared/ModalNavigation';
 
 const PAISES = [
   'Brasil',
@@ -52,6 +53,7 @@ interface FornecedorFormModalProps {
   onSave: (data: FornecedorInput) => Promise<void>;
   data?: Fornecedor | null;
   readOnly?: boolean;
+  navigation?: ModalNavigationProps;
 }
 
 const emptyFormData: FornecedorInput = {
@@ -71,6 +73,7 @@ export const FornecedorFormModal = ({
   onSave,
   data,
   readOnly = false,
+  navigation,
 }: FornecedorFormModalProps) => {
   const { t } = useLanguage();
   const { isVisible } = usePermissions();
@@ -244,19 +247,22 @@ export const FornecedorFormModal = ({
                 />
               </div>
 
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={onClose}>
-                  {readOnly ? 'Fechar' : t('common.cancel')}
-                </Button>
-                {!readOnly && (
-                  <Button
-                    type="submit"
-                    className="gradient-primary hover:opacity-90"
-                    disabled={isSubmitting}
-                  >
-                    {t('common.save')}
+              <DialogFooter className={navigation ? 'sm:justify-between' : undefined}>
+                {navigation && <ModalNavigation {...navigation} />}
+                <div className="flex gap-2">
+                  <Button type="button" variant="outline" onClick={onClose}>
+                    {readOnly ? 'Fechar' : t('common.cancel')}
                   </Button>
-                )}
+                  {!readOnly && (
+                    <Button
+                      type="submit"
+                      className="gradient-primary hover:opacity-90"
+                      disabled={isSubmitting}
+                    >
+                      {t('common.save')}
+                    </Button>
+                  )}
+                </div>
               </DialogFooter>
             </form>
           </TabsContent>

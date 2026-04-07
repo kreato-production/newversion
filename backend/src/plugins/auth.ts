@@ -5,6 +5,7 @@ import type { UserRole } from '@prisma/client';
 import { AuthError, AuthService } from '../modules/auth/auth.service.js';
 import { AccessError } from '../modules/common/access.js';
 import { ACCESS_COOKIE } from '../modules/auth/routes/index.js';
+import { tryAuthenticateInternalToken } from './internal-auth.js';
 
 function getAccessToken(request: FastifyRequest): string {
   const authorization = request.headers.authorization;
@@ -20,6 +21,15 @@ function getAccessToken(request: FastifyRequest): string {
 
 export function createAuthenticate(authService: AuthService): preHandlerHookHandler {
   return async (request) => {
+    // 1. Keycloak session hook ou Internal Token já podem ter populado request.user.
+    if (request.user) return;
+
+    // 2. Tenta autenticar via X-Internal-Token (chamadas server-side do Next.js).
+    //    É mais eficiente que JWT: não consulta o banco, payload já validado.
+    const authenticatedByInternalToken = await tryAuthenticateInternalToken(request);
+    if (authenticatedByInternalToken) return;
+
+    // 3. Fallback: JWT legado via cookie ou Authorization header.
     const accessToken = getAccessToken(request);
     request.user = await authService.authenticateAccessToken(accessToken);
   };

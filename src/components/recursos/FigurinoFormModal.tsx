@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Trash2, Star, Upload } from 'lucide-react';
 import { SearchableSelect } from '@/components/shared/SearchableSelect';
 import { figurinosRepository } from '@/modules/figurinos/figurinos.repository.provider';
+import { ModalNavigation, type ModalNavigationProps } from '@/components/shared/ModalNavigation';
 import type {
   Figurino,
   FigurinoImagem,
@@ -20,6 +21,7 @@ interface FigurinoFormModalProps {
   onSave: (figurino: FigurinoInput) => Promise<void>;
   data?: Figurino | null;
   readOnly?: boolean;
+  navigation?: ModalNavigationProps;
 }
 
 const FigurinoFormModal = ({
@@ -28,6 +30,7 @@ const FigurinoFormModal = ({
   onSave,
   data,
   readOnly = false,
+  navigation,
 }: FigurinoFormModalProps) => {
   const [tiposFigurino, setTiposFigurino] = useState<TipoFigurinoOption[]>([]);
   const [materiais, setMateriais] = useState<MaterialOption[]>([]);
@@ -349,11 +352,14 @@ const FigurinoFormModal = ({
             </div>
           )}
 
-          <div className="flex justify-end gap-2 pt-4">
-            <Button type="button" variant="outline" onClick={onClose}>
-              {readOnly ? 'Fechar' : 'Cancelar'}
-            </Button>
-            {!readOnly && <Button type="submit">{data ? 'Salvar' : 'Criar'}</Button>}
+          <div className={`flex pt-4 ${navigation ? 'justify-between' : 'justify-end'} gap-2`}>
+            {navigation && <ModalNavigation {...navigation} />}
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" onClick={onClose}>
+                {readOnly ? 'Fechar' : 'Cancelar'}
+              </Button>
+              {!readOnly && <Button type="submit">{data ? 'Salvar' : 'Criar'}</Button>}
+            </div>
           </div>
         </form>
       </DialogContent>

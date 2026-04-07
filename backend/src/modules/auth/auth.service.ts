@@ -152,6 +152,32 @@ export class AuthService {
     return toSessionUser(user, context);
   }
 
+  /**
+   * Autentica pelo userId interno (sem validar JWT).
+   * Usado pelo middleware de sessão Keycloak: o JWT já foi validado antes,
+   * aqui só precisamos carregar o contexto de autorização do usuário.
+   */
+  async authenticateByUserId(userId: string): Promise<SessionUser> {
+    const user = await this.repository.findUserById(userId);
+
+    if (!user) {
+      throw new AuthError('Usuario autenticado nao encontrado', 401);
+    }
+
+    if (user.status !== 'ATIVO') {
+      throw new AuthError('Usuario sem acesso ativo', 403);
+    }
+
+    const tenantValidation = await this.repository.validateTenantAccess(user.tenantId, this.nowProvider());
+
+    if (!tenantValidation.valid) {
+      throw new AuthError(mapTenantValidationError(tenantValidation.reason), 403);
+    }
+
+    const context = await this.repository.getAuthorizationContext(user.id, user.tenantId, user.role);
+    return toSessionUser(user, context);
+  }
+
   private async issueSession(user: SessionUser): Promise<LoginResult> {
     const now = this.nowProvider();
     const accessToken = signJwt(

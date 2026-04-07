@@ -29,22 +29,112 @@ model User {
   tenantId        String?
   codigoExterno   String?
   nome            String
+  /// Espelho de `nome` — exigido pelo PrismaAdapter do Auth.js (campo name).
+  /// Sincronizado com `nome` em callbacks do Auth.js.
+  name            String?
   email           String         @unique
+  emailVerified   DateTime?      // exigido pelo Auth.js PrismaAdapter
   usuario         String         @unique
   passwordHash    String?
   fotoUrl         String?
+  /// Espelho de `fotoUrl` — exigido pelo PrismaAdapter do Auth.js.
+  image           String?
   perfil          String?
   descricao       String?
   role            UserRole       @default(USER)
   status          UserStatus     @default(ATIVO)
   tipoAcesso      String         @default("Operacional")
   recursoHumanoId String?
+  /// Keycloak subject (sub claim). Nullable durante migração.
+  keycloakId      String?        @unique
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
   tenant          Tenant?        @relation(fields: [tenantId], references: [id])
   refreshTokens   RefreshToken[]
+  keycloakSessions KeycloakSession[]
+  // Auth.js relations
+  accounts        Account[]
+  authSessions    AuthJsSession[]
 
   @@index([tenantId])
+}
+
+// ─── Auth.js v5 — modelos exigidos pelo PrismaAdapter ────────────────────────
+
+/// Sessões gerenciadas pelo Auth.js.
+/// O cookie __Secure-authjs.session-token carrega o sessionToken.
+/// Armazena role, tenantId, permissões via campo serializado.
+model AuthJsSession {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("authjssessions")
+  @@index([userId])
+}
+
+/// Contas OAuth vinculadas ao usuário (Keycloak, Google, etc).
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+/// Tokens para verificação de e-mail e magic links (futuro).
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+// ─── Keycloak BFF — sessões legadas (fase de transição) ───────────────────────
+
+/// Sessões autenticadas via Keycloak BFF no Fastify.
+/// @deprecated Substituído pelo Account + AuthJsSession do Auth.js.
+/// Remover após migração completa para Auth.js Keycloak provider.
+model KeycloakSession {
+  id              String   @id @default(uuid())
+  userId          String
+  // Sub (subject) do Keycloak — permite invalidar todas as sessões de um
+  // usuário específico sem consultar a tabela User.
+  keycloakSub     String
+  // Tokens encriptados com AES-256-GCM usando SESSION_SECRET.
+  // @db.Text porque tokens JWT com muitos claims podem ultrapassar varchar(255).
+  accessToken     String   @db.Text
+  refreshToken    String   @db.Text
+  idToken         String?  @db.Text
+  // Expira junto com o refresh token do Keycloak.
+  expiresAt       DateTime
+  createdAt       DateTime @default(now())
+  // Atualizado a cada request autenticado — usado para detectar sessões inativas.
+  lastAccessedAt  DateTime @updatedAt
+  // Metadados de auditoria
+  ipAddress       String?
+  userAgent       String?
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("keycloak_sessions")
+  @@index([userId])
+  @@index([keycloakSub])
+  @@index([expiresAt])
 }
 
 model RefreshToken {

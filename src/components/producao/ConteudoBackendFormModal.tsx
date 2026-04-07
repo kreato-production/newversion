@@ -44,6 +44,7 @@ import {
 import { gravacoesRepository } from '@/modules/gravacoes/gravacoes.repository.provider';
 import type { Gravacao } from '@/modules/gravacoes/gravacoes.types';
 import { ElencoTab } from './ElencoTab';
+import { ModalNavigation, type ModalNavigationProps } from '@/components/shared/ModalNavigation';
 import { ConteudoRecursosTab } from './ConteudoRecursosTab';
 import { ConteudoTerceirosTab } from './ConteudoTerceirosTab';
 import { ConteudoCustosBackendTab } from './ConteudoCustosBackendTab';
@@ -54,6 +55,7 @@ interface ConteudoBackendFormModalProps {
   onSave: (data: ConteudoInput) => Promise<void>;
   data?: Conteudo | null;
   readOnly?: boolean;
+  navigation?: ModalNavigationProps;
 }
 
 type FormState = {
@@ -105,6 +107,7 @@ export const ConteudoBackendFormModal = ({
   onSave,
   data,
   readOnly = false,
+  navigation,
 }: ConteudoBackendFormModalProps) => {
   const { user } = useAuth();
   const { t } = useLanguage();
@@ -911,15 +914,18 @@ export const ConteudoBackendFormModal = ({
             )}
           </Tabs>
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>
-              {readOnly ? t('common.close') || 'Fechar' : t('common.cancel')}
-            </Button>
-            {!readOnly && (
-              <Button type="submit" className="gradient-primary hover:opacity-90">
-                {t('common.save')}
+          <DialogFooter className={navigation ? 'sm:justify-between' : undefined}>
+            {navigation && <ModalNavigation {...navigation} />}
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" onClick={onClose}>
+                {readOnly ? t('common.close') || 'Fechar' : t('common.cancel')}
               </Button>
-            )}
+              {!readOnly && (
+                <Button type="submit" className="gradient-primary hover:opacity-90">
+                  {t('common.save')}
+                </Button>
+              )}
+            </div>
           </DialogFooter>
         </form>
       </DialogContent>

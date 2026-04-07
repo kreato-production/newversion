@@ -17,11 +17,6 @@ interface RecursoFisico {
   faixasDisponibilidade?: FaixaDisponibilidade[];
 }
 
-interface HorarioOcupacao {
-  horaInicio: string;
-  horaFim: string;
-}
-
 interface OcupacaoExistente {
   gravacaoId: string;
   gravacaoNome: string;
@@ -65,24 +60,10 @@ const calcularMinutosOcupados = (horaInicio: string, horaFim: string): number =>
   return horaParaMinutos(horaFim) - horaParaMinutos(horaInicio);
 };
 
-// Verifica se dois intervalos de tempo se sobrepõem
-const horariosSeOverlap = (
-  inicio1: string,
-  fim1: string,
-  inicio2: string,
-  fim2: string,
-): boolean => {
-  const i1 = horaParaMinutos(inicio1);
-  const f1 = horaParaMinutos(fim1);
-  const i2 = horaParaMinutos(inicio2);
-  const f2 = horaParaMinutos(fim2);
-  return i1 < f2 && f1 > i2;
-};
-
 export const useRecursoFisicoDisponibilidade = () => {
   const [recursosFisicos, setRecursosFisicos] = useState<RecursoFisico[]>([]);
 
-  // Fetch resources with availability windows from Supabase
+  // Fetch resources with availability windows from the backend
   useEffect(() => {
     let isMounted = true;
 
@@ -153,7 +134,7 @@ export const useRecursoFisicoDisponibilidade = () => {
       dataStr: string,
       horaInicio?: string,
       horaFim?: string,
-      gravacaoIdAtual?: string,
+      _gravacaoIdAtual?: string,
     ): DisponibilidadeResult => {
       const recurso = recursosFisicos.find((r) => r.id === recursoId);
 

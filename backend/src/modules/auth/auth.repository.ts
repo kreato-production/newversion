@@ -32,14 +32,41 @@ export interface AuthRepository {
   findRefreshToken(tokenHash: string): Promise<RefreshTokenRecord | null>;
   revokeRefreshToken(tokenHash: string, revokedAt: Date): Promise<void>;
   revokeExpiredRefreshTokens(now: Date): Promise<void>;
+
+  // ── Métodos opcionais — usados apenas quando KEYCLOAK_AUTH_ENABLED=true ──
+  // Opcionais para não quebrar os InMemoryAuthRepository dos testes,
+  // que não precisam implementá-los (Keycloak está desabilitado em testes).
+
+  /**
+   * Busca usuário pelo keycloakId (campo User.keycloakId).
+   * Retorna null se não houver usuário vinculado ao subject do Keycloak.
+   */
+  findUserByKeycloakId?(keycloakId: string): Promise<LoginUserRecord | null>;
+
+  /**
+   * Cria ou vincula um usuário a partir dos claims do Keycloak.
+   *
+   * Estratégia:
+   *  1. Busca por keycloakId → já vinculado, retorna
+   *  2. Busca por email → existe mas sem vínculo, atualiza keycloakId
+   *  3. Não encontrado → cria novo usuário com passwordHash=null
+   */
+  upsertUserFromKeycloak?(input: {
+    keycloakSub: string;
+    email: string;
+    nome: string;
+    username: string;
+    tenantId: string | null;
+    role: UserRole;
+  }): Promise<{ id: string; tenantId: string | null; role: UserRole }>;
 }
 
 function defaultEnabledModules(role: UserRole): string[] {
   if (role === 'GLOBAL_ADMIN') {
-    return ['Dashboard', 'Produção', 'Recursos', 'Administração', 'Global'];
+    return ['Dashboard', 'Produção', 'Recursos', 'Administração', 'Financeiro', 'Global'];
   }
 
-  return ['Dashboard', 'Produção', 'Recursos', 'Administração'];
+  return ['Dashboard', 'Produção', 'Recursos', 'Administração', 'Financeiro'];
 }
 
 function defaultPerfil(role: UserRole): string {
@@ -317,5 +344,66 @@ export class PrismaAuthRepository implements AuthRepository {
       },
       data: { revokedAt: now },
     });
+  }
+
+  async findUserByKeycloakId(keycloakId: string): Promise<LoginUserRecord | null> {
+    const user = await prisma.user.findUnique({
+      where: { keycloakId },
+      include: { tenant: { select: { status: true } } },
+    });
+    return user ? mapUser(user) : null;
+  }
+
+  async upsertUserFromKeycloak(input: {
+    keycloakSub: string;
+    email: string;
+    nome: string;
+    username: string;
+    tenantId: string | null;
+    role: UserRole;
+  }): Promise<{ id: string; tenantId: string | null; role: UserRole }> {
+    // 1. Já existe vínculo por keycloakId?
+    const byKeycloak = await prisma.user.findUnique({
+      where: { keycloakId: input.keycloakSub },
+      select: { id: true, tenantId: true, role: true },
+    });
+    if (byKeycloak) return byKeycloak;
+
+    // 2. Existe por email (usuário migrado, ainda sem keycloakId)?
+    const byEmail = await prisma.user.findUnique({
+      where: { email: input.email },
+      select: { id: true, tenantId: true, role: true },
+    });
+    if (byEmail) {
+      await prisma.user.update({
+        where: { id: byEmail.id },
+        data: { keycloakId: input.keycloakSub },
+      });
+      return byEmail;
+    }
+
+    // 3. Primeiro acesso: cria novo usuário
+    // `usuario` usa preferred_username; se colidir, usa o prefixo do email
+    let username = input.username;
+    const existing = await prisma.user.findUnique({ where: { usuario: username } });
+    if (existing) {
+      username = input.email.split('@')[0] + '_' + input.keycloakSub.slice(0, 8);
+    }
+
+    const created = await prisma.user.create({
+      data: {
+        keycloakId: input.keycloakSub,
+        email: input.email,
+        nome: input.nome,
+        usuario: username,
+        role: input.role,
+        tenantId: input.tenantId,
+        status: 'ATIVO',
+        passwordHash: null,  // autenticação via Keycloak, não senha local
+      },
+      select: { id: true, tenantId: true, role: true },
+    });
+
+    return created;
   }
 }

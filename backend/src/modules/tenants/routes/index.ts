@@ -74,5 +74,17 @@ export function createTenantsRoutes(authService: AuthService, tenantsService: Te
       const body = saveTenantUnidadeSchema.parse(request.body);
       return reply.status(200).send(await tenantsService.createUnidade(request.user!, params.id, body));
     });
+
+    app.put('/tenants/:id/unidades/:unidadeId', { preHandler: [authenticate, requireGlobalAdmin] }, async (request, reply) => {
+      const params = request.params as { id: string; unidadeId: string };
+      const body = saveTenantUnidadeSchema.parse(request.body);
+      return reply.status(200).send(await tenantsService.updateUnidade(request.user!, params.id, params.unidadeId, body));
+    });
+
+    app.delete('/tenants/:id/unidades/:unidadeId', { preHandler: [authenticate, requireGlobalAdmin] }, async (request, reply) => {
+      const params = request.params as { id: string; unidadeId: string };
+      await tenantsService.removeUnidade(request.user!, params.id, params.unidadeId);
+      return reply.status(204).send();
+    });
   };
 }

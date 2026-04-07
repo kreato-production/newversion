@@ -169,6 +169,7 @@ const translations: Record<Language, Record<string, string>> = {
     'menu.positions': 'Cargos',
     'menu.departments': 'Departamentos',
     'menu.functions': 'Funções',
+    'menu.holidays': 'Feriados',
     'menu.supplierCategory': 'Categoria de Fornecedores',
     'menu.peopleClassification': 'Classificação Pessoas',
     'menu.costumeType': 'Tipo Figurino',
@@ -177,6 +178,19 @@ const translations: Record<Language, Record<string, string>> = {
     'menu.incidentCategories': 'Categorias de Incidência',
     'menu.incidentSeverities': 'Severidades de Incidência',
     'menu.incidentImpacts': 'Impactos de Incidência',
+    'menu.global': 'Global',
+    'menu.globalTenants': 'Tenants',
+    'menu.globalUsers': 'Usuários Globais',
+    'menu.financeiro': 'Financeiro',
+    'menu.contasAPagar': 'Contas a Pagar',
+    'menu.apropriacaoCustos': 'Apropriação de Custos',
+    'menu.statusContasPagar': 'Status de Contas a Pagar',
+    'menu.tiposDocumentos': 'Tipos de Documentos',
+    'menu.tiposPagamento': 'Tipos de Pagamentos',
+    'menu.categoriasDespesa': 'Categorias de Despesas',
+    'menu.formasPagamento': 'Formas de Pagamento',
+    'parameters.taskStatus': 'Status de Tarefa',
+    'parameters.taskStatusDescription': 'Configure os status disponíveis para as tarefas',
 
     // Incident Categories
     'incidentCategory.pageTitle': 'Categorias de Incidência',
@@ -274,10 +288,6 @@ const translations: Record<Language, Record<string, string>> = {
     'tasks.deleteConfirmation': 'Esta ação não pode ser desfeita.',
     'tasks.filterByStatus': 'Filtrar por status',
     'tasks.filterByRecording': 'Filtrar por gravação',
-
-    // Parameters
-    'parameters.taskStatus': 'Status de Tarefa',
-    'parameters.taskStatusDescription': 'Configure os status disponíveis para as tarefas',
 
     // Dashboard
     'dashboard.title': 'Dashboard',
@@ -909,6 +919,7 @@ const translations: Record<Language, Record<string, string>> = {
     'menu.positions': 'Positions',
     'menu.departments': 'Departments',
     'menu.functions': 'Functions',
+    'menu.holidays': 'Holidays',
     'menu.supplierCategory': 'Supplier Categories',
     'menu.peopleClassification': 'People Classification',
     'menu.costumeType': 'Costume Type',
@@ -917,6 +928,19 @@ const translations: Record<Language, Record<string, string>> = {
     'menu.incidentCategories': 'Incident Categories',
     'menu.incidentSeverities': 'Incident Severities',
     'menu.incidentImpacts': 'Incident Impacts',
+    'menu.global': 'Global',
+    'menu.globalTenants': 'Tenants',
+    'menu.globalUsers': 'Global Users',
+    'menu.financeiro': 'Financial',
+    'menu.contasAPagar': 'Accounts Payable',
+    'menu.apropriacaoCustos': 'Cost Appropriation',
+    'menu.statusContasPagar': 'Accounts Payable Status',
+    'menu.tiposDocumentos': 'Document Types',
+    'menu.tiposPagamento': 'Payment Types',
+    'menu.categoriasDespesa': 'Expense Categories',
+    'menu.formasPagamento': 'Payment Methods',
+    'parameters.taskStatus': 'Task Status',
+    'parameters.taskStatusDescription': 'Configure the available statuses for tasks',
 
     // Incident Categories
     'incidentCategory.pageTitle': 'Incident Categories',
@@ -1014,10 +1038,6 @@ const translations: Record<Language, Record<string, string>> = {
     'tasks.deleteConfirmation': 'This action cannot be undone.',
     'tasks.filterByStatus': 'Filter by status',
     'tasks.filterByRecording': 'Filter by recording',
-
-    // Parameters
-    'parameters.taskStatus': 'Task Status',
-    'parameters.taskStatusDescription': 'Configure available task statuses',
 
     // Dashboard
     'dashboard.title': 'Dashboard',
@@ -1643,6 +1663,7 @@ const translations: Record<Language, Record<string, string>> = {
     'menu.positions': 'Cargos',
     'menu.departments': 'Departamentos',
     'menu.functions': 'Funciones',
+    'menu.holidays': 'Feriados',
     'menu.supplierCategory': 'Categorías de Proveedores',
     'menu.peopleClassification': 'Clasificación de Personas',
     'menu.costumeType': 'Tipo de Vestuario',
@@ -1654,6 +1675,19 @@ const translations: Record<Language, Record<string, string>> = {
     'menu.incidentCategories': 'Categorías de Incidencia',
     'menu.incidentSeverities': 'Severidades de Incidencia',
     'menu.incidentImpacts': 'Impactos de Incidencia',
+    'menu.global': 'Global',
+    'menu.globalTenants': 'Tenants',
+    'menu.globalUsers': 'Usuarios Globales',
+    'menu.financeiro': 'Financiero',
+    'menu.contasAPagar': 'Cuentas por Pagar',
+    'menu.apropriacaoCustos': 'Apropiación de Costos',
+    'menu.statusContasPagar': 'Estado de Cuentas por Pagar',
+    'menu.tiposDocumentos': 'Tipos de Documentos',
+    'menu.tiposPagamento': 'Tipos de Pagos',
+    'menu.categoriasDespesa': 'Categorías de Gastos',
+    'menu.formasPagamento': 'Formas de Pago',
+    'parameters.taskStatus': 'Estado de Tarea',
+    'parameters.taskStatusDescription': 'Configure los estados disponibles para las tareas',
 
     // Incident Categories
     'incidentCategory.pageTitle': 'Categorías de Incidencia',

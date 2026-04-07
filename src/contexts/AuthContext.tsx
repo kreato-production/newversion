@@ -1,9 +1,19 @@
 'use client';
+/* eslint-disable react-refresh/only-export-components */
 
-import React, { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { clearKreatoLocalStorage } from '@/hooks/useSupabaseData';
-import { useToast } from '@/hooks/use-toast';
-import { authRepository } from '@/modules/auth/auth.repository';
+/**
+ * AuthContext — bridge entre Auth.js v5 (useSession) e o contrato legado useAuth().
+ *
+ * Todos os 36+ consumidores de useAuth() continuam funcionando sem alteração.
+ * A fonte de verdade é o JWT do Auth.js v5, lido via useSession().
+ *
+ * login()  → signIn('credentials', ...) do next-auth/react
+ * logout() → signOut({ callbackUrl: '/login' })
+ */
+
+import React, { createContext, useContext, useMemo, type ReactNode } from 'react';
+import { useSession, signIn, signOut } from 'next-auth/react';
+import { clearKreatoLocalStorage } from '@/lib/kreato-local-storage';
 import type { AuthSession, AuthSessionUser, AuthUserProfile } from '@/modules/auth/auth.types';
 
 export type User = AuthUserProfile;
@@ -21,117 +31,76 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [sessionUser, setSessionUser] = useState<AuthSessionUser | null>(null);
-  const [session, setSession] = useState<AuthSession | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const { toast } = useToast();
+  const { data: nextAuthSession, status } = useSession();
 
-  useEffect(() => {
-    const syncProfile = async (
-      nextSession: AuthSession | null,
-      nextSessionUser: AuthSessionUser | null,
-    ) => {
-      setSession(nextSession);
-      setSessionUser(nextSessionUser);
+  const isLoading = status === 'loading';
 
-      if (nextSession?.user?.id) {
-        const { profile, status, error } = await authRepository.fetchUserProfile(
-          nextSession.user.id,
-        );
-
-        if (profile === null && status === null) {
-          setUser(null);
-          setIsLoading(false);
-          return;
-        }
-
-        if (status === 'TenantBloqueado') {
-          await authRepository.signOut();
-          setUser(null);
-          toast({ title: 'Acesso Bloqueado', description: error, variant: 'destructive' });
-        } else if (status === 'Ativo') {
-          setUser(profile);
-        } else if (status === 'Inativo') {
-          await authRepository.signOut();
-          setUser(null);
-        }
-      } else {
-        setUser(null);
-      }
-
-      setIsLoading(false);
+  // Mapeia session.user (Auth.js v5) → AuthUserProfile (contrato legado)
+  const user: User | null = useMemo(() => {
+    if (!nextAuthSession?.user) return null;
+    const u = nextAuthSession.user;
+    return {
+      id: u.id ?? '',
+      nome: u.name ?? u.usuario ?? '',
+      email: u.email ?? '',
+      usuario: u.usuario ?? '',
+      perfil: u.perfil ?? 'Usuário',
+      foto: u.image ?? undefined,
+      tipoAcesso: u.tipoAcesso ?? 'Operacional',
+      unidadeIds: u.unidadeIds ?? [],
+      tenantId: u.tenantId ?? undefined,
+      role: u.role ?? 'USER',
+      permissions: u.permissions ?? [],
+      enabledModules: u.enabledModules ?? [],
     };
+  }, [nextAuthSession]);
 
-    const subscription = authRepository.onAuthStateChange(
-      async ({ session: nextSession, sessionUser: nextSessionUser }) => {
-        await syncProfile(nextSession, nextSessionUser);
-      },
-    );
+  const sessionUser: AuthSessionUser | null = useMemo(() => {
+    if (!nextAuthSession?.user) return null;
+    const u = nextAuthSession.user;
+    return {
+      id: u.id ?? '',
+      email: u.email ?? undefined,
+      usuario: u.usuario ?? undefined,
+      tenantId: u.tenantId ?? null,
+      role: u.role ?? 'USER',
+    };
+  }, [nextAuthSession]);
 
-    authRepository
-      .getSession()
-      .then(async ({ session: existingSession, sessionUser: existingSessionUser }) => {
-        await syncProfile(existingSession, existingSessionUser);
-      });
-
-    return () => subscription.unsubscribe();
-  }, [toast]);
+  const session: AuthSession | null = useMemo(() => {
+    if (!sessionUser) return null;
+    return { user: sessionUser };
+  }, [sessionUser]);
 
   const login = async (
     usuario: string,
     password: string,
   ): Promise<{ success: boolean; error?: string }> => {
-    try {
-      const { user: authenticatedUser, error } = await authRepository.signInWithPassword(
-        usuario,
-        password,
-      );
+    const result = await signIn('credentials', {
+      usuario,
+      password,
+      redirect: false,
+    });
 
-      if (error) {
-        return { success: false, error };
-      }
-
-      if (authenticatedUser) {
-        const {
-          profile,
-          status,
-          error: profileError,
-        } = await authRepository.fetchUserProfile(authenticatedUser.id);
-
-        if (status === 'TenantBloqueado') {
-          await authRepository.signOut();
-          return { success: false, error: profileError };
-        }
-
-        if (status !== 'Ativo') {
-          await authRepository.signOut();
-          return {
-            success: false,
-            error: 'Usuario inativo. Entre em contato com o administrador.',
-          };
-        }
-
-        setUser(profile);
-      }
-
-      return { success: true };
-    } catch (error) {
-      console.error('Login error:', error);
-      return { success: false, error: 'Ocorreu um erro inesperado' };
+    if (result?.error) {
+      const errorMap: Record<string, string> = {
+        CredentialsSignin: 'Usuário ou senha incorretos.',
+        Configuration: 'Erro de configuração do servidor.',
+        Default: 'Erro de autenticação. Tente novamente.',
+      };
+      return {
+        success: false,
+        error: errorMap[result.error] ?? errorMap.Default,
+      };
     }
+
+    return { success: true };
   };
 
   const logout = async () => {
-    try {
-      await authRepository.signOut();
-      setUser(null);
-      setSessionUser(null);
-      setSession(null);
-      clearKreatoLocalStorage();
-    } catch (error) {
-      console.error('Logout error:', error);
-    }
+    // Limpa possíveis tokens legados no localStorage
+    clearKreatoLocalStorage();
+    await signOut({ callbackUrl: '/login' });
   };
 
   return (
@@ -140,7 +109,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         user,
         sessionUser,
         session,
-        isAuthenticated: !!session && !!user,
+        isAuthenticated: status === 'authenticated' && !!user,
         isLoading,
         login,
         logout,

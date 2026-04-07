@@ -7,6 +7,8 @@ import {
   saveCentroLucroSchema,
   saveCentroLucroUnidadesSchema,
   saveClassificacaoSchema,
+  saveFormaPagamentoSchema,
+  saveStatusContaPagarSchema,
   saveStatusGravacaoSchema,
   saveStatusTarefaSchema,
   saveTituloSchema,
@@ -76,6 +78,135 @@ export function createParametrizacoesRoutes(authService: AuthService, parametriz
       const { user } = request as AuthenticatedRequest;
       const params = request.params as { id: string };
       await parametrizacoesService.removeStatusTarefa(user, params.id);
+      return reply.status(204).send();
+    });
+
+    app.get('/parametrizacoes/status-contas-pagar', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      return reply.status(200).send(await parametrizacoesService.listStatusContaPagar(user));
+    });
+
+    app.post('/parametrizacoes/status-contas-pagar', { preHandler: [authenticate, requireTenantAccess, requireAdminRole] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      return reply.status(200).send(await parametrizacoesService.saveStatusContaPagar(user, saveStatusContaPagarSchema.parse(request.body)));
+    });
+
+    app.put('/parametrizacoes/status-contas-pagar/:id', { preHandler: [authenticate, requireTenantAccess, requireAdminRole] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      const params = request.params as { id: string };
+      return reply.status(200).send(await parametrizacoesService.saveStatusContaPagar(user, saveStatusContaPagarSchema.parse({ ...(request.body as object), id: params.id })));
+    });
+
+    app.patch('/parametrizacoes/status-contas-pagar/:id/inicial', { preHandler: [authenticate, requireTenantAccess, requireAdminRole] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      const params = request.params as { id: string };
+      const body = toggleInicialSchema.parse(request.body);
+      return reply.status(200).send(await parametrizacoesService.toggleStatusContaPagarInicial(user, params.id, body.value));
+    });
+
+    app.delete('/parametrizacoes/status-contas-pagar/:id', { preHandler: [authenticate, requireTenantAccess, requireAdminRole] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      const params = request.params as { id: string };
+      await parametrizacoesService.removeStatusContaPagar(user, params.id);
+      return reply.status(204).send();
+    });
+
+    app.get('/parametrizacoes/formas-pagamento', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      return reply.status(200).send(await parametrizacoesService.listFormasPagamento(user));
+    });
+
+    app.post('/parametrizacoes/formas-pagamento', { preHandler: [authenticate, requireTenantAccess, requireAdminRole] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      return reply.status(200).send(await parametrizacoesService.saveFormaPagamento(user, saveFormaPagamentoSchema.parse(request.body)));
+    });
+
+    app.put('/parametrizacoes/formas-pagamento/:id', { preHandler: [authenticate, requireTenantAccess, requireAdminRole] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      const params = request.params as { id: string };
+      return reply.status(200).send(await parametrizacoesService.saveFormaPagamento(user, saveFormaPagamentoSchema.parse({ ...(request.body as object), id: params.id })));
+    });
+
+    app.patch('/parametrizacoes/formas-pagamento/:id/padrao', { preHandler: [authenticate, requireTenantAccess, requireAdminRole] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      const params = request.params as { id: string };
+      const body = toggleInicialSchema.parse(request.body);
+      return reply.status(200).send(await parametrizacoesService.toggleFormaPagamentoPadrao(user, params.id, body.value));
+    });
+
+    app.delete('/parametrizacoes/formas-pagamento/:id', { preHandler: [authenticate, requireTenantAccess, requireAdminRole] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      const params = request.params as { id: string };
+      await parametrizacoesService.removeFormaPagamento(user, params.id);
+      return reply.status(204).send();
+    });
+
+    app.get('/parametrizacoes/tipos-documentos-financeiro', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      return reply.status(200).send(await parametrizacoesService.listTiposDocumentoFinanceiro(user));
+    });
+
+    app.post('/parametrizacoes/tipos-documentos-financeiro', { preHandler: [authenticate, requireTenantAccess, requireAdminRole] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      return reply.status(200).send(await parametrizacoesService.saveTipoDocumentoFinanceiro(user, saveTituloSchema.parse(request.body)));
+    });
+
+    app.put('/parametrizacoes/tipos-documentos-financeiro/:id', { preHandler: [authenticate, requireTenantAccess, requireAdminRole] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      const params = request.params as { id: string };
+      return reply.status(200).send(await parametrizacoesService.saveTipoDocumentoFinanceiro(user, saveTituloSchema.parse({ ...(request.body as object), id: params.id })));
+    });
+
+    app.delete('/parametrizacoes/tipos-documentos-financeiro/:id', { preHandler: [authenticate, requireTenantAccess, requireAdminRole] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      const params = request.params as { id: string };
+      await parametrizacoesService.removeTipoDocumentoFinanceiro(user, params.id);
+      return reply.status(204).send();
+    });
+
+    app.get('/parametrizacoes/tipos-pagamento', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      return reply.status(200).send(await parametrizacoesService.listTiposPagamento(user));
+    });
+
+    app.post('/parametrizacoes/tipos-pagamento', { preHandler: [authenticate, requireTenantAccess, requireAdminRole] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      return reply.status(200).send(await parametrizacoesService.saveTipoPagamento(user, saveTituloSchema.parse(request.body)));
+    });
+
+    app.put('/parametrizacoes/tipos-pagamento/:id', { preHandler: [authenticate, requireTenantAccess, requireAdminRole] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      const params = request.params as { id: string };
+      return reply.status(200).send(await parametrizacoesService.saveTipoPagamento(user, saveTituloSchema.parse({ ...(request.body as object), id: params.id })));
+    });
+
+    app.delete('/parametrizacoes/tipos-pagamento/:id', { preHandler: [authenticate, requireTenantAccess, requireAdminRole] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      const params = request.params as { id: string };
+      await parametrizacoesService.removeTipoPagamento(user, params.id);
+      return reply.status(204).send();
+    });
+
+    app.get('/parametrizacoes/categorias-despesa', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      return reply.status(200).send(await parametrizacoesService.listCategoriasDespesa(user));
+    });
+
+    app.post('/parametrizacoes/categorias-despesa', { preHandler: [authenticate, requireTenantAccess, requireAdminRole] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      return reply.status(200).send(await parametrizacoesService.saveCategoriaDespesa(user, saveTituloSchema.parse(request.body)));
+    });
+
+    app.put('/parametrizacoes/categorias-despesa/:id', { preHandler: [authenticate, requireTenantAccess, requireAdminRole] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      const params = request.params as { id: string };
+      return reply.status(200).send(await parametrizacoesService.saveCategoriaDespesa(user, saveTituloSchema.parse({ ...(request.body as object), id: params.id })));
+    });
+
+    app.delete('/parametrizacoes/categorias-despesa/:id', { preHandler: [authenticate, requireTenantAccess, requireAdminRole] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      const params = request.params as { id: string };
+      await parametrizacoesService.removeCategoriaDespesa(user, params.id);
       return reply.status(204).send();
     });
 

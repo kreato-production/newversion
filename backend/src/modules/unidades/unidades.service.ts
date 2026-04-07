@@ -19,8 +19,10 @@ export class UnidadesService {
   constructor(private readonly repository: UnidadesRepository) {}
 
   async list(actor: SessionUser, opts?: { limit?: number; offset?: number }) {
-    const tenantId = resolveTenantId(actor, actor.tenantId);
-    const { data, total } = await this.repository.listByTenant(tenantId, opts);
+    const isGlobalAdminWithoutTenant = actor.role === 'GLOBAL_ADMIN' && !actor.tenantId;
+    const { data, total } = isGlobalAdminWithoutTenant
+      ? await this.repository.listAll(opts)
+      : await this.repository.listByTenant(resolveTenantId(actor, actor.tenantId), opts);
     return {
       total,
       data: data.map((item) => ({

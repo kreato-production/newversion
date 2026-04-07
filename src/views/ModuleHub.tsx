@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useAuth } from '@/contexts/AuthContext';
-import { Globe } from 'lucide-react';
+import { Building2, CalendarDays } from 'lucide-react';
 
 // Custom SVG icons
 import iconProgramas from '@/assets/icons/programas.svg';
@@ -43,6 +43,12 @@ import iconPerfisAcesso from '@/assets/icons/perfis_acesso.svg';
 import iconTenant from '@/assets/icons/tenant.svg';
 import iconUsuariosGlobais from '@/assets/icons/usuarios_globais.svg';
 
+interface ModuleConfig {
+  title: string;
+  titleKey?: string;
+  groups: SubModuleGroup[];
+}
+
 interface SubModuleItem {
   labelKey: string;
   label?: string;
@@ -63,8 +69,9 @@ interface SubModuleGroup {
   items: SubModuleItem[];
 }
 
-const moduleConfig: Record<string, { titleKey: string; groups: SubModuleGroup[] }> = {
+const moduleConfig: Record<string, ModuleConfig> = {
   producao: {
+    title: 'Produção',
     titleKey: 'menu.production',
     groups: [
       {
@@ -198,6 +205,7 @@ const moduleConfig: Record<string, { titleKey: string; groups: SubModuleGroup[] 
     ],
   },
   recursos: {
+    title: 'Recursos',
     titleKey: 'menu.resources',
     groups: [
       {
@@ -279,6 +287,16 @@ const moduleConfig: Record<string, { titleKey: string; groups: SubModuleGroup[] 
             },
           },
           {
+            labelKey: 'menu.holidays',
+            icon: CalendarDays,
+            path: '/recursos/feriados',
+            permission: {
+              modulo: 'Recursos',
+              subModulo1: 'Parametrizacoes',
+              subModulo2: 'Feriados',
+            },
+          },
+          {
             labelKey: 'menu.services',
             svgIcon: iconServicos,
             path: '/recursos/servicos',
@@ -332,7 +350,48 @@ const moduleConfig: Record<string, { titleKey: string; groups: SubModuleGroup[] 
       },
     ],
   },
+  financeiro: {
+    title: 'Financeiro',
+    groups: [
+      {
+        title: 'Parametrizações',
+        items: [
+          {
+            labelKey: 'finance.statusContasPagar',
+            label: 'Status de Contas a Pagar',
+            icon: Building2,
+            path: '/financeiro/status-contas-pagar',
+          },
+          {
+            labelKey: 'finance.tiposDocumentos',
+            label: 'Tipos de Documentos',
+            icon: Building2,
+            path: '/financeiro/tipos-documentos',
+          },
+          {
+            labelKey: 'finance.tiposPagamento',
+            label: 'Tipos de Pagamentos',
+            icon: Building2,
+            path: '/financeiro/tipos-pagamento',
+          },
+          {
+            labelKey: 'finance.categoriasDespesa',
+            label: 'Categorias de Despesas',
+            icon: Building2,
+            path: '/financeiro/categorias-despesa',
+          },
+          {
+            labelKey: 'finance.formasPagamento',
+            label: 'Formas de Pagamento',
+            icon: Building2,
+            path: '/financeiro/formas-pagamento',
+          },
+        ],
+      },
+    ],
+  },
   admin: {
+    title: 'Administração',
     titleKey: 'menu.admin',
     groups: [
       {
@@ -374,6 +433,7 @@ const moduleConfig: Record<string, { titleKey: string; groups: SubModuleGroup[] 
     ],
   },
   global: {
+    title: 'Global',
     titleKey: 'menu.global',
     groups: [
       {
@@ -423,7 +483,7 @@ const ModuleHub = () => {
     return isVisible(modulo, subModulo1 || '-', subModulo2 || '-', '-');
   };
 
-  const moduleTitle = t(config.titleKey);
+  const moduleTitle = config.titleKey ? t(config.titleKey) : config.title;
 
   return (
     <div className="space-y-8">

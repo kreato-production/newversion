@@ -2,7 +2,7 @@
 
 ## Objetivo
 
-Este backend e a base da migracao gradual do projeto para uma arquitetura propria, reduzindo a dependencia do Supabase.
+Este backend sustenta a arquitetura propria do projeto com Fastify, Prisma e PostgreSQL.
 
 ## Stack inicial
 

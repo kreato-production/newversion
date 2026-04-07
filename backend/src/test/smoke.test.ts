@@ -31,7 +31,7 @@ class RouteAuthRepository implements AuthRepository {
   async findUserForLogin(identifier: string) { return this.user.usuario === identifier || this.user.email === identifier ? this.user : null; }
   async findUserById(id: string) { return this.user.id === id ? this.user : null; }
   async validateTenantAccess() { return this.tenantValidation; }
-  async getAuthorizationContext() { return { perfil: 'Administrador Tenant', tipoAcesso: 'Operacional', unidadeIds: [], enabledModules: ['Dashboard', 'Produção', 'Recursos', 'Administração'], permissions: [] }; }
+  async getAuthorizationContext() { return { perfil: 'Administrador Tenant', tipoAcesso: 'Operacional', unidadeIds: [], enabledModules: ['Dashboard', 'Produção', 'Recursos', 'Financeiro', 'Administração'], permissions: [] }; }
   async createRefreshToken(input: { userId: string; tokenHash: string; expiresAt: Date }) { this.refreshTokens.set(input.tokenHash, { id: input.tokenHash, userId: input.userId, tokenHash: input.tokenHash, expiresAt: input.expiresAt, revokedAt: null, user: { ...this.user, tenantStatus: this.user.tenantStatus } }); }
   async findRefreshToken(tokenHash: string) { return this.refreshTokens.get(tokenHash) ?? null; }
   async revokeRefreshToken(tokenHash: string, revokedAt: Date) { const token = this.refreshTokens.get(tokenHash); if (token) token.revokedAt = revokedAt; }

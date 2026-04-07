@@ -11,11 +11,56 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      # Cria o banco keycloak_local na primeira inicialização do volume
+      - ./postgres/init-keycloak-db.sql:/docker-entrypoint-initdb.d/01-keycloak-db.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d kreato_local"]
       interval: 10s
       timeout: 5s
       retries: 5
+
+  # ─── Keycloak (Identity Provider) ────────────────────────────────────────────
+  # Acesse o console admin em: http://localhost:8080
+  # Credenciais locais: admin / admin  (NUNCA usar em produção)
+  #
+  # ATENÇÃO: se o volume postgres_data já existir antes desta mudança,
+  # o script init não rodará automaticamente. Nesse caso execute:
+  #   docker exec -it kreato-postgres psql -U postgres -c "CREATE DATABASE keycloak_local;"
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0
+    container_name: kreato-keycloak
+    restart: unless-stopped
+    command: start-dev --import-realm
+    environment:
+      # Banco de dados (mesmo Postgres, schema separado)
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak_local
+      KC_DB_USERNAME: postgres
+      KC_DB_PASSWORD: postgres
+      # Admin do console Keycloak (APENAS local)
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      # Rede e TLS
+      KC_HTTP_PORT: 8080
+      KC_HOSTNAME_STRICT: "false"
+      KC_HOSTNAME_STRICT_HTTPS: "false"
+      KC_HTTP_ENABLED: "true"
+      # Log level
+      KC_LOG_LEVEL: INFO
+    ports:
+      - "8080:8080"
+    volumes:
+      # Realm importado automaticamente na primeira inicialização
+      - ./keycloak/realm-kreato.json:/opt/keycloak/data/import/realm-kreato.json:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/health/ready || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
 
   backend:
     build:
@@ -25,6 +70,8 @@ services:
     restart: unless-stopped
     depends_on:
       postgres:
+        condition: service_healthy
+      keycloak:
         condition: service_healthy
     environment:
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/kreato_local

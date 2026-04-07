@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Plus } from 'lucide-react';
 
 interface NewButtonProps {
@@ -10,25 +10,17 @@ interface NewButtonProps {
 
 /**
  * Standardized "New" button for list pages.
- * Square icon button with Plus icon and tooltip hint.
- * Positioned as the first button in the ListActionBar.
+ * Relies on the TooltipProvider already present in AppShell.
  */
 export const NewButton = ({ tooltip, onClick, disabled }: NewButtonProps) => {
   return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            size="icon"
-            onClick={onClick}
-            disabled={disabled}
-            className="bg-primary text-primary-foreground hover:bg-primary/90"
-          >
-            <Plus className="w-4 h-4" />
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent>{tooltip}</TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button size="icon" onClick={onClick} disabled={disabled} aria-label={tooltip}>
+          <Plus className="h-4 w-4" />
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>{tooltip}</TooltipContent>
+    </Tooltip>
   );
 };

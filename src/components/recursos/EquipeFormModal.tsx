@@ -21,10 +21,10 @@ import {
 } from '@/components/ui/select';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useToast } from '@/hooks/use-toast';
+import { ModalNavigation, type ModalNavigationProps } from '@/components/shared/ModalNavigation';
 import { SortableTable, type Column } from '@/components/shared/SortableTable';
 import { Plus, Trash2, Users, Loader2 } from 'lucide-react';
 import { useFormFieldConfig, FieldAsterisk } from '@/hooks/useFormFieldConfig';
-import { isBackendDataProviderEnabled } from '@/lib/api/http';
 import { equipesRepository } from '@/modules/equipes/equipes.repository.provider';
 import type { EquipeInput, Membro, RecursoHumano } from '@/modules/equipes/equipes.types';
 
@@ -35,6 +35,7 @@ interface EquipeFormModalProps {
   data?: { id: string; codigo: string; descricao: string } | null;
   onRefresh?: () => void;
   readOnly?: boolean;
+  navigation?: ModalNavigationProps;
 }
 
 const emptyFormData: EquipeInput = {
@@ -49,12 +50,12 @@ export const EquipeFormModal = ({
   data,
   onRefresh,
   readOnly = false,
+  navigation,
 }: EquipeFormModalProps) => {
   const { t } = useLanguage();
   const { toast } = useToast();
   const { isVisible } = usePermissions();
   const { getAsterisk } = useFormFieldConfig('equipe');
-  const shouldUseBackend = isBackendDataProviderEnabled();
   const [formData, setFormData] = useState<EquipeInput>(emptyFormData);
   const [isAddingMembro, setIsAddingMembro] = useState(false);
   const [selectedRHId, setSelectedRHId] = useState('');
@@ -62,39 +63,19 @@ export const EquipeFormModal = ({
   const [recursosHumanos, setRecursosHumanos] = useState<RecursoHumano[]>([]);
   const [isLoadingRH, setIsLoadingRH] = useState(false);
 
-  const fetchRecursosHumanos = useCallback(async () => {
+  const fetchMembros = useCallback(async (equipeId: string) => {
     setIsLoadingRH(true);
+
     try {
-      setRecursosHumanos(await equipesRepository.listRecursosHumanosAtivos());
+      const data = await equipesRepository.listMembros(equipeId);
+      setMembros(data.membros);
+      setRecursosHumanos(data.disponiveis);
     } catch (error) {
-      console.error('Erro ao carregar recursos humanos:', error);
+      console.error('Erro ao carregar membros:', error);
     } finally {
       setIsLoadingRH(false);
     }
   }, []);
-
-  const fetchMembros = useCallback(
-    async (equipeId: string) => {
-      if (shouldUseBackend) {
-        setIsLoadingRH(true);
-      }
-
-      try {
-        const data = await equipesRepository.listMembros(equipeId);
-        setMembros(data.membros);
-        if (shouldUseBackend) {
-          setRecursosHumanos(data.disponiveis);
-        }
-      } catch (error) {
-        console.error('Erro ao carregar membros:', error);
-      } finally {
-        if (shouldUseBackend) {
-          setIsLoadingRH(false);
-        }
-      }
-    },
-    [shouldUseBackend],
-  );
 
   useEffect(() => {
     if (!isOpen) return;
@@ -104,22 +85,16 @@ export const EquipeFormModal = ({
     );
     setIsAddingMembro(false);
     setSelectedRHId('');
-    if (!shouldUseBackend) {
-      fetchRecursosHumanos();
-    } else {
-      setRecursosHumanos([]);
-      setIsLoadingRH(true);
-    }
+    setRecursosHumanos([]);
+    setIsLoadingRH(true);
 
     if (data?.id) {
-      fetchMembros(data.id);
+      void fetchMembros(data.id);
     } else {
       setMembros([]);
-      if (shouldUseBackend) {
-        setIsLoadingRH(false);
-      }
+      setIsLoadingRH(false);
     }
-  }, [isOpen, data, fetchMembros, fetchRecursosHumanos, shouldUseBackend]);
+  }, [isOpen, data, fetchMembros]);
 
   const rhDisponiveis = useMemo(() => {
     const membroIds = membros.map((membro) => membro.recursoHumanoId);
@@ -168,9 +143,7 @@ export const EquipeFormModal = ({
       setSelectedRHId('');
       setIsAddingMembro(false);
       onRefresh?.();
-      if (shouldUseBackend) {
-        await fetchMembros(data.id);
-      }
+      await fetchMembros(data.id);
     } catch (error) {
       console.error('Erro ao adicionar membro:', error);
       toast({
@@ -190,9 +163,7 @@ export const EquipeFormModal = ({
       setMembros(membros.filter((membro) => membro.id !== id));
       toast({ title: t('common.deleted'), description: t('teams.memberRemoved') });
       onRefresh?.();
-      if (shouldUseBackend) {
-        await fetchMembros(data.id);
-      }
+      await fetchMembros(data.id);
     } catch (error) {
       console.error('Erro ao remover membro:', error);
       toast({
@@ -386,15 +357,18 @@ export const EquipeFormModal = ({
             </div>
           )}
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>
-              {readOnly ? 'Fechar' : t('common.cancel')}
-            </Button>
-            {!readOnly && (
-              <Button type="submit" className="gradient-primary hover:opacity-90">
-                {t('common.save')}
+          <DialogFooter className={navigation ? 'sm:justify-between' : undefined}>
+            {navigation && <ModalNavigation {...navigation} />}
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" onClick={onClose}>
+                {readOnly ? 'Fechar' : t('common.cancel')}
               </Button>
-            )}
+              {!readOnly && (
+                <Button type="submit" className="gradient-primary hover:opacity-90">
+                  {t('common.save')}
+                </Button>
+              )}
+            </div>
           </DialogFooter>
         </form>
       </DialogContent>

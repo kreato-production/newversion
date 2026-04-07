@@ -6,15 +6,12 @@ export function getBackendBaseUrl() {
   return (process.env.NEXT_PUBLIC_BACKEND_API_URL as string | undefined) || DEFAULT_BACKEND_URL;
 }
 
-export function isBackendDataProviderEnabled() {
-  return (process.env.NEXT_PUBLIC_DATA_PROVIDER as string | undefined) === 'backend';
+export function isBackendAuthProviderEnabled() {
+  return (process.env.NEXT_PUBLIC_AUTH_PROVIDER as string | undefined) === 'backend';
 }
 
-export function isBackendAuthProviderEnabled() {
-  return (
-    (process.env.NEXT_PUBLIC_AUTH_PROVIDER as string | undefined) === 'backend' ||
-    isBackendDataProviderEnabled()
-  );
+export function isKeycloakAuthEnabled() {
+  return (process.env.NEXT_PUBLIC_KEYCLOAK_AUTH_ENABLED as string | undefined) === 'true';
 }
 
 async function parseApiResponse<T>(response: Response): Promise<T> {
@@ -35,6 +32,25 @@ async function fetchBackend(path: string, init?: RequestInit): Promise<Response>
     ...init,
     credentials: 'include',
   });
+}
+
+/**
+ * No browser (client components), roteia via /api/proxy para que o Next.js
+ * injete o X-Internal-Token com a sessão Auth.js antes de chamar o Fastify.
+ *
+ * No servidor (Server Components / Route Handlers), chama o Fastify direto.
+ * Nesses contextos use fastifyFetch() de src/lib/api/fastify.ts que já injeta o token.
+ */
+function fetchApi(path: string, init?: RequestInit): Promise<Response> {
+  if (typeof window !== 'undefined') {
+    // Browser: usa o proxy Next.js para autenticar via Auth.js session
+    return fetch(`/api/proxy${path}`, {
+      ...init,
+      credentials: 'same-origin',
+    });
+  }
+  // Servidor: chama Fastify direto (deve usar fastifyFetch com token explícito)
+  return fetchBackend(path, init);
 }
 
 export async function refreshBackendSession(): Promise<boolean> {
@@ -58,6 +74,10 @@ export async function logoutBackendSession(): Promise<void> {
   await fetchBackend('/auth/logout', { method: 'POST' }).catch((): undefined => undefined);
 }
 
+export async function logoutKeycloakSession(): Promise<void> {
+  await fetchBackend('/auth/logout/keycloak', { method: 'POST' }).catch((): undefined => undefined);
+}
+
 export async function apiRequest<T>(path: string, init?: RequestInit): Promise<T> {
   const headers = new Headers(init?.headers);
 
@@ -65,30 +85,15 @@ export async function apiRequest<T>(path: string, init?: RequestInit): Promise<T
     headers.set('Content-Type', 'application/json');
   }
 
-  let response = await fetchBackend(path, { ...init, headers });
+  const response = await fetchApi(path, { ...init, headers });
 
-  if (response.status === 401 && path !== '/auth/login' && path !== '/auth/refresh') {
-    const refreshed = await refreshBackendSession();
-
-    if (refreshed) {
-      const retryHeaders = new Headers(init?.headers);
-      if (!retryHeaders.has('Content-Type') && init?.body) {
-        retryHeaders.set('Content-Type', 'application/json');
-      }
-      response = await fetchBackend(path, { ...init, headers: retryHeaders });
-    } else {
-      // Refresh failed — session fully expired.
-      // Only redirect to login if we're on a protected page (not during auth checks).
-      if (
-        typeof window !== 'undefined' &&
-        !window.location.pathname.startsWith('/login') &&
-        path !== '/auth/me'
-      ) {
-        const loginUrl = `/login?from=${encodeURIComponent(window.location.pathname)}`;
-        window.location.replace(loginUrl);
-      }
-      throw new Error('Sessão expirada');
+  // 401 via proxy significa que a sessão Auth.js expirou (middleware deveria já ter capturado)
+  if (response.status === 401) {
+    if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+      // Deixa o middleware/Auth.js lidar com a sessão expirada — não faz redirect manual
+      // para evitar loops com o middleware que redireciona de volta ao dashboard
     }
+    throw new Error('Sessão expirada');
   }
 
   return parseApiResponse<T>(response);

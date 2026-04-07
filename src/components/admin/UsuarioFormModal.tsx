@@ -23,9 +23,12 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Camera, X } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import type { Usuario } from '@/views/admin/Usuarios';
+import { ModalNavigation, type ModalNavigationProps } from '@/components/shared/ModalNavigation';
 import { UnidadesNegocioTab } from './UnidadesNegocioTab';
 import { UsuarioProgramasTab } from './UsuarioProgramasTab';
 import { UsuarioEquipesTab } from './UsuarioEquipesTab';
+import { ApiTenantsRepository, type TenantApiItem } from '@/modules/tenants/tenants.api.repository';
+import { ApiParametrosRepository } from '@/modules/parametros/parametros.api.repository';
 
 interface UsuarioFormModalProps {
   isOpen: boolean;
@@ -33,6 +36,8 @@ interface UsuarioFormModalProps {
   onSave: (data: Usuario) => Promise<void>;
   data?: Usuario | null;
   readOnly?: boolean;
+  navigation?: ModalNavigationProps;
+  showTenantSelector?: boolean;
 }
 
 const emptyFormData = {
@@ -46,8 +51,12 @@ const emptyFormData = {
   descricao: '',
   status: 'Ativo' as 'Ativo' | 'Inativo' | 'Bloqueado',
   tipoAcesso: 'Operacional',
-  role: 'USER' as 'GLOBAL_ADMIN' | 'TENANT_ADMIN' | 'USER',
+  tenantId: '' as string,
+  role: 'USER' as 'TENANT_ADMIN' | 'USER',
 };
+
+const tenantsRepository = new ApiTenantsRepository();
+const parametrosRepository = new ApiParametrosRepository();
 
 export const UsuarioFormModal = ({
   isOpen,
@@ -55,12 +64,16 @@ export const UsuarioFormModal = ({
   onSave,
   data,
   readOnly = false,
+  navigation,
+  showTenantSelector = false,
 }: UsuarioFormModalProps) => {
   const { user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [fotoPreview, setFotoPreview] = useState<string | null>(null);
   const [formData, setFormData] = useState(emptyFormData);
+  const [tenants, setTenants] = useState<TenantApiItem[]>([]);
+  const [perfis, setPerfis] = useState<Array<{ id: string; nome: string }>>([]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -78,15 +91,47 @@ export const UsuarioFormModal = ({
             descricao: data.descricao,
             status: data.status,
             tipoAcesso: data.tipoAcesso || 'Operacional',
-            role: data.role || (user?.role === 'GLOBAL_ADMIN' ? 'TENANT_ADMIN' : 'USER'),
+            tenantId: data.tenantId || '',
+            role: (data.role === 'GLOBAL_ADMIN' ? 'TENANT_ADMIN' : data.role) || 'USER',
           }
-        : {
-            ...emptyFormData,
-            role: user?.role === 'GLOBAL_ADMIN' ? 'TENANT_ADMIN' : 'USER',
-          },
+        : emptyFormData,
     );
     setFotoPreview(data?.foto || null);
   }, [data, isOpen, user?.role]);
+
+  useEffect(() => {
+    if (!isOpen || user?.role !== 'GLOBAL_ADMIN') {
+      return;
+    }
+
+    tenantsRepository
+      .list()
+      .then(setTenants)
+      .catch((error) => {
+        console.error('Error fetching tenants:', error);
+      });
+  }, [isOpen, user?.role]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    parametrosRepository
+      .list('kreato_perfis_acesso')
+      .then((items) =>
+        setPerfis(
+          items.map((item) => ({
+            id: item.id,
+            nome: item.nome,
+          })),
+        ),
+      )
+      .catch((error) => {
+        console.error('Error fetching perfis:', error);
+        setPerfis([]);
+      });
+  }, [isOpen]);
 
   const handleFotoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -122,6 +167,11 @@ export const UsuarioFormModal = ({
       return;
     }
 
+    if (shouldShowTenantSelect && !formData.tenantId) {
+      alert('Selecione o tenant do usuário.');
+      return;
+    }
+
     setIsSaving(true);
     try {
       await onSave({
@@ -140,6 +190,10 @@ export const UsuarioFormModal = ({
         recursoHumanoId: undefined,
         dataCadastro: data?.dataCadastro || new Date().toLocaleDateString('pt-BR'),
         usuarioCadastro: data?.usuarioCadastro || user?.nome || 'Admin',
+        tenantId:
+          formData.role === 'USER' || formData.role === 'TENANT_ADMIN'
+            ? formData.tenantId || null
+            : null,
         role: formData.role,
       });
 
@@ -157,16 +211,17 @@ export const UsuarioFormModal = ({
       .toUpperCase()
       .slice(0, 2);
 
-  const availableRoles =
-    user?.role === 'GLOBAL_ADMIN'
-      ? ['GLOBAL_ADMIN', 'TENANT_ADMIN', 'USER']
-      : ['TENANT_ADMIN', 'USER'];
+  // Regra 2: no módulo Usuários nunca aparece GLOBAL_ADMIN (esse role é exclusivo do módulo Usuários Globais).
+  // Regra 4: apenas GLOBAL_ADMIN pode atribuir TENANT_ADMIN.
+  const availableRoles: Array<'TENANT_ADMIN' | 'USER'> =
+    user?.role === 'GLOBAL_ADMIN' ? ['TENANT_ADMIN', 'USER'] : ['USER'];
+
   const showTabs = !!data;
-  const isCoordenacao =
-    formData.tipoAcesso === 'CoordenaÃ§Ã£o' || formData.tipoAcesso === 'CoordenaÃƒÂ§ÃƒÂ£o';
+  const isCoordenacao = formData.tipoAcesso === 'Coordenação';
   const tabCount = showTabs ? (isCoordenacao ? 4 : 3) : 1;
   const gridColsClass =
     tabCount === 4 ? 'grid-cols-4' : tabCount === 3 ? 'grid-cols-3' : 'grid-cols-1';
+  const shouldShowTenantSelect = showTenantSelector && user?.role === 'GLOBAL_ADMIN';
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -298,7 +353,7 @@ export const UsuarioFormModal = ({
                     setFormData((current) => ({ ...current, senha: event.target.value }))
                   }
                   required={!data}
-                  placeholder={data ? 'â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢' : ''}
+                  placeholder={data ? '••••••••' : ''}
                 />
                 {data && (
                   <p className="text-xs text-muted-foreground">
@@ -310,13 +365,23 @@ export const UsuarioFormModal = ({
               <div className="grid gap-4 grid-cols-2">
                 <div className="space-y-2">
                   <Label>Perfil</Label>
-                  <Input
+                  <Select
                     value={formData.perfil}
-                    onChange={(event) =>
-                      setFormData((current) => ({ ...current, perfil: event.target.value }))
+                    onValueChange={(value) =>
+                      setFormData((current) => ({ ...current, perfil: value }))
                     }
-                    placeholder="Ex.: Administrador Tenant"
-                  />
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione o perfil..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {perfis.map((perfil) => (
+                        <SelectItem key={perfil.id} value={perfil.nome}>
+                          {perfil.nome}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div className="space-y-2">
@@ -332,7 +397,7 @@ export const UsuarioFormModal = ({
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Operacional">Operacional</SelectItem>
-                      <SelectItem value="CoordenaÃ§Ã£o">Coordenacao</SelectItem>
+                      <SelectItem value="Coordenação">Coordenação</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -344,7 +409,7 @@ export const UsuarioFormModal = ({
                     onValueChange={(value) =>
                       setFormData((current) => ({
                         ...current,
-                        role: value as 'GLOBAL_ADMIN' | 'TENANT_ADMIN' | 'USER',
+                        role: value as 'TENANT_ADMIN' | 'USER',
                       }))
                     }
                   >
@@ -360,6 +425,29 @@ export const UsuarioFormModal = ({
                     </SelectContent>
                   </Select>
                 </div>
+
+                {shouldShowTenantSelect && (
+                  <div className="space-y-2">
+                    <Label>Tenant</Label>
+                    <Select
+                      value={formData.tenantId}
+                      onValueChange={(value) =>
+                        setFormData((current) => ({ ...current, tenantId: value }))
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione o tenant..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {tenants.map((tenant) => (
+                          <SelectItem key={tenant.id} value={tenant.id}>
+                            {tenant.nome}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -396,19 +484,22 @@ export const UsuarioFormModal = ({
                 />
               </div>
 
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={onClose} disabled={isSaving}>
-                  {readOnly ? 'Fechar' : 'Cancelar'}
-                </Button>
-                {!readOnly && (
-                  <Button
-                    type="submit"
-                    className="gradient-primary hover:opacity-90"
-                    disabled={isSaving}
-                  >
-                    {isSaving ? 'Salvando...' : 'Salvar'}
+              <DialogFooter className={navigation ? 'sm:justify-between' : undefined}>
+                {navigation && <ModalNavigation {...navigation} />}
+                <div className="flex gap-2">
+                  <Button type="button" variant="outline" onClick={onClose} disabled={isSaving}>
+                    {readOnly ? 'Fechar' : 'Cancelar'}
                   </Button>
-                )}
+                  {!readOnly && (
+                    <Button
+                      type="submit"
+                      className="gradient-primary hover:opacity-90"
+                      disabled={isSaving}
+                    >
+                      {isSaving ? 'Salvando...' : 'Salvar'}
+                    </Button>
+                  )}
+                </div>
               </DialogFooter>
             </form>
           </TabsContent>

@@ -1,125 +1,58 @@
 # Plano de Desligamento do Supabase
 
+## Status
+
+Encerrado em 06/04/2026.
+
 ## Contexto
 
-O sistema foi originado na plataforma Lovable com Supabase como backend-as-a-service. As sprints 10–12 implementaram um backend próprio em Fastify + PostgreSQL. O Supabase deve ser removido completamente quando todos os módulos tiverem sido migrados.
+O sistema foi originado na plataforma Lovable com Supabase como backend-as-a-service. As sprints 10-17 concluiram a migracao para backend proprio em Fastify + PostgreSQL e o desligamento final do legado.
 
-## Critério de Ativação
+## Resultado final
 
-O desligamento pode ser executado quando **100% das páginas e módulos** estiverem usando o backend próprio (`VITE_DATA_PROVIDER=backend` e `VITE_AUTH_PROVIDER=backend`) com testes passando.
+- cliente compartilhado do Supabase removido do frontend
+- repositorios hibridos simplificados para backend-only
+- credenciais de Supabase removidas de `.env` e `.env.local`
+- dependencia `@supabase/supabase-js` removida do `package.json`
+- pasta `supabase/` removida do repositorio
 
-## Inventário de Arquivos com Referências ao Supabase
+## Passos executados
 
-### Camada de Integração (remover por completo)
+### 1. Remover integracao do frontend
 
-| Arquivo | Tipo | Sprint alvo |
-|---|---|---|
-| `src/integrations/supabase/client.ts` | Cliente Supabase | SPRINT-13 |
-| `src/integrations/supabase/types.ts` | Tipos gerados | SPRINT-13 |
-| `src/hooks/useSupabaseData.ts` | Hook de dados | SPRINT-14 |
+- exclusao de `src/integrations/supabase/client.ts`
+- exclusao de `src/integrations/supabase/types.ts`
+- exclusao de `src/hooks/useSupabaseData.ts`
 
-### Auth (migrado parcialmente — Sprint 10)
+### 2. Simplificar auth e repositorios
 
-| Arquivo | Status | Ação |
-|---|---|---|
-| `src/modules/auth/auth.repository.ts` | Híbrido (Supabase + Backend) | Remover `SupabaseAuthRepository` e `isBackendAuthProviderEnabled` |
-| `src/contexts/AuthContext.tsx` | Usa `authRepository` | Simplificar após remoção do Supabase |
+- remocao de `SupabaseAuthRepository`
+- remocao dos fallbacks `SupabaseRepository` nos modulos migrados
+- consolidacao do fluxo de auth e dados no backend proprio
 
-### Módulos migrados para o backend próprio
+### 3. Remover dependencia e credenciais
 
-| Módulo | Arquivo Supabase | Arquivo Backend | Status |
-|---|---|---|---|
-| Equipes | `equipes.repository.ts` (Supabase) | ✅ Backend | Remover código Supabase |
-| Gravações | `gravacoes/gravacoes.repository.ts` | ✅ Backend | Remover código Supabase |
-| Programas | `programas/programas.repository.ts` | ✅ Backend | Remover código Supabase |
-| Unidades | `unidades.repository.ts` | ✅ Backend | Remover código Supabase |
-| Usuários | `usuarios/` | ✅ Backend | Remover código Supabase |
+- `npm uninstall @supabase/supabase-js`
+- remocao de `VITE_SUPABASE_URL`
+- remocao de `VITE_SUPABASE_ANON_KEY`
+- remocao de `VITE_SUPABASE_PROJECT_ID`
+- remocao de `NEXT_PUBLIC_SUPABASE_URL`
+- remocao de `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
 
-### Módulos ainda não migrados (páginas Supabase-only)
+### 4. Remover artefatos legados do repositorio
 
-Estes módulos dependem exclusivamente do Supabase e precisam ser migrados antes do desligamento:
+- exclusao da pasta `supabase/`
+- atualizacao da documentacao operacional e de sprint
 
-**Produção:**
-- `src/pages/producao/Conteudo.tsx` + `ConteudoFormModal.tsx`
-- `src/pages/producao/Tarefas.tsx` + `TarefaFormModal.tsx`
-- `src/pages/producao/StatusGravacao.tsx`, `StatusTarefa.tsx`
-- `src/pages/producao/CategoriasIncidencia.tsx`, `ImpactosIncidencia.tsx`, `SeveridadesIncidencia.tsx`
-- `src/pages/producao/IncidenciasGravacao.tsx`
-- `src/pages/producao/TabelasPreco.tsx`
-- `src/pages/producao/Mapas.tsx`
+## Validacao pos-desligamento
 
-**Recursos:**
-- `src/pages/recursos/RecursosHumanos.tsx`, `RecursosFisicos.tsx`, `RecursosTecnicos.tsx`
-- `src/pages/recursos/Pessoas.tsx`, `Figurinos.tsx`, `Fornecedores.tsx`, `Departamentos.tsx`
+- [x] `npm run build` sem erros de import Supabase
+- [x] testes-alvo do frontend mantem a trilha migrada verde
+- [x] nenhum `@supabase` em `package.json`
+- [x] nenhum `VITE_SUPABASE_*` ou `NEXT_PUBLIC_SUPABASE_*` em `.env` / `.env.local`
+- [x] login/logout funcionando via cookies httpOnly
+- [x] paginas e modulos do frontend operam via backend proprio
 
-**Admin:**
-- `src/pages/admin/CentrosLucro.tsx`, `PerfisAcesso.tsx`
-- `src/components/admin/UsuarioFormModal.tsx` (parcial)
+## Observacao
 
-**Shared:**
-- `src/hooks/useGravacaoReportData.ts`
-- `src/hooks/useRecursoFisicoDisponibilidade.ts`
-- `src/hooks/useFormFieldConfig.tsx`
-- `src/data/permissionsMatrix.ts`
-- `src/components/shared/ParametroListPage.tsx`
-
-## Passos de Remoção (quando critério atingido)
-
-### 1. Remover feature flags (simplificação)
-```
-src/lib/api/http.ts          — remover isBackendAuthProviderEnabled, isBackendDataProviderEnabled
-src/modules/auth/auth.repository.ts — remover SupabaseAuthRepository, manter só BackendAuthRepository
-```
-
-### 2. Remover integração Supabase
-```
-rm -rf src/integrations/supabase/
-```
-
-### 3. Remover dependência do package.json
-```sh
-npm uninstall @supabase/supabase-js
-```
-
-### 4. Remover variáveis de ambiente
-```
-.env  — remover VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY
-```
-
-### 5. Limpar AuthContext
-- Remover `supabaseUser`, `session` do contexto (tornam-se desnecessários)
-- Simplificar para usar apenas `BackendAuthRepository`
-
-### 6. Limpar AuthTypes
-```
-src/modules/auth/auth.types.ts — remover AuthSession, AuthSessionUser (substituir por tipos do backend)
-```
-
-## Variáveis de Ambiente a Remover
-
-```env
-VITE_SUPABASE_URL=...
-VITE_SUPABASE_ANON_KEY=...
-VITE_AUTH_PROVIDER=...       (padrão passará a ser backend sempre)
-VITE_DATA_PROVIDER=...       (idem)
-```
-
-## Estimativa de Esforço
-
-| Sprint | Módulos alvo | Esforço estimado |
-|---|---|---|
-| SPRINT-13 | RecursosHumanos, RecursosFisicos, RecursosTecnicos | 2 semanas |
-| SPRINT-14 | Conteudo, Tarefas, TabelasPreco, StatusGravacao | 2 semanas |
-| SPRINT-15 | Mapas, Incidencias, CategoriasIncidencia, Admin restante | 2 semanas |
-| SPRINT-16 | Remoção completa do Supabase + limpeza | 1 semana |
-
-**Sprint alvo para desligamento completo: SPRINT-16**
-
-## Validação pós-desligamento
-
-- [ ] `npm run build` sem erros de import Supabase
-- [ ] `npm test` mantém todos os testes verdes
-- [ ] Nenhum `@supabase` em `package.json`
-- [ ] Nenhum `VITE_SUPABASE_*` em `.env`
-- [ ] Login/logout funcionando 100% via cookies httpOnly
-- [ ] Todas as páginas listadas acima funcionando via backend próprio
+Referencias remanescentes ao termo "Supabase" em `docs/` sao historicas e servem apenas para registrar a migracao realizada.

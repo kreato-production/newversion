@@ -27,6 +27,7 @@ class RouteAuthRepository implements AuthRepository {
 class InMemoryUnidadesRepository implements UnidadesRepository {
   items = new Map<string, UnidadeRecord>();
   async listByTenant(tenantId: string) { const data = [...this.items.values()].filter((item) => item.tenantId === tenantId); return { data, total: data.length }; }
+  async listAll() { const data = [...this.items.values()]; return { data, total: data.length }; }
   async findById(id: string) { return this.items.get(id) ?? null; }
   async save(input: SaveUnidadeInput) { const item: UnidadeRecord = { id: input.id ?? crypto.randomUUID(), tenantId: input.tenantId, codigoExterno: input.codigoExterno ?? null, nome: input.nome, descricao: input.descricao ?? null, imagemUrl: input.imagemUrl ?? null, moeda: input.moeda ?? 'BRL', createdByName: input.createdByName ?? null, createdAt: new Date('2026-03-25T12:00:00.000Z') }; this.items.set(item.id, item); return item; }
   async remove(id: string) { this.items.delete(id); }

@@ -38,6 +38,7 @@ import {
 } from '@/components/ui/table';
 import { usePermissions } from '@/hooks/usePermissions';
 import { recursosHumanosRepository } from '@/modules/recursos-humanos/recursos-humanos.repository.provider';
+import { ModalNavigation, type ModalNavigationProps } from '@/components/shared/ModalNavigation';
 import type {
   Anexo,
   Ausencia,
@@ -72,6 +73,7 @@ interface Props {
   onSave: (data: RecursoHumanoInput) => Promise<void>;
   data?: RecursoHumano | null;
   readOnly?: boolean;
+  navigation?: ModalNavigationProps;
 }
 
 const emptyForm = (): RecursoHumanoInput => ({
@@ -95,7 +97,7 @@ const emptyForm = (): RecursoHumanoInput => ({
   escalas: [],
 });
 
-export function RecursoHumanoFormModal({ isOpen, onClose, onSave, data, readOnly = false }: Props) {
+export function RecursoHumanoFormModal({ isOpen, onClose, onSave, data, readOnly = false, navigation }: Props) {
   const { isVisible } = usePermissions();
   const fotoInputRef = useRef<HTMLInputElement>(null);
   const anexoInputRef = useRef<HTMLInputElement>(null);
@@ -617,19 +619,22 @@ export function RecursoHumanoFormModal({ isOpen, onClose, onSave, data, readOnly
                   </div>
                 </div>
               </div>
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={onClose}>
-                  {readOnly ? 'Fechar' : 'Cancelar'}
-                </Button>
-                {!readOnly && (
-                  <Button
-                    type="submit"
-                    className="gradient-primary hover:opacity-90"
-                    disabled={saving}
-                  >
-                    {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}Salvar
+              <DialogFooter className={navigation ? 'sm:justify-between' : undefined}>
+                {navigation && <ModalNavigation {...navigation} />}
+                <div className="flex gap-2">
+                  <Button type="button" variant="outline" onClick={onClose}>
+                    {readOnly ? 'Fechar' : 'Cancelar'}
                   </Button>
-                )}
+                  {!readOnly && (
+                    <Button
+                      type="submit"
+                      className="gradient-primary hover:opacity-90"
+                      disabled={saving}
+                    >
+                      {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}Salvar
+                    </Button>
+                  )}
+                </div>
               </DialogFooter>
             </form>
           </TabsContent>

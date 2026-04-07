@@ -3,7 +3,6 @@ import {
   apiRequest,
   getBackendBaseUrl,
   isBackendAuthProviderEnabled,
-  isBackendDataProviderEnabled,
   refreshBackendSession,
 } from './http';
 
@@ -12,31 +11,28 @@ describe('api/http', () => {
 
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn());
-    process.env.NEXT_PUBLIC_DATA_PROVIDER = 'backend';
     process.env.NEXT_PUBLIC_AUTH_PROVIDER = 'backend';
   });
 
   afterEach(() => {
     vi.unstubAllGlobals();
     global.fetch = originalFetch;
-    delete process.env.NEXT_PUBLIC_DATA_PROVIDER;
     delete process.env.NEXT_PUBLIC_AUTH_PROVIDER;
   });
 
   it('usa a url padrao do backend e respeita as flags do ambiente atual', () => {
     expect(getBackendBaseUrl()).toBe('http://localhost:3333');
-    expect(isBackendDataProviderEnabled()).toBe(true);
     expect(isBackendAuthProviderEnabled()).toBe(true);
   });
 
-  it('envia requisicao com credentials include (cookie-based)', async () => {
+  it('envia requisicao do browser via /api/proxy com credentials same-origin', async () => {
     vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({ ok: true }), { status: 200 }));
 
     await apiRequest('/health');
 
     expect(fetch).toHaveBeenCalledWith(
-      'http://localhost:3333/health',
-      expect.objectContaining({ credentials: 'include' }),
+      '/api/proxy/health',
+      expect.objectContaining({ credentials: 'same-origin' }),
     );
   });
 
@@ -49,22 +45,13 @@ describe('api/http', () => {
     expect((init!.headers as Headers).has('Authorization')).toBe(false);
   });
 
-  it('renova sessao quando recebe 401 e retrya a requisicao', async () => {
-    vi.mocked(fetch)
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify({ message: 'Token expirado' }), { status: 401 }),
-      )
-      .mockResolvedValueOnce(new Response(null, { status: 200 }))
-      .mockResolvedValueOnce(new Response(JSON.stringify({ ok: true }), { status: 200 }));
-
-    const response = await apiRequest<{ ok: boolean }>('/programas');
-
-    expect(response).toEqual({ ok: true });
-    expect(vi.mocked(fetch)).toHaveBeenNthCalledWith(
-      2,
-      'http://localhost:3333/auth/refresh',
-      expect.objectContaining({ method: 'POST', credentials: 'include' }),
+  it('lanca erro de sessao expirada quando o proxy devolve 401', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response(JSON.stringify({ message: 'Token expirado' }), { status: 401 }),
     );
+
+    await expect(apiRequest<{ ok: boolean }>('/programas')).rejects.toThrow('Sessão expirada');
+    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(1);
   });
 
   it('refreshBackendSession retorna false quando refresh falha', async () => {

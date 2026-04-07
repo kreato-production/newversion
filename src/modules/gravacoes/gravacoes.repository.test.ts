@@ -18,8 +18,8 @@ describe('ApiGravacoesRepository', () => {
     await repository.list();
 
     expect(global.fetch).toHaveBeenCalledWith(
-      'http://localhost:3333/gravacoes?limit=200&offset=0',
-      expect.objectContaining({ credentials: 'include' }),
+      '/api/proxy/gravacoes?limit=200&offset=0',
+      expect.objectContaining({ credentials: 'same-origin' }),
     );
   });
 
@@ -38,8 +38,8 @@ describe('ApiGravacoesRepository', () => {
     });
 
     expect(global.fetch).toHaveBeenCalledWith(
-      'http://localhost:3333/gravacoes',
-      expect.objectContaining({ method: 'POST' }),
+      '/api/proxy/gravacoes',
+      expect.objectContaining({ method: 'POST', credentials: 'same-origin' }),
     );
   });
 });

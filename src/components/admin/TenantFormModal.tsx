@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { ModalNavigation, type ModalNavigationProps } from '@/components/shared/ModalNavigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -25,11 +26,12 @@ interface TenantFormModalProps {
   onClose: () => void;
   onSave: () => void;
   data: Tenant | null;
+  navigation?: ModalNavigationProps;
 }
 
 const apiRepository = new ApiTenantsRepository();
 
-export const TenantFormModal = ({ isOpen, onClose, onSave, data }: TenantFormModalProps) => {
+export const TenantFormModal = ({ isOpen, onClose, onSave, data, navigation }: TenantFormModalProps) => {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('dados');
   const [isSaving, setIsSaving] = useState(false);
@@ -98,7 +100,7 @@ export const TenantFormModal = ({ isOpen, onClose, onSave, data }: TenantFormMod
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl h-[80vh] flex flex-col p-0 overflow-hidden">
-        <DialogHeader className="p-6 pb-2 border-b shrink-0">
+        <DialogHeader className="mx-0 mt-0 shrink-0">
           <DialogTitle>{data ? 'Editar Tenant' : 'Novo Tenant'}</DialogTitle>
         </DialogHeader>
 
@@ -222,16 +224,19 @@ export const TenantFormModal = ({ isOpen, onClose, onSave, data }: TenantFormMod
           </Tabs>
         </div>
 
-        <div className="p-6 border-t bg-background shrink-0 flex justify-end gap-2">
-          <Button type="button" variant="outline" onClick={onClose}>
-            {activeTab === 'dados' ? 'Cancelar' : 'Fechar'}
-          </Button>
-          {activeTab === 'dados' && (
-            <Button type="submit" form="tenant-form" disabled={isSaving}>
-              {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Salvar
+        <div className="p-6 border-t bg-background shrink-0 flex justify-between">
+          {navigation ? <ModalNavigation {...navigation} /> : <div />}
+          <div className="flex gap-2">
+            <Button type="button" variant="outline" onClick={onClose}>
+              {activeTab === 'dados' ? 'Cancelar' : 'Fechar'}
             </Button>
-          )}
+            {activeTab === 'dados' && (
+              <Button type="submit" form="tenant-form" disabled={isSaving}>
+                {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Salvar
+              </Button>
+            )}
+          </div>
         </div>
       </DialogContent>
     </Dialog>

@@ -105,4 +105,21 @@ export class ApiTenantsRepository {
       body: JSON.stringify(input),
     });
   }
+
+  async updateUnidade(
+    tenantId: string,
+    unidadeId: string,
+    input: TenantUnidadeApiInput,
+  ): Promise<TenantUnidadeApiItem> {
+    return apiRequest(`/tenants/${tenantId}/unidades/${unidadeId}`, {
+      method: 'PUT',
+      body: JSON.stringify(input),
+    });
+  }
+
+  async removeUnidade(tenantId: string, unidadeId: string): Promise<void> {
+    await apiRequest(`/tenants/${tenantId}/unidades/${unidadeId}`, {
+      method: 'DELETE',
+    });
+  }
 }

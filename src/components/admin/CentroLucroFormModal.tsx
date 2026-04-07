@@ -22,6 +22,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { ModalNavigation, type ModalNavigationProps } from '@/components/shared/ModalNavigation';
 import { Building2, Trash2, Loader2 } from 'lucide-react';
 import { ApiParametrizacoesRepository } from '@/modules/parametrizacoes/parametrizacoes.api.repository';
 
@@ -43,6 +44,7 @@ interface CentroLucroFormModalProps {
   data?: CentroLucro | null;
   centrosLucro: CentroLucro[];
   readOnly?: boolean;
+  navigation?: ModalNavigationProps;
 }
 
 interface UnidadeNegocio {
@@ -59,6 +61,7 @@ export const CentroLucroFormModal = ({
   data,
   centrosLucro,
   readOnly = false,
+  navigation,
 }: CentroLucroFormModalProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -273,15 +276,18 @@ export const CentroLucroFormModal = ({
                 />
               </div>
 
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={onClose}>
-                  {readOnly ? 'Fechar' : 'Cancelar'}
-                </Button>
-                {!readOnly && (
-                  <Button type="submit" className="gradient-primary hover:opacity-90">
-                    Salvar
+              <DialogFooter className={navigation ? 'sm:justify-between' : undefined}>
+                {navigation && <ModalNavigation {...navigation} />}
+                <div className="flex gap-2">
+                  <Button type="button" variant="outline" onClick={onClose}>
+                    {readOnly ? 'Fechar' : 'Cancelar'}
                   </Button>
-                )}
+                  {!readOnly && (
+                    <Button type="submit" className="gradient-primary hover:opacity-90">
+                      Salvar
+                    </Button>
+                  )}
+                </div>
               </DialogFooter>
             </form>
           </TabsContent>
@@ -340,7 +346,9 @@ export const CentroLucroFormModal = ({
                 )}
               </div>
 
-              <DialogFooter>
+              <DialogFooter className={navigation ? 'sm:justify-between' : undefined}>
+                {navigation && <ModalNavigation {...navigation} />}
+                <div className="flex gap-2">
                 <Button type="button" variant="outline" onClick={onClose}>
                   Fechar
                 </Button>
@@ -369,6 +377,7 @@ export const CentroLucroFormModal = ({
                     Salvar Unidades
                   </Button>
                 )}
+                </div>
               </DialogFooter>
             </div>
           </TabsContent>

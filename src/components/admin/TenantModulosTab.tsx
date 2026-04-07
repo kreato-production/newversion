@@ -2,12 +2,13 @@ import { useEffect, useState } from 'react';
 import { Switch } from '@/components/ui/switch';
 import { ApiTenantsRepository } from '@/modules/tenants/tenants.api.repository';
 import { useToast } from '@/hooks/use-toast';
-import { LayoutDashboard, Video, Users, Building2 } from 'lucide-react';
+import { LayoutDashboard, Video, Users, Building2, Landmark } from 'lucide-react';
 
 const MODULES = [
   { id: 'Dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'Produção', label: 'Produção', icon: Video },
   { id: 'Recursos', label: 'Recursos', icon: Users },
+  { id: 'Financeiro', label: 'Financeiro', icon: Landmark },
   { id: 'Administração', label: 'Administração', icon: Building2 },
 ];
 

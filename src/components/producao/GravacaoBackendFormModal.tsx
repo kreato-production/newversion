@@ -16,6 +16,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { programasRepository } from '@/modules/programas/programas.repository.provider';
 import { unidadesRepository } from '@/modules/unidades/unidades.repository.provider';
 import type { Gravacao, GravacaoInput } from '@/modules/gravacoes/gravacoes.types';
+import { ModalNavigation, type ModalNavigationProps } from '@/components/shared/ModalNavigation';
 
 interface GravacaoBackendFormModalProps {
   isOpen: boolean;
@@ -23,6 +24,7 @@ interface GravacaoBackendFormModalProps {
   onSave: (data: GravacaoInput) => Promise<void>;
   data?: Gravacao | null;
   readOnly?: boolean;
+  navigation?: ModalNavigationProps;
 }
 
 function generateCodigoGravacao(): string {
@@ -36,6 +38,7 @@ export const GravacaoBackendFormModal = ({
   onSave,
   data,
   readOnly = false,
+  navigation,
 }: GravacaoBackendFormModalProps) => {
   const { t } = useLanguage();
   const [isSaving, setIsSaving] = useState(false);
@@ -292,19 +295,22 @@ export const GravacaoBackendFormModal = ({
             />
           </div>
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose} disabled={isSaving}>
-              {readOnly ? 'Fechar' : t('common.cancel')}
-            </Button>
-            {!readOnly && (
-              <Button
-                type="submit"
-                className="gradient-primary hover:opacity-90"
-                disabled={isSaving}
-              >
-                {isSaving ? 'Salvando...' : t('common.save')}
+          <DialogFooter className={navigation ? 'sm:justify-between' : undefined}>
+            {navigation && <ModalNavigation {...navigation} />}
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" onClick={onClose} disabled={isSaving}>
+                {readOnly ? 'Fechar' : t('common.cancel')}
               </Button>
-            )}
+              {!readOnly && (
+                <Button
+                  type="submit"
+                  className="gradient-primary hover:opacity-90"
+                  disabled={isSaving}
+                >
+                  {isSaving ? 'Salvando...' : t('common.save')}
+                </Button>
+              )}
+            </div>
           </DialogFooter>
         </form>
       </DialogContent>

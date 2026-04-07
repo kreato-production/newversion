@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useFormFieldConfig, FieldAsterisk } from '@/hooks/useFormFieldConfig';
+import { ModalNavigation, type ModalNavigationProps } from '@/components/shared/ModalNavigation';
 import { SearchableSelect } from '@/components/shared/SearchableSelect';
 import { recursosTecnicosRepository } from '@/modules/recursos-tecnicos/recursos-tecnicos.repository.provider';
 import type {
@@ -29,6 +30,7 @@ interface RecursoTecnicoFormModalProps {
   onSave: (data: RecursoTecnicoInput) => Promise<void>;
   data?: RecursoTecnico | null;
   readOnly?: boolean;
+  navigation?: ModalNavigationProps;
 }
 
 export const RecursoTecnicoFormModal = ({
@@ -37,6 +39,7 @@ export const RecursoTecnicoFormModal = ({
   onSave,
   data,
   readOnly = false,
+  navigation,
 }: RecursoTecnicoFormModalProps) => {
   const { getAsterisk } = useFormFieldConfig('recursoTecnico');
   const [funcoes, setFuncoes] = useState<Funcao[]>([]);
@@ -157,19 +160,22 @@ export const RecursoTecnicoFormModal = ({
               Define qual funcao pode operar este recurso
             </p>
           </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
-              {readOnly ? 'Fechar' : 'Cancelar'}
-            </Button>
-            {!readOnly && (
-              <Button
-                type="submit"
-                className="gradient-primary hover:opacity-90"
-                disabled={isSubmitting}
-              >
-                Salvar
+          <DialogFooter className={navigation ? 'sm:justify-between' : undefined}>
+            {navigation && <ModalNavigation {...navigation} />}
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
+                {readOnly ? 'Fechar' : 'Cancelar'}
               </Button>
-            )}
+              {!readOnly && (
+                <Button
+                  type="submit"
+                  className="gradient-primary hover:opacity-90"
+                  disabled={isSubmitting}
+                >
+                  Salvar
+                </Button>
+              )}
+            </div>
           </DialogFooter>
         </form>
       </DialogContent>

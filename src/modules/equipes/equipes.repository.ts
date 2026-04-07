@@ -25,7 +25,7 @@ function formatDate(date: string | null): string {
   return date ? new Date(date).toLocaleDateString('pt-BR') : '';
 }
 
-function mapEquipeRow(row: EquipeRow): Equipe {
+export function mapEquipeRow(row: EquipeRow): Equipe {
   return {
     id: row.id,
     codigo: row.codigo,
@@ -35,7 +35,7 @@ function mapEquipeRow(row: EquipeRow): Equipe {
   };
 }
 
-function mapRecursoHumanoRow(row: RecursoHumanoRow): RecursoHumano {
+export function mapRecursoHumanoRow(row: RecursoHumanoRow): RecursoHumano {
   return {
     id: row.id,
     nome: row.nome,
@@ -44,7 +44,7 @@ function mapRecursoHumanoRow(row: RecursoHumanoRow): RecursoHumano {
   };
 }
 
-function mapMembroRow(row: MembroRow): Membro {
+export function mapMembroRow(row: MembroRow): Membro {
   return {
     id: row.id,
     recursoHumanoId: row.recurso_humano_id,
@@ -62,109 +62,3 @@ export interface EquipesRepository {
   addMembro(equipeId: string, recursoHumanoId: string): Promise<Membro>;
   removeMembro(equipeId: string, membroId: string): Promise<void>;
 }
-
-type LegacyClient = {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  from: (table: string) => any;
-};
-
-function createDisabledLegacyClient(): LegacyClient {
-  return {
-    from: () => {
-      throw new Error(
-        'O repositório legado de equipes via Supabase foi desativado. Use a API local.',
-      );
-    },
-  };
-}
-
-export class SupabaseEquipesRepository implements EquipesRepository {
-  constructor(private readonly client: LegacyClient = createDisabledLegacyClient()) {}
-
-  async list(): Promise<Equipe[]> {
-    const { data, error } = await this.client
-      .from('equipes')
-      .select('id, codigo, descricao, created_at, equipe_membros(id)')
-      .order('codigo');
-
-    if (error) throw error;
-    return ((data || []) as EquipeRow[]).map(mapEquipeRow);
-  }
-
-  async create(input: EquipeInput): Promise<void> {
-    const { error } = await this.client.from('equipes').insert({
-      codigo: input.codigo,
-      descricao: input.descricao,
-    });
-
-    if (error) throw error;
-  }
-
-  async update(id: string, input: EquipeInput): Promise<void> {
-    const { error } = await this.client
-      .from('equipes')
-      .update({ codigo: input.codigo, descricao: input.descricao })
-      .eq('id', id);
-
-    if (error) throw error;
-  }
-
-  async remove(id: string): Promise<void> {
-    const { error } = await this.client.from('equipes').delete().eq('id', id);
-    if (error) throw error;
-  }
-
-  async listRecursosHumanosAtivos(): Promise<RecursoHumano[]> {
-    const { data, error } = await this.client
-      .from('recursos_humanos')
-      .select('id, nome, sobrenome, funcoes(nome)')
-      .eq('status', 'Ativo')
-      .order('nome');
-
-    if (error) throw error;
-    return ((data || []) as RecursoHumanoRow[]).map(mapRecursoHumanoRow);
-  }
-
-  async listMembros(
-    equipeId: string,
-  ): Promise<{ membros: Membro[]; disponiveis: RecursoHumano[] }> {
-    const [membrosResult, rhResult] = await Promise.all([
-      this.client
-        .from('equipe_membros')
-        .select('id, recurso_humano_id, created_at')
-        .eq('equipe_id', equipeId),
-      this.client
-        .from('recursos_humanos')
-        .select('id, nome, sobrenome, funcoes(nome)')
-        .eq('status', 'Ativo')
-        .order('nome'),
-    ]);
-
-    if (membrosResult.error) throw membrosResult.error;
-    if (rhResult.error) throw rhResult.error;
-
-    return {
-      membros: ((membrosResult.data || []) as MembroRow[]).map(mapMembroRow),
-      disponiveis: ((rhResult.data || []) as RecursoHumanoRow[]).map(mapRecursoHumanoRow),
-    };
-  }
-
-  async addMembro(equipeId: string, recursoHumanoId: string): Promise<Membro> {
-    const { data, error } = await this.client
-      .from('equipe_membros')
-      .insert({ equipe_id: equipeId, recurso_humano_id: recursoHumanoId })
-      .select('id, recurso_humano_id, created_at')
-      .single();
-    if (error) throw error;
-    return mapMembroRow(data as MembroRow);
-  }
-
-  async removeMembro(_equipeId: string, membroId: string): Promise<void> {
-    const { error } = await this.client.from('equipe_membros').delete().eq('id', membroId);
-    if (error) throw error;
-  }
-}
-
-export const equipesRepository = new SupabaseEquipesRepository();
-
-export { mapEquipeRow, mapMembroRow, mapRecursoHumanoRow };

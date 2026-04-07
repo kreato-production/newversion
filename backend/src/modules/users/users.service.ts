@@ -42,10 +42,18 @@ function mapStatusToView(status: 'ATIVO' | 'INATIVO' | 'BLOQUEADO'): 'Ativo' | '
 export class UsersService {
   constructor(private readonly repository: UsersRepository) {}
 
+  private getRestrictedUnidadeIds(actor: SessionUser): string[] | null {
+    if (actor.role === 'GLOBAL_ADMIN') {
+      return null;
+    }
+
+    return actor.unidadeIds.length > 0 ? actor.unidadeIds : null;
+  }
+
   private async getTargetUser(actor: SessionUser, userId: string) {
     const existing = await this.repository.findById(userId);
     if (!existing) {
-      throw new Error('Usuario nao encontrado');
+      throw new AccessError('Usuario nao encontrado', 404);
     }
 
     ensureSameTenant(actor, existing.tenantId);
@@ -54,7 +62,13 @@ export class UsersService {
 
   async list(actor: SessionUser, opts?: { limit?: number; offset?: number }) {
     const tenantId = actor.role === 'GLOBAL_ADMIN' ? actor.tenantId ?? null : resolveTenantId(actor, actor.tenantId);
-    const { data, total } = await this.repository.listByTenant(tenantId, opts);
+
+    // Regra 3: admins com unidades específicas só gerenciam usuários dessas unidades.
+    // GLOBAL_ADMIN sem unidades restritas vê tudo do tenant.
+    const actorUnidadeIds =
+      actor.role !== 'GLOBAL_ADMIN' && actor.unidadeIds.length > 0 ? actor.unidadeIds : undefined;
+
+    const { data, total } = await this.repository.listByTenant(tenantId, { ...opts, actorUnidadeIds });
     return {
       total,
       data: data.map((item) => ({
@@ -79,26 +93,35 @@ export class UsersService {
   }
 
   async save(actor: SessionUser, input: SaveUserDto) {
-    const targetTenantId = input.role === 'GLOBAL_ADMIN' ? null : resolveTenantId(actor, input.tenantId ?? actor.tenantId);
-
     if (input.role === 'GLOBAL_ADMIN' && actor.role !== 'GLOBAL_ADMIN') {
       throw new AccessError('Somente administradores globais podem criar usuarios globais');
     }
 
+    // Regra 4: apenas GLOBAL_ADMIN pode criar/editar usuário com role TENANT_ADMIN
+    if (input.role === 'TENANT_ADMIN' && actor.role !== 'GLOBAL_ADMIN') {
+      throw new AccessError('Somente administradores globais podem atribuir role TENANT_ADMIN');
+    }
+
+    if (actor.role === 'GLOBAL_ADMIN' && input.role !== 'GLOBAL_ADMIN' && !input.tenantId) {
+      throw new AccessError('Tenant e obrigatorio para usuarios nao globais', 400);
+    }
+
+    const targetTenantId = input.role === 'GLOBAL_ADMIN' ? null : resolveTenantId(actor, input.tenantId ?? actor.tenantId);
+
     if (!input.id) {
       const existingByEmail = await this.repository.findByEmail(input.email);
       if (existingByEmail) {
-        throw new Error('Ja existe um usuario com este email');
+        throw new AccessError('Ja existe um usuario com este email', 409);
       }
 
       const existingByUsername = await this.repository.findByUsername(input.usuario);
       if (existingByUsername) {
-        throw new Error('Ja existe um usuario com este usuario');
+        throw new AccessError('Ja existe um usuario com este usuario', 409);
       }
     } else {
       const existing = await this.repository.findById(input.id);
       if (!existing) {
-        throw new Error('Usuario nao encontrado');
+        throw new AccessError('Usuario nao encontrado', 404);
       }
       ensureSameTenant(actor, existing.tenantId);
     }
@@ -147,9 +170,20 @@ export class UsersService {
 
   async listUnidades(actor: SessionUser, userId: string) {
     const user = await this.getTargetUser(actor, userId);
+    const restrictedUnidadeIds = this.getRestrictedUnidadeIds(actor);
+    const vinculadas = await this.repository.listUserUnidades(user.id);
+    const disponiveisBase = user.tenantId ? await this.repository.listAvailableUnidades(user.tenantId) : [];
+
+    const vinculadasFiltradas = restrictedUnidadeIds
+      ? vinculadas.filter((item) => restrictedUnidadeIds.includes(item.id))
+      : vinculadas;
+    const disponiveis = restrictedUnidadeIds
+      ? disponiveisBase.filter((item) => restrictedUnidadeIds.includes(item.id))
+      : disponiveisBase;
+
     return {
-      vinculadas: await this.repository.listUserUnidades(user.id),
-      disponiveis: user.tenantId ? await this.repository.listAvailableUnidades(user.tenantId) : [],
+      vinculadas: vinculadasFiltradas,
+      disponiveis,
     };
   }
 
@@ -164,11 +198,20 @@ export class UsersService {
       throw new Error('Unidade nao encontrada para o tenant do usuario');
     }
 
+    const restrictedUnidadeIds = this.getRestrictedUnidadeIds(actor);
+    if (restrictedUnidadeIds && !restrictedUnidadeIds.includes(unidadeId)) {
+      throw new AccessError('Sem permissao para vincular esta unidade', 403);
+    }
+
     await this.repository.addUserUnidade(user.id, unidadeId);
   }
 
   async removeUnidade(actor: SessionUser, userId: string, unidadeId: string) {
     const user = await this.getTargetUser(actor, userId);
+    const restrictedUnidadeIds = this.getRestrictedUnidadeIds(actor);
+    if (restrictedUnidadeIds && !restrictedUnidadeIds.includes(unidadeId)) {
+      throw new AccessError('Sem permissao para desvincular esta unidade', 403);
+    }
     await this.repository.removeUserUnidade(user.id, unidadeId);
   }
 

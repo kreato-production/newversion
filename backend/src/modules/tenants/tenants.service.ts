@@ -170,4 +170,47 @@ export class TenantsService {
       moeda: item.moeda,
     };
   }
+
+  async updateUnidade(
+    actor: SessionUser,
+    tenantId: string,
+    unidadeId: string,
+    input: z.infer<typeof saveTenantUnidadeSchema>,
+  ) {
+    await this.getTenant(tenantId);
+
+    const unidade = await this.repository.findUnidadeById(tenantId, unidadeId);
+    if (!unidade) {
+      throw new Error('Unidade de negocio nao encontrada');
+    }
+
+    const item = await this.repository.updateUnidade(unidadeId, {
+      tenantId,
+      codigoExterno: input.codigoExterno,
+      nome: input.nome,
+      descricao: input.descricao,
+      imagemUrl: input.imagem,
+      moeda: input.moeda,
+      createdByName: actor.nome,
+    });
+
+    return {
+      id: item.id,
+      codigoExterno: item.codigoExterno || '',
+      nome: item.nome,
+      descricao: item.descricao || '',
+      moeda: item.moeda,
+    };
+  }
+
+  async removeUnidade(_actor: SessionUser, tenantId: string, unidadeId: string) {
+    await this.getTenant(tenantId);
+
+    const unidade = await this.repository.findUnidadeById(tenantId, unidadeId);
+    if (!unidade) {
+      throw new Error('Unidade de negocio nao encontrada');
+    }
+
+    await this.repository.removeUnidade(tenantId, unidadeId);
+  }
 }

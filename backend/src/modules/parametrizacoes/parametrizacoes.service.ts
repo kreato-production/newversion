@@ -23,6 +23,27 @@ export const saveStatusTarefaSchema = z.object({
   isInicial: z.boolean().optional(),
 });
 
+export const saveStatusContaPagarSchema = z.object({
+  id: z.string().min(1).optional(),
+  tenantId: z.string().min(1).optional(),
+  codigoExterno: z.string().optional().nullable(),
+  titulo: z.string().min(1),
+  descricao: z.string().optional().nullable(),
+  cor: z.string().optional().nullable(),
+  isInicial: z.boolean().optional(),
+  isBaixa: z.boolean().optional(),
+});
+
+export const saveFormaPagamentoSchema = z.object({
+  id: z.string().min(1).optional(),
+  tenantId: z.string().min(1).optional(),
+  codigoExterno: z.string().optional().nullable(),
+  titulo: z.string().min(1),
+  descricao: z.string().optional().nullable(),
+  cor: z.string().optional().nullable(),
+  isPadrao: z.boolean().optional(),
+});
+
 export const saveTituloSchema = z.object({
   id: z.string().min(1).optional(),
   tenantId: z.string().min(1).optional(),
@@ -79,6 +100,41 @@ function mapStatusTarefa(row: Awaited<ReturnType<PrismaParametrizacoesRepository
     descricao: row.descricao || '',
     cor: row.cor || '#888888',
     isInicial: row.is_inicial || false,
+    dataCadastro: row.created_at?.toISOString() ?? '',
+    usuarioCadastro: row.created_by || '',
+  };
+}
+
+function mapStatusContaPagar(
+  row: Awaited<ReturnType<PrismaParametrizacoesRepository['findStatusContaPagar']>>,
+) {
+  if (!row) return null;
+
+  return {
+    id: row.id,
+    codigoExterno: row.codigo_externo || '',
+    titulo: row.titulo,
+    descricao: row.descricao || '',
+    cor: row.cor || '#888888',
+    isInicial: row.is_inicial || false,
+    isBaixa: row.is_baixa || false,
+    dataCadastro: row.created_at?.toISOString() ?? '',
+    usuarioCadastro: row.created_by || '',
+  };
+}
+
+function mapFormaPagamento(
+  row: Awaited<ReturnType<PrismaParametrizacoesRepository['findFormaPagamento']>>,
+) {
+  if (!row) return null;
+
+  return {
+    id: row.id,
+    codigoExterno: row.codigo_externo || '',
+    titulo: row.titulo,
+    descricao: row.descricao || '',
+    cor: row.cor || '#888888',
+    isPadrao: row.is_padrao || false,
     dataCadastro: row.created_at?.toISOString() ?? '',
     usuarioCadastro: row.created_by || '',
   };
@@ -188,6 +244,178 @@ export class ParametrizacoesService {
     if (!existing) throw new Error('Status de tarefa nao encontrado');
     ensureSameTenant(actor, existing.tenant_id);
     await this.repository.removeStatusTarefa(id);
+  }
+
+  async listStatusContaPagar(actor: SessionUser) {
+    const tenantId = resolveTenantId(actor, actor.tenantId);
+    const rows = await this.repository.listStatusContaPagar(tenantId);
+    return { data: rows.map((row) => mapStatusContaPagar(row)!) };
+  }
+
+  async saveStatusContaPagar(
+    actor: SessionUser,
+    input: z.infer<typeof saveStatusContaPagarSchema>,
+  ) {
+    const tenantId = resolveTenantId(actor, input.tenantId ?? actor.tenantId);
+    if (input.id) {
+      const existing = await this.repository.findStatusContaPagar(input.id);
+      if (!existing) throw new Error('Status de conta a pagar nao encontrado');
+      ensureSameTenant(actor, existing.tenant_id);
+    }
+
+    const row = await this.repository.saveStatusContaPagar({
+      ...input,
+      tenantId,
+      createdBy: actor.nome,
+    });
+
+    return mapStatusContaPagar(row)!;
+  }
+
+  async toggleStatusContaPagarInicial(actor: SessionUser, id: string, value: boolean) {
+    const existing = await this.repository.findStatusContaPagar(id);
+    if (!existing) throw new Error('Status de conta a pagar nao encontrado');
+    ensureSameTenant(actor, existing.tenant_id);
+    const row = await this.repository.setStatusContaPagarInicial(existing.tenant_id, id, value);
+    return mapStatusContaPagar(row)!;
+  }
+
+  async removeStatusContaPagar(actor: SessionUser, id: string) {
+    const existing = await this.repository.findStatusContaPagar(id);
+    if (!existing) throw new Error('Status de conta a pagar nao encontrado');
+    ensureSameTenant(actor, existing.tenant_id);
+    await this.repository.removeStatusContaPagar(id);
+  }
+
+  async listFormasPagamento(actor: SessionUser) {
+    const tenantId = resolveTenantId(actor, actor.tenantId);
+    const rows = await this.repository.listFormasPagamento(tenantId);
+    return { data: rows.map((row) => mapFormaPagamento(row)!) };
+  }
+
+  async saveFormaPagamento(
+    actor: SessionUser,
+    input: z.infer<typeof saveFormaPagamentoSchema>,
+  ) {
+    const tenantId = resolveTenantId(actor, input.tenantId ?? actor.tenantId);
+    if (input.id) {
+      const existing = await this.repository.findFormaPagamento(input.id);
+      if (!existing) throw new Error('Forma de pagamento nao encontrada');
+      ensureSameTenant(actor, existing.tenant_id);
+    }
+
+    const row = await this.repository.saveFormaPagamento({
+      ...input,
+      tenantId,
+      createdBy: actor.nome,
+    });
+
+    return mapFormaPagamento(row)!;
+  }
+
+  async toggleFormaPagamentoPadrao(actor: SessionUser, id: string, value: boolean) {
+    const existing = await this.repository.findFormaPagamento(id);
+    if (!existing) throw new Error('Forma de pagamento nao encontrada');
+    ensureSameTenant(actor, existing.tenant_id);
+    const row = await this.repository.setFormaPagamentoPadrao(existing.tenant_id, id, value);
+    return mapFormaPagamento(row)!;
+  }
+
+  async removeFormaPagamento(actor: SessionUser, id: string) {
+    const existing = await this.repository.findFormaPagamento(id);
+    if (!existing) throw new Error('Forma de pagamento nao encontrada');
+    ensureSameTenant(actor, existing.tenant_id);
+    await this.repository.removeFormaPagamento(id);
+  }
+
+  async listTiposDocumentoFinanceiro(actor: SessionUser) {
+    const tenantId = resolveTenantId(actor, actor.tenantId);
+    const rows = await this.repository.listTiposDocumentoFinanceiro(tenantId);
+    return { data: rows.map(mapTitulo) };
+  }
+
+  async saveTipoDocumentoFinanceiro(actor: SessionUser, input: z.infer<typeof saveTituloSchema>) {
+    const tenantId = resolveTenantId(actor, input.tenantId ?? actor.tenantId);
+    if (input.id) {
+      const existing = await this.repository.findTipoDocumentoFinanceiro(input.id);
+      if (!existing) throw new Error('Tipo de documento financeiro nao encontrado');
+      ensureSameTenant(actor, existing.tenant_id);
+    }
+
+    return mapTitulo(
+      await this.repository.saveTipoDocumentoFinanceiro({
+        ...input,
+        tenantId,
+        createdBy: actor.nome,
+      }),
+    );
+  }
+
+  async removeTipoDocumentoFinanceiro(actor: SessionUser, id: string) {
+    const existing = await this.repository.findTipoDocumentoFinanceiro(id);
+    if (!existing) throw new Error('Tipo de documento financeiro nao encontrado');
+    ensureSameTenant(actor, existing.tenant_id);
+    await this.repository.removeTipoDocumentoFinanceiro(id);
+  }
+
+  async listTiposPagamento(actor: SessionUser) {
+    const tenantId = resolveTenantId(actor, actor.tenantId);
+    const rows = await this.repository.listTiposPagamento(tenantId);
+    return { data: rows.map(mapTitulo) };
+  }
+
+  async saveTipoPagamento(actor: SessionUser, input: z.infer<typeof saveTituloSchema>) {
+    const tenantId = resolveTenantId(actor, input.tenantId ?? actor.tenantId);
+    if (input.id) {
+      const existing = await this.repository.findTipoPagamento(input.id);
+      if (!existing) throw new Error('Tipo de pagamento nao encontrado');
+      ensureSameTenant(actor, existing.tenant_id);
+    }
+
+    return mapTitulo(
+      await this.repository.saveTipoPagamento({
+        ...input,
+        tenantId,
+        createdBy: actor.nome,
+      }),
+    );
+  }
+
+  async removeTipoPagamento(actor: SessionUser, id: string) {
+    const existing = await this.repository.findTipoPagamento(id);
+    if (!existing) throw new Error('Tipo de pagamento nao encontrado');
+    ensureSameTenant(actor, existing.tenant_id);
+    await this.repository.removeTipoPagamento(id);
+  }
+
+  async listCategoriasDespesa(actor: SessionUser) {
+    const tenantId = resolveTenantId(actor, actor.tenantId);
+    const rows = await this.repository.listCategoriasDespesa(tenantId);
+    return { data: rows.map(mapTitulo) };
+  }
+
+  async saveCategoriaDespesa(actor: SessionUser, input: z.infer<typeof saveTituloSchema>) {
+    const tenantId = resolveTenantId(actor, input.tenantId ?? actor.tenantId);
+    if (input.id) {
+      const existing = await this.repository.findCategoriaDespesa(input.id);
+      if (!existing) throw new Error('Categoria de despesa nao encontrada');
+      ensureSameTenant(actor, existing.tenant_id);
+    }
+
+    return mapTitulo(
+      await this.repository.saveCategoriaDespesa({
+        ...input,
+        tenantId,
+        createdBy: actor.nome,
+      }),
+    );
+  }
+
+  async removeCategoriaDespesa(actor: SessionUser, id: string) {
+    const existing = await this.repository.findCategoriaDespesa(id);
+    if (!existing) throw new Error('Categoria de despesa nao encontrada');
+    ensureSameTenant(actor, existing.tenant_id);
+    await this.repository.removeCategoriaDespesa(id);
   }
 
   async listCategoriasIncidencia(actor: SessionUser) {

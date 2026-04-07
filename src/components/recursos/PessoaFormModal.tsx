@@ -15,6 +15,7 @@ import type {
   Pessoa,
   PessoaInput,
 } from '@/modules/pessoas/pessoas.types';
+import { ModalNavigation, type ModalNavigationProps } from '@/components/shared/ModalNavigation';
 
 interface PessoaFormModalProps {
   isOpen: boolean;
@@ -22,6 +23,7 @@ interface PessoaFormModalProps {
   onSave: (data: PessoaInput) => Promise<void>;
   data?: Pessoa | null;
   readOnly?: boolean;
+  navigation?: ModalNavigationProps;
 }
 
 const estadosBrasileiros = [
@@ -81,6 +83,7 @@ export const PessoaFormModal = ({
   onSave,
   data,
   readOnly = false,
+  navigation,
 }: PessoaFormModalProps) => {
   const [formData, setFormData] = useState<PessoaInput>(emptyFormData);
   const [classificacoes, setClassificacoes] = useState<ClassificacaoPessoaOption[]>([]);
@@ -411,15 +414,18 @@ export const PessoaFormModal = ({
                 />
               </div>
 
-              <div className="flex justify-end gap-3">
-                <Button type="button" variant="outline" onClick={onClose}>
-                  {readOnly ? 'Fechar' : 'Cancelar'}
-                </Button>
-                {!readOnly && (
-                  <Button type="submit" disabled={isSubmitting}>
-                    {data ? 'Salvar' : 'Cadastrar'}
+              <div className={`flex ${navigation ? 'justify-between' : 'justify-end'} gap-3`}>
+                {navigation && <ModalNavigation {...navigation} />}
+                <div className="flex gap-2">
+                  <Button type="button" variant="outline" onClick={onClose}>
+                    {readOnly ? 'Fechar' : 'Cancelar'}
                   </Button>
-                )}
+                  {!readOnly && (
+                    <Button type="submit" disabled={isSubmitting}>
+                      {data ? 'Salvar' : 'Cadastrar'}
+                    </Button>
+                  )}
+                </div>
               </div>
             </form>
           </TabsContent>

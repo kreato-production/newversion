@@ -14,6 +14,31 @@ type StatusRow = {
   created_by: string | null;
 };
 
+type StatusContaPagarRow = {
+  id: string;
+  tenant_id: string;
+  codigo_externo: string | null;
+  titulo: string;
+  descricao: string | null;
+  cor: string | null;
+  is_inicial: boolean | null;
+  is_baixa: boolean | null;
+  created_at: Date | null;
+  created_by: string | null;
+};
+
+type FormaPagamentoRow = {
+  id: string;
+  tenant_id: string;
+  codigo_externo: string | null;
+  titulo: string;
+  descricao: string | null;
+  cor: string | null;
+  is_padrao: boolean | null;
+  created_at: Date | null;
+  created_by: string | null;
+};
+
 type TituloRow = {
   id: string;
   tenant_id: string;
@@ -139,6 +164,145 @@ async function ensureTables() {
       `);
 
       await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS status_conta_pagar (
+          id text PRIMARY KEY,
+          tenant_id text NOT NULL REFERENCES "Tenant"(id) ON DELETE CASCADE,
+          codigo_externo text NULL,
+          titulo text NOT NULL,
+          descricao text NULL,
+          cor text NULL DEFAULT '#888888',
+          is_inicial boolean NOT NULL DEFAULT false,
+          is_baixa boolean NOT NULL DEFAULT false,
+          created_at timestamptz NOT NULL DEFAULT NOW(),
+          updated_at timestamptz NOT NULL DEFAULT NOW(),
+          created_by text NULL
+        )
+      `);
+
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS tipos_documento_financeiro (
+          id text PRIMARY KEY,
+          tenant_id text NOT NULL REFERENCES "Tenant"(id) ON DELETE CASCADE,
+          codigo_externo text NULL,
+          titulo text NOT NULL,
+          descricao text NULL,
+          cor text NULL DEFAULT '#888888',
+          created_by text NULL,
+          created_at timestamptz NOT NULL DEFAULT NOW(),
+          updated_at timestamptz NOT NULL DEFAULT NOW()
+        )
+      `);
+
+      await prisma.$executeRawUnsafe(`
+        DO $$
+        BEGIN
+          IF EXISTS (
+            SELECT 1
+            FROM information_schema.columns
+            WHERE table_schema = 'public'
+              AND table_name = 'tipos_documento_financeiro'
+              AND column_name = 'nome'
+          ) AND NOT EXISTS (
+            SELECT 1
+            FROM information_schema.columns
+            WHERE table_schema = 'public'
+              AND table_name = 'tipos_documento_financeiro'
+              AND column_name = 'titulo'
+          ) THEN
+            ALTER TABLE tipos_documento_financeiro RENAME COLUMN nome TO titulo;
+          END IF;
+        END
+        $$;
+      `);
+
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS tipos_pagamento (
+          id text PRIMARY KEY,
+          tenant_id text NOT NULL REFERENCES "Tenant"(id) ON DELETE CASCADE,
+          codigo_externo text NULL,
+          titulo text NOT NULL,
+          descricao text NULL,
+          cor text NULL DEFAULT '#888888',
+          created_by text NULL,
+          created_at timestamptz NOT NULL DEFAULT NOW(),
+          updated_at timestamptz NOT NULL DEFAULT NOW()
+        )
+      `);
+
+      await prisma.$executeRawUnsafe(`
+        DO $$
+        BEGIN
+          IF EXISTS (
+            SELECT 1
+            FROM information_schema.columns
+            WHERE table_schema = 'public'
+              AND table_name = 'tipos_pagamento'
+              AND column_name = 'nome'
+          ) AND NOT EXISTS (
+            SELECT 1
+            FROM information_schema.columns
+            WHERE table_schema = 'public'
+              AND table_name = 'tipos_pagamento'
+              AND column_name = 'titulo'
+          ) THEN
+            ALTER TABLE tipos_pagamento RENAME COLUMN nome TO titulo;
+          END IF;
+        END
+        $$;
+      `);
+
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS categorias_despesa (
+          id text PRIMARY KEY,
+          tenant_id text NOT NULL REFERENCES "Tenant"(id) ON DELETE CASCADE,
+          codigo_externo text NULL,
+          titulo text NOT NULL,
+          descricao text NULL,
+          cor text NULL DEFAULT '#888888',
+          created_by text NULL,
+          created_at timestamptz NOT NULL DEFAULT NOW(),
+          updated_at timestamptz NOT NULL DEFAULT NOW()
+        )
+      `);
+
+      await prisma.$executeRawUnsafe(`
+        DO $$
+        BEGIN
+          IF EXISTS (
+            SELECT 1
+            FROM information_schema.columns
+            WHERE table_schema = 'public'
+              AND table_name = 'categorias_despesa'
+              AND column_name = 'nome'
+          ) AND NOT EXISTS (
+            SELECT 1
+            FROM information_schema.columns
+            WHERE table_schema = 'public'
+              AND table_name = 'categorias_despesa'
+              AND column_name = 'titulo'
+          ) THEN
+            ALTER TABLE categorias_despesa RENAME COLUMN nome TO titulo;
+          END IF;
+        END
+        $$;
+      `);
+
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS formas_pagamento (
+          id text PRIMARY KEY,
+          tenant_id text NOT NULL REFERENCES "Tenant"(id) ON DELETE CASCADE,
+          codigo_externo text NULL,
+          titulo text NOT NULL,
+          descricao text NULL,
+          cor text NULL DEFAULT '#888888',
+          is_padrao boolean NOT NULL DEFAULT false,
+          created_by text NULL,
+          created_at timestamptz NOT NULL DEFAULT NOW(),
+          updated_at timestamptz NOT NULL DEFAULT NOW()
+        )
+      `);
+
+      await prisma.$executeRawUnsafe(`
         CREATE TABLE IF NOT EXISTS centros_lucro (
           id text PRIMARY KEY,
           tenant_id text NOT NULL REFERENCES "Tenant"(id) ON DELETE CASCADE,
@@ -193,6 +357,29 @@ export type SaveStatusTarefaInput = {
   descricao?: string | null;
   cor?: string | null;
   isInicial?: boolean;
+  createdBy?: string | null;
+};
+
+export type SaveStatusContaPagarInput = {
+  id?: string;
+  tenantId: string;
+  codigoExterno?: string | null;
+  titulo: string;
+  descricao?: string | null;
+  cor?: string | null;
+  isInicial?: boolean;
+  isBaixa?: boolean;
+  createdBy?: string | null;
+};
+
+export type SaveFormaPagamentoInput = {
+  id?: string;
+  tenantId: string;
+  codigoExterno?: string | null;
+  titulo: string;
+  descricao?: string | null;
+  cor?: string | null;
+  isPadrao?: boolean;
   createdBy?: string | null;
 };
 
@@ -445,6 +632,456 @@ export class PrismaParametrizacoesRepository {
         SET is_inicial = $1, updated_at = NOW()
         WHERE id = $2 AND tenant_id = $3
         RETURNING id, tenant_id, codigo_externo, codigo, nome, descricao, cor, is_inicial, created_at, created_by
+      `,
+      value,
+      id,
+      tenantId,
+    );
+
+    return rows[0] ?? null;
+  }
+
+  async listStatusContaPagar(tenantId: string) {
+    await ensureTables();
+    return prisma.$queryRawUnsafe<StatusContaPagarRow[]>(
+      `
+        SELECT id, tenant_id, codigo_externo, titulo, descricao, cor, is_inicial, is_baixa, created_at, created_by
+        FROM status_conta_pagar
+        WHERE tenant_id = $1
+        ORDER BY titulo ASC
+      `,
+      tenantId,
+    );
+  }
+
+  async findStatusContaPagar(id: string) {
+    await ensureTables();
+    const rows = await prisma.$queryRawUnsafe<StatusContaPagarRow[]>(
+      `
+        SELECT id, tenant_id, codigo_externo, titulo, descricao, cor, is_inicial, is_baixa, created_at, created_by
+        FROM status_conta_pagar
+        WHERE id = $1
+        LIMIT 1
+      `,
+      id,
+    );
+
+    return rows[0] ?? null;
+  }
+
+  async saveStatusContaPagar(input: SaveStatusContaPagarInput) {
+    await ensureTables();
+
+    if (input.isInicial) {
+      await prisma.$executeRawUnsafe(
+        `UPDATE status_conta_pagar SET is_inicial = false, updated_at = NOW() WHERE tenant_id = $1`,
+        input.tenantId,
+      );
+    }
+
+    if (input.id) {
+      const rows = await prisma.$queryRawUnsafe<StatusContaPagarRow[]>(
+        `
+          UPDATE status_conta_pagar
+          SET
+            codigo_externo = $1,
+            titulo = $2,
+            descricao = $3,
+            cor = $4,
+            is_inicial = $5,
+            is_baixa = $6,
+            updated_at = NOW()
+          WHERE id = $7 AND tenant_id = $8
+          RETURNING id, tenant_id, codigo_externo, titulo, descricao, cor, is_inicial, is_baixa, created_at, created_by
+        `,
+        input.codigoExterno ?? null,
+        input.titulo,
+        input.descricao ?? null,
+        input.cor ?? '#888888',
+        input.isInicial ?? false,
+        input.isBaixa ?? false,
+        input.id,
+        input.tenantId,
+      );
+
+      if (rows[0]) {
+        return rows[0];
+      }
+    }
+
+    const id = input.id ?? randomUUID();
+    const rows = await prisma.$queryRawUnsafe<StatusContaPagarRow[]>(
+      `
+        INSERT INTO status_conta_pagar (
+          id, tenant_id, codigo_externo, titulo, descricao, cor, is_inicial, is_baixa, created_at, updated_at, created_by
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW(), $9)
+        RETURNING id, tenant_id, codigo_externo, titulo, descricao, cor, is_inicial, is_baixa, created_at, created_by
+      `,
+      id,
+      input.tenantId,
+      input.codigoExterno ?? null,
+      input.titulo,
+      input.descricao ?? null,
+      input.cor ?? '#888888',
+      input.isInicial ?? false,
+      input.isBaixa ?? false,
+      input.createdBy ?? null,
+    );
+
+    return rows[0];
+  }
+
+  async removeStatusContaPagar(id: string) {
+    await ensureTables();
+    await prisma.$executeRawUnsafe(`DELETE FROM status_conta_pagar WHERE id = $1`, id);
+  }
+
+  async listFormasPagamento(tenantId: string) {
+    await ensureTables();
+    return prisma.$queryRawUnsafe<FormaPagamentoRow[]>(
+      `
+        SELECT id, tenant_id, codigo_externo, titulo, descricao, cor, is_padrao, created_at, created_by
+        FROM formas_pagamento
+        WHERE tenant_id = $1
+        ORDER BY titulo ASC
+      `,
+      tenantId,
+    );
+  }
+
+  async findFormaPagamento(id: string) {
+    await ensureTables();
+    const rows = await prisma.$queryRawUnsafe<FormaPagamentoRow[]>(
+      `
+        SELECT id, tenant_id, codigo_externo, titulo, descricao, cor, is_padrao, created_at, created_by
+        FROM formas_pagamento
+        WHERE id = $1
+        LIMIT 1
+      `,
+      id,
+    );
+
+    return rows[0] ?? null;
+  }
+
+  async saveFormaPagamento(input: SaveFormaPagamentoInput) {
+    await ensureTables();
+
+    if (input.isPadrao) {
+      await prisma.$executeRawUnsafe(
+        `UPDATE formas_pagamento SET is_padrao = false, updated_at = NOW() WHERE tenant_id = $1`,
+        input.tenantId,
+      );
+    }
+
+    if (input.id) {
+      const rows = await prisma.$queryRawUnsafe<FormaPagamentoRow[]>(
+        `
+          UPDATE formas_pagamento
+          SET
+            codigo_externo = $1,
+            titulo = $2,
+            descricao = $3,
+            cor = $4,
+            is_padrao = $5,
+            updated_at = NOW()
+          WHERE id = $6 AND tenant_id = $7
+          RETURNING id, tenant_id, codigo_externo, titulo, descricao, cor, is_padrao, created_at, created_by
+        `,
+        input.codigoExterno ?? null,
+        input.titulo,
+        input.descricao ?? null,
+        input.cor ?? '#888888',
+        input.isPadrao ?? false,
+        input.id,
+        input.tenantId,
+      );
+
+      if (rows[0]) {
+        return rows[0];
+      }
+    }
+
+    const id = input.id ?? randomUUID();
+    const rows = await prisma.$queryRawUnsafe<FormaPagamentoRow[]>(
+      `
+        INSERT INTO formas_pagamento (
+          id, tenant_id, codigo_externo, titulo, descricao, cor, is_padrao, created_at, updated_at, created_by
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW(), $8)
+        RETURNING id, tenant_id, codigo_externo, titulo, descricao, cor, is_padrao, created_at, created_by
+      `,
+      id,
+      input.tenantId,
+      input.codigoExterno ?? null,
+      input.titulo,
+      input.descricao ?? null,
+      input.cor ?? '#888888',
+      input.isPadrao ?? false,
+      input.createdBy ?? null,
+    );
+
+    return rows[0];
+  }
+
+  async removeFormaPagamento(id: string) {
+    await ensureTables();
+    await prisma.$executeRawUnsafe(`DELETE FROM formas_pagamento WHERE id = $1`, id);
+  }
+
+  async setFormaPagamentoPadrao(tenantId: string, id: string, value: boolean) {
+    await ensureTables();
+    if (value) {
+      await prisma.$executeRawUnsafe(
+        `UPDATE formas_pagamento SET is_padrao = false, updated_at = NOW() WHERE tenant_id = $1`,
+        tenantId,
+      );
+    }
+
+    const rows = await prisma.$queryRawUnsafe<FormaPagamentoRow[]>(
+      `
+        UPDATE formas_pagamento
+        SET is_padrao = $1, updated_at = NOW()
+        WHERE id = $2 AND tenant_id = $3
+        RETURNING id, tenant_id, codigo_externo, titulo, descricao, cor, is_padrao, created_at, created_by
+      `,
+      value,
+      id,
+      tenantId,
+    );
+
+    return rows[0] ?? null;
+  }
+
+  async listTiposDocumentoFinanceiro(tenantId: string) {
+    await ensureTables();
+    return prisma.$queryRawUnsafe<TituloRow[]>(
+      `
+        SELECT id, tenant_id, codigo_externo, titulo, descricao, cor, created_at, created_by
+        FROM tipos_documento_financeiro
+        WHERE tenant_id = $1
+        ORDER BY titulo ASC
+      `,
+      tenantId,
+    );
+  }
+
+  async findTipoDocumentoFinanceiro(id: string) {
+    await ensureTables();
+    const rows = await prisma.$queryRawUnsafe<TituloRow[]>(
+      `
+        SELECT id, tenant_id, codigo_externo, titulo, descricao, cor, created_at, created_by
+        FROM tipos_documento_financeiro
+        WHERE id = $1
+        LIMIT 1
+      `,
+      id,
+    );
+
+    return rows[0] ?? null;
+  }
+
+  async saveTipoDocumentoFinanceiro(input: SaveTituloInput) {
+    await ensureTables();
+    if (input.id) {
+      const rows = await prisma.$queryRawUnsafe<TituloRow[]>(
+        `
+          UPDATE tipos_documento_financeiro
+          SET codigo_externo = $1, titulo = $2, descricao = $3, cor = $4, updated_at = NOW()
+          WHERE id = $5 AND tenant_id = $6
+          RETURNING id, tenant_id, codigo_externo, titulo, descricao, cor, created_at, created_by
+        `,
+        input.codigoExterno ?? null,
+        input.titulo,
+        input.descricao ?? null,
+        input.cor ?? '#888888',
+        input.id,
+        input.tenantId,
+      );
+      if (rows[0]) return rows[0];
+    }
+
+    const rows = await prisma.$queryRawUnsafe<TituloRow[]>(
+      `
+        INSERT INTO tipos_documento_financeiro (id, tenant_id, codigo_externo, titulo, descricao, cor, created_by, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
+        RETURNING id, tenant_id, codigo_externo, titulo, descricao, cor, created_at, created_by
+      `,
+      input.id ?? randomUUID(),
+      input.tenantId,
+      input.codigoExterno ?? null,
+      input.titulo,
+      input.descricao ?? null,
+      input.cor ?? '#888888',
+      input.createdBy ?? null,
+    );
+
+    return rows[0];
+  }
+
+  async removeTipoDocumentoFinanceiro(id: string) {
+    await ensureTables();
+    await prisma.$executeRawUnsafe(`DELETE FROM tipos_documento_financeiro WHERE id = $1`, id);
+  }
+
+  async listTiposPagamento(tenantId: string) {
+    await ensureTables();
+    return prisma.$queryRawUnsafe<TituloRow[]>(
+      `
+        SELECT id, tenant_id, codigo_externo, titulo, descricao, cor, created_at, created_by
+        FROM tipos_pagamento
+        WHERE tenant_id = $1
+        ORDER BY titulo ASC
+      `,
+      tenantId,
+    );
+  }
+
+  async findTipoPagamento(id: string) {
+    await ensureTables();
+    const rows = await prisma.$queryRawUnsafe<TituloRow[]>(
+      `
+        SELECT id, tenant_id, codigo_externo, titulo, descricao, cor, created_at, created_by
+        FROM tipos_pagamento
+        WHERE id = $1
+        LIMIT 1
+      `,
+      id,
+    );
+
+    return rows[0] ?? null;
+  }
+
+  async saveTipoPagamento(input: SaveTituloInput) {
+    await ensureTables();
+    if (input.id) {
+      const rows = await prisma.$queryRawUnsafe<TituloRow[]>(
+        `
+          UPDATE tipos_pagamento
+          SET codigo_externo = $1, titulo = $2, descricao = $3, cor = $4, updated_at = NOW()
+          WHERE id = $5 AND tenant_id = $6
+          RETURNING id, tenant_id, codigo_externo, titulo, descricao, cor, created_at, created_by
+        `,
+        input.codigoExterno ?? null,
+        input.titulo,
+        input.descricao ?? null,
+        input.cor ?? '#888888',
+        input.id,
+        input.tenantId,
+      );
+      if (rows[0]) return rows[0];
+    }
+
+    const rows = await prisma.$queryRawUnsafe<TituloRow[]>(
+      `
+        INSERT INTO tipos_pagamento (id, tenant_id, codigo_externo, titulo, descricao, cor, created_by, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
+        RETURNING id, tenant_id, codigo_externo, titulo, descricao, cor, created_at, created_by
+      `,
+      input.id ?? randomUUID(),
+      input.tenantId,
+      input.codigoExterno ?? null,
+      input.titulo,
+      input.descricao ?? null,
+      input.cor ?? '#888888',
+      input.createdBy ?? null,
+    );
+
+    return rows[0];
+  }
+
+  async removeTipoPagamento(id: string) {
+    await ensureTables();
+    await prisma.$executeRawUnsafe(`DELETE FROM tipos_pagamento WHERE id = $1`, id);
+  }
+
+  async listCategoriasDespesa(tenantId: string) {
+    await ensureTables();
+    return prisma.$queryRawUnsafe<TituloRow[]>(
+      `
+        SELECT id, tenant_id, codigo_externo, titulo, descricao, cor, created_at, created_by
+        FROM categorias_despesa
+        WHERE tenant_id = $1
+        ORDER BY titulo ASC
+      `,
+      tenantId,
+    );
+  }
+
+  async findCategoriaDespesa(id: string) {
+    await ensureTables();
+    const rows = await prisma.$queryRawUnsafe<TituloRow[]>(
+      `
+        SELECT id, tenant_id, codigo_externo, titulo, descricao, cor, created_at, created_by
+        FROM categorias_despesa
+        WHERE id = $1
+        LIMIT 1
+      `,
+      id,
+    );
+
+    return rows[0] ?? null;
+  }
+
+  async saveCategoriaDespesa(input: SaveTituloInput) {
+    await ensureTables();
+    if (input.id) {
+      const rows = await prisma.$queryRawUnsafe<TituloRow[]>(
+        `
+          UPDATE categorias_despesa
+          SET codigo_externo = $1, titulo = $2, descricao = $3, cor = $4, updated_at = NOW()
+          WHERE id = $5 AND tenant_id = $6
+          RETURNING id, tenant_id, codigo_externo, titulo, descricao, cor, created_at, created_by
+        `,
+        input.codigoExterno ?? null,
+        input.titulo,
+        input.descricao ?? null,
+        input.cor ?? '#888888',
+        input.id,
+        input.tenantId,
+      );
+      if (rows[0]) return rows[0];
+    }
+
+    const rows = await prisma.$queryRawUnsafe<TituloRow[]>(
+      `
+        INSERT INTO categorias_despesa (id, tenant_id, codigo_externo, titulo, descricao, cor, created_by, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
+        RETURNING id, tenant_id, codigo_externo, titulo, descricao, cor, created_at, created_by
+      `,
+      input.id ?? randomUUID(),
+      input.tenantId,
+      input.codigoExterno ?? null,
+      input.titulo,
+      input.descricao ?? null,
+      input.cor ?? '#888888',
+      input.createdBy ?? null,
+    );
+
+    return rows[0];
+  }
+
+  async removeCategoriaDespesa(id: string) {
+    await ensureTables();
+    await prisma.$executeRawUnsafe(`DELETE FROM categorias_despesa WHERE id = $1`, id);
+  }
+
+  async setStatusContaPagarInicial(tenantId: string, id: string, value: boolean) {
+    await ensureTables();
+    if (value) {
+      await prisma.$executeRawUnsafe(
+        `UPDATE status_conta_pagar SET is_inicial = false, updated_at = NOW() WHERE tenant_id = $1`,
+        tenantId,
+      );
+    }
+
+    const rows = await prisma.$queryRawUnsafe<StatusContaPagarRow[]>(
+      `
+        UPDATE status_conta_pagar
+        SET is_inicial = $1, updated_at = NOW()
+        WHERE id = $2 AND tenant_id = $3
+        RETURNING id, tenant_id, codigo_externo, titulo, descricao, cor, is_inicial, is_baixa, created_at, created_by
       `,
       value,
       id,

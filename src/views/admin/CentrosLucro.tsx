@@ -280,6 +280,19 @@ const CentrosLucro = () => {
         onSave={handleSave}
         data={editingItem}
         centrosLucro={items}
+        navigation={(() => {
+          const navIndex = editingItem
+            ? filteredItems.findIndex((i) => i.id === editingItem.id)
+            : -1;
+          return navIndex >= 0
+            ? {
+                currentIndex: navIndex,
+                total: filteredItems.length,
+                onPrevious: () => setEditingItem(filteredItems[navIndex - 1]),
+                onNext: () => setEditingItem(filteredItems[navIndex + 1]),
+              }
+            : undefined;
+        })()}
       />
     </div>
   );

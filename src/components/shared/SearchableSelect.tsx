@@ -59,7 +59,7 @@ export const SearchableSelect = ({
           aria-expanded={open}
           disabled={disabled}
           className={cn(
-            'w-full justify-between h-8 text-xs font-normal',
+            'w-full justify-between h-9 text-sm font-normal',
             !value && 'text-muted-foreground',
             disabled && 'opacity-50 cursor-not-allowed',
             triggerClassName,
@@ -69,7 +69,7 @@ export const SearchableSelect = ({
           <span className="truncate">
             {selectedOption ? selectedOption.label : placeholder}
           </span>
-          <ChevronsUpDown className="ml-2 h-3 w-3 shrink-0 opacity-50" />
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
       <PopoverContent

@@ -14,6 +14,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Loader2 } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { ModalNavigation, type ModalNavigationProps } from '@/components/shared/ModalNavigation';
 
 interface SeveridadeIncidenciaFormModalProps {
   isOpen: boolean;
@@ -31,6 +32,7 @@ interface SeveridadeIncidenciaFormModalProps {
     cor?: string | null;
   } | null;
   readOnly?: boolean;
+  navigation?: ModalNavigationProps;
 }
 
 export const SeveridadeIncidenciaFormModal = ({
@@ -39,6 +41,7 @@ export const SeveridadeIncidenciaFormModal = ({
   onSave,
   data,
   readOnly,
+  navigation,
 }: SeveridadeIncidenciaFormModalProps) => {
   const { t } = useLanguage();
   const { user } = useAuth();
@@ -147,22 +150,25 @@ export const SeveridadeIncidenciaFormModal = ({
             <Input value={user?.nome || ''} disabled />
           </div>
         </div>
-        <DialogFooter>
-          {readOnly ? (
-            <Button variant="outline" onClick={onClose}>
-              {t('common.close')}
-            </Button>
-          ) : (
-            <>
+        <DialogFooter className={navigation ? 'sm:justify-between' : undefined}>
+          {navigation && <ModalNavigation {...navigation} />}
+          <div className="flex gap-2">
+            {readOnly ? (
               <Button variant="outline" onClick={onClose}>
-                {t('common.cancel')}
+                {t('common.close')}
               </Button>
-              <Button onClick={handleSubmit} disabled={saving || !form.titulo.trim()}>
-                {saving && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
-                {t('common.save')}
-              </Button>
-            </>
-          )}
+            ) : (
+              <>
+                <Button variant="outline" onClick={onClose}>
+                  {t('common.cancel')}
+                </Button>
+                <Button onClick={handleSubmit} disabled={saving || !form.titulo.trim()}>
+                  {saving && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
+                  {t('common.save')}
+                </Button>
+              </>
+            )}
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>

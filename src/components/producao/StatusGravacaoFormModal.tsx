@@ -13,6 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/contexts/AuthContext';
 import { Badge } from '@/components/ui/badge';
+import { ModalNavigation, type ModalNavigationProps } from '@/components/shared/ModalNavigation';
 import { type StatusGravacaoItem } from '@/views/producao/StatusGravacao';
 
 interface StatusGravacaoFormModalProps {
@@ -21,6 +22,7 @@ interface StatusGravacaoFormModalProps {
   onSave: (data: StatusGravacaoItem) => Promise<void>;
   data?: StatusGravacaoItem | null;
   readOnly?: boolean;
+  navigation?: ModalNavigationProps;
 }
 
 const PRESET_COLORS = [
@@ -42,6 +44,7 @@ export const StatusGravacaoFormModal = ({
   onSave,
   data,
   readOnly = false,
+  navigation,
 }: StatusGravacaoFormModalProps) => {
   const { user } = useAuth();
   const [formData, setFormData] = useState({
@@ -170,15 +173,18 @@ export const StatusGravacaoFormModal = ({
             />
           </div>
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>
-              {readOnly ? 'Fechar' : 'Cancelar'}
-            </Button>
-            {!readOnly && (
-              <Button type="submit" className="gradient-primary hover:opacity-90">
-                Salvar
+          <DialogFooter className={navigation ? 'sm:justify-between' : undefined}>
+            {navigation && <ModalNavigation {...navigation} />}
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" onClick={onClose}>
+                {readOnly ? 'Fechar' : 'Cancelar'}
               </Button>
-            )}
+              {!readOnly && (
+                <Button type="submit" className="gradient-primary hover:opacity-90">
+                  Salvar
+                </Button>
+              )}
+            </div>
           </DialogFooter>
         </form>
       </DialogContent>

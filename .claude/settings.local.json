@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(node -e ':*)",
+      "Bash(grep -n \"type=\\\\\"number\\\\\"\\\\|moeda\\\\|currency\\\\|R\\\\$\\\\|BRL\" \"c:/Projetos/Kreato_Local/kreatoproduction/src/components/admin/UnidadeNegocioFormModal.tsx\")"
     ]
   }
 }

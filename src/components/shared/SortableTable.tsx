@@ -27,6 +27,8 @@ interface SortableTableProps<T> {
   storageKey?: string;
   paginated?: boolean;
   defaultPageSize?: number;
+  /** When provided, only columns whose key is in this array are rendered */
+  visibleColumnKeys?: string[];
 }
 
 type SortDirection = 'asc' | 'desc' | null;
@@ -38,6 +40,7 @@ export function SortableTable<T>({
   storageKey,
   paginated = true,
   defaultPageSize = 20,
+  visibleColumnKeys,
 }: SortableTableProps<T>) {
   // Load saved column order from localStorage
   const [columns, setColumns] = useState<Column<T>[]>(() => {
@@ -199,12 +202,17 @@ export function SortableTable<T>({
     return <ArrowDown className="w-3 h-3 ml-1 text-primary" />;
   };
 
+  // Filter to visible columns without altering stored order
+  const renderedColumns = visibleColumnKeys
+    ? columns.filter((c) => visibleColumnKeys.includes(c.key))
+    : columns;
+
   return (
     <div>
       <Table>
         <TableHeader>
           <TableRow className="h-9">
-            {columns.map((column) => (
+            {renderedColumns.map((column) => (
               <TableHead
                 key={column.key}
                 className={cn(
@@ -233,7 +241,7 @@ export function SortableTable<T>({
         <TableBody>
           {paginatedData.map((item) => (
             <TableRow key={getRowKey(item)} className="h-10">
-              {columns.map((column) => (
+              {renderedColumns.map((column) => (
                 <TableCell key={column.key} className={cn('py-2', column.className)}>
                   {column.render 
                     ? column.render(item) 

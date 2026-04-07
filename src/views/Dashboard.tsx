@@ -2,6 +2,13 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   Video,
   Users,
   Calendar,
@@ -15,21 +22,31 @@ import {
 import { useMemo, useState, useEffect } from 'react';
 import { parseISO, format, getMonth, getYear } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { Area, AreaChart, CartesianGrid, XAxis } from 'recharts';
 import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from 'recharts';
+  ChartContainer,
+  ChartLegend,
+  ChartLegendContent,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from '@/components/ui/chart';
 import { ApiAnalyticsRepository } from '@/modules/analytics/analytics.api';
 import type {
   DashboardOverviewResponse,
   DashboardRecordingSummary,
 } from '@/modules/analytics/analytics.types';
+
+const chartConfig = {
+  custosGravacoes: {
+    label: 'Gravações',
+    color: 'hsl(var(--chart-2))',
+  },
+  custosConteudos: {
+    label: 'Conteúdos',
+    color: 'hsl(var(--chart-1))',
+  },
+} satisfies ChartConfig;
 
 const StatCard = ({
   title,
@@ -76,6 +93,7 @@ const Dashboard = () => {
   const { user, session } = useAuth();
   const { t } = useLanguage();
   const [isLoading, setIsLoading] = useState(true);
+  const [timeRange, setTimeRange] = useState('12m');
   const [stats, setStats] = useState<DashboardStats>({
     gravacoes: 0,
     gravacoesAtivas: 0,
@@ -185,6 +203,11 @@ const Dashboard = () => {
     return meses;
   }, [gravacoesParaCusto]);
 
+  const filteredCustos = useMemo(() => {
+    const count = timeRange === '3m' ? 3 : timeRange === '6m' ? 6 : 12;
+    return custosAnuais.slice(-count);
+  }, [custosAnuais, timeRange]);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -232,6 +255,80 @@ const Dashboard = () => {
           gradient="bg-kreato-cyan"
         />
       </div>
+
+      <Card className="pt-0">
+        <CardHeader className="flex items-center gap-2 space-y-0 border-b py-5 sm:flex-row">
+          <div className="grid flex-1 gap-1">
+            <CardTitle className="flex items-center gap-2">
+              <DollarSign className="w-5 h-5 text-kreato-cyan" />
+              Gravações por Mês ({custosAnuais[0]?.ano || new Date().getFullYear()})
+            </CardTitle>
+            <CardDescription>Distribuição de gravações ao longo do ano</CardDescription>
+          </div>
+          <Select value={timeRange} onValueChange={setTimeRange}>
+            <SelectTrigger
+              className="hidden w-[160px] rounded-lg sm:ml-auto sm:flex"
+              aria-label="Selecionar período"
+            >
+              <SelectValue placeholder="Últimos 12 meses" />
+            </SelectTrigger>
+            <SelectContent className="rounded-xl">
+              <SelectItem value="12m" className="rounded-lg">
+                Últimos 12 meses
+              </SelectItem>
+              <SelectItem value="6m" className="rounded-lg">
+                Últimos 6 meses
+              </SelectItem>
+              <SelectItem value="3m" className="rounded-lg">
+                Últimos 3 meses
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </CardHeader>
+        <CardContent className="px-2 pt-4 sm:px-6 sm:pt-6">
+          <ChartContainer config={chartConfig} className="aspect-auto h-[250px] w-full">
+            <AreaChart data={filteredCustos}>
+              <defs>
+                <linearGradient id="fillGravacoes" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="var(--color-custosGravacoes)" stopOpacity={0.6} />
+                  <stop offset="95%" stopColor="var(--color-custosGravacoes)" stopOpacity={0.05} />
+                </linearGradient>
+                <linearGradient id="fillConteudos" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="var(--color-custosConteudos)" stopOpacity={0.4} />
+                  <stop offset="95%" stopColor="var(--color-custosConteudos)" stopOpacity={0.05} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid vertical={false} />
+              <XAxis
+                dataKey="mes"
+                tickLine={false}
+                axisLine={false}
+                tickMargin={8}
+                minTickGap={32}
+              />
+              <ChartTooltip
+                cursor={false}
+                content={<ChartTooltipContent indicator="dot" />}
+              />
+              <Area
+                dataKey="custosConteudos"
+                type="natural"
+                fill="url(#fillConteudos)"
+                stroke="var(--color-custosConteudos)"
+                stackId="a"
+              />
+              <Area
+                dataKey="custosGravacoes"
+                type="natural"
+                fill="url(#fillGravacoes)"
+                stroke="var(--color-custosGravacoes)"
+                stackId="a"
+              />
+              <ChartLegend content={<ChartLegendContent />} />
+            </AreaChart>
+          </ChartContainer>
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
@@ -318,30 +415,6 @@ const Dashboard = () => {
           </CardContent>
         </Card>
       </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <DollarSign className="w-5 h-5 text-kreato-cyan" />
-            Gravações por Mês ({custosAnuais[0]?.ano || new Date().getFullYear()})
-          </CardTitle>
-          <CardDescription>Distribuição de gravações ao longo do ano</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={custosAnuais}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="mes" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="custosGravacoes" fill="hsl(var(--primary))" name="Gravações" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 };

@@ -21,7 +21,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
 import {
   Table,
   TableBody,
@@ -33,6 +34,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { DataCard, PageHeader } from '@/components/shared/PageComponents';
 import { ListActionBar } from '@/components/shared/ListActionBar';
+import { useListingView, ViewSwitcher, CardGrid, MasterDetail } from '@/components/listing';
 import { TarefaFormModal } from '@/components/producao/TarefaFormModal';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -64,7 +66,10 @@ const Tarefas = () => {
   const [filterGravacao, setFilterGravacao] = useState<string>('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTarefa, setEditingTarefa] = useState<Tarefa | null>(null);
+  const [selectedTarefa, setSelectedTarefa] = useState<Tarefa | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  const { mode, setMode } = useListingView({ storageKey: 'kreato_tarefas_table', columns: [] });
 
   const loadData = async (showLoading = true) => {
     if (showLoading) {
@@ -330,85 +335,183 @@ const Tarefas = () => {
               ))}
             </SelectContent>
           </Select>
+          <ViewSwitcher mode={mode} onModeChange={setMode} />
         </ListActionBar>
 
         {isLoading ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
-        ) : sortedTarefas.length === 0 ? (
-          <div className="text-center py-12 border-2 border-dashed rounded-lg">
-            <p className="text-muted-foreground mb-4">{t('tasks.empty')}</p>
-            {podeIncluir && (
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setEditingTarefa(null);
-                  setIsModalOpen(true);
-                }}
-              >
-                {t('tasks.addFirst')}
-              </Button>
-            )}
-          </div>
-        ) : (
-          <DataCard>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <SortHeader label={t('tasks.taskTitle')} sortKeyName="titulo" />
-                  <SortHeader label={t('tasks.recording')} sortKeyName="gravacaoNome" />
-                  <SortHeader label={t('tasks.assignee')} sortKeyName="recursoHumanoNome" />
-                  <SortHeader label={t('tasks.status')} sortKeyName="statusNome" />
-                  <SortHeader label={t('tasks.priority')} sortKeyName="prioridade" />
-                  <SortHeader label={t('tasks.dueDate')} sortKeyName="dataFim" />
-                  <TableHead className="w-[100px]">{t('common.actions')}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {sortedTarefas.map((tarefa) => (
-                  <TableRow
-                    key={tarefa.id}
-                    className={cn('hover:bg-muted/50', 'cursor-pointer')}
-                    onClick={() => handleEdit(tarefa)}
-                  >
-                    <TableCell className="font-medium">{tarefa.titulo}</TableCell>
-                    <TableCell>{tarefa.gravacaoNome || '-'}</TableCell>
-                    <TableCell>{tarefa.recursoHumanoNome || '-'}</TableCell>
-                    <TableCell>
-                      {tarefa.statusNome && (
-                        <Badge
-                          style={{ backgroundColor: tarefa.statusCor || '#888' }}
-                          className="text-white"
-                        >
-                          {tarefa.statusNome}
-                        </Badge>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <div
-                          className={cn(
-                            'w-2.5 h-2.5 rounded-full',
-                            getPrioridadeColor(tarefa.prioridade),
-                          )}
-                        />
-                        {getPrioridadeLabel(tarefa.prioridade)}
-                      </div>
-                    </TableCell>
-                    <TableCell>{tarefa.dataFim ? formatDate(tarefa.dataFim) : '-'}</TableCell>
-                    <TableCell>
-                      <div className="flex gap-1" onClick={(event) => event.stopPropagation()}>
-                        <Button variant="ghost" size="icon" onClick={() => handleEdit(tarefa)}>
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
+        ) : mode === 'list' ? (
+          sortedTarefas.length === 0 ? (
+            <div className="text-center py-12 border-2 border-dashed rounded-lg">
+              <p className="text-muted-foreground mb-4">{t('tasks.empty')}</p>
+              {podeIncluir && (
+                <Button variant="outline" onClick={() => { setEditingTarefa(null); setIsModalOpen(true); }}>
+                  {t('tasks.addFirst')}
+                </Button>
+              )}
+            </div>
+          ) : (
+            <DataCard>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <SortHeader label={t('tasks.taskTitle')} sortKeyName="titulo" />
+                    <SortHeader label={t('tasks.recording')} sortKeyName="gravacaoNome" />
+                    <SortHeader label={t('tasks.assignee')} sortKeyName="recursoHumanoNome" />
+                    <SortHeader label={t('tasks.status')} sortKeyName="statusNome" />
+                    <SortHeader label={t('tasks.priority')} sortKeyName="prioridade" />
+                    <SortHeader label={t('tasks.dueDate')} sortKeyName="dataFim" />
+                    <TableHead className="w-[100px]">{t('common.actions')}</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </DataCard>
+                </TableHeader>
+                <TableBody>
+                  {sortedTarefas.map((tarefa) => (
+                    <TableRow
+                      key={tarefa.id}
+                      className={cn('hover:bg-muted/50', 'cursor-pointer')}
+                      onClick={() => handleEdit(tarefa)}
+                    >
+                      <TableCell className="font-medium">{tarefa.titulo}</TableCell>
+                      <TableCell>{tarefa.gravacaoNome || '-'}</TableCell>
+                      <TableCell>{tarefa.recursoHumanoNome || '-'}</TableCell>
+                      <TableCell>
+                        {tarefa.statusNome && (
+                          <Badge style={{ backgroundColor: tarefa.statusCor || '#888' }} className="text-white">
+                            {tarefa.statusNome}
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <div className={cn('w-2.5 h-2.5 rounded-full', getPrioridadeColor(tarefa.prioridade))} />
+                          {getPrioridadeLabel(tarefa.prioridade)}
+                        </div>
+                      </TableCell>
+                      <TableCell>{tarefa.dataFim ? formatDate(tarefa.dataFim) : '-'}</TableCell>
+                      <TableCell>
+                        <div className="flex gap-1" onClick={(event) => event.stopPropagation()}>
+                          <Button variant="ghost" size="icon" onClick={() => handleEdit(tarefa)}>
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </DataCard>
+          )
+        ) : mode === 'cards' ? (
+          <CardGrid
+            data={sortedTarefas}
+            getRowKey={(item) => item.id}
+            emptyTitle={t('tasks.empty')}
+            emptyDescription=""
+            onEmptyAction={() => { setEditingTarefa(null); setIsModalOpen(true); }}
+            emptyActionLabel={t('tasks.new')}
+            renderCard={(tarefa) => (
+              <Card className="flex flex-col hover:shadow-md transition-shadow cursor-pointer" onClick={() => handleEdit(tarefa)}>
+                <CardHeader className="pb-2 pt-3 px-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="font-medium text-sm leading-snug line-clamp-2">{tarefa.titulo}</p>
+                    {tarefa.statusNome && (
+                      <Badge style={{ backgroundColor: tarefa.statusCor || '#888' }} className="text-white text-xs shrink-0">
+                        {tarefa.statusNome}
+                      </Badge>
+                    )}
+                  </div>
+                </CardHeader>
+                <CardContent className="px-4 pb-3 flex-1 space-y-1 text-xs text-muted-foreground">
+                  {tarefa.gravacaoNome && <p>{tarefa.gravacaoNome}</p>}
+                  {tarefa.recursoHumanoNome && <p>{tarefa.recursoHumanoNome}</p>}
+                </CardContent>
+                <CardFooter className="px-4 py-2 border-t flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <div className={cn('w-2 h-2 rounded-full', getPrioridadeColor(tarefa.prioridade))} />
+                    <span className="text-xs text-muted-foreground">{getPrioridadeLabel(tarefa.prioridade)}</span>
+                  </div>
+                  <span className="text-xs text-muted-foreground">
+                    {tarefa.dataFim ? formatDate(tarefa.dataFim) : '-'}
+                  </span>
+                </CardFooter>
+              </Card>
+            )}
+          />
+        ) : (
+          <MasterDetail
+            data={sortedTarefas}
+            selectedItem={selectedTarefa}
+            onSelect={(item) => setSelectedTarefa(item)}
+            getRowKey={(item) => item.id}
+            detailTitle={t('tasks.title')}
+            emptyDetailTitle={t('tasks.empty')}
+            emptyDetailDescription="Clique em uma tarefa para ver os detalhes."
+            renderRow={(tarefa, isSelected) => (
+              <div>
+                <p className={cn('text-sm font-medium truncate', isSelected && 'text-primary')}>{tarefa.titulo}</p>
+                <div className="flex items-center gap-2 mt-0.5">
+                  {tarefa.statusNome && (
+                    <span className="text-xs text-muted-foreground">{tarefa.statusNome}</span>
+                  )}
+                </div>
+              </div>
+            )}
+            renderDetail={(tarefa) => (
+              <div className="space-y-4">
+                <div>
+                  <h3 className="font-semibold text-base">{tarefa.titulo}</h3>
+                  {tarefa.descricao && <p className="text-sm text-muted-foreground mt-1">{tarefa.descricao}</p>}
+                </div>
+                <Separator />
+                <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
+                  {tarefa.statusNome && (
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-0.5">{t('tasks.status')}</p>
+                      <Badge style={{ backgroundColor: tarefa.statusCor || '#888' }} className="text-white">
+                        {tarefa.statusNome}
+                      </Badge>
+                    </div>
+                  )}
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-0.5">{t('tasks.priority')}</p>
+                    <div className="flex items-center gap-1.5">
+                      <div className={cn('w-2.5 h-2.5 rounded-full', getPrioridadeColor(tarefa.prioridade))} />
+                      {getPrioridadeLabel(tarefa.prioridade)}
+                    </div>
+                  </div>
+                  {tarefa.gravacaoNome && (
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-0.5">{t('tasks.recording')}</p>
+                      <p>{tarefa.gravacaoNome}</p>
+                    </div>
+                  )}
+                  {tarefa.recursoHumanoNome && (
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-0.5">{t('tasks.assignee')}</p>
+                      <p>{tarefa.recursoHumanoNome}</p>
+                    </div>
+                  )}
+                  {tarefa.dataFim && (
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-0.5">{t('tasks.dueDate')}</p>
+                      <p>{formatDate(tarefa.dataFim)}</p>
+                    </div>
+                  )}
+                </div>
+                <Separator />
+                <div className="flex gap-2">
+                  {podeAlterar && (
+                    <Button size="sm" variant="outline" onClick={() => handleEdit(tarefa)}>
+                      <Edit className="h-3.5 w-3.5 mr-1.5" />
+                      {t('common.edit')}
+                    </Button>
+                  )}
+                </div>
+              </div>
+            )}
+          />
         )}
       </div>
 
@@ -422,6 +525,17 @@ const Tarefas = () => {
         gravacoes={gravacoes}
         recursosHumanos={recursosHumanos}
         readOnly={Boolean(editingTarefa) && !podeAlterar}
+        navigation={(() => {
+          const idx = editingTarefa ? sortedTarefas.findIndex((i) => i.id === editingTarefa.id) : -1;
+          return idx >= 0
+            ? {
+                currentIndex: idx,
+                total: sortedTarefas.length,
+                onPrevious: () => setEditingTarefa(sortedTarefas[idx - 1]),
+                onNext: () => setEditingTarefa(sortedTarefas[idx + 1]),
+              }
+            : undefined;
+        })()}
       />
     </>
   );

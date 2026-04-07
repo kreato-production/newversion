@@ -29,7 +29,7 @@ class InMemoryAuthRepository implements AuthRepository {
   }
 
   async getAuthorizationContext() {
-    return { perfil: 'Administrador Tenant', tipoAcesso: 'Operacional', unidadeIds: [], enabledModules: ['Dashboard', 'Produ��o', 'Recursos', 'Administra��o'], permissions: [] };
+    return { perfil: 'Administrador Tenant', tipoAcesso: 'Operacional', unidadeIds: [], enabledModules: ['Dashboard', 'Produ��o', 'Recursos', 'Administra��o'], permissions: [] };
   }
 
   async createRefreshToken(input: { userId: string; tokenHash: string; expiresAt: Date }) {
@@ -134,6 +134,58 @@ describe('AuthService', () => {
 
     expect(refreshed.refreshToken).not.toBe(login.refreshToken);
     expect(repository.revokedTokens).toContain(sha256(login.refreshToken));
+  });
+
+  describe('authenticateByUserId', () => {
+    it('retorna SessionUser completo quando o usuário existe e está ativo', async () => {
+      const repository = createRepository();
+      const service = new AuthService(repository, () => baseNow);
+
+      const user = await service.authenticateByUserId('user-1');
+
+      expect(user).toMatchObject({
+        id: 'user-1',
+        tenantId: 'tenant-1',
+        role: 'TENANT_ADMIN',
+        email: 'ana@kreato.app',
+      });
+      // contexto de autorização preenchido (perfil, módulos etc.)
+      expect(user.perfil).toBeTruthy();
+      expect(Array.isArray(user.enabledModules)).toBe(true);
+    });
+
+    it('lança AuthError 401 quando o userId não existe', async () => {
+      const repository = createRepository();
+      repository.user = null; // simula usuário removido do banco
+      const service = new AuthService(repository, () => baseNow);
+
+      await expect(service.authenticateByUserId('inexistente')).rejects.toMatchObject({
+        statusCode: 401,
+        message: expect.stringContaining('nao encontrado'),
+      });
+    });
+
+    it('lança AuthError 403 quando o usuário está inativo', async () => {
+      const repository = createRepository();
+      repository.user!.status = 'INATIVO';
+      const service = new AuthService(repository, () => baseNow);
+
+      await expect(service.authenticateByUserId('user-1')).rejects.toMatchObject({
+        statusCode: 403,
+        message: expect.stringContaining('acesso ativo'),
+      });
+    });
+
+    it('lança AuthError 403 quando a licença do tenant está expirada', async () => {
+      const repository = createRepository();
+      repository.tenantValidation = { valid: false, reason: 'LICENSE_EXPIRED' };
+      const service = new AuthService(repository, () => baseNow);
+
+      await expect(service.authenticateByUserId('user-1')).rejects.toMatchObject({
+        statusCode: 403,
+        message: expect.stringContaining('Licenca'),
+      });
+    });
   });
 });
 

@@ -15,6 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import PermissoesTab from './PermissoesTab';
+import { ModalNavigation, type ModalNavigationProps } from '@/components/shared/ModalNavigation';
 
 interface PerfilFormData {
   id?: string;
@@ -31,6 +32,7 @@ interface PerfilFormModalProps {
   onSave: (data: PerfilFormData) => void | Promise<void>;
   data?: PerfilFormData | null;
   readOnly?: boolean;
+  navigation?: ModalNavigationProps;
 }
 
 const emptyFormData: PerfilFormData = {
@@ -45,6 +47,7 @@ const PerfilFormModal = ({
   onSave,
   data,
   readOnly = false,
+  navigation,
 }: PerfilFormModalProps) => {
   const { user } = useAuth();
   const { t } = useLanguage();
@@ -138,15 +141,18 @@ const PerfilFormModal = ({
                 />
               </div>
 
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={onClose}>
-                  {readOnly ? 'Fechar' : t('common.cancel')}
-                </Button>
-                {!readOnly && (
-                  <Button type="submit" className="gradient-primary hover:opacity-90">
-                    {t('common.save')}
+              <DialogFooter className={navigation ? 'sm:justify-between' : undefined}>
+                {navigation && <ModalNavigation {...navigation} />}
+                <div className="flex gap-2">
+                  <Button type="button" variant="outline" onClick={onClose}>
+                    {readOnly ? 'Fechar' : t('common.cancel')}
                   </Button>
-                )}
+                  {!readOnly && (
+                    <Button type="submit" className="gradient-primary hover:opacity-90">
+                      {t('common.save')}
+                    </Button>
+                  )}
+                </div>
               </DialogFooter>
             </form>
           </TabsContent>

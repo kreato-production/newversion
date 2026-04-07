@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma.js';
 
 export type UserRecord = {
@@ -34,7 +35,7 @@ export type SaveUserInput = {
   role?: 'GLOBAL_ADMIN' | 'TENANT_ADMIN' | 'USER';
 };
 
-export type ListOptions = { limit?: number; offset?: number };
+export type ListOptions = { limit?: number; offset?: number; actorUnidadeIds?: string[] };
 export type PaginatedResult<T> = { data: T[]; total: number };
 
 export type UserLinkedUnidadeRecord = {
@@ -80,11 +81,69 @@ export class PrismaUsersRepository implements UsersRepository {
   async listByTenant(tenantId: string | null, opts?: ListOptions): Promise<PaginatedResult<UserRecord>> {
     const take = Math.min(opts?.limit ?? 50, 200);
     const skip = opts?.offset ?? 0;
-    const where = tenantId ? { tenantId } : undefined;
+    const actorUnidadeIds = opts?.actorUnidadeIds;
+
+    // Quando tenantId é null → contexto GLOBAL_ADMIN: retorna apenas GLOBAL_ADMINs.
+    // Quando tenantId está presente → retorna apenas usuários do tenant, excluindo GLOBAL_ADMINs.
+    const baseWhere = tenantId
+      ? { tenantId, role: { not: 'GLOBAL_ADMIN' as const } }
+      : { role: 'GLOBAL_ADMIN' as const, tenantId: null };
+
+    // Regra 3: se o actor tem unidades restritas, só retorna usuários vinculados a essas unidades
+    if (actorUnidadeIds && actorUnidadeIds.length > 0 && tenantId) {
+      const unidadeList = Prisma.join(actorUnidadeIds.map((id) => Prisma.sql`${id}`));
+
+      const [countRows, data] = await Promise.all([
+        prisma.$queryRaw<[{ total: bigint }]>`
+          SELECT COUNT(*)::bigint AS total
+          FROM "User" u
+          WHERE u."tenantId" = ${tenantId}
+            AND u.role != 'GLOBAL_ADMIN'
+            AND EXISTS (
+              SELECT 1 FROM usuario_unidades uu
+              WHERE uu.usuario_id = u.id
+                AND uu.unidade_id IN (${unidadeList})
+            )
+        `,
+        prisma.$queryRaw<any[]>`
+          SELECT u.*
+          FROM "User" u
+          WHERE u."tenantId" = ${tenantId}
+            AND u.role != 'GLOBAL_ADMIN'
+            AND EXISTS (
+              SELECT 1 FROM usuario_unidades uu
+              WHERE uu.usuario_id = u.id
+                AND uu.unidade_id IN (${unidadeList})
+            )
+          ORDER BY u.nome ASC
+          LIMIT ${take} OFFSET ${skip}
+        `,
+      ]);
+
+      return {
+        total: Number(countRows[0]?.total ?? 0),
+        data: data.map((item) => ({
+          id: item.id,
+          tenantId: item.tenantId,
+          codigoExterno: item.codigoExterno,
+          nome: item.nome,
+          email: item.email,
+          usuario: item.usuario,
+          fotoUrl: item.fotoUrl,
+          perfil: item.perfil,
+          descricao: item.descricao,
+          status: item.status,
+          tipoAcesso: item.tipoAcesso,
+          recursoHumanoId: item.recursoHumanoId,
+          role: item.role,
+          createdAt: item.createdAt,
+        })),
+      };
+    }
 
     const [total, data] = await prisma.$transaction([
-      prisma.user.count({ where }),
-      prisma.user.findMany({ where, orderBy: { nome: 'asc' }, take, skip }),
+      prisma.user.count({ where: baseWhere }),
+      prisma.user.findMany({ where: baseWhere, orderBy: { nome: 'asc' }, take, skip }),
     ]);
 
     return {

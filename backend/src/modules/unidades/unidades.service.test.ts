@@ -11,6 +11,11 @@ class InMemoryUnidadesRepository implements UnidadesRepository {
     return { data, total: data.length };
   }
 
+  async listAll() {
+    const data = [...this.items.values()];
+    return { data, total: data.length };
+  }
+
   async findById(id: string) {
     return this.items.get(id) ?? null;
   }

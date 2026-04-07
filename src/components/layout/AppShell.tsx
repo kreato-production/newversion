@@ -1,7 +1,8 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { Sun, Moon, Globe } from 'lucide-react';
+import { Sun, Moon, Globe, Settings, Info, Layers } from 'lucide-react';
+import Link from 'next/link';
 import AppSidebar from './AppSidebar';
 import { AppBreadcrumb } from './AppBreadcrumb';
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
@@ -71,6 +72,29 @@ export function AppShell({ children }: { children: ReactNode }) {
                 {theme === 'light' ? t('theme.dark') : t('theme.light')}
               </span>
             </Button>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8" title="Sistema">
+                  <Settings className="h-4 w-4" />
+                  <span className="sr-only">Sistema</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-44">
+                <DropdownMenuItem asChild className="cursor-pointer gap-2">
+                  <Link href="/arquitetura">
+                    <Layers className="h-4 w-4" />
+                    Arquitetura
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild className="cursor-pointer gap-2">
+                  <Link href="/sobre">
+                    <Info className="h-4 w-4" />
+                    Sobre o Sistema
+                  </Link>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </header>
 

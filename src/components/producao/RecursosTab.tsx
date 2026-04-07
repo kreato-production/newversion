@@ -121,7 +121,6 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
     useRecursoFisicoDisponibilidade();
 
   const [mesAno, setMesAno] = useState<string>('');
-  const [gravacaoDataPrevista, setGravacaoDataPrevista] = useState<string | null>(null);
 
   const [recursos, setRecursos] = useState<RecursoAlocado[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -134,7 +133,6 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
   const [selectedRecurso, setSelectedRecurso] = useState('');
   const [selectedEstoqueItem, setSelectedEstoqueItem] = useState('');
   const [estoqueItens, setEstoqueItens] = useState<EstoqueItem[]>([]);
-  const [gravacaoInfo, setGravacaoInfo] = useState<{ nome: string; codigo: string } | null>(null);
 
   // Modal de recursos humanos (para recursos tÃ©cnicos)
   const [rhModalOpen, setRhModalOpen] = useState(false);
@@ -161,8 +159,6 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
           return;
         }
 
-        setGravacaoInfo({ nome: data.nome, codigo: data.codigo });
-        setGravacaoDataPrevista(data.dataPrevista || null);
         if (data.dataPrevista) {
           const [ano, mes] = data.dataPrevista.split('-');
           setMesAno(`${ano}-${mes}`);
@@ -177,7 +173,7 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
     fetchGravacao();
   }, [gravacaoId]);
 
-  // Fetch resources from Supabase
+  // Fetch resources from the backend
   useEffect(() => {
     const fetchResources = async () => {
       try {
@@ -256,8 +252,6 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
     setIsLoading(true);
     try {
       const response = await alocacoesRepository.listByGravacao(gravacaoId);
-      setGravacaoInfo({ nome: response.gravacao.nome, codigo: response.gravacao.codigo });
-      setGravacaoDataPrevista(response.gravacao.dataPrevista || null);
       setRecursos(response.data as RecursoAlocado[]);
     } catch (error) {
       console.error('Error fetching allocations:', error);
@@ -400,34 +394,37 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
     setRhModalOpen(true);
   };
 
-  const fetchEscalaColaborador = async (rhId: string, dia: string) => {
-    if (!rhId || !dia) return null;
+  const fetchEscalaColaborador = useCallback(
+    async (rhId: string, dia: string) => {
+      if (!rhId || !dia) return null;
 
-    const dataObj = parseISO(dia);
-    const diaSemana = dataObj.getDay();
-    const colaborador = recursosHumanos.find((item) => item.id === rhId);
-    const escalas = colaborador?.escalas || [];
+      const dataObj = parseISO(dia);
+      const diaSemana = dataObj.getDay();
+      const colaborador = recursosHumanos.find((item) => item.id === rhId);
+      const escalas = colaborador?.escalas || [];
 
-    if (escalas.length === 0) return null;
+      if (escalas.length === 0) return null;
 
-    for (const escala of escalas) {
-      const dataInicio = parseISO(escala.dataInicio);
-      const dataFim = parseISO(escala.dataFim);
-      if (!isWithinInterval(dataObj, { start: dataInicio, end: dataFim })) {
-        continue;
+      for (const escala of escalas) {
+        const dataInicio = parseISO(escala.dataInicio);
+        const dataFim = parseISO(escala.dataFim);
+        if (!isWithinInterval(dataObj, { start: dataInicio, end: dataFim })) {
+          continue;
+        }
+
+        const diasSemana = escala.diasSemana || [1, 2, 3, 4, 5];
+        if (diasSemana.includes(diaSemana)) {
+          return {
+            horaInicio: escala.horaInicio?.substring(0, 5) || '08:00',
+            horaFim: escala.horaFim?.substring(0, 5) || '18:00',
+          };
+        }
       }
 
-      const diasSemana = escala.diasSemana || [1, 2, 3, 4, 5];
-      if (diasSemana.includes(diaSemana)) {
-        return {
-          horaInicio: escala.horaInicio?.substring(0, 5) || '08:00',
-          horaFim: escala.horaFim?.substring(0, 5) || '18:00',
-        };
-      }
-    }
-
-    return null;
-  };
+      return null;
+    },
+    [recursosHumanos],
+  );
 
   useEffect(() => {
     const updateHorariosFromEscala = async () => {
@@ -444,7 +441,7 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
     };
 
     updateHorariosFromEscala();
-  }, [selectedRH, rhModalDia, recursosHumanos]);
+  }, [fetchEscalaColaborador, rhModalDia, selectedRH]);
 
   const handleAddRH = async () => {
     if (!selectedRH || !rhModalRecurso) return;

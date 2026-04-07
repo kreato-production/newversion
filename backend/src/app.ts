@@ -1,10 +1,16 @@
 import Fastify from 'fastify';
 import cookie from '@fastify/cookie';
 import cors from '@fastify/cors';
+import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
 import swagger from '@fastify/swagger';
 import swaggerUi from '@fastify/swagger-ui';
-import { env } from './config/env.js';
+import { env, assertKeycloakConfig } from './config/env.js';
+import { sessionSecretToKey } from './lib/security/session-crypto.js';
+import { getDiscovery, validateKeycloakToken } from './lib/oidc/discovery.js';
+import { refreshKeycloakTokens } from './lib/oidc/token-exchange.js';
+import { PrismaSessionRepository } from './modules/auth/session.repository.js';
+import { createOidcRoutes } from './modules/auth/routes/oidc.js';
 import { createLoggerOptions } from './config/logger.js';
 import { PrismaAuthRepository } from './modules/auth/auth.repository.js';
 import { AuthService } from './modules/auth/auth.service.js';
@@ -30,6 +36,9 @@ import { ElencoService } from './modules/elenco/elenco.service.js';
 import { PrismaEquipesRepository } from './modules/equipes/equipes.repository.js';
 import { createEquipesRoutes } from './modules/equipes/routes/index.js';
 import { EquipesService } from './modules/equipes/equipes.service.js';
+import { PrismaFeriadosRepository } from './modules/feriados/feriados.repository.js';
+import { createFeriadosRoutes } from './modules/feriados/routes/index.js';
+import { FeriadosService } from './modules/feriados/feriados.service.js';
 import { PrismaFornecedoresRepository } from './modules/fornecedores/fornecedores.repository.js';
 import { createFornecedoresRoutes } from './modules/fornecedores/routes/index.js';
 import { FornecedoresService } from './modules/fornecedores/fornecedores.service.js';
@@ -69,6 +78,12 @@ import { RoteiroService } from './modules/roteiro/roteiro.service.js';
 import { PrismaTenantsRepository } from './modules/tenants/tenants.repository.js';
 import { createTenantsRoutes } from './modules/tenants/routes/index.js';
 import { TenantsService } from './modules/tenants/tenants.service.js';
+import { PrismaApropriacoesCustoRepository } from './modules/apropriacoes-custo/apropriacoes-custo.repository.js';
+import { createApropriacoesCustoRoutes } from './modules/apropriacoes-custo/routes/index.js';
+import { ApropriacoesCustoService } from './modules/apropriacoes-custo/apropriacoes-custo.service.js';
+import { PrismaContasPagarRepository } from './modules/contas-pagar/contas-pagar.repository.js';
+import { createContasPagarRoutes } from './modules/contas-pagar/routes/index.js';
+import { ContasPagarService } from './modules/contas-pagar/contas-pagar.service.js';
 import { PrismaTarefasRepository } from './modules/tarefas/tarefas.repository.js';
 import { createTarefasRoutes } from './modules/tarefas/routes/index.js';
 import { TarefasService } from './modules/tarefas/tarefas.service.js';
@@ -91,10 +106,13 @@ type BuildAppOptions = {
   analyticsService?: AnalyticsService;
   adminConfigService?: AdminConfigService;
   authService?: AuthService;
+  apropriacoesCustoService?: ApropriacoesCustoService;
+  contasPagarService?: ContasPagarService;
   conteudosService?: ConteudosService;
   departamentosService?: DepartamentosService;
   elencoService?: ElencoService;
   equipesService?: EquipesService;
+  feriadosService?: FeriadosService;
   figurinosService?: FigurinosService;
   fornecedoresService?: FornecedoresService;
   gravacoesService?: GravacoesService;
@@ -139,11 +157,17 @@ export async function buildApp(options: BuildAppOptions = {}) {
   const alocacoesService = options.alocacoesService ?? new AlocacoesService(new PrismaAlocacoesRepository());
   const analyticsService = options.analyticsService ?? new AnalyticsService(new PrismaAnalyticsRepository());
   const adminConfigService = options.adminConfigService ?? new AdminConfigService(new PrismaAdminConfigRepository());
-  const authService = options.authService ?? new AuthService(new PrismaAuthRepository());
+  // Separamos authRepository para que o hook de sessão Keycloak possa usá-lo
+  // diretamente sem criar uma segunda instância de PrismaAuthRepository.
+  const authRepository = new PrismaAuthRepository();
+  const authService = options.authService ?? new AuthService(authRepository);
+  const apropriacoesCustoService = options.apropriacoesCustoService ?? new ApropriacoesCustoService(new PrismaApropriacoesCustoRepository());
+  const contasPagarService = options.contasPagarService ?? new ContasPagarService(new PrismaContasPagarRepository());
   const conteudosService = options.conteudosService ?? new ConteudosService(new PrismaConteudosRepository());
   const departamentosService = options.departamentosService ?? new DepartamentosService(new PrismaDepartamentosRepository());
   const elencoService = options.elencoService ?? new ElencoService(new PrismaElencoRepository());
   const equipesService = options.equipesService ?? new EquipesService(new PrismaEquipesRepository());
+  const feriadosService = options.feriadosService ?? new FeriadosService(new PrismaFeriadosRepository());
   const figurinosService = options.figurinosService ?? new FigurinosService(new PrismaFigurinosRepository());
   const fornecedoresService = options.fornecedoresService ?? new FornecedoresService(new PrismaFornecedoresRepository());
   const gravacoesService = options.gravacoesService ?? new GravacoesService(new PrismaGravacoesRepository());
@@ -165,8 +189,148 @@ export async function buildApp(options: BuildAppOptions = {}) {
   app.setErrorHandler(authErrorHandler);
 
   await observabilityPlugin(app, {});
+
+  // ── Security headers ────────────────────────────────────────────────────────
+  // Em development, a CSP é desabilitada para o Swagger UI funcionar corretamente
+  // (ele carrega scripts e estilos inline que seriam bloqueados pela CSP padrão).
+  // Em production, o helmet aplica:
+  //   • Strict-Transport-Security (HSTS)
+  //   • X-Frame-Options: SAMEORIGIN
+  //   • X-Content-Type-Options: nosniff
+  //   • Content-Security-Policy (padrão conservador)
+  //   • Cross-Origin-Resource-Policy: same-origin
+  //   • Referrer-Policy: no-referrer
+  await app.register(helmet, {
+    contentSecurityPolicy: env.NODE_ENV === 'production',
+    crossOriginResourcePolicy: { policy: 'cross-origin' }, // permite API ser consumida por SPA
+  });
+
   await app.register(cookie);
   await app.register(rateLimit, { global: false });
+
+  // ── Keycloak BFF — apenas quando KEYCLOAK_AUTH_ENABLED=true ────────────────
+  // Durante a migração ambos os fluxos coexistem:
+  //   • Usuários Keycloak → cookie kreato_session → hook abaixo preenche request.user
+  //   • Usuários legado   → cookie kreato_access_token / Bearer → createAuthenticate
+  //
+  // O hook roda ANTES dos preHandlers de rota. Se encontrar uma sessão válida,
+  // popula request.user e createAuthenticate retorna imediatamente (early-return).
+  if (env.KEYCLOAK_AUTH_ENABLED) {
+    assertKeycloakConfig(env);
+
+    const sessionKey = sessionSecretToKey(env.SESSION_SECRET!);
+    const sessionRepository = new PrismaSessionRepository(sessionKey);
+
+    // Registra rotas OIDC (/auth/login, /auth/callback, /auth/logout/keycloak)
+    await app.register(createOidcRoutes(sessionRepository, authRepository, sessionKey));
+
+    // Pré-carrega o discovery document na inicialização para validar que o
+    // Keycloak está acessível antes do servidor aceitar tráfego.
+    await getDiscovery().catch((err: unknown) => {
+      app.log.error({ err }, 'Falha ao conectar ao Keycloak — verifique KEYCLOAK_URL e KEYCLOAK_REALM');
+      throw err;
+    });
+
+    // ── Limpeza de sessões expiradas ──────────────────────────────────────────
+    // Remove sessões expiradas na inicialização (lixo de crashes anteriores)
+    // e a cada hora durante a operação normal.
+    await sessionRepository.deleteExpiredSessions().catch((err: unknown) => {
+      app.log.warn({ err }, 'session_cleanup_startup_failed');
+    });
+    const sessionCleanupInterval = setInterval(async () => {
+      const deleted = await sessionRepository.deleteExpiredSessions().catch((err: unknown) => {
+        app.log.warn({ err }, 'session_cleanup_periodic_failed');
+      });
+      if (deleted !== undefined) {
+        app.log.debug({ deleted }, 'session_cleanup_periodic');
+      }
+    }, 60 * 60 * 1000); // 1 hora
+
+    app.addHook('onClose', () => {
+      clearInterval(sessionCleanupInterval);
+    });
+
+    // Hook global que autentica requests via sessão Keycloak.
+    // Não lança: se a sessão for inválida, o request continua sem request.user
+    // e o preHandler da rota decide se a autenticação é obrigatória (401) ou não.
+    app.addHook('preHandler', async (request, reply) => {
+      if (request.user) return; // já autenticado (ex: outro hook)
+
+      const sessionId = request.cookies?.[env.SESSION_COOKIE_NAME];
+      if (!sessionId) return;
+
+      try {
+        const session = await sessionRepository.findById(sessionId);
+
+        if (!session || session.expiresAt <= new Date()) {
+          // Sessão não encontrada ou expirada: limpa cookie silenciosamente
+          if (session) await sessionRepository.deleteSession(sessionId);
+          reply.clearCookie(env.SESSION_COOKIE_NAME, { path: '/' });
+          return;
+        }
+
+        // Valida o access token. Se expirado, tenta refresh proativo antes de
+        // abandonar a sessão. Isso evita que o usuário precise re-autenticar
+        // a cada expiração de access token (15 min por padrão).
+        const tokenIsValid = await validateKeycloakToken(session.accessToken).then(
+          () => true,
+          () => false,
+        );
+
+        if (!tokenIsValid) {
+          // Access token expirado — tenta renovar silenciosamente
+          const discovery = await getDiscovery();
+          let refreshSucceeded = false;
+
+          try {
+            const refreshed = await refreshKeycloakTokens({
+              tokenEndpoint: discovery.token_endpoint,
+              refreshToken: session.refreshToken,
+              clientId: env.KEYCLOAK_CLIENT_ID,
+              clientSecret: env.KEYCLOAK_CLIENT_SECRET!,
+            });
+
+            const newExpiry = new Date(
+              Date.now() + (refreshed.refresh_expires_in ?? env.SESSION_TTL_SECONDS) * 1000,
+            );
+            await sessionRepository.updateTokens(session.id, {
+              accessToken: refreshed.access_token,
+              refreshToken: refreshed.refresh_token,
+              idToken: refreshed.id_token,
+              expiresAt: newExpiry,
+            });
+
+            // Renova o TTL do cookie para refletir a nova expiração
+            const secure = env.NODE_ENV === 'production';
+            reply.setCookie(env.SESSION_COOKIE_NAME, sessionId, {
+              httpOnly: true,
+              sameSite: 'lax',
+              secure,
+              path: '/',
+              maxAge: refreshed.refresh_expires_in ?? env.SESSION_TTL_SECONDS,
+            });
+
+            refreshSucceeded = true;
+          } catch (refreshErr) {
+            app.log.info({ sessionId, err: refreshErr }, 'keycloak_session_refresh_failed');
+          }
+
+          if (!refreshSucceeded) {
+            // Refresh também falhou: encerra a sessão e força novo login
+            await sessionRepository.deleteSession(sessionId);
+            reply.clearCookie(env.SESSION_COOKIE_NAME, { path: '/' });
+            return;
+          }
+        }
+
+        // Token válido (original ou recém-renovado): carrega o contexto de autorização
+        request.user = await authService.authenticateByUserId(session.userId);
+      } catch (err) {
+        // Qualquer erro inesperado: loga mas não falha o request
+        app.log.warn({ err, sessionId }, 'keycloak_session_hook_error');
+      }
+    });
+  }
 
   if (env.NODE_ENV !== 'production') {
     await app.register(swagger, {
@@ -213,10 +377,13 @@ export async function buildApp(options: BuildAppOptions = {}) {
   await app.register(createAnalyticsRoutes(authService, analyticsService));
   await app.register(createAdminConfigRoutes(authService, adminConfigService));
   await app.register(createAuthRoutes(authService));
+  await app.register(createApropriacoesCustoRoutes(authService, apropriacoesCustoService));
+  await app.register(createContasPagarRoutes(authService, contasPagarService));
   await app.register(createConteudosRoutes(authService, conteudosService));
   await app.register(createDepartamentosRoutes(authService, departamentosService));
   await app.register(createElencoRoutes(authService, elencoService));
   await app.register(createEquipesRoutes(authService, equipesService));
+  await app.register(createFeriadosRoutes(authService, feriadosService));
   await app.register(createFigurinosRoutes(authService, figurinosService));
   await app.register(createFornecedoresRoutes(authService, fornecedoresService));
   await app.register(createGravacoesRoutes(authService, gravacoesService));

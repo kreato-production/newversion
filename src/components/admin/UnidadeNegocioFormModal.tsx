@@ -21,7 +21,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useAuth } from '@/contexts/AuthContext';
-import { isBackendDataProviderEnabled } from '@/lib/api/http';
+import { ModalNavigation, type ModalNavigationProps } from '@/components/shared/ModalNavigation';
 import { CURRENCIES } from '@/lib/currencies';
 import type { UnidadeNegocio } from '@/modules/unidades/unidades.types';
 import { unidadesRepository } from '@/modules/unidades/unidades.repository.provider';
@@ -32,6 +32,7 @@ interface UnidadeNegocioFormModalProps {
   onSave: (data: UnidadeNegocio) => Promise<void>;
   data?: UnidadeNegocio | null;
   readOnly?: boolean;
+  navigation?: ModalNavigationProps;
 }
 
 const emptyFormData = {
@@ -48,9 +49,9 @@ export const UnidadeNegocioFormModal = ({
   onSave,
   data,
   readOnly = false,
+  navigation,
 }: UnidadeNegocioFormModalProps) => {
   const { user } = useAuth();
-  const shouldUseBackend = isBackendDataProviderEnabled();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState(emptyFormData);
   const [isUploading, setIsUploading] = useState(false);
@@ -110,7 +111,7 @@ export const UnidadeNegocioFormModal = ({
     setIsSaving(true);
 
     try {
-      const unidadeId = data?.id || (!shouldUseBackend ? crypto.randomUUID() : undefined);
+      const unidadeId = data?.id;
       let imagemUrl = formData.imagem;
 
       if (selectedFile && unidadeId) {
@@ -257,26 +258,29 @@ export const UnidadeNegocioFormModal = ({
                 />
               </div>
 
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={onClose} disabled={isSaving}>
-                  {readOnly ? 'Fechar' : 'Cancelar'}
-                </Button>
-                {!readOnly && (
-                  <Button
-                    type="submit"
-                    className="gradient-primary hover:opacity-90"
-                    disabled={isSaving}
-                  >
-                    {isSaving ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        {isUploading ? 'Enviando imagem...' : 'Salvando...'}
-                      </>
-                    ) : (
-                      'Salvar'
-                    )}
+              <DialogFooter className={navigation ? 'sm:justify-between' : undefined}>
+                {navigation && <ModalNavigation {...navigation} />}
+                <div className="flex gap-2">
+                  <Button type="button" variant="outline" onClick={onClose} disabled={isSaving}>
+                    {readOnly ? 'Fechar' : 'Cancelar'}
                   </Button>
-                )}
+                  {!readOnly && (
+                    <Button
+                      type="submit"
+                      className="gradient-primary hover:opacity-90"
+                      disabled={isSaving}
+                    >
+                      {isSaving ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          {isUploading ? 'Enviando imagem...' : 'Salvando...'}
+                        </>
+                      ) : (
+                        'Salvar'
+                      )}
+                    </Button>
+                  )}
+                </div>
               </DialogFooter>
             </form>
           </TabsContent>
@@ -305,24 +309,27 @@ export const UnidadeNegocioFormModal = ({
                   unidade de negocio.
                 </p>
               </div>
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={onClose} disabled={isSaving}>
-                  Cancelar
-                </Button>
-                <Button
-                  type="submit"
-                  className="gradient-primary hover:opacity-90"
-                  disabled={isSaving}
-                >
-                  {isSaving ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Salvando...
-                    </>
-                  ) : (
-                    'Salvar'
-                  )}
-                </Button>
+              <DialogFooter className={navigation ? 'sm:justify-between' : undefined}>
+                {navigation && <ModalNavigation {...navigation} />}
+                <div className="flex gap-2">
+                  <Button type="button" variant="outline" onClick={onClose} disabled={isSaving}>
+                    Cancelar
+                  </Button>
+                  <Button
+                    type="submit"
+                    className="gradient-primary hover:opacity-90"
+                    disabled={isSaving}
+                  >
+                    {isSaving ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Salvando...
+                      </>
+                    ) : (
+                      'Salvar'
+                    )}
+                  </Button>
+                </div>
               </DialogFooter>
             </form>
           </TabsContent>

@@ -1,0 +1,198 @@
+{
+  "realm": "kreato",
+  "displayName": "Kreato",
+  "enabled": true,
+  "sslRequired": "external",
+
+  "registrationAllowed": false,
+  "registrationEmailAsUsername": false,
+  "rememberMe": true,
+  "verifyEmail": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "editUsernameAllowed": false,
+
+  "_comment_tokens": "accessTokenLifespan sincronizado com JWT_ACCESS_TTL_SECONDS (15 min). ssoSessionMaxLifespan sincronizado com SESSION_TTL_SECONDS (7 dias).",
+  "accessTokenLifespan": 900,
+  "accessTokenLifespanForImplicitFlow": 900,
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 604800,
+  "offlineSessionIdleTimeout": 2592000,
+  "offlineSessionMaxLifespanEnabled": false,
+  "accessCodeLifespan": 60,
+  "accessCodeLifespanUserAction": 300,
+  "accessCodeLifespanLogin": 1800,
+  "actionTokenGeneratedByAdminLifespan": 43200,
+  "actionTokenGeneratedByUserLifespan": 300,
+
+  "_comment_refresh": "Refresh tokens não podem ser reutilizados — comportamento idêntico ao sistema legado.",
+  "refreshTokenMaxReuse": 0,
+  "revokeRefreshToken": true,
+
+  "_comment_bruteforce": "Proteção contra força bruta: bloqueia após 10 falhas, janela de 12h.",
+  "bruteForceProtected": true,
+  "permanentLockout": false,
+  "maxFailureWaitSeconds": 900,
+  "minimumQuickLoginWaitSeconds": 60,
+  "waitIncrementSeconds": 60,
+  "quickLoginCheckMilliSeconds": 1000,
+  "maxDeltaTimeSeconds": 43200,
+  "failureFactor": 10,
+
+  "roles": {
+    "realm": [
+      {
+        "name": "kreato-global-admin",
+        "description": "Administrador global — acesso irrestrito a todos os tenants",
+        "composite": false,
+        "clientRole": false
+      },
+      {
+        "name": "kreato-tenant-admin",
+        "description": "Administrador de tenant — gerencia recursos do próprio tenant",
+        "composite": false,
+        "clientRole": false
+      },
+      {
+        "name": "kreato-user",
+        "description": "Usuário padrão com acesso operacional",
+        "composite": false,
+        "clientRole": false
+      }
+    ]
+  },
+
+  "clients": [
+    {
+      "clientId": "kreato-bff",
+      "name": "Kreato BFF",
+      "description": "Client confidencial usado exclusivamente pelo servidor Fastify (BFF). Nunca exposto ao browser.",
+      "rootUrl": "http://localhost:3333",
+      "baseUrl": "/",
+      "enabled": true,
+
+      "_comment_type": "Client confidencial: possui client_secret guardado apenas no backend. Nunca usar publicClient: true neste client.",
+      "clientAuthenticatorType": "client-secret",
+      "secret": "dev-kreato-bff-secret-change-in-production",
+      "publicClient": false,
+
+      "_comment_flows": "Apenas Authorization Code Flow. Password grant e Implicit Flow desabilitados — não há razão para habilitá-los no BFF.",
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+
+      "redirectUris": [
+        "http://localhost:3333/auth/callback",
+        "http://localhost:3333/*"
+      ],
+      "webOrigins": [
+        "http://localhost:3333",
+        "http://localhost:3000",
+        "http://localhost:8080"
+      ],
+      "adminUrl": "",
+
+      "notBefore": 0,
+      "bearerOnly": false,
+      "consentRequired": false,
+      "frontchannelLogout": true,
+      "protocol": "openid-connect",
+      "fullScopeAllowed": true,
+
+      "attributes": {
+        "_comment_pkce": "PKCE S256 obrigatório — mesmo sendo um client confidencial, PKCE adiciona proteção contra interceptação do authorization code.",
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:3000/*##http://localhost:8080/*##http://localhost:3333/*",
+        "oauth2.device.authorization.grant.enabled": "false",
+        "oidc.ciba.grant.enabled": "false",
+        "backchannel.logout.session.required": "true",
+        "backchannel.logout.revoke.offline.tokens": "false",
+        "use.refresh.tokens": "true",
+        "client.session.idle.timeout": "0",
+        "client.session.max.lifespan": "0"
+      },
+
+      "_comment_mappers": "Protocol mappers adicionam tenant_id e app_role como custom claims no access token e id token. O Fastify lê esses claims para montar request.user sem consulta extra ao banco na validação do token.",
+      "protocolMappers": [
+        {
+          "name": "tenant-id-mapper",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "userinfo.token.claim": "true",
+            "user.attribute": "tenant_id",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "tenant_id",
+            "jsonType.label": "String",
+            "multivalued": ""
+          }
+        },
+        {
+          "name": "app-role-mapper",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "userinfo.token.claim": "true",
+            "user.attribute": "app_role",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "app_role",
+            "jsonType.label": "String",
+            "multivalued": ""
+          }
+        }
+      ]
+    }
+  ],
+
+  "_comment_smtp": "Configure SMTP no console Keycloak para habilitar emails de reset de senha em produção.",
+  "smtpServer": {},
+
+  "_comment_users": "Usuários de desenvolvimento. REMOVER ou desabilitar antes do deploy em produção.",
+  "users": [
+    {
+      "username": "kreato-admin",
+      "email": "admin@kreato.dev",
+      "firstName": "Admin",
+      "lastName": "Kreato",
+      "emailVerified": true,
+      "enabled": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Admin@kreato123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["kreato-global-admin"],
+      "attributes": {
+        "app_role": ["GLOBAL_ADMIN"]
+      }
+    },
+    {
+      "username": "tenant-admin",
+      "email": "tenant-admin@kreato.dev",
+      "firstName": "Tenant",
+      "lastName": "Admin",
+      "emailVerified": true,
+      "enabled": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Tenant@kreato123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["kreato-tenant-admin"],
+      "attributes": {
+        "app_role": ["TENANT_ADMIN"],
+        "tenant_id": ["SUBSTITUIR-PELO-UUID-DO-TENANT"]
+      }
+    }
+  ]
+}

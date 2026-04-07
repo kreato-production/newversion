@@ -22,6 +22,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useToast } from '@/hooks/use-toast';
+import { ModalNavigation, type ModalNavigationProps } from '@/components/shared/ModalNavigation';
 import { SortableTable, type Column } from '@/components/shared/SortableTable';
 import { Plus, Trash2, Briefcase, Loader2 } from 'lucide-react';
 import {
@@ -58,6 +59,7 @@ interface DepartamentoFormModalProps {
   onSave: (data: Departamento) => Promise<void>;
   data?: Departamento | null;
   readOnly?: boolean;
+  navigation?: ModalNavigationProps;
 }
 
 const emptyFormData: Departamento = {
@@ -93,6 +95,7 @@ export const DepartamentoFormModal = ({
   onSave,
   data,
   readOnly = false,
+  navigation,
 }: DepartamentoFormModalProps) => {
   const { user } = useAuth();
   const { t } = useLanguage();
@@ -418,15 +421,18 @@ export const DepartamentoFormModal = ({
             </div>
           )}
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>
-              {readOnly ? 'Fechar' : t('common.cancel')}
-            </Button>
-            {!readOnly && (
-              <Button type="submit" className="gradient-primary hover:opacity-90">
-                {t('common.save')}
+          <DialogFooter className={navigation ? 'sm:justify-between' : undefined}>
+            {navigation && <ModalNavigation {...navigation} />}
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" onClick={onClose}>
+                {readOnly ? 'Fechar' : t('common.cancel')}
               </Button>
-            )}
+              {!readOnly && (
+                <Button type="submit" className="gradient-primary hover:opacity-90">
+                  {t('common.save')}
+                </Button>
+              )}
+            </div>
           </DialogFooter>
         </form>
       </DialogContent>

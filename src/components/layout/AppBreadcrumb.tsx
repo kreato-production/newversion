@@ -16,6 +16,7 @@ const MODULE_LABELS: Record<string, string> = {
   dashboard: 'Dashboard',
   producao: 'Produção',
   recursos: 'Recursos',
+  financeiro: 'Financeiro',
   admin: 'Administração',
   global: 'Global',
 };
@@ -23,6 +24,7 @@ const MODULE_LABELS: Record<string, string> = {
 const MODULE_PATHS: Record<string, string> = {
   producao: '/module/producao',
   recursos: '/module/recursos',
+  financeiro: '/module/financeiro',
   admin: '/module/admin',
   global: '/module/global',
 };
@@ -56,11 +58,18 @@ const SUB_LABELS: Record<string, string> = {
   cargos: 'Cargos',
   departamentos: 'Departamentos',
   funcoes: 'Funções',
+  feriados: 'Feriados',
   servicos: 'Serviços',
   'categoria-fornecedores': 'Cat. Fornecedores',
   'classificacao-pessoas': 'Class. de Pessoas',
   'tipo-figurino': 'Tipo de Figurino',
   material: 'Material',
+  // Financeiro
+  'status-contas-pagar': 'Status de Contas a Pagar',
+  'tipos-documentos': 'Tipos de Documentos',
+  'tipos-pagamento': 'Tipos de Pagamentos',
+  'categorias-despesa': 'Categorias de Despesas',
+  'formas-pagamento': 'Formas de Pagamento',
   // Admin
   unidades: 'Unidades de Negócio',
   'centros-lucro': 'Centros de Custos',
@@ -84,11 +93,17 @@ const PARAM_SLUGS = new Set([
   'cargos',
   'departamentos',
   'funcoes',
+  'feriados',
   'servicos',
   'categoria-fornecedores',
   'classificacao-pessoas',
   'tipo-figurino',
   'material',
+  'status-contas-pagar',
+  'tipos-documentos',
+  'tipos-pagamento',
+  'categorias-despesa',
+  'formas-pagamento',
 ]);
 
 // ─── Types ────────────────────────────────────────────────────────────────────

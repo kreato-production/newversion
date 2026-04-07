@@ -23,6 +23,7 @@ import type {
   EstoqueItem,
 } from '@/modules/recursos-fisicos/recursos-fisicos.types';
 import { useFormFieldConfig, FieldAsterisk } from '@/hooks/useFormFieldConfig';
+import { ModalNavigation, type ModalNavigationProps } from '@/components/shared/ModalNavigation';
 
 interface RecursoFisicoFormModalProps {
   isOpen: boolean;
@@ -30,6 +31,7 @@ interface RecursoFisicoFormModalProps {
   onSave: (data: RecursoFisicoInput) => Promise<void>;
   data?: RecursoFisico | null;
   readOnly?: boolean;
+  navigation?: ModalNavigationProps;
 }
 
 const DIAS_SEMANA = [
@@ -48,6 +50,7 @@ export const RecursoFisicoFormModal = ({
   onSave,
   data,
   readOnly = false,
+  navigation,
 }: RecursoFisicoFormModalProps) => {
   const { isVisible } = usePermissions();
   const { toast } = useToast();
@@ -478,19 +481,22 @@ export const RecursoFisicoFormModal = ({
             </TabsContent>
           </Tabs>
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
-              {readOnly ? 'Fechar' : 'Cancelar'}
-            </Button>
-            {!readOnly && (
-              <Button
-                type="submit"
-                className="gradient-primary hover:opacity-90"
-                disabled={isSubmitting}
-              >
-                Salvar
+          <DialogFooter className={navigation ? 'sm:justify-between' : undefined}>
+            {navigation && <ModalNavigation {...navigation} />}
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
+                {readOnly ? 'Fechar' : 'Cancelar'}
               </Button>
-            )}
+              {!readOnly && (
+                <Button
+                  type="submit"
+                  className="gradient-primary hover:opacity-90"
+                  disabled={isSubmitting}
+                >
+                  Salvar
+                </Button>
+              )}
+            </div>
           </DialogFooter>
         </form>
       </DialogContent>

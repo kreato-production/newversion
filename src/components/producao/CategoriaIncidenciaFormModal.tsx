@@ -19,6 +19,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { useToast } from '@/hooks/use-toast';
 import type { CategoriaIncidencia } from '@/views/producao/CategoriasIncidencia';
 import { ApiParametrizacoesRepository } from '@/modules/parametrizacoes/parametrizacoes.api.repository';
+import { ModalNavigation, type ModalNavigationProps } from '@/components/shared/ModalNavigation';
 
 interface ClassificacaoIncidencia {
   id: string;
@@ -36,6 +37,7 @@ interface Props {
   onSave: (data: Record<string, unknown>) => Promise<void>;
   data?: CategoriaIncidencia | null;
   readOnly?: boolean;
+  navigation?: ModalNavigationProps;
 }
 
 const repository = new ApiParametrizacoesRepository();
@@ -46,6 +48,7 @@ export const CategoriaIncidenciaFormModal = ({
   onSave,
   data,
   readOnly = false,
+  navigation,
 }: Props) => {
   const { user } = useAuth();
   const { t } = useLanguage();
@@ -372,11 +375,14 @@ export const CategoriaIncidenciaFormModal = ({
           )}
         </Tabs>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            {readOnly ? t('common.close') : t('common.cancel')}
-          </Button>
-          {!readOnly && <Button onClick={() => void handleSubmit()}>{t('common.save')}</Button>}
+        <DialogFooter className={navigation ? 'sm:justify-between' : undefined}>
+          {navigation && <ModalNavigation {...navigation} />}
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={onClose}>
+              {readOnly ? t('common.close') : t('common.cancel')}
+            </Button>
+            {!readOnly && <Button onClick={() => void handleSubmit()}>{t('common.save')}</Button>}
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>

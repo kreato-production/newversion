@@ -23,6 +23,8 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Progress } from '@/components/ui/progress';
+import { PageHeader } from '@/components/shared/PageComponents';
+import { ListActionBar } from '@/components/shared/ListActionBar';
 import {
   Calendar,
   ChevronLeft,
@@ -1169,7 +1171,7 @@ const Mapas = () => {
   const recursosHumanosAgrupados = useMemo(() => {
     const grupos: Record<string, RecursoHumano[]> = {};
     filteredRecursosHumanos.forEach((r) => {
-      const grupo = r.funcao || 'Sem funÃ§Ã£o';
+      const grupo = r.funcao || 'Sem função';
       if (!grupos[grupo]) {
         grupos[grupo] = [];
       }
@@ -1184,8 +1186,8 @@ const Mapas = () => {
     try {
       const titulo =
         activeTab === 'fisicos'
-          ? 'Mapa de OcupaÃ§Ã£o - Recursos FÃ­sicos'
-          : 'Mapa de OcupaÃ§Ã£o - Recursos Humanos';
+          ? 'Mapa de Ocupação - Recursos Físicos'
+          : 'Mapa de Ocupação - Recursos Humanos';
 
       const periodo =
         viewMode === 'week'
@@ -1209,7 +1211,7 @@ const Mapas = () => {
       // PerÃ­odo
       doc.setFontSize(10);
       doc.setFont('helvetica', 'normal');
-      doc.text(`PerÃ­odo: ${periodo}`, pageWidth / 2, y, { align: 'center' });
+      doc.text(`Período: ${periodo}`, pageWidth / 2, y, { align: 'center' });
       y += 10;
 
       // Preparar dados da tabela
@@ -1436,7 +1438,7 @@ const Mapas = () => {
         doc.setFont('helvetica', 'normal');
         doc.setTextColor(100, 100, 100);
         doc.text(
-          `Gerado em ${format(new Date(), "dd/MM/yyyy 'Ã s' HH:mm")} - PÃ¡gina ${i} de ${totalPages}`,
+          `Gerado em ${format(new Date(), "dd/MM/yyyy 'às' HH:mm")} - Página ${i} de ${totalPages}`,
           pageWidth / 2,
           pageHeight - 5,
           { align: 'center' },
@@ -1462,9 +1464,9 @@ const Mapas = () => {
           <CalendarDays className="h-4 w-4" />
           <span className="hidden sm:inline">Semana</span>
         </ToggleGroupItem>
-        <ToggleGroupItem value="month" aria-label="MÃªs" className="gap-1.5">
+        <ToggleGroupItem value="month" aria-label="Mês" className="gap-1.5">
           <CalendarRange className="h-4 w-4" />
-          <span className="hidden sm:inline">MÃªs</span>
+          <span className="hidden sm:inline">Mês</span>
         </ToggleGroupItem>
       </ToggleGroup>
       <Button variant="outline" size="icon" onClick={handlePrev}>
@@ -1551,12 +1553,12 @@ const Mapas = () => {
                             isWithinForecastRange(day) &&
                             weatherLoading && (
                               <div className="text-xs text-muted-foreground">
-                                Carregando previsÃ£o...
+                                Carregando previsão...
                               </div>
                             )}
                           {showWeather && !isWithinForecastRange(day) && (
                             <div className="text-xs text-muted-foreground">
-                              PrevisÃ£o nÃ£o disponÃ­vel
+                              Previsão não disponível
                             </div>
                           )}
                         </div>
@@ -1679,7 +1681,7 @@ const Mapas = () => {
                                         <p className="text-sm font-semibold">{oc.gravacao}</p>
                                         {gravacaoData?.codigoExterno && (
                                           <p className="text-xs text-muted-foreground">
-                                            CÃ³d: {gravacaoData.codigoExterno}
+                                            Cód: {gravacaoData.codigoExterno}
                                           </p>
                                         )}
                                       </div>
@@ -1696,7 +1698,7 @@ const Mapas = () => {
                                         <p className="text-sm">{oc.horario}</p>
                                         {oc.duracaoMinutos && oc.duracaoMinutos > 0 && (
                                           <p className="text-xs text-muted-foreground">
-                                            DuraÃ§Ã£o: {Math.floor(oc.duracaoMinutos / 60)}h
+                                            Duração: {Math.floor(oc.duracaoMinutos / 60)}h
                                             {oc.duracaoMinutos % 60 > 0
                                               ? `${oc.duracaoMinutos % 60}min`
                                               : ''}
@@ -1714,7 +1716,7 @@ const Mapas = () => {
                                       <div className="pt-2 border-t space-y-2">
                                         <div className="flex items-center justify-between text-xs">
                                           <span className="text-muted-foreground">
-                                            OcupaÃ§Ã£o do dia:
+                                            Ocupação do dia:
                                           </span>
                                           <span className="font-medium">
                                             {ocupacaoDetalhada.percentualOcupacao}%
@@ -1726,7 +1728,7 @@ const Mapas = () => {
                                         />
                                         <div className="grid grid-cols-2 gap-x-4 text-[10px] text-muted-foreground">
                                           <span>
-                                            DisponÃ­vel:{' '}
+                                            Disponível:{' '}
                                             {Math.floor(ocupacaoDetalhada.totalDisponivel / 60)}h
                                             {ocupacaoDetalhada.totalDisponivel % 60 > 0
                                               ? `${ocupacaoDetalhada.totalDisponivel % 60}min`
@@ -1792,7 +1794,7 @@ const Mapas = () => {
                                             : ''}
                                         </p>
                                         <p>
-                                          DisponÃ­vel:{' '}
+                                          Disponível:{' '}
                                           {Math.floor(ocupacaoDetalhada.totalDisponivel / 60)}h
                                           {ocupacaoDetalhada.totalDisponivel % 60 > 0
                                             ? ` ${ocupacaoDetalhada.totalDisponivel % 60}min`
@@ -1967,7 +1969,7 @@ const Mapas = () => {
                                               <p className="text-sm font-semibold">{oc.gravacao}</p>
                                               {gravacaoData?.codigoExterno && (
                                                 <p className="text-xs text-muted-foreground">
-                                                  CÃ³d: {gravacaoData.codigoExterno}
+                                                  Cód: {gravacaoData.codigoExterno}
                                                 </p>
                                               )}
                                             </div>
@@ -2076,7 +2078,7 @@ const Mapas = () => {
                                               </div>
                                               {todasOcupacoesDia.length > 1 && (
                                                 <p className="text-xs text-muted-foreground pt-1">
-                                                  * {todasOcupacoesDia.length} gravaÃ§Ãµes neste dia
+                                                  * {todasOcupacoesDia.length} gravações neste dia
                                                 </p>
                                               )}
                                             </div>
@@ -2112,18 +2114,13 @@ const Mapas = () => {
   };
 
   return (
-    <div className="p-6">
-      <div className="rounded-lg mb-4 overflow-hidden shadow-sm">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 bg-gradient-to-r from-kreato-cyan via-primary to-kreato-orange">
-          <div>
-            <h1 className="text-2xl font-bold text-white">Mapas de OcupaÃ§Ã£o</h1>
-            <p className="text-white/80 mt-1">Visualize a alocaÃ§Ã£o de recursos por perÃ­odo</p>
-          </div>
-        </div>
-      </div>
+    <div>
+      <PageHeader
+        title="Mapas de Ocupação"
+        description="Visualize a alocação de recursos por período"
+      />
 
-      {/* Barra de BotÃµes entre tÃ­tulo e tabuladores */}
-      <div className="flex items-center justify-start gap-2 py-3 px-4 mb-4 border-b border-border/50 bg-muted/30 rounded-lg">
+      <ListActionBar className="justify-start flex-wrap">
         {renderNavigator()}
         <Button
           variant="outline"
@@ -2148,7 +2145,7 @@ const Mapas = () => {
           )}
           Exportar PDF
         </Button>
-      </div>
+      </ListActionBar>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList>
@@ -2174,7 +2171,7 @@ const Mapas = () => {
           {showFilters && (
             <Card>
               <CardHeader className="py-3">
-                <CardTitle className="text-sm">Filtros - Recursos FÃ­sicos</CardTitle>
+                <CardTitle className="text-sm">Filtros - Recursos Físicos</CardTitle>
               </CardHeader>
               <CardContent className="pb-3">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -2202,7 +2199,7 @@ const Mapas = () => {
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-xs">GravaÃ§Ã£o/Projeto</Label>
+                    <Label className="text-xs">Gravação/Projeto</Label>
                     <Select value={filtroGravacao} onValueChange={setFiltroGravacao}>
                       <SelectTrigger>
                         <SelectValue />
@@ -2228,7 +2225,7 @@ const Mapas = () => {
                 {renderOcupacaoMatriz(
                   filteredRecursosFisicos,
                   ocupacoesFisicas,
-                  'Nenhum recurso fÃ­sico encontrado. Cadastre recursos fÃ­sicos e aloque-os em gravaÃ§Ãµes.',
+                  'Nenhum recurso físico encontrado. Cadastre recursos físicos e aloque-os em gravações.',
                   true, // showWeather - mostrar previsÃ£o do tempo para recursos fÃ­sicos
                 )}
               </CardContent>
@@ -2245,7 +2242,7 @@ const Mapas = () => {
               <CardContent className="pb-3">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div className="space-y-1.5">
-                    <Label className="text-xs">FunÃ§Ã£o</Label>
+                    <Label className="text-xs">Função</Label>
                     <Select value={filtroFuncaoHumano} onValueChange={setFiltroFuncaoHumano}>
                       <SelectTrigger>
                         <SelectValue />
@@ -2268,7 +2265,7 @@ const Mapas = () => {
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-xs">GravaÃ§Ã£o/Projeto</Label>
+                    <Label className="text-xs">Gravação/Projeto</Label>
                     <Select value={filtroGravacao} onValueChange={setFiltroGravacao}>
                       <SelectTrigger>
                         <SelectValue />
@@ -2294,7 +2291,7 @@ const Mapas = () => {
                 {renderOcupacaoMatrizAgrupada(
                   recursosHumanosAgrupados,
                   ocupacoesHumanas,
-                  'Nenhum recurso humano encontrado. Cadastre colaboradores e aloque-os em recursos tÃ©cnicos das gravaÃ§Ãµes.',
+                  'Nenhum recurso humano encontrado. Cadastre colaboradores e aloque-os em recursos técnicos das gravações.',
                 )}
               </CardContent>
             </Card>
@@ -2307,7 +2304,7 @@ const Mapas = () => {
             <CardHeader className="py-3">
               <CardTitle className="text-sm flex items-center gap-2">
                 <Filter className="h-4 w-4" />
-                Filtros de ApropriaÃ§Ã£o
+                Filtros de Apropriação
               </CardTitle>
             </CardHeader>
             <CardContent className="pb-3">
@@ -2344,7 +2341,7 @@ const Mapas = () => {
                   </Select>
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Unidade de NegÃ³cio</Label>
+                  <Label className="text-xs">Unidade de Negócio</Label>
                   <Select value={filtroUnidadeNegocio} onValueChange={setFiltroUnidadeNegocio}>
                     <SelectTrigger>
                       <SelectValue />
@@ -2368,7 +2365,7 @@ const Mapas = () => {
             <CardHeader className="py-3">
               <CardTitle className="text-sm flex items-center gap-2">
                 <Briefcase className="h-4 w-4" />
-                Custos por Unidade de NegÃ³cio - {filtroAno}
+                Custos por Unidade de Negócio - {filtroAno}
               </CardTitle>
             </CardHeader>
             <CardContent className="p-4">
@@ -2377,7 +2374,7 @@ const Mapas = () => {
                   <TableHeader>
                     <TableRow>
                       <TableHead className="sticky left-0 bg-background z-10 min-w-[200px]">
-                        Unidade de NegÃ³cio
+                        Unidade de Negócio
                       </TableHead>
                       {mesesAbrev.map((mes) => (
                         <TableHead key={mes} className="text-right min-w-[100px]">
@@ -2393,7 +2390,7 @@ const Mapas = () => {
                     {Object.keys(apropriacaoPorUnidadeNegocio).length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={14} className="text-center text-muted-foreground py-8">
-                          Nenhum custo encontrado para o perÃ­odo selecionado.
+                          Nenhum custo encontrado para o período selecionado.
                         </TableCell>
                       </TableRow>
                     ) : (
@@ -2457,7 +2454,7 @@ const Mapas = () => {
                     {Object.keys(apropriacaoPorCentroLucro).length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={14} className="text-center text-muted-foreground py-8">
-                          Nenhum custo encontrado para o perÃ­odo selecionado.
+                          Nenhum custo encontrado para o período selecionado.
                         </TableCell>
                       </TableRow>
                     ) : (
