@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import type { SessionUser } from '../auth/auth.types.js';
 import { hashPassword } from '../../lib/security/password.js';
+import { isValidPasswordPolicy, PASSWORD_POLICY_MESSAGE } from '../../lib/security/password-policy.js';
 import { AccessError, ensureSameTenant, resolveTenantId } from '../common/access.js';
 import type { UsersRepository } from './users.repository.js';
 
@@ -11,7 +12,7 @@ export const saveUserSchema = z.object({
   nome: z.string().min(1),
   email: z.string().email(),
   usuario: z.string().min(1),
-  senha: z.string().min(6).optional(),
+  senha: z.string().refine(isValidPasswordPolicy, PASSWORD_POLICY_MESSAGE).optional(),
   foto: z.string().optional().nullable(),
   perfil: z.string().optional().nullable(),
   descricao: z.string().optional().nullable(),
@@ -61,10 +62,13 @@ export class UsersService {
   }
 
   async list(actor: SessionUser, opts?: { limit?: number; offset?: number }) {
-    const tenantId = actor.role === 'GLOBAL_ADMIN' ? actor.tenantId ?? null : resolveTenantId(actor, actor.tenantId);
+    const tenantId =
+      actor.role === 'GLOBAL_ADMIN'
+        ? undefined
+        : resolveTenantId(actor, actor.tenantId);
 
     // Regra 3: admins com unidades específicas só gerenciam usuários dessas unidades.
-    // GLOBAL_ADMIN sem unidades restritas vê tudo do tenant.
+    // GLOBAL_ADMIN sem unidades restritas vê todos os usuários do sistema.
     const actorUnidadeIds =
       actor.role !== 'GLOBAL_ADMIN' && actor.unidadeIds.length > 0 ? actor.unidadeIds : undefined;
 
@@ -93,6 +97,10 @@ export class UsersService {
   }
 
   async save(actor: SessionUser, input: SaveUserDto) {
+    if (input.senha && !isValidPasswordPolicy(input.senha)) {
+      throw new AccessError(PASSWORD_POLICY_MESSAGE, 400);
+    }
+
     if (input.role === 'GLOBAL_ADMIN' && actor.role !== 'GLOBAL_ADMIN') {
       throw new AccessError('Somente administradores globais podem criar usuarios globais');
     }

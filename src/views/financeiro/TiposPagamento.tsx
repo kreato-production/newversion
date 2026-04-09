@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import * as XLSX from 'xlsx';
 import { Button } from '@/components/ui/button';
 import {
   AlertDialog,
@@ -16,8 +17,9 @@ import { Badge } from '@/components/ui/badge';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
 import { ListActionBar } from '@/components/shared/ListActionBar';
 import { SortableTable, type Column } from '@/components/shared/SortableTable';
-import { CreditCard, Edit, Trash2, Settings, Loader2 } from 'lucide-react';
+import { CreditCard, Edit, Trash2, Settings, Loader2, Download, Upload } from 'lucide-react';
 import { NewButton } from '@/components/shared/NewButton';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
 import { ApiParametrizacoesRepository } from '@/modules/parametrizacoes/parametrizacoes.api.repository';
 import {
@@ -133,7 +135,10 @@ function TipoPagamentoDetailPanel({
         />
         <div className="min-w-0 flex-1">
           <div className="font-semibold text-base leading-snug">
-            <Badge style={{ backgroundColor: item.cor || '#6b7280' }} className="text-white text-sm">
+            <Badge
+              style={{ backgroundColor: item.cor || '#6b7280' }}
+              className="text-white text-sm"
+            >
               {item.titulo}
             </Badge>
           </div>
@@ -187,6 +192,8 @@ function TipoPagamentoDetailPanel({
 
 const TiposPagamento = () => {
   const { toast } = useToast();
+  const importFileRef = useRef<HTMLInputElement>(null);
+  const [isImporting, setIsImporting] = useState(false);
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<TipoPagamentoItem | null>(null);
@@ -282,6 +289,95 @@ const TiposPagamento = () => {
     }
   };
 
+  const handleExport = () => {
+    const data = filteredItems.map((item) => ({
+      'Código Externo': item.codigoExterno,
+      Título: item.titulo,
+      Descrição: item.descricao,
+      Cor: item.cor,
+      'Data de Cadastro': item.dataCadastro
+        ? new Date(item.dataCadastro).toLocaleDateString('pt-BR')
+        : '',
+    }));
+    const ws = XLSX.utils.json_to_sheet(data);
+    ws['!cols'] = [{ wch: 18 }, { wch: 40 }, { wch: 50 }, { wch: 12 }, { wch: 18 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Tipos de Pagamento');
+    XLSX.writeFile(wb, `tipos_pagamento_${new Date().toISOString().split('T')[0]}.xlsx`);
+    toast({
+      title: 'Exportação concluída',
+      description: `${filteredItems.length} registro(s) exportado(s).`,
+    });
+  };
+
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+    setIsImporting(true);
+    try {
+      const wb = XLSX.read(await file.arrayBuffer());
+      const rows = XLSX.utils.sheet_to_json<Record<string, string>>(wb.Sheets[wb.SheetNames[0]]);
+      if (rows.length === 0) {
+        toast({
+          title: 'Arquivo vazio',
+          description: 'O arquivo não contém dados.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      if (!('Título' in rows[0])) {
+        toast({
+          title: 'Estrutura inválida',
+          description:
+            'Coluna obrigatória "Título" não encontrada. Use o arquivo exportado como template.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      let ok = 0;
+      let fail = 0;
+      for (const row of rows) {
+        const titulo = String(row['Título'] ?? '').trim();
+        if (!titulo) {
+          fail++;
+          continue;
+        }
+        try {
+          await repository.saveTipoPagamento({
+            codigo_externo: String(row['Código Externo'] ?? '').trim(),
+            titulo,
+            descricao: String(row['Descrição'] ?? '').trim(),
+            cor: String(row['Cor'] ?? '#888888').trim(),
+          });
+          ok++;
+        } catch {
+          fail++;
+        }
+      }
+      await fetchTiposPagamento();
+      if (fail === 0)
+        toast({
+          title: 'Importação concluída',
+          description: `${ok} registro(s) importado(s) com sucesso.`,
+        });
+      else
+        toast({
+          title: 'Importação parcial',
+          description: `${ok} importado(s), ${fail} com erro.`,
+          variant: 'destructive',
+        });
+    } catch (err) {
+      toast({
+        title: 'Erro na importação',
+        description: `Não foi possível processar o arquivo: ${(err as Error).message}`,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
   const filteredItems = items.filter((item) => {
     const term = search.toLowerCase();
 
@@ -373,6 +469,14 @@ const TiposPagamento = () => {
         description="Gerencie os tipos de pagamentos utilizados no fluxo financeiro"
       />
 
+      <input
+        ref={importFileRef}
+        type="file"
+        accept=".xlsx,.xls"
+        className="hidden"
+        onChange={handleImportFile}
+      />
+
       <ListActionBar>
         <NewButton
           tooltip="Novo Tipo de Pagamento"
@@ -381,8 +485,38 @@ const TiposPagamento = () => {
             setIsModalOpen(true);
           }}
         />
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              size="icon"
+              onClick={handleExport}
+              disabled={filteredItems.length === 0}
+              aria-label="Exportar"
+            >
+              <Download className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Exportar</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              size="icon"
+              onClick={() => importFileRef.current?.click()}
+              disabled={isImporting}
+              aria-label="Importar"
+            >
+              <Upload className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Importar</TooltipContent>
+        </Tooltip>
         <div className="flex-1" />
-        <SearchBar value={search} onChange={setSearch} placeholder="Buscar tipos de pagamentos..." />
+        <SearchBar
+          value={search}
+          onChange={setSearch}
+          placeholder="Buscar tipos de pagamentos..."
+        />
         {mode === 'list' && (
           <ColumnSelector
             columns={optionalColumns}

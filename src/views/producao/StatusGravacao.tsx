@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import * as XLSX from 'xlsx';
 import { Button } from '@/components/ui/button';
 import {
   AlertDialog,
@@ -15,7 +16,7 @@ import { Separator } from '@/components/ui/separator';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
 import { ListActionBar } from '@/components/shared/ListActionBar';
 import { SortableTable, type Column } from '@/components/shared/SortableTable';
-import { Edit, Trash2, Settings, Loader2, Star } from 'lucide-react';
+import { Edit, Trash2, Settings, Loader2, Star, Download, Upload } from 'lucide-react';
 import { NewButton } from '@/components/shared/NewButton';
 import { useToast } from '@/hooks/use-toast';
 import { StatusGravacaoFormModal } from '@/components/producao/StatusGravacaoFormModal';
@@ -48,13 +49,13 @@ const repository = new ApiParametrizacoesRepository();
 // ─── Column configuration ──────────────────────────────────────────────────────
 
 const COLUMN_CONFIG: ColumnConfig[] = [
-  { key: 'codigoExterno', label: 'Código',       required: false, defaultVisible: true },
-  { key: 'nome',          label: 'Nome',          required: true },
-  { key: 'cor',           label: 'Cor',           defaultVisible: true },
-  { key: 'descricao',     label: 'Descrição',     defaultVisible: true },
-  { key: 'isInicial',     label: 'Inicial',       defaultVisible: true },
-  { key: 'dataCadastro',  label: 'Data Cadastro', defaultVisible: false },
-  { key: 'actions',       label: 'Ações',         required: true },
+  { key: 'codigoExterno', label: 'Código', required: false, defaultVisible: true },
+  { key: 'nome', label: 'Nome', required: true },
+  { key: 'cor', label: 'Cor', defaultVisible: true },
+  { key: 'descricao', label: 'Descrição', defaultVisible: true },
+  { key: 'isInicial', label: 'Inicial', defaultVisible: true },
+  { key: 'dataCadastro', label: 'Data Cadastro', defaultVisible: false },
+  { key: 'actions', label: 'Ações', required: true },
 ];
 
 const STORAGE_KEY = 'kreato_status_gravacao_table';
@@ -90,9 +91,7 @@ function StatusGravacaoCard({
               <p className="text-xs font-mono text-muted-foreground mt-0.5">{item.codigoExterno}</p>
             )}
           </div>
-          {item.isInicial && (
-            <Star className="h-4 w-4 fill-yellow-400 text-yellow-400 shrink-0" />
-          )}
+          {item.isInicial && <Star className="h-4 w-4 fill-yellow-400 text-yellow-400 shrink-0" />}
         </div>
       </CardHeader>
       <CardContent className="px-4 pb-3 space-y-1.5 text-xs text-muted-foreground flex-1">
@@ -164,7 +163,10 @@ function StatusGravacaoDetailPanel({
         />
         <div className="min-w-0 flex-1">
           <h3 className="font-semibold text-base leading-snug">
-            <Badge style={{ backgroundColor: item.cor || '#6b7280' }} className="text-white text-sm">
+            <Badge
+              style={{ backgroundColor: item.cor || '#6b7280' }}
+              className="text-white text-sm"
+            >
               {item.nome}
             </Badge>
           </h3>
@@ -180,7 +182,10 @@ function StatusGravacaoDetailPanel({
       <div className="grid grid-cols-2 gap-x-6 gap-y-3">
         {field('Código', item.codigoExterno)}
         {field('Cor', item.cor)}
-        {field('Data Cadastro', item.dataCadastro ? new Date(item.dataCadastro).toLocaleDateString('pt-BR') : null)}
+        {field(
+          'Data Cadastro',
+          item.dataCadastro ? new Date(item.dataCadastro).toLocaleDateString('pt-BR') : null,
+        )}
       </div>
 
       {item.descricao && (
@@ -234,6 +239,8 @@ function StatusGravacaoDetailPanel({
 const StatusGravacao = () => {
   const { toast } = useToast();
   const { canAlterar } = usePermissions();
+  const importFileRef = useRef<HTMLInputElement>(null);
+  const [isImporting, setIsImporting] = useState(false);
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<StatusGravacaoItem | null>(null);
@@ -318,6 +325,102 @@ const StatusGravacao = () => {
     } catch (error) {
       console.error('Error toggling is_inicial:', error);
       toast({ title: 'Erro', description: 'Erro ao atualizar', variant: 'destructive' });
+    }
+  };
+
+  const handleExport = () => {
+    const data = filteredItems.map((item) => ({
+      'Código Externo': item.codigoExterno,
+      Nome: item.nome,
+      Cor: item.cor,
+      Descrição: item.descricao,
+      Inicial: item.isInicial ? 'Sim' : 'Não',
+      'Data de Cadastro': item.dataCadastro
+        ? new Date(item.dataCadastro).toLocaleDateString('pt-BR')
+        : '',
+    }));
+    const ws = XLSX.utils.json_to_sheet(data);
+    ws['!cols'] = [{ wch: 18 }, { wch: 40 }, { wch: 12 }, { wch: 50 }, { wch: 10 }, { wch: 18 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Status de Gravação');
+    XLSX.writeFile(wb, `status_gravacao_${new Date().toISOString().split('T')[0]}.xlsx`);
+    toast({
+      title: 'Exportação concluída',
+      description: `${filteredItems.length} registro(s) exportado(s).`,
+    });
+  };
+
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+    setIsImporting(true);
+    try {
+      const wb = XLSX.read(await file.arrayBuffer());
+      const rows = XLSX.utils.sheet_to_json<Record<string, string>>(wb.Sheets[wb.SheetNames[0]]);
+      if (rows.length === 0) {
+        toast({
+          title: 'Arquivo vazio',
+          description: 'O arquivo não contém dados.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      if (!('Nome' in rows[0])) {
+        toast({
+          title: 'Estrutura inválida',
+          description: 'Coluna obrigatória "Nome" não encontrada.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      const toBool = (v: unknown) =>
+        ['sim', 'true', '1'].includes(
+          String(v ?? '')
+            .trim()
+            .toLowerCase(),
+        );
+      let ok = 0;
+      let fail = 0;
+      for (const row of rows) {
+        const nome = String(row['Nome'] ?? '').trim();
+        if (!nome) {
+          fail++;
+          continue;
+        }
+        try {
+          await repository.saveStatusGravacao({
+            codigoExterno: String(row['Código Externo'] ?? '').trim(),
+            nome,
+            descricao: String(row['Descrição'] ?? '').trim(),
+            cor: String(row['Cor'] ?? '#888888').trim(),
+            isInicial: toBool(row['Inicial']),
+          });
+          ok++;
+        } catch {
+          fail++;
+        }
+      }
+      await fetchStatusGravacao();
+      if (fail === 0)
+        toast({
+          title: 'Importação concluída',
+          description: `${ok} registro(s) importado(s) com sucesso.`,
+        });
+      else
+        toast({
+          title: 'Importação parcial',
+          description: `${ok} importado(s), ${fail} com erro.`,
+          variant: 'destructive',
+        });
+    } catch (err) {
+      toast({
+        title: 'Erro na importação',
+        description: `Não foi possível processar o arquivo: ${(err as Error).message}`,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsImporting(false);
     }
   };
 
@@ -442,6 +545,14 @@ const StatusGravacao = () => {
         description="Gerencie os status possiveis para gravacoes"
       />
 
+      <input
+        ref={importFileRef}
+        type="file"
+        accept=".xlsx,.xls"
+        className="hidden"
+        onChange={handleImportFile}
+      />
+
       <ListActionBar>
         <NewButton
           tooltip="Novo Status"
@@ -450,6 +561,32 @@ const StatusGravacao = () => {
             setIsModalOpen(true);
           }}
         />
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              size="icon"
+              onClick={handleExport}
+              disabled={filteredItems.length === 0}
+              aria-label="Exportar"
+            >
+              <Download className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Exportar</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              size="icon"
+              onClick={() => importFileRef.current?.click()}
+              disabled={isImporting}
+              aria-label="Importar"
+            >
+              <Upload className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Importar</TooltipContent>
+        </Tooltip>
         <div className="flex-1" />
         <SearchBar value={search} onChange={setSearch} />
         {mode === 'list' && (
@@ -518,12 +655,17 @@ const StatusGravacao = () => {
             renderRow={(item, isSelected) => (
               <div>
                 <p className={`text-sm font-medium truncate ${isSelected ? 'text-primary' : ''}`}>
-                  <Badge style={{ backgroundColor: item.cor || '#6b7280' }} className="text-white text-xs">
+                  <Badge
+                    style={{ backgroundColor: item.cor || '#6b7280' }}
+                    className="text-white text-xs"
+                  >
                     {item.nome}
                   </Badge>
                 </p>
                 {item.codigoExterno && (
-                  <span className="text-xs font-mono text-muted-foreground">{item.codigoExterno}</span>
+                  <span className="text-xs font-mono text-muted-foreground">
+                    {item.codigoExterno}
+                  </span>
                 )}
               </div>
             )}

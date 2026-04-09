@@ -142,42 +142,74 @@ const getNavItems = (isGlobalAdmin: boolean, t: (k: string) => string): NavItem[
           {
             label: t('menu.recordingTypes'),
             path: '/producao/tipos-gravacao',
-            permission: { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Tipo de gravação' },
+            permission: {
+              modulo: 'Produção',
+              subModulo1: 'Parametrizações',
+              subModulo2: 'Tipo de gravação',
+            },
           },
           {
             label: t('menu.classification'),
             path: '/producao/classificacao',
-            permission: { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Classificação' },
+            permission: {
+              modulo: 'Produção',
+              subModulo1: 'Parametrizações',
+              subModulo2: 'Classificação',
+            },
           },
           {
             label: t('menu.recordingStatus'),
             path: '/producao/status',
-            permission: { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Status de Gravação' },
+            permission: {
+              modulo: 'Produção',
+              subModulo1: 'Parametrizações',
+              subModulo2: 'Status de Gravação',
+            },
           },
           {
             label: t('menu.taskStatus'),
             path: '/producao/status-tarefa',
-            permission: { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Status da Tarefa' },
+            permission: {
+              modulo: 'Produção',
+              subModulo1: 'Parametrizações',
+              subModulo2: 'Status da Tarefa',
+            },
           },
           {
             label: t('menu.priceTables'),
             path: '/producao/tabelas-preco',
-            permission: { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Tabelas de Preços' },
+            permission: {
+              modulo: 'Produção',
+              subModulo1: 'Parametrizações',
+              subModulo2: 'Tabelas de Preços',
+            },
           },
           {
             label: t('menu.incidentCategories'),
             path: '/producao/categorias-incidencia',
-            permission: { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Categorias de Incidência' },
+            permission: {
+              modulo: 'Produção',
+              subModulo1: 'Parametrizações',
+              subModulo2: 'Categorias de Incidência',
+            },
           },
           {
             label: t('menu.incidentSeverities'),
             path: '/producao/severidades-incidencia',
-            permission: { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Severidades de Incidência' },
+            permission: {
+              modulo: 'Produção',
+              subModulo1: 'Parametrizações',
+              subModulo2: 'Severidades de Incidência',
+            },
           },
           {
             label: t('menu.incidentImpacts'),
             path: '/producao/impactos-incidencia',
-            permission: { modulo: 'Produção', subModulo1: 'Parametrizações', subModulo2: 'Impactos de Incidência' },
+            permission: {
+              modulo: 'Produção',
+              subModulo1: 'Parametrizações',
+              subModulo2: 'Impactos de Incidência',
+            },
           },
         ],
       } satisfies NavSubGroup,
@@ -215,48 +247,90 @@ const getNavItems = (isGlobalAdmin: boolean, t: (k: string) => string): NavItem[
         permission: { modulo: 'Recursos', subModulo1: 'Pessoas' },
       },
       {
+        label: t('menu.escalas'),
+        path: '/recursos/escalas',
+        permission: { modulo: 'Recursos', subModulo1: 'Escalas' },
+      },
+      {
         label: t('menu.parameters'),
         isGroup: true,
         children: [
           {
             label: t('menu.material'),
             path: '/recursos/material',
-            permission: { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Material' },
+            permission: {
+              modulo: 'Recursos',
+              subModulo1: 'Parametrizações',
+              subModulo2: 'Material',
+            },
           },
           {
             label: t('menu.costumeType'),
             path: '/recursos/tipo-figurino',
-            permission: { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Tipo de Figurino' },
+            permission: {
+              modulo: 'Recursos',
+              subModulo1: 'Parametrizações',
+              subModulo2: 'Tipo de Figurino',
+            },
           },
           {
             label: t('menu.peopleClassification'),
             path: '/recursos/classificacao-pessoas',
-            permission: { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Classificação de Pessoas' },
+            permission: {
+              modulo: 'Recursos',
+              subModulo1: 'Parametrizações',
+              subModulo2: 'Classificação de Pessoas',
+            },
           },
           {
             label: t('menu.supplierCategory'),
             path: '/recursos/categoria-fornecedores',
-            permission: { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Categoria de Fornecedores' },
+            permission: {
+              modulo: 'Recursos',
+              subModulo1: 'Parametrizações',
+              subModulo2: 'Categoria de Fornecedores',
+            },
           },
           {
             label: t('menu.services'),
             path: '/recursos/servicos',
-            permission: { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Serviços' },
+            permission: {
+              modulo: 'Recursos',
+              subModulo1: 'Parametrizações',
+              subModulo2: 'Serviços',
+            },
           },
           {
             label: t('menu.departments'),
             path: '/recursos/departamentos',
-            permission: { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Departamentos' },
+            permission: {
+              modulo: 'Recursos',
+              subModulo1: 'Parametrizações',
+              subModulo2: 'Departamentos',
+            },
           },
           {
             label: t('menu.functions'),
             path: '/recursos/funcoes',
-            permission: { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Funções' },
+            permission: {
+              modulo: 'Recursos',
+              subModulo1: 'Parametrizações',
+              subModulo2: 'Funções',
+            },
           },
           {
             label: t('menu.holidays'),
             path: '/recursos/feriados',
-            permission: { modulo: 'Recursos', subModulo1: 'Parametrizacoes', subModulo2: 'Feriados' },
+            permission: {
+              modulo: 'Recursos',
+              subModulo1: 'Parametrizacoes',
+              subModulo2: 'Feriados',
+            },
+          },
+          {
+            label: t('menu.shifts'),
+            path: '/recursos/turnos',
+            permission: { modulo: 'Recursos', subModulo1: 'Parametrizações', subModulo2: 'Turnos' },
           },
           {
             label: t('menu.positions'),
@@ -363,9 +437,7 @@ function isSubGroup(child: NavChild): child is NavSubGroup {
 }
 
 function allPaths(children: NavChild[]): string[] {
-  return children.flatMap((c) =>
-    isSubGroup(c) ? c.children.map((sc) => sc.path) : [c.path],
-  );
+  return children.flatMap((c) => (isSubGroup(c) ? c.children.map((sc) => sc.path) : [c.path]));
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -400,15 +472,12 @@ const AppSidebar = () => {
 
   const isModuleActive = (item: NavItem): boolean => {
     if (item.path) return pathname === item.path;
-    return (
-      allPaths(item.children ?? []).some(
-        (p) => pathname === p || pathname.startsWith(p + '/'),
-      )
+    return allPaths(item.children ?? []).some(
+      (p) => pathname === p || pathname.startsWith(p + '/'),
     );
   };
 
-  const isPathActive = (path: string) =>
-    pathname === path || pathname.startsWith(path + '/');
+  const isPathActive = (path: string) => pathname === path || pathname.startsWith(path + '/');
 
   return (
     <Sidebar collapsible="icon">

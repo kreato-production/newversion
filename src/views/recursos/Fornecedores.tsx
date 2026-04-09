@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import * as XLSX from 'xlsx';
 import { Button } from '@/components/ui/button';
 import {
   AlertDialog,
@@ -14,8 +15,9 @@ import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
 import { ListActionBar } from '@/components/shared/ListActionBar';
-import { Edit, Trash2, Truck, Loader2 } from 'lucide-react';
+import { Edit, Trash2, Truck, Loader2, Download, Upload } from 'lucide-react';
 import { NewButton } from '@/components/shared/NewButton';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
 import { FornecedorFormModal } from '@/components/recursos/FornecedorFormModal';
 import { SortableTable, type Column } from '@/components/shared/SortableTable';
@@ -36,12 +38,12 @@ import {
 const STORAGE_KEY = 'kreato_fornecedores_table';
 
 const COLUMN_CONFIG: ColumnConfig[] = [
-  { key: 'codigoExterno', label: 'Código',    defaultVisible: true },
-  { key: 'nome',          label: 'Nome',      required: true },
-  { key: 'categoria',     label: 'Categoria', defaultVisible: true },
-  { key: 'email',         label: 'E-mail',    defaultVisible: true },
-  { key: 'pais',          label: 'País',      defaultVisible: false },
-  { key: 'acoes',         label: 'Ações',     required: true },
+  { key: 'codigoExterno', label: 'Código', defaultVisible: true },
+  { key: 'nome', label: 'Nome', required: true },
+  { key: 'categoria', label: 'Categoria', defaultVisible: true },
+  { key: 'email', label: 'E-mail', defaultVisible: true },
+  { key: 'pais', label: 'País', defaultVisible: false },
+  { key: 'acoes', label: 'Ações', required: true },
 ];
 
 // ─── Card renderer ────────────────────────────────────────────────────────────
@@ -185,6 +187,8 @@ const Fornecedores = () => {
   const [items, setItems] = useState<Fornecedor[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [isImporting, setIsImporting] = useState(false);
+  const importFileRef = useRef<HTMLInputElement>(null);
 
   const { mode, setMode, visibleColumnKeys, toggleColumn, resetColumns, optionalColumns } =
     useListingView({ storageKey: STORAGE_KEY, columns: COLUMN_CONFIG });
@@ -253,6 +257,98 @@ const Fornecedores = () => {
       });
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  const handleExport = () => {
+    const data = filteredItems.map((item) => ({
+      'Código Externo': item.codigoExterno || '',
+      Nome: item.nome,
+      Categoria: item.categoria || '',
+      'E-mail': item.email || '',
+      País: item.pais || '',
+      'Data de Cadastro': item.dataCadastro
+        ? new Date(item.dataCadastro).toLocaleDateString('pt-BR')
+        : '',
+    }));
+    const ws = XLSX.utils.json_to_sheet(data);
+    ws['!cols'] = [{ wch: 18 }, { wch: 40 }, { wch: 30 }, { wch: 35 }, { wch: 20 }, { wch: 18 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Fornecedores');
+    XLSX.writeFile(wb, `fornecedores_${new Date().toISOString().split('T')[0]}.xlsx`);
+    toast({
+      title: t('common.success'),
+      description: `${filteredItems.length} registro(s) exportado(s).`,
+    });
+  };
+
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+    setIsImporting(true);
+    try {
+      const wb = XLSX.read(await file.arrayBuffer());
+      const rows = XLSX.utils.sheet_to_json<Record<string, string>>(wb.Sheets[wb.SheetNames[0]]);
+      if (rows.length === 0) {
+        toast({
+          title: t('common.error'),
+          description: 'O arquivo não contém dados.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      if (!('Nome' in rows[0])) {
+        toast({
+          title: t('common.error'),
+          description:
+            'Coluna obrigatória "Nome" não encontrada. Use o arquivo exportado como template.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      let ok = 0;
+      let fail = 0;
+      for (const row of rows) {
+        const nome = String(row['Nome'] ?? '').trim();
+        if (!nome) {
+          fail++;
+          continue;
+        }
+        try {
+          await fornecedoresRepository.save({
+            codigoExterno: String(row['Código Externo'] ?? '').trim(),
+            nome,
+            categoria: String(row['Categoria'] ?? '').trim(),
+            email: String(row['E-mail'] ?? '').trim(),
+            pais: String(row['País'] ?? '').trim(),
+            tenantId: user?.tenantId ?? null,
+          });
+          ok++;
+        } catch {
+          fail++;
+        }
+      }
+      await fetchFornecedores();
+      if (fail === 0)
+        toast({
+          title: t('common.success'),
+          description: `${ok} registro(s) importado(s) com sucesso.`,
+        });
+      else
+        toast({
+          title: t('common.error'),
+          description: `${ok} importado(s) com sucesso, ${fail} com erro.`,
+          variant: 'destructive',
+        });
+    } catch (err) {
+      toast({
+        title: t('common.error'),
+        description: `Não foi possível processar o arquivo: ${(err as Error).message}`,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsImporting(false);
     }
   };
 
@@ -330,6 +426,14 @@ const Fornecedores = () => {
     <div>
       <PageHeader title={t('field.suppliers')} description={t('field.manageSuppliers')} />
 
+      <input
+        ref={importFileRef}
+        type="file"
+        accept=".xlsx,.xls"
+        className="hidden"
+        onChange={handleImportFile}
+      />
+
       <ListActionBar>
         {podeIncluir && (
           <NewButton
@@ -340,6 +444,36 @@ const Fornecedores = () => {
             }}
           />
         )}
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="icon"
+                onClick={handleExport}
+                disabled={filteredItems.length === 0}
+                aria-label="Exportar"
+              >
+                <Download className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Exportar</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="icon"
+                onClick={() => importFileRef.current?.click()}
+                disabled={isImporting}
+                aria-label="Importar"
+              >
+                <Upload className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Importar</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
         <div className="flex-1" />
         <SearchBar value={search} onChange={setSearch} />
         {mode === 'list' && (

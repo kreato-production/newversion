@@ -178,6 +178,32 @@ CREATE INDEX IF NOT EXISTS idx_gravacoes_tenant_id ON gravacoes(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_gravacoes_unidade_negocio_id ON gravacoes(unidade_negocio_id);
 CREATE INDEX IF NOT EXISTS idx_gravacoes_programa_id ON gravacoes(programa_id);
 
+CREATE TABLE IF NOT EXISTS turnos (
+  id TEXT PRIMARY KEY,
+  tenant_id UUID NOT NULL,
+  nome TEXT NOT NULL,
+  hora_inicio TIME NOT NULL,
+  hora_fim TIME NOT NULL,
+  dias_semana JSONB NOT NULL DEFAULT '{}'::jsonb,
+  pessoas_por_dia JSONB NOT NULL DEFAULT '{}'::jsonb,
+  cor TEXT NOT NULL DEFAULT '#3B82F6',
+  sigla TEXT NULL,
+  folgas_por_semana INTEGER NOT NULL DEFAULT 0,
+  folga_especial TEXT NULL,
+  descricao TEXT NULL,
+  dias_trabalhados INTEGER NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  created_by TEXT NULL,
+  CONSTRAINT fk_turnos_tenant
+    FOREIGN KEY (tenant_id)
+    REFERENCES tenants(id)
+    ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_turnos_tenant_id ON turnos(tenant_id);
+CREATE UNIQUE INDEX IF NOT EXISTS turnos_tenant_nome_key ON turnos (tenant_id, LOWER(nome));
+
 CREATE OR REPLACE FUNCTION set_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -225,5 +251,11 @@ EXECUTE FUNCTION set_updated_at();
 DROP TRIGGER IF EXISTS trg_gravacoes_updated_at ON gravacoes;
 CREATE TRIGGER trg_gravacoes_updated_at
 BEFORE UPDATE ON gravacoes
+FOR EACH ROW
+EXECUTE FUNCTION set_updated_at();
+
+DROP TRIGGER IF EXISTS trg_turnos_updated_at ON turnos;
+CREATE TRIGGER trg_turnos_updated_at
+BEFORE UPDATE ON turnos
 FOR EACH ROW
 EXECUTE FUNCTION set_updated_at();

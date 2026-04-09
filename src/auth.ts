@@ -37,10 +37,74 @@ type FastifyLoginResponse = {
   };
 };
 
+type SessionTokenShape = {
+  sub?: string;
+  userId?: string;
+  role?: KreatoUserRole;
+  tenantId?: string | null;
+  usuario?: string;
+  perfil?: string;
+  tipoAcesso?: string;
+  unidadeIds?: string[];
+  enabledModules?: string[];
+  permissions?: KreatoPermission[];
+  checkedAt?: number;
+  name?: string | null;
+  email?: string | null;
+};
+
 const credentialsSchema = z.object({
   usuario: z.string().min(1),
   password: z.string().min(1),
 });
+
+function defaultEnabledModules(role: KreatoUserRole): string[] {
+  if (role === 'GLOBAL_ADMIN') {
+    return ['Dashboard', 'Produção', 'Recursos', 'Administração', 'Financeiro', 'Global'];
+  }
+
+  return ['Dashboard', 'Produção', 'Recursos', 'Administração', 'Financeiro'];
+}
+
+function defaultPerfil(role: KreatoUserRole): string {
+  if (role === 'GLOBAL_ADMIN') return 'Administrador Global';
+  if (role === 'TENANT_ADMIN') return 'Administrador Tenant';
+  return 'Usuário';
+}
+
+function normalizeTokenShape(token: SessionTokenShape): string | undefined {
+  const resolvedUserId = token.userId ?? token.sub;
+
+  if (resolvedUserId) {
+    token.userId = resolvedUserId;
+  }
+
+  if (!Array.isArray(token.unidadeIds)) {
+    token.unidadeIds = [];
+  }
+
+  if (!Array.isArray(token.permissions)) {
+    token.permissions = [];
+  }
+
+  if (!token.tipoAcesso) {
+    token.tipoAcesso = 'Operacional';
+  }
+
+  if (!token.usuario) {
+    token.usuario = token.email ?? '';
+  }
+
+  if (token.role && !Array.isArray(token.enabledModules)) {
+    token.enabledModules = defaultEnabledModules(token.role);
+  }
+
+  if (token.role && !token.perfil) {
+    token.perfil = defaultPerfil(token.role);
+  }
+
+  return resolvedUserId;
+}
 
 // ─── Auth.js ──────────────────────────────────────────────────────────────────
 
@@ -54,8 +118,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     // O token fica em cookie HttpOnly assinado — equivalente em segurança
     // a database sessions para o browser.
     strategy: 'jwt',
-    maxAge: 7 * 24 * 60 * 60,       // 7 dias
-    updateAge: 24 * 60 * 60,         // renova TTL uma vez por dia
+    maxAge: 7 * 24 * 60 * 60, // 7 dias
+    updateAge: 24 * 60 * 60, // renova TTL uma vez por dia
   },
 
   cookies: {
@@ -154,55 +218,84 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     // Chamado na criação do token e em cada request subsequente.
     // `user` só existe no primeiro login — depois apenas `token` é passado.
     async jwt({ token, user, account, profile }) {
+      const sessionToken = token as SessionTokenShape;
+
       // Primeiro login: persiste dados do usuário no token
       if (user) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const u = user as any;
-        token.userId = u.id as string;
-        token.role = (u.role ?? 'USER') as KreatoUserRole;
-        token.tenantId = (u.tenantId as string | null) ?? null;
-        token.usuario = (u.usuario as string | undefined) ?? u.email ?? '';
-        token.perfil = (u.perfil as string | undefined) ?? 'Usuário';
-        token.tipoAcesso = (u.tipoAcesso as string | undefined) ?? 'Operacional';
-        token.unidadeIds = (u.unidadeIds as string[] | undefined) ?? [];
-        token.enabledModules = (u.enabledModules as string[] | undefined) ?? [];
-        token.permissions = (u.permissions as KreatoPermission[] | undefined) ?? [];
-        token.checkedAt = Date.now(); // timestamp da última validação
+        sessionToken.userId = u.id as string;
+        sessionToken.role = (u.role ?? 'USER') as KreatoUserRole;
+        sessionToken.tenantId = (u.tenantId as string | null) ?? null;
+        sessionToken.usuario = (u.usuario as string | undefined) ?? u.email ?? '';
+        sessionToken.perfil = (u.perfil as string | undefined) ?? 'Usuário';
+        sessionToken.tipoAcesso = (u.tipoAcesso as string | undefined) ?? 'Operacional';
+        sessionToken.unidadeIds = (u.unidadeIds as string[] | undefined) ?? [];
+        sessionToken.enabledModules = (u.enabledModules as string[] | undefined) ?? [];
+        sessionToken.permissions = (u.permissions as KreatoPermission[] | undefined) ?? [];
+        sessionToken.checkedAt = Date.now(); // timestamp da última validação
       }
 
       // Login via Keycloak: sincroniza claims customizados
       if (account?.provider === 'keycloak' && profile) {
-        const kc = profile as { app_role?: string; tenant_id?: string; preferred_username?: string };
-        token.role = mapKeycloakRole(kc.app_role);
-        token.tenantId = kc.tenant_id ?? null;
-        token.usuario = kc.preferred_username ?? token.email ?? '';
-        token.checkedAt = Date.now();
+        const kc = profile as {
+          app_role?: string;
+          tenant_id?: string;
+          preferred_username?: string;
+        };
+        sessionToken.role = mapKeycloakRole(kc.app_role);
+        sessionToken.tenantId = kc.tenant_id ?? null;
+        sessionToken.usuario = kc.preferred_username ?? sessionToken.email ?? '';
+        sessionToken.checkedAt = Date.now();
 
         // Sincroniza no banco para o Fastify consultar
-        if (token.email) {
-          await prisma.user.update({
-            where: { email: token.email },
-            data: {
-              role: token.role,
-              tenantId: token.tenantId,
-              usuario: token.usuario,
-              nome: (token.name as string | undefined) ?? token.email.split('@')[0],
-            },
-          }).catch(() => {});
+        if (sessionToken.email) {
+          await prisma.user
+            .update({
+              where: { email: sessionToken.email },
+              data: {
+                role: sessionToken.role,
+                tenantId: sessionToken.tenantId,
+                usuario: sessionToken.usuario,
+                nome: (sessionToken.name as string | undefined) ?? sessionToken.email.split('@')[0],
+              },
+            })
+            .catch(() => {});
         }
       }
+
+      const normalizedUserId = normalizeTokenShape(sessionToken);
 
       // Validação periódica anti-revogação:
       // A cada 5 minutos, revalida se o usuário ainda está ativo no banco.
       // Isso permite revogar contas sem esperar o token expirar (7 dias).
       const FIVE_MINUTES = 5 * 60 * 1000;
-      const needsCheck = !token.checkedAt || (Date.now() - (token.checkedAt as number)) > FIVE_MINUTES;
+      const needsRecovery =
+        !sessionToken.role ||
+        !sessionToken.usuario ||
+        !sessionToken.perfil ||
+        !Array.isArray(sessionToken.enabledModules) ||
+        !Array.isArray(sessionToken.permissions) ||
+        !Array.isArray(sessionToken.unidadeIds);
+      const needsCheck =
+        needsRecovery ||
+        !sessionToken.checkedAt ||
+        Date.now() - sessionToken.checkedAt > FIVE_MINUTES;
 
-      if (needsCheck && token.userId) {
+      if (needsCheck && normalizedUserId) {
         try {
           const dbUser = await prisma.user.findUnique({
-            where: { id: token.userId as string },
-            select: { status: true, role: true, tenantId: true },
+            where: { id: normalizedUserId },
+            select: {
+              status: true,
+              role: true,
+              tenantId: true,
+              usuario: true,
+              nome: true,
+              email: true,
+              perfil: true,
+              tipoAcesso: true,
+            },
           });
 
           if (!dbUser || dbUser.status !== 'ATIVO') {
@@ -211,9 +304,24 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           }
 
           // Atualiza dados que podem ter mudado (promoção de role, troca de tenant)
-          token.role = dbUser.role as KreatoUserRole;
-          token.tenantId = dbUser.tenantId;
-          token.checkedAt = Date.now();
+          sessionToken.role = dbUser.role as KreatoUserRole;
+          sessionToken.tenantId = dbUser.tenantId;
+          sessionToken.usuario = dbUser.usuario ?? sessionToken.usuario ?? dbUser.email ?? '';
+          sessionToken.perfil =
+            dbUser.perfil ?? sessionToken.perfil ?? defaultPerfil(sessionToken.role);
+          sessionToken.tipoAcesso = dbUser.tipoAcesso ?? sessionToken.tipoAcesso ?? 'Operacional';
+          sessionToken.name = (sessionToken.name as string | null | undefined) ?? dbUser.nome;
+          sessionToken.email = (sessionToken.email as string | null | undefined) ?? dbUser.email;
+          sessionToken.enabledModules = Array.isArray(sessionToken.enabledModules)
+            ? sessionToken.enabledModules
+            : defaultEnabledModules(sessionToken.role);
+          sessionToken.unidadeIds = Array.isArray(sessionToken.unidadeIds)
+            ? sessionToken.unidadeIds
+            : [];
+          sessionToken.permissions = Array.isArray(sessionToken.permissions)
+            ? sessionToken.permissions
+            : [];
+          sessionToken.checkedAt = Date.now();
         } catch {
           // Falha de banco não invalida a sessão (degradação graciosa)
           // — o usuário continua com os dados do último check
@@ -227,15 +335,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     // Monta o objeto de sessão a partir do token JWT.
     // Chamado sempre que `auth()` ou `useSession()` é usado.
     async session({ session, token }) {
-      session.user.id = token.userId as string;
-      session.user.role = (token.role as KreatoUserRole) ?? 'USER';
-      session.user.tenantId = (token.tenantId as string | null) ?? null;
-      session.user.usuario = (token.usuario as string | undefined) ?? session.user.email ?? '';
-      session.user.perfil = (token.perfil as string | undefined) ?? 'Usuário';
-      session.user.tipoAcesso = (token.tipoAcesso as string | undefined) ?? 'Operacional';
-      session.user.unidadeIds = (token.unidadeIds as string[] | undefined) ?? [];
-      session.user.enabledModules = (token.enabledModules as string[] | undefined) ?? [];
-      session.user.permissions = (token.permissions as KreatoPermission[] | undefined) ?? [];
+      const sessionToken = token as SessionTokenShape;
+      const resolvedUserId = normalizeTokenShape(sessionToken);
+
+      session.user.id = resolvedUserId ?? '';
+      session.user.role = sessionToken.role ?? 'USER';
+      session.user.tenantId = sessionToken.tenantId ?? null;
+      session.user.usuario = sessionToken.usuario ?? session.user.email ?? '';
+      session.user.perfil = sessionToken.perfil ?? 'Usuário';
+      session.user.tipoAcesso = sessionToken.tipoAcesso ?? 'Operacional';
+      session.user.unidadeIds = sessionToken.unidadeIds ?? [];
+      session.user.enabledModules =
+        sessionToken.enabledModules ?? defaultEnabledModules(session.user.role);
+      session.user.permissions = sessionToken.permissions ?? [];
 
       return session;
     },

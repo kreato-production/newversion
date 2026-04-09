@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import type { SessionUser } from '../auth/auth.types.js';
-import { ensureSameTenant, resolveTenantId } from '../common/access.js';
+import { AccessError, ensureSameTenant, resolveTenantId } from '../common/access.js';
 import type { DepartamentosRepository } from './departamentos.repository.js';
 
 export const saveDepartamentoSchema = z.object({
@@ -43,7 +43,7 @@ export class DepartamentosService {
     if (input.id) {
       const existing = await this.repository.findById(input.id);
       if (!existing) {
-        throw new Error('Departamento nao encontrado');
+        throw new AccessError('Departamento nao encontrado', 404);
       }
       ensureSameTenant(actor, existing.tenantId);
     }
@@ -70,7 +70,7 @@ export class DepartamentosService {
   async remove(actor: SessionUser, id: string) {
     const existing = await this.repository.findById(id);
     if (!existing) {
-      throw new Error('Departamento nao encontrado');
+      throw new AccessError('Departamento nao encontrado', 404);
     }
 
     ensureSameTenant(actor, existing.tenantId);
@@ -80,7 +80,7 @@ export class DepartamentosService {
   async listFuncoes(actor: SessionUser, departamentoId: string) {
     const existing = await this.repository.findById(departamentoId);
     if (!existing) {
-      throw new Error('Departamento nao encontrado');
+      throw new AccessError('Departamento nao encontrado', 404);
     }
 
     ensureSameTenant(actor, existing.tenantId);
@@ -108,7 +108,7 @@ export class DepartamentosService {
   async addFuncao(actor: SessionUser, departamentoId: string, funcaoId: string) {
     const existing = await this.repository.findById(departamentoId);
     if (!existing) {
-      throw new Error('Departamento nao encontrado');
+      throw new AccessError('Departamento nao encontrado', 404);
     }
 
     ensureSameTenant(actor, existing.tenantId);
@@ -129,7 +129,7 @@ export class DepartamentosService {
   async removeFuncao(actor: SessionUser, departamentoId: string, associacaoId: string) {
     const existing = await this.repository.findById(departamentoId);
     if (!existing) {
-      throw new Error('Departamento nao encontrado');
+      throw new AccessError('Departamento nao encontrado', 404);
     }
 
     ensureSameTenant(actor, existing.tenantId);

@@ -29,6 +29,7 @@ import { UsuarioProgramasTab } from './UsuarioProgramasTab';
 import { UsuarioEquipesTab } from './UsuarioEquipesTab';
 import { ApiTenantsRepository, type TenantApiItem } from '@/modules/tenants/tenants.api.repository';
 import { ApiParametrosRepository } from '@/modules/parametros/parametros.api.repository';
+import { PASSWORD_POLICY_MESSAGE, validatePasswordPolicy } from '@/lib/password-policy';
 
 interface UsuarioFormModalProps {
   isOpen: boolean;
@@ -74,6 +75,8 @@ export const UsuarioFormModal = ({
   const [formData, setFormData] = useState(emptyFormData);
   const [tenants, setTenants] = useState<TenantApiItem[]>([]);
   const [perfis, setPerfis] = useState<Array<{ id: string; nome: string }>>([]);
+  const passwordErrors = formData.senha ? validatePasswordPolicy(formData.senha) : [];
+  const showPasswordValidation = formData.senha.length > 0 && passwordErrors.length > 0;
 
   useEffect(() => {
     if (!isOpen) return;
@@ -164,6 +167,11 @@ export const UsuarioFormModal = ({
 
     if (!data && (!formData.email || !formData.senha || !formData.nome || !formData.usuario)) {
       alert('Preencha todos os campos obrigatorios');
+      return;
+    }
+
+    if (formData.senha && passwordErrors.length > 0) {
+      alert(PASSWORD_POLICY_MESSAGE);
       return;
     }
 
@@ -355,6 +363,11 @@ export const UsuarioFormModal = ({
                   required={!data}
                   placeholder={data ? '••••••••' : ''}
                 />
+                <p
+                  className={`text-xs ${showPasswordValidation ? 'text-destructive' : 'text-muted-foreground'}`}
+                >
+                  {PASSWORD_POLICY_MESSAGE}
+                </p>
                 {data && (
                   <p className="text-xs text-muted-foreground">
                     Deixe em branco para manter a senha atual.

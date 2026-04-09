@@ -177,4 +177,39 @@ WHERE NOT EXISTS (
   SELECT 1 FROM gravacoes WHERE id = '88888888-8888-8888-8888-888888888888'::uuid
 );
 
+INSERT INTO turnos (
+  id,
+  tenant_id,
+  nome,
+  hora_inicio,
+  hora_fim,
+  dias_semana,
+  pessoas_por_dia,
+  cor,
+  sigla,
+  folgas_por_semana,
+  folga_especial,
+  descricao,
+  dias_trabalhados,
+  created_by
+)
+SELECT
+  'turno-demo-manha',
+  '11111111-1111-1111-1111-111111111111'::uuid,
+  'Turno Manhã',
+  '08:00:00'::time,
+  '17:00:00'::time,
+  '{"dom":0,"seg":1,"ter":1,"qua":1,"qui":1,"sex":1,"sab":0}'::jsonb,
+  '{"dom":0,"seg":3,"ter":3,"qua":3,"qui":3,"sex":3,"sab":0}'::jsonb,
+  '#3B82F6',
+  'TM',
+  2,
+  '2_domingos_mes',
+  'Turno padrao de operacao diurna',
+  5,
+  'seed'
+WHERE NOT EXISTS (
+  SELECT 1 FROM turnos WHERE id = 'turno-demo-manha'
+);
+
 

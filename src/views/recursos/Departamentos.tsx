@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import * as XLSX from 'xlsx';
 import { Button } from '@/components/ui/button';
 import {
   AlertDialog,
@@ -16,7 +17,8 @@ import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared
 import { ListActionBar } from '@/components/shared/ListActionBar';
 import { DepartamentoFormModal } from '@/components/recursos/DepartamentoFormModal';
 import { SortableTable, Column } from '@/components/shared/SortableTable';
-import { Edit, Trash2, Building2, Loader2 } from 'lucide-react';
+import { Edit, Trash2, Building2, Loader2, Download, Upload } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { NewButton } from '@/components/shared/NewButton';
 import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -42,12 +44,12 @@ const apiRepository = new ApiDepartamentosRepository();
 const STORAGE_KEY = 'kreato_departamentos';
 
 const COLUMN_CONFIG: ColumnConfig[] = [
-  { key: 'codigoExterno',    label: 'Código',         defaultVisible: true },
-  { key: 'nome',             label: 'Nome',           required: true },
-  { key: 'descricao',        label: 'Descrição',      defaultVisible: true },
-  { key: 'dataCadastro',     label: 'Data Cadastro',  defaultVisible: false },
-  { key: 'usuarioCadastro',  label: 'Usuário',        defaultVisible: false },
-  { key: 'actions',          label: 'Ações',          required: true },
+  { key: 'codigoExterno', label: 'Código', defaultVisible: true },
+  { key: 'nome', label: 'Nome', required: true },
+  { key: 'descricao', label: 'Descrição', defaultVisible: true },
+  { key: 'dataCadastro', label: 'Data Cadastro', defaultVisible: false },
+  { key: 'usuarioCadastro', label: 'Usuário', defaultVisible: false },
+  { key: 'actions', label: 'Ações', required: true },
 ];
 
 // ─── Card renderer ────────────────────────────────────────────────────────────
@@ -132,7 +134,10 @@ function DepartamentoDetailPanel({
       <Separator />
 
       <div className="grid grid-cols-2 gap-x-6 gap-y-3">
-        {field('Data de Cadastro', item.dataCadastro ? new Date(item.dataCadastro).toLocaleDateString('pt-BR') : null)}
+        {field(
+          'Data de Cadastro',
+          item.dataCadastro ? new Date(item.dataCadastro).toLocaleDateString('pt-BR') : null,
+        )}
         {field('Usuário', item.usuarioCadastro)}
       </div>
 
@@ -176,6 +181,8 @@ const Departamentos = () => {
   const podeIncluir = canIncluir('Recursos', 'Departamentos');
   const podeAlterar = canAlterar('Recursos', 'Departamentos');
   const podeExcluir = canExcluir('Recursos', 'Departamentos');
+  const importFileRef = useRef<HTMLInputElement>(null);
+  const [isImporting, setIsImporting] = useState(false);
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Departamento | null>(null);
@@ -248,6 +255,92 @@ const Departamentos = () => {
       });
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  const handleExport = () => {
+    const data = filteredItems.map((item) => ({
+      'Código Externo': item.codigoExterno,
+      Nome: item.nome,
+      Descrição: item.descricao,
+      'Data de Cadastro': item.dataCadastro
+        ? new Date(item.dataCadastro).toLocaleDateString('pt-BR')
+        : '',
+    }));
+    const ws = XLSX.utils.json_to_sheet(data);
+    ws['!cols'] = [{ wch: 18 }, { wch: 40 }, { wch: 50 }, { wch: 18 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Departamentos');
+    XLSX.writeFile(wb, `departamentos_${new Date().toISOString().split('T')[0]}.xlsx`);
+    toast({
+      title: 'Exportação concluída',
+      description: `${filteredItems.length} registro(s) exportado(s).`,
+    });
+  };
+
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+    setIsImporting(true);
+    try {
+      const wb = XLSX.read(await file.arrayBuffer());
+      const rows = XLSX.utils.sheet_to_json<Record<string, string>>(wb.Sheets[wb.SheetNames[0]]);
+      if (rows.length === 0) {
+        toast({
+          title: 'Arquivo vazio',
+          description: 'O arquivo não contém dados.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      if (!('Nome' in rows[0])) {
+        toast({
+          title: 'Estrutura inválida',
+          description: 'Coluna obrigatória "Nome" não encontrada.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      let ok = 0;
+      let fail = 0;
+      for (const row of rows) {
+        const nome = String(row['Nome'] ?? '').trim();
+        if (!nome) {
+          fail++;
+          continue;
+        }
+        try {
+          await apiRepository.save({
+            codigoExterno: String(row['Código Externo'] ?? '').trim(),
+            nome,
+            descricao: String(row['Descrição'] ?? '').trim(),
+          });
+          ok++;
+        } catch {
+          fail++;
+        }
+      }
+      await fetchDepartamentos();
+      if (fail === 0)
+        toast({
+          title: 'Importação concluída',
+          description: `${ok} registro(s) importado(s) com sucesso.`,
+        });
+      else
+        toast({
+          title: 'Importação parcial',
+          description: `${ok} importado(s), ${fail} com erro.`,
+          variant: 'destructive',
+        });
+    } catch (err) {
+      toast({
+        title: 'Erro na importação',
+        description: `Não foi possível processar o arquivo: ${(err as Error).message}`,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsImporting(false);
     }
   };
 
@@ -335,6 +428,14 @@ const Departamentos = () => {
     <div>
       <PageHeader title="Departamentos" description="Gerencie os departamentos da organizacao" />
 
+      <input
+        ref={importFileRef}
+        type="file"
+        accept=".xlsx,.xls"
+        className="hidden"
+        onChange={handleImportFile}
+      />
+
       <ListActionBar>
         {podeIncluir && (
           <NewButton
@@ -345,6 +446,32 @@ const Departamentos = () => {
             }}
           />
         )}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              size="icon"
+              onClick={handleExport}
+              disabled={filteredItems.length === 0}
+              aria-label="Exportar"
+            >
+              <Download className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Exportar</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              size="icon"
+              onClick={() => importFileRef.current?.click()}
+              disabled={isImporting}
+              aria-label="Importar"
+            >
+              <Upload className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Importar</TooltipContent>
+        </Tooltip>
         <div className="flex-1" />
         <SearchBar value={search} onChange={setSearch} placeholder={t('common.search')} />
         {mode === 'list' && (

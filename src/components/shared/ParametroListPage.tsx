@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import * as XLSX from 'xlsx';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,10 +24,11 @@ import {
   MasterDetail,
   type ColumnConfig,
 } from '@/components/listing';
-import { Edit, Trash2, Settings } from 'lucide-react';
+import { Edit, Trash2, Settings, Download, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { NewButton } from '@/components/shared/NewButton';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -57,6 +59,7 @@ interface ParametroListPageProps {
   entityName: string;
   storageKey: string;
   permissionPath?: [string, string, string?];
+  showExportImport?: boolean;
 }
 
 const apiRepository = new ApiParametrosRepository();
@@ -65,11 +68,11 @@ const apiRepository = new ApiParametrosRepository();
 
 function buildColumnConfig(t: (k: string) => string): ColumnConfig[] {
   return [
-    { key: 'codigo_externo', label: t('common.code'),             required: false, defaultVisible: true },
-    { key: 'nome',           label: t('common.name'),             required: true },
-    { key: 'descricao',      label: t('common.description'),      defaultVisible: true },
-    { key: 'created_at',     label: t('common.registrationDate'), defaultVisible: true },
-    { key: 'actions',        label: t('common.actions'),          required: true },
+    { key: 'codigo_externo', label: t('common.code'), required: false, defaultVisible: true },
+    { key: 'nome', label: t('common.name'), required: true },
+    { key: 'descricao', label: t('common.description'), defaultVisible: true },
+    { key: 'created_at', label: t('common.registrationDate'), defaultVisible: true },
+    { key: 'actions', label: t('common.actions'), required: true },
   ];
 }
 
@@ -185,11 +188,15 @@ const ParametroListPage = ({
   entityName,
   storageKey,
   permissionPath,
+  showExportImport = true,
 }: ParametroListPageProps) => {
   const { toast } = useToast();
   const { t } = useLanguage();
   const { user, session } = useAuth();
   const { canAlterar } = usePermissions();
+
+  const importFileRef = useRef<HTMLInputElement>(null);
+  const [isImporting, setIsImporting] = useState(false);
 
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -200,8 +207,15 @@ const ParametroListPage = ({
   const [isLoading, setIsLoading] = useState(true);
 
   const columnConfig = buildColumnConfig(t);
-  const { mode, setMode, visibleColumnKeys, toggleColumn, isColumnVisible, resetColumns, optionalColumns } =
-    useListingView({ storageKey, columns: columnConfig });
+  const {
+    mode,
+    setMode,
+    visibleColumnKeys,
+    toggleColumn,
+    isColumnVisible,
+    resetColumns,
+    optionalColumns,
+  } = useListingView({ storageKey, columns: columnConfig });
 
   // ── Data ───────────────────────────────────────────────────────────────────
 
@@ -264,7 +278,10 @@ const ParametroListPage = ({
     if (!deletingId) return;
     try {
       await apiRepository.remove(storageKey, deletingId);
-      toast({ title: t('common.deleted'), description: `${entityName} ${t('common.deleted').toLowerCase()}!` });
+      toast({
+        title: t('common.deleted'),
+        description: `${entityName} ${t('common.deleted').toLowerCase()}!`,
+      });
       if (selectedItem?.id === deletingId) setSelectedItem(null);
       await fetchData();
     } catch (err) {
@@ -275,6 +292,110 @@ const ParametroListPage = ({
       });
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  // ── Export / Import ────────────────────────────────────────────────────────
+
+  const handleExport = () => {
+    const exportData = filteredItems.map((item) => ({
+      'Código Externo': item.codigo_externo || '',
+      Nome: item.nome,
+      Descrição: item.descricao || '',
+      'Data de Cadastro': item.created_at
+        ? new Date(item.created_at).toLocaleDateString('pt-BR')
+        : '',
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    ws['!cols'] = [{ wch: 18 }, { wch: 40 }, { wch: 50 }, { wch: 18 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, title);
+
+    const date = new Date().toISOString().split('T')[0];
+    XLSX.writeFile(wb, `${storageKey}_${date}.xlsx`);
+
+    toast({
+      title: 'Exportação concluída',
+      description: `${filteredItems.length} registro(s) exportado(s).`,
+    });
+  };
+
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+
+    setIsImporting(true);
+    try {
+      const buffer = await file.arrayBuffer();
+      const wb = XLSX.read(buffer);
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json<Record<string, string>>(ws);
+
+      if (rows.length === 0) {
+        toast({
+          title: 'Arquivo vazio',
+          description: 'O arquivo não contém dados.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      const firstRow = rows[0];
+      if (!('Nome' in firstRow)) {
+        toast({
+          title: 'Estrutura inválida',
+          description:
+            'A coluna obrigatória "Nome" não foi encontrada. Use o arquivo exportado como template.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      let successCount = 0;
+      let errorCount = 0;
+
+      for (const row of rows) {
+        const nome = String(row['Nome'] ?? '').trim();
+        if (!nome) {
+          errorCount++;
+          continue;
+        }
+        try {
+          await apiRepository.save(storageKey, {
+            codigoExterno: String(row['Código Externo'] ?? '').trim(),
+            nome,
+            descricao: String(row['Descrição'] ?? '').trim(),
+          });
+          successCount++;
+        } catch {
+          errorCount++;
+        }
+      }
+
+      await fetchData();
+
+      if (errorCount === 0) {
+        toast({
+          title: 'Importação concluída',
+          description: `${successCount} registro(s) importado(s) com sucesso.`,
+        });
+      } else {
+        toast({
+          title: 'Importação parcial',
+          description: `${successCount} importado(s) com sucesso, ${errorCount} com erro.`,
+          variant: 'destructive',
+        });
+      }
+    } catch (err) {
+      toast({
+        title: 'Erro na importação',
+        description: `Não foi possível processar o arquivo: ${(err as Error).message}`,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsImporting(false);
     }
   };
 
@@ -305,7 +426,9 @@ const ParametroListPage = ({
       label: t('common.description'),
       className: 'hidden md:table-cell',
       render: (item) => (
-        <span className="text-muted-foreground max-w-xs truncate block">{item.descricao || '-'}</span>
+        <span className="text-muted-foreground max-w-xs truncate block">
+          {item.descricao || '-'}
+        </span>
       ),
     },
     {
@@ -322,12 +445,7 @@ const ParametroListPage = ({
       sortable: false,
       render: (item) => (
         <div className="flex justify-end gap-1">
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-7 w-7"
-            onClick={() => openEdit(item)}
-          >
+          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(item)}>
             <Edit className="w-3.5 h-3.5" />
           </Button>
           <Button
@@ -351,6 +469,16 @@ const ParametroListPage = ({
     <div>
       <PageHeader title={title} description={description} />
 
+      {showExportImport && (
+        <input
+          ref={importFileRef}
+          type="file"
+          accept=".xlsx,.xls"
+          className="hidden"
+          onChange={handleImportFile}
+        />
+      )}
+
       <ListActionBar>
         <NewButton
           tooltip={`${t('common.new')} ${entityName}`}
@@ -359,6 +487,36 @@ const ParametroListPage = ({
             setIsModalOpen(true);
           }}
         />
+        {showExportImport && (
+          <>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="icon"
+                  onClick={handleExport}
+                  disabled={filteredItems.length === 0}
+                  aria-label="Exportar"
+                >
+                  <Download className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Exportar</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="icon"
+                  onClick={() => importFileRef.current?.click()}
+                  disabled={isImporting}
+                  aria-label="Importar"
+                >
+                  <Upload className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Importar</TooltipContent>
+            </Tooltip>
+          </>
+        )}
         <div className="flex-1" />
         <SearchBar value={search} onChange={setSearch} placeholder={t('common.search')} />
         {mode === 'list' && (

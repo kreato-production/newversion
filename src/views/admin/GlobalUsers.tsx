@@ -1,9 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import {
-  Card, CardContent, CardFooter, CardHeader,
-} from '@/components/ui/card';
+import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
 import { ListActionBar } from '@/components/shared/ListActionBar';
@@ -25,18 +23,19 @@ import {
   MasterDetail,
   type ColumnConfig,
 } from '@/components/listing';
+import { isPasswordPolicyValid, PASSWORD_POLICY_MESSAGE } from '@/lib/password-policy';
 
 const apiRepository = new ApiUsuariosRepository();
 
 const STORAGE_KEY = 'kreato_global_users_table';
 
 const COLUMN_CONFIG: ColumnConfig[] = [
-  { key: 'foto',    label: 'Foto',     defaultVisible: true },
-  { key: 'nome',    label: 'Nome',     required: true },
-  { key: 'usuario', label: 'Usuário',  defaultVisible: true },
-  { key: 'email',   label: 'E-mail',   defaultVisible: true },
-  { key: 'status',  label: 'Status',   defaultVisible: true },
-  { key: 'acoes',   label: 'Ações',    required: true },
+  { key: 'foto', label: 'Foto', defaultVisible: true },
+  { key: 'nome', label: 'Nome', required: true },
+  { key: 'usuario', label: 'Usuário', defaultVisible: true },
+  { key: 'email', label: 'E-mail', defaultVisible: true },
+  { key: 'status', label: 'Status', defaultVisible: true },
+  { key: 'acoes', label: 'Ações', required: true },
 ];
 
 const mapToGlobalUser = (item: UsuarioApiModel): Usuario => ({
@@ -60,13 +59,7 @@ const mapToGlobalUser = (item: UsuarioApiModel): Usuario => ({
 
 // ─── Card renderer ────────────────────────────────────────────────────────────
 
-function GlobalUserCard({
-  item,
-  onEdit,
-}: {
-  item: Usuario;
-  onEdit: () => void;
-}) {
+function GlobalUserCard({ item, onEdit }: { item: Usuario; onEdit: () => void }) {
   return (
     <Card className="flex flex-col hover:shadow-md transition-shadow">
       <CardHeader className="pb-2 pt-3 px-4">
@@ -89,7 +82,10 @@ function GlobalUserCard({
           <Key className="h-3 w-3 shrink-0" />
           <span className="font-mono truncate">{item.usuario}</span>
         </div>
-        <Badge variant={item.status === 'Ativo' ? 'default' : 'secondary'} className="text-[10px] h-4 px-1.5 mt-1.5">
+        <Badge
+          variant={item.status === 'Ativo' ? 'default' : 'secondary'}
+          className="text-[10px] h-4 px-1.5 mt-1.5"
+        >
           {item.status}
         </Badge>
       </CardContent>
@@ -105,13 +101,7 @@ function GlobalUserCard({
 
 // ─── Detail panel renderer ────────────────────────────────────────────────────
 
-function GlobalUserDetailPanel({
-  item,
-  onEdit,
-}: {
-  item: Usuario;
-  onEdit: () => void;
-}) {
+function GlobalUserDetailPanel({ item, onEdit }: { item: Usuario; onEdit: () => void }) {
   const field = (label: string, value: string | undefined | null) =>
     value ? (
       <div>
@@ -131,7 +121,10 @@ function GlobalUserDetailPanel({
         </Avatar>
         <div>
           <h3 className="font-semibold text-base leading-snug">{item.nome}</h3>
-          <Badge variant={item.status === 'Ativo' ? 'default' : 'secondary'} className="text-[10px] h-4 px-1.5 mt-1">
+          <Badge
+            variant={item.status === 'Ativo' ? 'default' : 'secondary'}
+            className="text-[10px] h-4 px-1.5 mt-1"
+          >
             {item.status}
           </Badge>
         </div>
@@ -208,10 +201,19 @@ const GlobalUsers = () => {
         return;
       }
 
-      if (!editingItem && (!data.senha || data.senha.length < 6)) {
+      if (!editingItem && !data.senha) {
         toast({
           title: 'Erro',
-          description: 'A senha deve ter pelo menos 6 caracteres',
+          description: 'Preencha todos os campos obrigatórios',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      if (data.senha && !isPasswordPolicyValid(data.senha)) {
+        toast({
+          title: 'Erro',
+          description: PASSWORD_POLICY_MESSAGE,
           variant: 'destructive',
         });
         return;

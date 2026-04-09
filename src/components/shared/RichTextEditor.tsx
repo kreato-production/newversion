@@ -16,20 +16,37 @@ interface RichTextEditorProps {
 }
 
 const COLORS = [
-  '#000000', '#424242', '#636363', '#9c27b0',
-  '#673ab7', '#3f51b5', '#2196f3', '#03a9f4',
-  '#00bcd4', '#009688', '#4caf50', '#8bc34a',
-  '#cddc39', '#ffeb3b', '#ffc107', '#ff9800',
-  '#ff5722', '#f44336', '#e91e63', '#ffffff',
+  '#000000',
+  '#424242',
+  '#636363',
+  '#9c27b0',
+  '#673ab7',
+  '#3f51b5',
+  '#2196f3',
+  '#03a9f4',
+  '#00bcd4',
+  '#009688',
+  '#4caf50',
+  '#8bc34a',
+  '#cddc39',
+  '#ffeb3b',
+  '#ffc107',
+  '#ff9800',
+  '#ff5722',
+  '#f44336',
+  '#e91e63',
+  '#ffffff',
 ];
 
-export const RichTextEditor = ({ value, onChange, placeholder, className }: RichTextEditorProps) => {
+export const RichTextEditor = ({
+  value,
+  onChange,
+  placeholder,
+  className,
+}: RichTextEditorProps) => {
   const editor = useEditor({
-    extensions: [
-      StarterKit,
-      TextStyle,
-      Color,
-    ],
+    immediatelyRender: false,
+    extensions: [StarterKit, TextStyle, Color],
     content: value,
     onUpdate: ({ editor }) => {
       onChange(editor.getHTML());
@@ -52,7 +69,7 @@ export const RichTextEditor = ({ value, onChange, placeholder, className }: Rich
   }
 
   return (
-    <div className={cn("border rounded-md bg-background", className)}>
+    <div className={cn('border rounded-md bg-background', className)}>
       {/* Toolbar */}
       <div className="flex items-center gap-1 border-b p-1 bg-muted/30">
         <Button
@@ -60,24 +77,18 @@ export const RichTextEditor = ({ value, onChange, placeholder, className }: Rich
           variant="ghost"
           size="sm"
           onClick={() => editor.chain().focus().toggleBold().run()}
-          className={cn(
-            "h-8 w-8 p-0",
-            editor.isActive('bold') && "bg-muted"
-          )}
+          className={cn('h-8 w-8 p-0', editor.isActive('bold') && 'bg-muted')}
           title="Negrito"
         >
           <Bold className="h-4 w-4" />
         </Button>
-        
+
         <Button
           type="button"
           variant="ghost"
           size="sm"
           onClick={() => editor.chain().focus().toggleItalic().run()}
-          className={cn(
-            "h-8 w-8 p-0",
-            editor.isActive('italic') && "bg-muted"
-          )}
+          className={cn('h-8 w-8 p-0', editor.isActive('italic') && 'bg-muted')}
           title="Itálico"
         >
           <Italic className="h-4 w-4" />
@@ -103,8 +114,8 @@ export const RichTextEditor = ({ value, onChange, placeholder, className }: Rich
                   type="button"
                   onClick={() => editor.chain().focus().setColor(color).run()}
                   className={cn(
-                    "w-6 h-6 rounded border border-border hover:scale-110 transition-transform",
-                    color === '#ffffff' && "border-gray-300"
+                    'w-6 h-6 rounded border border-border hover:scale-110 transition-transform',
+                    color === '#ffffff' && 'border-gray-300',
                   )}
                   style={{ backgroundColor: color }}
                   title={color}
@@ -125,10 +136,7 @@ export const RichTextEditor = ({ value, onChange, placeholder, className }: Rich
       </div>
 
       {/* Editor */}
-      <EditorContent 
-        editor={editor} 
-        className="min-h-[100px]"
-      />
+      <EditorContent editor={editor} className="min-h-[100px]" />
     </div>
   );
 };

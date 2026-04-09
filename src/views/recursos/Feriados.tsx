@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import * as XLSX from 'xlsx';
 import { Button } from '@/components/ui/button';
 import {
   AlertDialog,
@@ -30,7 +31,8 @@ import {
   MasterDetail,
   type ColumnConfig,
 } from '@/components/listing';
-import { CalendarDays, Edit, Loader2, Trash2 } from 'lucide-react';
+import { CalendarDays, Edit, Loader2, Trash2, Download, Upload } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 const STORAGE_KEY = 'kreato_feriados';
 
@@ -168,6 +170,8 @@ const Feriados = () => {
   const podeIncluir = canIncluir('Recursos', 'Parametrizacoes', 'Feriados');
   const podeAlterar = canAlterar('Recursos', 'Parametrizacoes', 'Feriados');
   const podeExcluir = canExcluir('Recursos', 'Parametrizacoes', 'Feriados');
+  const importFileRef = useRef<HTMLInputElement>(null);
+  const [isImporting, setIsImporting] = useState(false);
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Feriado | null>(null);
@@ -239,6 +243,93 @@ const Feriados = () => {
       });
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  const handleExport = () => {
+    const data = filteredItems.map((item) => ({
+      'Data (AAAA-MM-DD)': item.data,
+      Feriado: item.feriado,
+      Observações: item.observacoes,
+      'Data de Cadastro': item.dataCadastro
+        ? new Date(item.dataCadastro).toLocaleDateString('pt-BR')
+        : '',
+    }));
+    const ws = XLSX.utils.json_to_sheet(data);
+    ws['!cols'] = [{ wch: 18 }, { wch: 50 }, { wch: 60 }, { wch: 18 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Feriados');
+    XLSX.writeFile(wb, `feriados_${new Date().toISOString().split('T')[0]}.xlsx`);
+    toast({
+      title: 'Exportação concluída',
+      description: `${filteredItems.length} registro(s) exportado(s).`,
+    });
+  };
+
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+    setIsImporting(true);
+    try {
+      const wb = XLSX.read(await file.arrayBuffer());
+      const rows = XLSX.utils.sheet_to_json<Record<string, string>>(wb.Sheets[wb.SheetNames[0]]);
+      if (rows.length === 0) {
+        toast({
+          title: 'Arquivo vazio',
+          description: 'O arquivo não contém dados.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      if (!('Feriado' in rows[0]) || !('Data (AAAA-MM-DD)' in rows[0])) {
+        toast({
+          title: 'Estrutura inválida',
+          description: 'Colunas obrigatórias "Data (AAAA-MM-DD)" e "Feriado" não encontradas.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      let ok = 0;
+      let fail = 0;
+      for (const row of rows) {
+        const feriado = String(row['Feriado'] ?? '').trim();
+        const data = String(row['Data (AAAA-MM-DD)'] ?? '').trim();
+        if (!feriado || !data) {
+          fail++;
+          continue;
+        }
+        try {
+          await feriadosRepository.save({
+            data,
+            feriado,
+            observacoes: String(row['Observações'] ?? '').trim(),
+          });
+          ok++;
+        } catch {
+          fail++;
+        }
+      }
+      await fetchFeriados();
+      if (fail === 0)
+        toast({
+          title: 'Importação concluída',
+          description: `${ok} registro(s) importado(s) com sucesso.`,
+        });
+      else
+        toast({
+          title: 'Importação parcial',
+          description: `${ok} importado(s), ${fail} com erro.`,
+          variant: 'destructive',
+        });
+    } catch (err) {
+      toast({
+        title: 'Erro na importação',
+        description: `Não foi possível processar o arquivo: ${(err as Error).message}`,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsImporting(false);
     }
   };
 
@@ -332,6 +423,14 @@ const Feriados = () => {
     <div>
       <PageHeader title="Feriados" description="Gerencie os feriados disponiveis para o tenant" />
 
+      <input
+        ref={importFileRef}
+        type="file"
+        accept=".xlsx,.xls"
+        className="hidden"
+        onChange={handleImportFile}
+      />
+
       <ListActionBar>
         {podeIncluir && (
           <NewButton
@@ -342,6 +441,32 @@ const Feriados = () => {
             }}
           />
         )}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              size="icon"
+              onClick={handleExport}
+              disabled={filteredItems.length === 0}
+              aria-label="Exportar"
+            >
+              <Download className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Exportar</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              size="icon"
+              onClick={() => importFileRef.current?.click()}
+              disabled={isImporting}
+              aria-label="Importar"
+            >
+              <Upload className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Importar</TooltipContent>
+        </Tooltip>
         <div className="flex-1" />
         <SearchBar value={search} onChange={setSearch} placeholder={t('common.search')} />
         {mode === 'list' && (
@@ -450,7 +575,9 @@ const Feriados = () => {
         }
         readOnly={!!editingItem && !podeAlterar}
         navigation={(() => {
-          const navIndex = editingItem ? filteredItems.findIndex((i) => i.id === editingItem.id) : -1;
+          const navIndex = editingItem
+            ? filteredItems.findIndex((i) => i.id === editingItem.id)
+            : -1;
           return navIndex >= 0
             ? {
                 currentIndex: navIndex,

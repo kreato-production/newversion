@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import * as XLSX from 'xlsx';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
 import { ListActionBar } from '@/components/shared/ListActionBar';
-import { Settings, Edit, Trash2, Loader2, Star } from 'lucide-react';
+import { Settings, Edit, Trash2, Loader2, Star, Download, Upload } from 'lucide-react';
 import { NewButton } from '@/components/shared/NewButton';
 import { Button } from '@/components/ui/button';
 import {
@@ -39,6 +40,7 @@ import { toast } from 'sonner';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { ApiParametrizacoesRepository } from '@/modules/parametrizacoes/parametrizacoes.api.repository';
+import { ModalNavigation } from '@/components/shared/ModalNavigation';
 
 interface StatusTarefaItem {
   id: string;
@@ -56,6 +58,8 @@ const repository = new ApiParametrizacoesRepository();
 const StatusTarefa = () => {
   const { t } = useLanguage();
   const { canAlterar } = usePermissions();
+  const importFileRef = useRef<HTMLInputElement>(null);
+  const [isImporting, setIsImporting] = useState(false);
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [items, setItems] = useState<StatusTarefaItem[]>([]);
@@ -140,6 +144,81 @@ const StatusTarefa = () => {
     }
   };
 
+  const handleExport = () => {
+    const data = filteredItems.map((item) => ({
+      Código: item.codigo,
+      Nome: item.nome,
+      Cor: item.cor,
+      Descrição: item.descricao,
+      Inicial: item.isInicial ? 'Sim' : 'Não',
+      'Data de Cadastro': item.dataCadastro
+        ? new Date(item.dataCadastro).toLocaleDateString('pt-BR')
+        : '',
+    }));
+    const ws = XLSX.utils.json_to_sheet(data);
+    ws['!cols'] = [{ wch: 18 }, { wch: 40 }, { wch: 12 }, { wch: 50 }, { wch: 10 }, { wch: 18 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Status de Tarefa');
+    XLSX.writeFile(wb, `status_tarefa_${new Date().toISOString().split('T')[0]}.xlsx`);
+    toast.success(`${filteredItems.length} registro(s) exportado(s).`);
+  };
+
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+    setIsImporting(true);
+    try {
+      const wb = XLSX.read(await file.arrayBuffer());
+      const rows = XLSX.utils.sheet_to_json<Record<string, string>>(wb.Sheets[wb.SheetNames[0]]);
+      if (rows.length === 0) {
+        toast.error('O arquivo não contém dados.');
+        return;
+      }
+      if (!('Nome' in rows[0])) {
+        toast.error(
+          'Coluna obrigatória "Nome" não encontrada. Use o arquivo exportado como template.',
+        );
+        return;
+      }
+      const toBool = (v: unknown) =>
+        ['sim', 'true', '1'].includes(
+          String(v ?? '')
+            .trim()
+            .toLowerCase(),
+        );
+      let ok = 0;
+      let fail = 0;
+      for (const row of rows) {
+        const nome = String(row['Nome'] ?? '').trim();
+        const codigo = String(row['Código'] ?? '').trim();
+        if (!nome || !codigo) {
+          fail++;
+          continue;
+        }
+        try {
+          await repository.saveStatusTarefa({
+            codigo,
+            nome,
+            cor: String(row['Cor'] ?? '#888888').trim(),
+            descricao: String(row['Descrição'] ?? '').trim(),
+            isInicial: toBool(row['Inicial']),
+          });
+          ok++;
+        } catch {
+          fail++;
+        }
+      }
+      await fetchData();
+      if (fail === 0) toast.success(`${ok} registro(s) importado(s) com sucesso.`);
+      else toast.error(`${ok} importado(s) com sucesso, ${fail} com erro.`);
+    } catch (err) {
+      toast.error(`Não foi possível processar o arquivo: ${(err as Error).message}`);
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
   const filteredItems = items.filter(
     (item) =>
       item.nome.toLowerCase().includes(search.toLowerCase()) ||
@@ -161,8 +240,46 @@ const StatusTarefa = () => {
         description={t('parameters.taskStatusDescription')}
       />
 
+      <input
+        ref={importFileRef}
+        type="file"
+        accept=".xlsx,.xls"
+        className="hidden"
+        onChange={handleImportFile}
+      />
+
       <ListActionBar>
         <NewButton tooltip={t('common.new')} onClick={() => handleOpenModal()} />
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="icon"
+                onClick={handleExport}
+                disabled={filteredItems.length === 0}
+                aria-label="Exportar"
+              >
+                <Download className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Exportar</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="icon"
+                onClick={() => importFileRef.current?.click()}
+                disabled={isImporting}
+                aria-label="Importar"
+              >
+                <Upload className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Importar</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
         <div className="flex-1" />
         <SearchBar value={search} onChange={setSearch} placeholder={t('common.search')} />
       </ListActionBar>
@@ -334,17 +451,33 @@ const StatusTarefa = () => {
             </div>
           </div>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsModalOpen(false)}>
-              {editingItem && !canAlterar('ProduÃ§Ã£o', 'ParametrizaÃ§Ãµes', 'Status Tarefa')
-                ? t('common.close')
-                : t('common.cancel')}
-            </Button>
-            {!(editingItem && !canAlterar('ProduÃ§Ã£o', 'ParametrizaÃ§Ãµes', 'Status Tarefa')) && (
-              <Button onClick={() => void handleSave()} className="gradient-primary">
-                {t('common.save')}
+          <DialogFooter className={editingItem ? 'sm:justify-between' : undefined}>
+            {editingItem &&
+              (() => {
+                const navIndex = filteredItems.findIndex((i) => i.id === editingItem.id);
+                return navIndex >= 0 ? (
+                  <ModalNavigation
+                    currentIndex={navIndex}
+                    total={filteredItems.length}
+                    onPrevious={() => handleOpenModal(filteredItems[navIndex - 1])}
+                    onNext={() => handleOpenModal(filteredItems[navIndex + 1])}
+                  />
+                ) : null;
+              })()}
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setIsModalOpen(false)}>
+                {editingItem && !canAlterar('ProduÃ§Ã£o', 'ParametrizaÃ§Ãµes', 'Status Tarefa')
+                  ? t('common.close')
+                  : t('common.cancel')}
               </Button>
-            )}
+              {!(
+                editingItem && !canAlterar('ProduÃ§Ã£o', 'ParametrizaÃ§Ãµes', 'Status Tarefa')
+              ) && (
+                <Button onClick={() => void handleSave()} className="gradient-primary">
+                  {t('common.save')}
+                </Button>
+              )}
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>

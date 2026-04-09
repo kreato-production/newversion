@@ -1,4 +1,6 @@
-import { useState, useCallback, useMemo } from 'react';
+'use client';
+
+import { useRef, useState, useMemo } from 'react';
 import {
   Table,
   TableBody,
@@ -17,6 +19,7 @@ export interface Column<T> {
   className?: string;
   render?: (item: T) => React.ReactNode;
   sortable?: boolean;
+  minWidth?: number;
 }
 
 interface SortableTableProps<T> {
@@ -32,6 +35,42 @@ interface SortableTableProps<T> {
 }
 
 type SortDirection = 'asc' | 'desc' | null;
+type ColumnWidths = Record<string, number>;
+
+const DEFAULT_MIN_COLUMN_WIDTH = 96;
+
+function readStoredStringArray(storageKey?: string, suffix?: string): string[] | null {
+  if (!storageKey || typeof window === 'undefined') return null;
+
+  const saved = localStorage.getItem(`${storageKey}_${suffix}`);
+  if (!saved) return null;
+
+  try {
+    const parsed = JSON.parse(saved);
+    return Array.isArray(parsed) ? (parsed as string[]) : null;
+  } catch {
+    return null;
+  }
+}
+
+function readStoredColumnWidths(storageKey?: string): ColumnWidths {
+  if (!storageKey || typeof window === 'undefined') return {};
+
+  const saved = localStorage.getItem(`${storageKey}_columnWidths`);
+  if (!saved) return {};
+
+  try {
+    const parsed = JSON.parse(saved) as Record<string, unknown>;
+    return Object.entries(parsed).reduce<ColumnWidths>((acc, [key, value]) => {
+      if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
+        acc[key] = value;
+      }
+      return acc;
+    }, {});
+  } catch {
+    return {};
+  }
+}
 
 export function SortableTable<T>({
   data,
@@ -44,28 +83,28 @@ export function SortableTable<T>({
 }: SortableTableProps<T>) {
   // Load saved column order from localStorage
   const [columns, setColumns] = useState<Column<T>[]>(() => {
-    if (storageKey) {
-      const saved = localStorage.getItem(`${storageKey}_columns`);
-      if (saved) {
-        const savedOrder = JSON.parse(saved) as string[];
-        const reordered = savedOrder
-          .map((key) => initialColumns.find((col) => col.key === key))
-          .filter(Boolean) as Column<T>[];
-        // Add any new columns that weren't in the saved order
-        const newColumns = initialColumns.filter(
-          (col) => !savedOrder.includes(col.key)
-        );
-        return [...reordered, ...newColumns];
-      }
+    const savedOrder = readStoredStringArray(storageKey, 'columns');
+    if (savedOrder) {
+      const reordered = savedOrder
+        .map((key) => initialColumns.find((col) => col.key === key))
+        .filter(Boolean) as Column<T>[];
+      const newColumns = initialColumns.filter((col) => !savedOrder.includes(col.key));
+      return [...reordered, ...newColumns];
     }
+
     return initialColumns;
   });
+  const [columnWidths, setColumnWidths] = useState<ColumnWidths>(() =>
+    readStoredColumnWidths(storageKey),
+  );
 
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
   const [draggedColumn, setDraggedColumn] = useState<string | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
-  
+  const [resizingColumn, setResizingColumn] = useState<string | null>(null);
+  const headerRefs = useRef<Record<string, HTMLTableCellElement | null>>({});
+
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(() => {
@@ -142,7 +181,13 @@ export function SortableTable<T>({
     }
   };
 
+  const persistColumnWidths = (nextWidths: ColumnWidths) => {
+    if (!storageKey || typeof window === 'undefined') return;
+    localStorage.setItem(`${storageKey}_columnWidths`, JSON.stringify(nextWidths));
+  };
+
   const handleDragStart = (e: React.DragEvent, columnKey: string) => {
+    if (resizingColumn) return;
     setDraggedColumn(columnKey);
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', columnKey);
@@ -182,7 +227,7 @@ export function SortableTable<T>({
     if (storageKey) {
       localStorage.setItem(
         `${storageKey}_columns`,
-        JSON.stringify(newColumns.map((col) => col.key))
+        JSON.stringify(newColumns.map((col) => col.key)),
       );
     }
   };
@@ -190,6 +235,58 @@ export function SortableTable<T>({
   const handleDragEnd = () => {
     setDraggedColumn(null);
     setDragOverColumn(null);
+  };
+
+  const buildMeasuredWidths = () =>
+    renderedColumns.reduce<ColumnWidths>((acc, column) => {
+      const measuredWidth = headerRefs.current[column.key]?.offsetWidth ?? columnWidths[column.key];
+      if (measuredWidth) {
+        acc[column.key] = measuredWidth;
+      }
+      return acc;
+    }, {});
+
+  const handleResizeStart = (event: React.MouseEvent, column: Column<T>) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const measuredWidths = buildMeasuredWidths();
+    const startingWidths =
+      Object.keys(measuredWidths).length > 0 ? measuredWidths : { ...columnWidths };
+    const startX = event.clientX;
+    const startWidth =
+      startingWidths[column.key] ??
+      headerRefs.current[column.key]?.offsetWidth ??
+      column.minWidth ??
+      DEFAULT_MIN_COLUMN_WIDTH;
+    const minWidth = column.minWidth ?? DEFAULT_MIN_COLUMN_WIDTH;
+
+    setResizingColumn(column.key);
+    setColumnWidths(startingWidths);
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      const delta = moveEvent.clientX - startX;
+      const nextWidth = Math.max(minWidth, startWidth + delta);
+
+      setColumnWidths((current) => ({
+        ...startingWidths,
+        ...current,
+        [column.key]: nextWidth,
+      }));
+    };
+
+    const handleMouseUp = () => {
+      setColumnWidths((current) => {
+        persistColumnWidths(current);
+        return current;
+      });
+      setResizingColumn(null);
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
   };
 
   const getSortIcon = (key: string) => {
@@ -206,20 +303,45 @@ export function SortableTable<T>({
   const renderedColumns = visibleColumnKeys
     ? columns.filter((c) => visibleColumnKeys.includes(c.key))
     : columns;
+  const hasManualWidths = renderedColumns.some((column) => columnWidths[column.key]);
 
   return (
     <div>
-      <Table>
+      <Table
+        className={hasManualWidths ? 'table-fixed' : undefined}
+        style={hasManualWidths ? { minWidth: '100%' } : undefined}
+      >
+        <colgroup>
+          {renderedColumns.map((column) => {
+            const width = columnWidths[column.key];
+            return (
+              <col
+                key={column.key}
+                style={
+                  width
+                    ? { width: `${width}px`, minWidth: `${width}px` }
+                    : column.minWidth
+                      ? { minWidth: `${column.minWidth}px` }
+                      : undefined
+                }
+              />
+            );
+          })}
+        </colgroup>
         <TableHeader>
           <TableRow className="h-9">
             {renderedColumns.map((column) => (
               <TableHead
                 key={column.key}
+                ref={(node) => {
+                  headerRefs.current[column.key] = node;
+                }}
                 className={cn(
-                  'cursor-pointer select-none transition-colors hover:bg-muted/50 py-2',
+                  'relative cursor-pointer select-none transition-colors hover:bg-muted/50 py-2',
                   column.className,
                   dragOverColumn === column.key && 'bg-primary/10 border-l-2 border-primary',
-                  draggedColumn === column.key && 'opacity-50'
+                  draggedColumn === column.key && 'opacity-50',
+                  resizingColumn === column.key && 'bg-primary/5',
                 )}
                 draggable
                 onDragStart={(e) => handleDragStart(e, column.key)}
@@ -229,10 +351,20 @@ export function SortableTable<T>({
                 onDragEnd={handleDragEnd}
                 onClick={() => column.sortable !== false && handleSort(column.key)}
               >
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1 pr-3">
                   <GripVertical className="w-3 h-3 opacity-30 cursor-grab" />
                   <span>{column.label}</span>
                   {column.sortable !== false && getSortIcon(column.key)}
+                </div>
+                <div
+                  role="separator"
+                  aria-orientation="vertical"
+                  aria-label={`Redimensionar coluna ${column.label}`}
+                  className="absolute right-0 top-0 h-full w-2 cursor-col-resize select-none touch-none"
+                  onMouseDown={(event) => handleResizeStart(event, column)}
+                  onClick={(event) => event.stopPropagation()}
+                >
+                  <div className="mx-auto h-full w-px bg-border/80" />
                 </div>
               </TableHead>
             ))}
@@ -243,8 +375,8 @@ export function SortableTable<T>({
             <TableRow key={getRowKey(item)} className="h-10">
               {renderedColumns.map((column) => (
                 <TableCell key={column.key} className={cn('py-2', column.className)}>
-                  {column.render 
-                    ? column.render(item) 
+                  {column.render
+                    ? column.render(item)
                     : ((item as Record<string, unknown>)[column.key] as React.ReactNode) || '-'}
                 </TableCell>
               ))}
@@ -252,7 +384,7 @@ export function SortableTable<T>({
           ))}
         </TableBody>
       </Table>
-      
+
       {paginated && data.length > 0 && (
         <TablePagination
           currentPage={currentPage}

@@ -96,6 +96,12 @@ import { UnidadesService } from './modules/unidades/unidades.service.js';
 import { PrismaUsersRepository } from './modules/users/users.repository.js';
 import { createUsersRoutes } from './modules/users/routes/index.js';
 import { UsersService } from './modules/users/users.service.js';
+import { PrismaTurnosRepository } from './modules/turnos/turnos.repository.js';
+import { createTurnosRoutes } from './modules/turnos/routes/index.js';
+import { TurnosService } from './modules/turnos/turnos.service.js';
+import { PrismaEscalasRepository } from './modules/escalas/escalas.repository.js';
+import { createEscalasRoutes } from './modules/escalas/routes/index.js';
+import { EscalasService } from './modules/escalas/escalas.service.js';
 import { authErrorHandler } from './plugins/auth.js';
 import { observabilityPlugin } from './plugins/observability.js';
 import { createHealthRoutes } from './routes/health/index.js';
@@ -128,6 +134,8 @@ type BuildAppOptions = {
   tabelasPrecoService?: TabelasPrecoService;
   tarefasService?: TarefasService;
   tenantsService?: TenantsService;
+  turnosService?: TurnosService;
+  escalasService?: EscalasService;
   unidadesService?: UnidadesService;
   usersService?: UsersService;
   healthService?: HealthService;
@@ -183,6 +191,8 @@ export async function buildApp(options: BuildAppOptions = {}) {
   const tabelasPrecoService = options.tabelasPrecoService ?? new TabelasPrecoService(new PrismaTabelasPrecoRepository());
   const tarefasService = options.tarefasService ?? new TarefasService(new PrismaTarefasRepository());
   const tenantsService = options.tenantsService ?? new TenantsService(new PrismaTenantsRepository());
+  const turnosService = options.turnosService ?? new TurnosService(new PrismaTurnosRepository());
+  const escalasService = options.escalasService ?? new EscalasService(new PrismaEscalasRepository());
   const unidadesService = options.unidadesService ?? new UnidadesService(new PrismaUnidadesRepository());
   const usersService = options.usersService ?? new UsersService(new PrismaUsersRepository());
 
@@ -399,6 +409,8 @@ export async function buildApp(options: BuildAppOptions = {}) {
   await app.register(createTabelasPrecoRoutes(authService, tabelasPrecoService));
   await app.register(createTarefasRoutes(authService, tarefasService));
   await app.register(createTenantsRoutes(authService, tenantsService));
+  await app.register(createTurnosRoutes(authService, turnosService));
+  await app.register(createEscalasRoutes(authService, escalasService));
   await app.register(createUnidadesRoutes(authService, unidadesService));
   await app.register(createUsersRoutes(authService, usersService));
 

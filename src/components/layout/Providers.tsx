@@ -2,13 +2,13 @@
 
 import { useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { ThemeProvider } from 'next-themes';
 import { SessionProvider } from 'next-auth/react';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Toaster as Sonner } from '@/components/ui/sonner';
 import { Toaster } from '@/components/ui/toaster';
+import { ThemeProvider } from '@/hooks/use-theme';
 
 function makeQueryClient() {
   return new QueryClient({
@@ -41,7 +41,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <SessionProvider>
       <QueryClientProvider client={queryClient}>
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem storageKey="kreato_theme">
+        <ThemeProvider>
           {/* AuthProvider mantido durante a migração — remover após migrar todos os useAuth() */}
           <AuthProvider>
             <LanguageProvider>

@@ -23,11 +23,22 @@ export const { auth } = NextAuth({
   ],
   session: { strategy: 'jwt' },
   callbacks: {
-    async jwt({ token }) { return token; },
+    async jwt({ token }) {
+      if (!('userId' in token) && token.sub) {
+        // Compatibilidade com cookies antigos que só tinham o claim padrão `sub`.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (token as any).userId = token.sub;
+      }
+
+      return token;
+    },
     async session({ session, token }) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const t = token as any;
-      if (t.userId) session.user.id = t.userId as string;
+      if (t.userId || token.sub) session.user.id = (t.userId ?? token.sub) as string;
+      if (t.role) session.user.role = t.role;
+      if ('tenantId' in t) session.user.tenantId = t.tenantId ?? null;
+      if (t.usuario) session.user.usuario = t.usuario;
       return session;
     },
   },

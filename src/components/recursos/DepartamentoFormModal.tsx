@@ -229,8 +229,8 @@ export const DepartamentoFormModal = ({
 
     await onSave({
       ...formData,
-      id: data?.id || crypto.randomUUID(),
-      dataCadastro: data?.dataCadastro || new Date().toLocaleDateString('pt-BR'),
+      ...(data?.id ? { id: data.id } : {}),
+      ...(data?.dataCadastro ? { dataCadastro: data.dataCadastro } : {}),
       usuarioCadastro: data?.usuarioCadastro || user?.nome || 'Admin',
     });
     onClose();

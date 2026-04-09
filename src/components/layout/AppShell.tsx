@@ -1,6 +1,6 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Sun, Moon, Globe, Settings, Info, Layers } from 'lucide-react';
 import Link from 'next/link';
 import AppSidebar from './AppSidebar';
@@ -26,6 +26,13 @@ const LANGUAGES: Language[] = ['pt', 'en', 'es'];
 export function AppShell({ children }: { children: ReactNode }) {
   const { theme, toggleTheme } = useTheme();
   const { language, setLanguage, t } = useLanguage();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const nextThemeLabel = !mounted || theme === 'light' ? t('theme.dark') : t('theme.light');
 
   return (
     <SidebarProvider>
@@ -65,12 +72,14 @@ export function AppShell({ children }: { children: ReactNode }) {
               size="icon"
               className="h-8 w-8"
               onClick={toggleTheme}
-              title={theme === 'light' ? t('theme.dark') : t('theme.light')}
+              title={nextThemeLabel}
             >
-              {theme === 'light' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
-              <span className="sr-only">
-                {theme === 'light' ? t('theme.dark') : t('theme.light')}
-              </span>
+              {!mounted || theme === 'light' ? (
+                <Moon className="h-4 w-4" />
+              ) : (
+                <Sun className="h-4 w-4" />
+              )}
+              <span className="sr-only">{nextThemeLabel}</span>
             </Button>
 
             <DropdownMenu>

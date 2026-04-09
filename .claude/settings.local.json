@@ -3,7 +3,27 @@
     "allow": [
       "Bash(npx tsc:*)",
       "Bash(node -e ':*)",
-      "Bash(grep -n \"type=\\\\\"number\\\\\"\\\\|moeda\\\\|currency\\\\|R\\\\$\\\\|BRL\" \"c:/Projetos/Kreato_Local/kreatoproduction/src/components/admin/UnidadeNegocioFormModal.tsx\")"
+      "Bash(grep -n \"type=\\\\\"number\\\\\"\\\\|moeda\\\\|currency\\\\|R\\\\$\\\\|BRL\" \"c:/Projetos/Kreato_Local/kreatoproduction/src/components/admin/UnidadeNegocioFormModal.tsx\")",
+      "Bash(xargs grep:*)",
+      "Bash(npm run:*)",
+      "Bash(echo \"Frontend PID: $!\")",
+      "Bash(echo \"Backend PID: $!\")",
+      "Read(//c/Users/ERICOL~1/AppData/Local/Temp/claude/c--Projetos-Kreato-Local-kreatoproduction/53d36e0a-0ad0-45a4-ac81-79d939dc8588/tasks/**)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3333/health)",
+      "Bash(grep -n \"CREATE TABLE.*funcoes\\\\|CREATE TABLE.*cargo\" /c/Projetos/Kreato_Local/kreatoproduction/backend/prisma/migrations/*/migration.sql)",
+      "Bash(find /c/Projetos/Kreato_Local/kreatoproduction/backend/prisma/migrations -name \"*.sql\" -exec grep -l \"funcoes\" {} \\\\;)",
+      "Bash(grep -l \"ParametroListPage\" c:/Projetos/Kreato_Local/kreatoproduction/src/views/financeiro/*.tsx)",
+      "Bash(grep -l \"ParametroListPage\\\\|import.*XLSX\" /c/Projetos/Kreato_Local/kreatoproduction/src/views/**/*.tsx)",
+      "Bash(grep -l \"ParametroListPage\" src/views/**/*.tsx)",
+      "Bash(grep -l \"import.*XLSX\" src/views/**/*.tsx)",
+      "Bash(grep -l \"import.*XLSX\\\\|from 'xlsx'\" src/views/**/*.tsx)",
+      "Bash(bash /tmp/audit_check.sh)",
+      "Bash(grep -l \"^export.*Tab\" /c/Projetos/Kreato_Local/kreatoproduction/src/components/producao/*.tsx)",
+      "Bash(xargs -I {} basename {})",
+      "Bash(grep -E \"\\\\.tsx$|\\\\.ts$\")",
+      "Read(//tmp/**)",
+      "Bash(grep -r \"import.*Tab\\\\|from.*Tab\" /c/Projetos/Kreato_Local/kreatoproduction/src/components/producao/*.tsx)"
     ]
   }
 }

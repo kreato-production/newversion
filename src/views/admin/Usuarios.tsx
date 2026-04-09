@@ -31,6 +31,7 @@ import {
   MasterDetail,
   type ColumnConfig,
 } from '@/components/listing';
+import { isPasswordPolicyValid, PASSWORD_POLICY_MESSAGE } from '@/lib/password-policy';
 
 export interface Usuario {
   id: string;
@@ -57,14 +58,14 @@ const apiRepository = new ApiUsuariosRepository();
 const STORAGE_KEY = 'kreato_usuarios_table';
 
 const COLUMN_CONFIG: ColumnConfig[] = [
-  { key: 'foto',          label: 'Foto',    defaultVisible: true },
-  { key: 'codigoExterno', label: 'Código',  defaultVisible: true },
-  { key: 'nome',          label: 'Nome',    required: true },
-  { key: 'usuario',       label: 'Usuário', defaultVisible: true },
-  { key: 'email',         label: 'E-mail',  defaultVisible: true },
-  { key: 'perfil',        label: 'Perfil',  defaultVisible: true },
-  { key: 'status',        label: 'Status',  defaultVisible: true },
-  { key: 'acoes',         label: 'Ações',   required: true },
+  { key: 'foto', label: 'Foto', defaultVisible: true },
+  { key: 'codigoExterno', label: 'Código', defaultVisible: true },
+  { key: 'nome', label: 'Nome', required: true },
+  { key: 'usuario', label: 'Usuário', defaultVisible: true },
+  { key: 'email', label: 'E-mail', defaultVisible: true },
+  { key: 'perfil', label: 'Perfil', defaultVisible: true },
+  { key: 'status', label: 'Status', defaultVisible: true },
+  { key: 'acoes', label: 'Ações', required: true },
 ];
 
 // ─── Card renderer ────────────────────────────────────────────────────────────
@@ -102,7 +103,10 @@ function UsuarioCard({
 
       <CardContent className="px-4 pb-3 flex-1 space-y-1 text-xs text-muted-foreground">
         {item.perfil && <div>{item.perfil}</div>}
-        <Badge variant={item.status === 'Ativo' ? 'default' : 'secondary'} className="text-[10px] h-4 px-1.5">
+        <Badge
+          variant={item.status === 'Ativo' ? 'default' : 'secondary'}
+          className="text-[10px] h-4 px-1.5"
+        >
           {item.status}
         </Badge>
       </CardContent>
@@ -159,7 +163,10 @@ function UsuarioDetailPanel({
         </Avatar>
         <div>
           <h3 className="font-semibold text-base leading-snug">{item.nome}</h3>
-          <Badge variant={item.status === 'Ativo' ? 'default' : 'secondary'} className="text-[10px] h-4 px-1.5 mt-1">
+          <Badge
+            variant={item.status === 'Ativo' ? 'default' : 'secondary'}
+            className="text-[10px] h-4 px-1.5 mt-1"
+          >
             {item.status}
           </Badge>
         </div>
@@ -226,27 +233,29 @@ const Usuarios = () => {
     try {
       const data = await apiRepository.list();
       setItems(
-        data.map(
-          (item): Usuario => ({
-            id: item.id || '',
-            codigoExterno: item.codigoExterno || '',
-            nome: item.nome,
-            email: item.email,
-            usuario: item.usuario,
-            senha: '',
-            foto: item.foto,
-            perfil: item.perfil || '',
-            perfilId: undefined,
-            descricao: item.descricao || '',
-            status: item.status || 'Ativo',
-            tipoAcesso: item.tipoAcesso || 'Operacional',
-            recursoHumanoId: item.recursoHumanoId || undefined,
-            dataCadastro: item.dataCadastro,
-            usuarioCadastro: item.usuarioCadastro || '',
-            tenantId: item.tenantId ?? null,
-            role: item.role,
-          }),
-        ),
+        data
+          .map(
+            (item): Usuario => ({
+              id: item.id || '',
+              codigoExterno: item.codigoExterno || '',
+              nome: item.nome,
+              email: item.email,
+              usuario: item.usuario,
+              senha: '',
+              foto: item.foto,
+              perfil: item.perfil || '',
+              perfilId: undefined,
+              descricao: item.descricao || '',
+              status: item.status || 'Ativo',
+              tipoAcesso: item.tipoAcesso || 'Operacional',
+              recursoHumanoId: item.recursoHumanoId || undefined,
+              dataCadastro: item.dataCadastro,
+              usuarioCadastro: item.usuarioCadastro || '',
+              tenantId: item.tenantId ?? null,
+              role: item.role,
+            }),
+          )
+          .filter((item) => item.role !== 'GLOBAL_ADMIN'),
       );
     } catch (err) {
       console.error('Error fetching users:', err);
@@ -275,10 +284,19 @@ const Usuarios = () => {
         return;
       }
 
-      if (!editingItem && (!data.senha || data.senha.length < 6)) {
+      if (!editingItem && !data.senha) {
         toast({
           title: 'Erro',
-          description: 'A senha deve ter pelo menos 6 caracteres',
+          description: 'Preencha todos os campos obrigatorios',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      if (data.senha && !isPasswordPolicyValid(data.senha)) {
+        toast({
+          title: 'Erro',
+          description: PASSWORD_POLICY_MESSAGE,
           variant: 'destructive',
         });
         return;

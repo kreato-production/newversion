@@ -86,8 +86,10 @@ describe('ProgramaFormModal', () => {
     });
     fireEvent.click(screen.getByText('common.save'));
 
-    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ nome: 'Novo Programa Teste' }));
-    expect(onClose).toHaveBeenCalled();
+    await waitFor(() =>
+      expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ nome: 'Novo Programa Teste' })),
+    );
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
   });
 
   it('exibe campos desabilitados no modo readOnly', async () => {

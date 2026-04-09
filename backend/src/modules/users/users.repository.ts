@@ -55,7 +55,7 @@ export type UserLinkedEquipeRecord = {
 };
 
 export interface UsersRepository {
-  listByTenant(tenantId: string | null, opts?: ListOptions): Promise<PaginatedResult<UserRecord>>;
+  listByTenant(tenantId?: string | null, opts?: ListOptions): Promise<PaginatedResult<UserRecord>>;
   findById(id: string): Promise<UserRecord | null>;
   findByEmail(email: string): Promise<UserRecord | null>;
   findByUsername(usuario: string): Promise<UserRecord | null>;
@@ -78,19 +78,20 @@ export interface UsersRepository {
 export class PrismaUsersRepository implements UsersRepository {
   private relationsReady: Promise<void> | null = null;
 
-  async listByTenant(tenantId: string | null, opts?: ListOptions): Promise<PaginatedResult<UserRecord>> {
+  async listByTenant(tenantId?: string | null, opts?: ListOptions): Promise<PaginatedResult<UserRecord>> {
     const take = Math.min(opts?.limit ?? 50, 200);
     const skip = opts?.offset ?? 0;
     const actorUnidadeIds = opts?.actorUnidadeIds;
 
-    // Quando tenantId é null → contexto GLOBAL_ADMIN: retorna apenas GLOBAL_ADMINs.
-    // Quando tenantId está presente → retorna apenas usuários do tenant, excluindo GLOBAL_ADMINs.
-    const baseWhere = tenantId
-      ? { tenantId, role: { not: 'GLOBAL_ADMIN' as const } }
-      : { role: 'GLOBAL_ADMIN' as const, tenantId: null };
+    // tenantId undefined/null em contexto GLOBAL_ADMIN → retorna todos os usuários.
+    // tenantId presente → retorna apenas usuários do tenant, excluindo GLOBAL_ADMINs.
+    const baseWhere =
+      tenantId != null
+        ? { tenantId, role: { not: 'GLOBAL_ADMIN' as const } }
+        : undefined;
 
     // Regra 3: se o actor tem unidades restritas, só retorna usuários vinculados a essas unidades
-    if (actorUnidadeIds && actorUnidadeIds.length > 0 && tenantId) {
+    if (actorUnidadeIds && actorUnidadeIds.length > 0 && tenantId != null) {
       const unidadeList = Prisma.join(actorUnidadeIds.map((id) => Prisma.sql`${id}`));
 
       const [countRows, data] = await Promise.all([

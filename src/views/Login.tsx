@@ -38,6 +38,7 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isKeycloakLoading, setIsKeycloakLoading] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   const { status } = useSession();
   const { theme, setTheme } = useTheme();
@@ -61,6 +62,10 @@ const Login = () => {
       router.replace(redirectTo);
     }
   }, [status, router, redirectTo]);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Enquanto verifica a sessão ou aguarda redirect
   if (status === 'loading' || status === 'authenticated') {
@@ -109,7 +114,11 @@ const Login = () => {
           className="h-8 w-8"
           onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
         >
-          {theme === 'light' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+          {!mounted || theme === 'light' ? (
+            <Moon className="h-4 w-4" />
+          ) : (
+            <Sun className="h-4 w-4" />
+          )}
           <span className="sr-only">Alternar tema</span>
         </Button>
         <LanguageSelector variant="ghost" />
