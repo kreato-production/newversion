@@ -13,6 +13,10 @@ const formularioParamsSchema = z.object({
   formularioId: z.string().min(1),
 });
 
+const formularioQuerySchema = z.object({
+  tenantId: z.string().uuid().optional(),
+});
+
 export function createAdminConfigRoutes(authService: AuthService, adminConfigService: AdminConfigService): FastifyPluginAsync {
   return async (app) => {
     const authenticate = createAuthenticate(authService);
@@ -41,24 +45,33 @@ export function createAdminConfigRoutes(authService: AuthService, adminConfigSer
       },
     );
 
+    // GET is accessible to all authenticated tenant users so that form modals can
+    // apply validation/layout rules configured by the tenant admin.
+    // GLOBAL_ADMIN may pass ?tenantId= to read configs for a specific tenant.
     app.get(
       '/admin-config/formularios/:formularioId/campos',
-      { preHandler: [authenticate, requireAdminRole, requireTenantAccess] },
+      { preHandler: [authenticate, requireTenantAccess] },
       async (request, reply) => {
         const { user } = request as AuthenticatedRequest;
         const params = formularioParamsSchema.parse(request.params);
-        return reply.status(200).send(await adminConfigService.getFormularioCampos(user, params.formularioId));
+        const query = formularioQuerySchema.parse(request.query);
+        return reply.status(200).send(
+          await adminConfigService.getFormularioCampos(user, params.formularioId, query.tenantId),
+        );
       },
     );
 
+    // PUT is admin-only — only TENANT_ADMIN or GLOBAL_ADMIN may change field configs.
+    // GLOBAL_ADMIN must pass ?tenantId= to specify which tenant to configure.
     app.put(
       '/admin-config/formularios/:formularioId/campos',
       { preHandler: [authenticate, requireAdminRole, requireTenantAccess] },
       async (request, reply) => {
         const { user } = request as AuthenticatedRequest;
         const params = formularioParamsSchema.parse(request.params);
+        const query = formularioQuerySchema.parse(request.query);
         const body = saveFormularioCamposSchema.parse(request.body);
-        await adminConfigService.saveFormularioCampos(user, params.formularioId, body);
+        await adminConfigService.saveFormularioCampos(user, params.formularioId, body, query.tenantId);
         return reply.status(204).send();
       },
     );

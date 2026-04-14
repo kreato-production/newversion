@@ -26,6 +26,8 @@ export const saveFormularioCamposSchema = z.object({
     z.object({
       campo: z.string().min(1),
       tipoValidacao: z.enum(['obrigatorio', 'sugerido']).nullable(),
+      tamanho: z.string().nullable().optional(),
+      posicao: z.number().int().nullable().optional(),
     }),
   ),
 });
@@ -82,21 +84,24 @@ export class AdminConfigService {
     );
   }
 
-  async getFormularioCampos(actor: SessionUser, formularioId: string) {
-    const tenantId = resolveTenantId(actor, actor.tenantId);
+  async getFormularioCampos(actor: SessionUser, formularioId: string, targetTenantId?: string) {
+    const tenantId = resolveTenantId(actor, targetTenantId ?? actor.tenantId);
     const campos = await this.repository.listFormularioCampos(tenantId, formularioId);
 
     return {
       formulario: formularioId,
+      tenantId,
       campos: campos.map((campo) => ({
         campo: campo.campo,
         tipoValidacao: campo.tipoValidacao,
+        tamanho: campo.tamanho,
+        posicao: campo.posicao,
       })),
     };
   }
 
-  async saveFormularioCampos(actor: SessionUser, formularioId: string, input: SaveFormularioCamposDto) {
-    const tenantId = resolveTenantId(actor, actor.tenantId);
+  async saveFormularioCampos(actor: SessionUser, formularioId: string, input: SaveFormularioCamposDto, targetTenantId?: string) {
+    const tenantId = resolveTenantId(actor, targetTenantId ?? actor.tenantId);
 
     await this.repository.replaceFormularioCampos(
       tenantId,
@@ -104,6 +109,8 @@ export class AdminConfigService {
       input.campos.map((campo) => ({
         campo: campo.campo,
         tipoValidacao: campo.tipoValidacao,
+        tamanho: campo.tamanho ?? null,
+        posicao: campo.posicao ?? null,
       })),
     );
   }

@@ -23,7 +23,8 @@
       "Bash(xargs -I {} basename {})",
       "Bash(grep -E \"\\\\.tsx$|\\\\.ts$\")",
       "Read(//tmp/**)",
-      "Bash(grep -r \"import.*Tab\\\\|from.*Tab\" /c/Projetos/Kreato_Local/kreatoproduction/src/components/producao/*.tsx)"
+      "Bash(grep -r \"import.*Tab\\\\|from.*Tab\" /c/Projetos/Kreato_Local/kreatoproduction/src/components/producao/*.tsx)",
+      "Bash(node_modules/.bin/tsc --noEmit)"
     ]
   }
 }

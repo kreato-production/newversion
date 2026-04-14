@@ -28,6 +28,10 @@ const translations: Record<Language, Record<string, string>> = {
     'login.loading': 'Entrando...',
     'login.error': 'Usuário ou senha inválidos',
     'login.hint': 'Acesso inicial: Admin / kreato',
+    'login.developedBy': 'Desenvolvido por Planora Tech',
+    'login.version': 'Versao',
+    'login.release': 'Release',
+    'login.lastPublished': 'Ultima publicacao',
 
     // Common
     'common.save': 'Salvar',
@@ -827,6 +831,10 @@ const translations: Record<Language, Record<string, string>> = {
     'login.loading': 'Signing in...',
     'login.error': 'Invalid user or password',
     'login.hint': 'Initial access: Admin / kreato',
+    'login.developedBy': 'Developed by Planora Tech',
+    'login.version': 'Version',
+    'login.release': 'Release',
+    'login.lastPublished': 'Last published',
 
     // Common
     'common.save': 'Save',
@@ -1623,6 +1631,10 @@ const translations: Record<Language, Record<string, string>> = {
     'login.loading': 'Iniciando...',
     'login.error': 'Usuario o contraseña inválidos',
     'login.hint': 'Acceso inicial: Admin / kreato',
+    'login.developedBy': 'Desarrollado por Planora Tech',
+    'login.version': 'Version',
+    'login.release': 'Release',
+    'login.lastPublished': 'Ultima publicacion',
 
     // Common
     'common.save': 'Guardar',

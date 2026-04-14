@@ -30,6 +30,8 @@ export type PermissionRecord = {
 export type FormularioCampoRecord = {
   campo: string;
   tipoValidacao: 'obrigatorio' | 'sugerido' | null;
+  tamanho: string | null;
+  posicao: number | null;
 };
 
 export interface AdminConfigRepository {
@@ -69,6 +71,8 @@ type PermissionRow = {
 type FormularioCampoRow = {
   campo: string;
   tipo_validacao: 'obrigatorio' | 'sugerido' | null;
+  tamanho: string | null;
+  posicao: number | null;
 };
 
 function generatePermissionId(modulo: string, subModulo1: string, subModulo2: string, campo: string): string {
@@ -198,10 +202,10 @@ export class PrismaAdminConfigRepository implements AdminConfigRepository {
 
     const rows = await prisma.$queryRawUnsafe<FormularioCampoRow[]>(
       `
-        SELECT campo, tipo_validacao
+        SELECT campo, tipo_validacao, tamanho, posicao
         FROM formulario_campos
         WHERE tenant_id = $1 AND formulario = $2
-        ORDER BY campo ASC
+        ORDER BY COALESCE(posicao, 9999) ASC, campo ASC
       `,
       tenantId,
       formularioId,
@@ -210,6 +214,8 @@ export class PrismaAdminConfigRepository implements AdminConfigRepository {
     return rows.map((row) => ({
       campo: row.campo,
       tipoValidacao: row.tipo_validacao,
+      tamanho: row.tamanho ?? null,
+      posicao: row.posicao != null ? Number(row.posicao) : null,
     }));
   }
 
@@ -227,7 +233,7 @@ export class PrismaAdminConfigRepository implements AdminConfigRepository {
       );
 
       for (const campo of campos) {
-        if (!campo.tipoValidacao) {
+        if (!campo.tipoValidacao && campo.tamanho == null && campo.posicao == null) {
           continue;
         }
 
@@ -239,16 +245,20 @@ export class PrismaAdminConfigRepository implements AdminConfigRepository {
               formulario,
               campo,
               tipo_validacao,
+              tamanho,
+              posicao,
               created_at,
               updated_at
             )
-            VALUES ($1::uuid, $2, $3, $4, $5, NOW(), NOW())
+            VALUES ($1::uuid, $2, $3, $4, $5, $6, $7, NOW(), NOW())
           `,
           randomUUID(),
           tenantId,
           formularioId,
           campo.campo,
           campo.tipoValidacao,
+          campo.tamanho ?? null,
+          campo.posicao ?? null,
         );
       }
     });
@@ -256,18 +266,28 @@ export class PrismaAdminConfigRepository implements AdminConfigRepository {
 
   private async ensureFormularioCamposTable(): Promise<void> {
     if (!this.formularioCamposReady) {
-      this.formularioCamposReady = prisma.$executeRawUnsafe(`
-        CREATE TABLE IF NOT EXISTS formulario_campos (
-          id uuid PRIMARY KEY,
-          tenant_id text NOT NULL,
-          formulario text NOT NULL,
-          campo text NOT NULL,
-          tipo_validacao text NULL,
-          created_at timestamptz NOT NULL DEFAULT NOW(),
-          updated_at timestamptz NOT NULL DEFAULT NOW(),
-          UNIQUE (tenant_id, formulario, campo)
-        )
-      `).then(() => undefined);
+      this.formularioCamposReady = (async () => {
+        await prisma.$executeRawUnsafe(`
+          CREATE TABLE IF NOT EXISTS formulario_campos (
+            id uuid PRIMARY KEY,
+            tenant_id text NOT NULL,
+            formulario text NOT NULL,
+            campo text NOT NULL,
+            tipo_validacao text NULL,
+            tamanho text NULL,
+            posicao integer NULL,
+            created_at timestamptz NOT NULL DEFAULT NOW(),
+            updated_at timestamptz NOT NULL DEFAULT NOW(),
+            UNIQUE (tenant_id, formulario, campo)
+          )
+        `);
+        await prisma.$executeRawUnsafe(`
+          ALTER TABLE formulario_campos ADD COLUMN IF NOT EXISTS tamanho text NULL
+        `);
+        await prisma.$executeRawUnsafe(`
+          ALTER TABLE formulario_campos ADD COLUMN IF NOT EXISTS posicao integer NULL
+        `);
+      })();
     }
 
     await this.formularioCamposReady;
