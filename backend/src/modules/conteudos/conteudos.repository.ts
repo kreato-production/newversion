@@ -215,97 +215,144 @@ type ConteudoQueryRow = {
 let ensureSchemaPromise: Promise<void> | null = null;
 
 async function ensureConteudosSchema() {
-  ensureSchemaPromise ??= (async () => {
-    await prisma.$executeRawUnsafe(`
-      CREATE TABLE IF NOT EXISTS public.conteudos (
-        id text PRIMARY KEY,
-        tenant_id uuid NULL,
-        codigo_externo text NULL,
-        descricao text NOT NULL,
-        quantidade_episodios integer NULL,
-        centro_lucro_id text NULL,
-        unidade_negocio_id uuid NULL,
-        programa_id uuid NULL,
-        tipo_conteudo_id text NULL,
-        classificacao_id text NULL,
-        ano_producao text NULL,
-        sinopse text NULL,
-        orcamento numeric(12, 2) NULL DEFAULT 0,
-        tabela_preco_id text NULL,
-        frequencia_data_inicio date NULL,
-        frequencia_data_fim date NULL,
-        frequencia_dias_semana integer[] NULL,
-        created_by text NULL,
-        created_at timestamptz NULL DEFAULT now(),
-        updated_at timestamptz NULL DEFAULT now()
-      )
-    `);
-    await prisma.$executeRawUnsafe('CREATE INDEX IF NOT EXISTS conteudos_tenant_id_idx ON public.conteudos (tenant_id)');
-    await prisma.$executeRawUnsafe('CREATE INDEX IF NOT EXISTS conteudos_unidade_negocio_id_idx ON public.conteudos (unidade_negocio_id)');
-    await prisma.$executeRawUnsafe('CREATE INDEX IF NOT EXISTS conteudos_programa_id_idx ON public.conteudos (programa_id)');
-    await prisma.$executeRawUnsafe(`
-      CREATE TABLE IF NOT EXISTS public.conteudo_recursos_tecnicos (
-        id text PRIMARY KEY,
-        tenant_id text NOT NULL REFERENCES "Tenant"(id) ON DELETE CASCADE,
-        conteudo_id text NOT NULL REFERENCES public.conteudos(id) ON DELETE CASCADE,
-        tabela_preco_id text NULL,
-        recurso_tecnico_id text NOT NULL REFERENCES recursos_tecnicos(id) ON DELETE CASCADE,
-        valor_hora numeric(12, 2) NULL DEFAULT 0,
-        quantidade integer NULL DEFAULT 1,
-        quantidade_horas numeric(12, 2) NULL DEFAULT 0,
-        valor_total numeric(12, 2) NULL DEFAULT 0,
-        desconto_percentual numeric(5, 2) NULL DEFAULT 0,
-        valor_com_desconto numeric(12, 2) NULL DEFAULT 0,
-        created_at timestamptz NULL DEFAULT NOW()
-      )
-    `);
-    await prisma.$executeRawUnsafe(`
-      CREATE TABLE IF NOT EXISTS public.conteudo_recursos_fisicos (
-        id text PRIMARY KEY,
-        tenant_id text NOT NULL REFERENCES "Tenant"(id) ON DELETE CASCADE,
-        conteudo_id text NOT NULL REFERENCES public.conteudos(id) ON DELETE CASCADE,
-        tabela_preco_id text NULL,
-        recurso_fisico_id text NOT NULL REFERENCES recursos_fisicos(id) ON DELETE CASCADE,
-        valor_hora numeric(12, 2) NULL DEFAULT 0,
-        quantidade integer NULL DEFAULT 1,
-        quantidade_horas numeric(12, 2) NULL DEFAULT 0,
-        valor_total numeric(12, 2) NULL DEFAULT 0,
-        desconto_percentual numeric(5, 2) NULL DEFAULT 0,
-        valor_com_desconto numeric(12, 2) NULL DEFAULT 0,
-        created_at timestamptz NULL DEFAULT NOW()
-      )
-    `);
-    await prisma.$executeRawUnsafe(`
-      CREATE TABLE IF NOT EXISTS public.conteudo_terceiros (
-        id text PRIMARY KEY,
-        tenant_id text NOT NULL REFERENCES "Tenant"(id) ON DELETE CASCADE,
-        conteudo_id text NOT NULL REFERENCES public.conteudos(id) ON DELETE CASCADE,
-        servico_id text NOT NULL REFERENCES servicos(id) ON DELETE CASCADE,
-        valor_previsto numeric(12, 2) NULL DEFAULT 0,
-        created_by text NULL,
-        created_at timestamptz NULL DEFAULT NOW()
-      )
-    `);
-    await prisma.$executeRawUnsafe(`
-      CREATE TABLE IF NOT EXISTS public.gravacao_recursos (
-        id text PRIMARY KEY,
-        tenant_id text NOT NULL REFERENCES "Tenant"(id) ON DELETE CASCADE,
-        gravacao_id text NOT NULL REFERENCES "Gravacao"(id) ON DELETE CASCADE,
-        recurso_tecnico_id text NULL REFERENCES recursos_tecnicos(id) ON DELETE CASCADE,
-        recurso_fisico_id text NULL REFERENCES recursos_fisicos(id) ON DELETE CASCADE,
-        recurso_humano_id text NULL REFERENCES recursos_humanos(id) ON DELETE CASCADE,
-        estoque_item_id text NULL REFERENCES rf_estoque_itens(id) ON DELETE SET NULL,
-        parent_recurso_id text NULL REFERENCES public.gravacao_recursos(id) ON DELETE CASCADE,
-        hora_inicio text NULL,
-        hora_fim text NULL,
-        created_at timestamptz NULL DEFAULT NOW()
-      )
-    `);
-    await prisma.$executeRawUnsafe('CREATE INDEX IF NOT EXISTS conteudo_recursos_tecnicos_conteudo_idx ON public.conteudo_recursos_tecnicos (conteudo_id)');
-    await prisma.$executeRawUnsafe('CREATE INDEX IF NOT EXISTS conteudo_recursos_fisicos_conteudo_idx ON public.conteudo_recursos_fisicos (conteudo_id)');
-    await prisma.$executeRawUnsafe('CREATE INDEX IF NOT EXISTS conteudo_terceiros_conteudo_idx ON public.conteudo_terceiros (conteudo_id)');
-    await prisma.$executeRawUnsafe('CREATE INDEX IF NOT EXISTS gravacao_recursos_gravacao_idx ON public.gravacao_recursos (gravacao_id)');
-  })();
+  if (!ensureSchemaPromise) {
+    const promise = (async () => {
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS public.conteudos (
+          id text PRIMARY KEY,
+          tenant_id uuid NULL,
+          codigo_externo text NULL,
+          descricao text NOT NULL,
+          quantidade_episodios integer NULL,
+          centro_lucro_id text NULL,
+          unidade_negocio_id uuid NULL,
+          programa_id uuid NULL,
+          tipo_conteudo_id text NULL,
+          classificacao_id text NULL,
+          ano_producao text NULL,
+          sinopse text NULL,
+          orcamento numeric(12, 2) NULL DEFAULT 0,
+          tabela_preco_id text NULL,
+          frequencia_data_inicio date NULL,
+          frequencia_data_fim date NULL,
+          frequencia_dias_semana integer[] NULL,
+          created_by text NULL,
+          created_at timestamptz NULL DEFAULT now(),
+          updated_at timestamptz NULL DEFAULT now()
+        )
+      `);
+      await prisma.$executeRawUnsafe('CREATE INDEX IF NOT EXISTS conteudos_tenant_id_idx ON public.conteudos (tenant_id)');
+      await prisma.$executeRawUnsafe('CREATE INDEX IF NOT EXISTS conteudos_unidade_negocio_id_idx ON public.conteudos (unidade_negocio_id)');
+      await prisma.$executeRawUnsafe('CREATE INDEX IF NOT EXISTS conteudos_programa_id_idx ON public.conteudos (programa_id)');
+      // Parametro tables used in JOINs and FKs — created here so conteudos can
+      // always query them regardless of whether the parametros module was accessed first.
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS public.servicos (
+          id text PRIMARY KEY,
+          tenant_id text NULL,
+          codigo_externo text NULL,
+          nome text NOT NULL,
+          descricao text NULL,
+          created_by text NULL,
+          created_at timestamptz NULL DEFAULT now(),
+          updated_at timestamptz NULL DEFAULT now()
+        )
+      `);
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS public.tipos_gravacao (
+          id text PRIMARY KEY,
+          tenant_id text NULL,
+          codigo_externo text NULL,
+          nome text NOT NULL,
+          descricao text NULL,
+          created_by text NULL,
+          created_at timestamptz NULL DEFAULT now(),
+          updated_at timestamptz NULL DEFAULT now()
+        )
+      `);
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS public.classificacoes (
+          id text PRIMARY KEY,
+          tenant_id text NULL,
+          codigo_externo text NULL,
+          nome text NOT NULL,
+          descricao text NULL,
+          created_by text NULL,
+          created_at timestamptz NULL DEFAULT now(),
+          updated_at timestamptz NULL DEFAULT now()
+        )
+      `);
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS public.conteudo_recursos_tecnicos (
+          id text PRIMARY KEY,
+          tenant_id text NOT NULL REFERENCES "Tenant"(id) ON DELETE CASCADE,
+          conteudo_id text NOT NULL REFERENCES public.conteudos(id) ON DELETE CASCADE,
+          tabela_preco_id text NULL,
+          recurso_tecnico_id text NOT NULL,
+          valor_hora numeric(12, 2) NULL DEFAULT 0,
+          quantidade integer NULL DEFAULT 1,
+          quantidade_horas numeric(12, 2) NULL DEFAULT 0,
+          valor_total numeric(12, 2) NULL DEFAULT 0,
+          desconto_percentual numeric(5, 2) NULL DEFAULT 0,
+          valor_com_desconto numeric(12, 2) NULL DEFAULT 0,
+          created_at timestamptz NULL DEFAULT NOW()
+        )
+      `);
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS public.conteudo_recursos_fisicos (
+          id text PRIMARY KEY,
+          tenant_id text NOT NULL REFERENCES "Tenant"(id) ON DELETE CASCADE,
+          conteudo_id text NOT NULL REFERENCES public.conteudos(id) ON DELETE CASCADE,
+          tabela_preco_id text NULL,
+          recurso_fisico_id text NOT NULL,
+          valor_hora numeric(12, 2) NULL DEFAULT 0,
+          quantidade integer NULL DEFAULT 1,
+          quantidade_horas numeric(12, 2) NULL DEFAULT 0,
+          valor_total numeric(12, 2) NULL DEFAULT 0,
+          desconto_percentual numeric(5, 2) NULL DEFAULT 0,
+          valor_com_desconto numeric(12, 2) NULL DEFAULT 0,
+          created_at timestamptz NULL DEFAULT NOW()
+        )
+      `);
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS public.conteudo_terceiros (
+          id text PRIMARY KEY,
+          tenant_id text NOT NULL REFERENCES "Tenant"(id) ON DELETE CASCADE,
+          conteudo_id text NOT NULL REFERENCES public.conteudos(id) ON DELETE CASCADE,
+          servico_id text NOT NULL REFERENCES public.servicos(id) ON DELETE CASCADE,
+          valor_previsto numeric(12, 2) NULL DEFAULT 0,
+          created_by text NULL,
+          created_at timestamptz NULL DEFAULT NOW()
+        )
+      `);
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS public.gravacao_recursos (
+          id text PRIMARY KEY,
+          tenant_id text NOT NULL REFERENCES "Tenant"(id) ON DELETE CASCADE,
+          gravacao_id text NOT NULL REFERENCES "Gravacao"(id) ON DELETE CASCADE,
+          recurso_tecnico_id text NULL,
+          recurso_fisico_id text NULL,
+          recurso_humano_id text NULL,
+          estoque_item_id text NULL,
+          parent_recurso_id text NULL REFERENCES public.gravacao_recursos(id) ON DELETE CASCADE,
+          hora_inicio text NULL,
+          hora_fim text NULL,
+          created_at timestamptz NULL DEFAULT NOW()
+        )
+      `);
+      await prisma.$executeRawUnsafe('CREATE INDEX IF NOT EXISTS conteudo_recursos_tecnicos_conteudo_idx ON public.conteudo_recursos_tecnicos (conteudo_id)');
+      await prisma.$executeRawUnsafe('CREATE INDEX IF NOT EXISTS conteudo_recursos_fisicos_conteudo_idx ON public.conteudo_recursos_fisicos (conteudo_id)');
+      await prisma.$executeRawUnsafe('CREATE INDEX IF NOT EXISTS conteudo_terceiros_conteudo_idx ON public.conteudo_terceiros (conteudo_id)');
+      await prisma.$executeRawUnsafe('CREATE INDEX IF NOT EXISTS gravacao_recursos_gravacao_idx ON public.gravacao_recursos (gravacao_id)');
+    })();
+    promise.catch(() => {
+      // Reset so the next request can retry instead of receiving the cached rejection.
+      if (ensureSchemaPromise === promise) {
+        ensureSchemaPromise = null;
+      }
+    });
+    ensureSchemaPromise = promise;
+  }
 
   await ensureSchemaPromise;
 }
@@ -352,7 +399,7 @@ function buildUnitFilter(unidadeIds?: string[]) {
     return Prisma.empty;
   }
 
-  return Prisma.sql`and c.unidade_negocio_id in (${Prisma.join(unidadeIds)})`;
+  return Prisma.sql`and c.unidade_negocio_id::text in (${Prisma.join(unidadeIds)})`;
 }
 
 function toNumber(value: Prisma.Decimal | number | string | null | undefined, fallback = 0): number {
@@ -572,7 +619,7 @@ export class PrismaConteudosRepository implements ConteudosRepository {
     await ensureConteudosSchema();
 
     const unitFilter = unidadeIds && unidadeIds.length > 0
-      ? Prisma.sql`and id in (${Prisma.join(unidadeIds)})`
+      ? Prisma.sql`and id::text in (${Prisma.join(unidadeIds)})`
       : Prisma.empty;
 
     const statusTableExists = await tableExists('status_gravacao');

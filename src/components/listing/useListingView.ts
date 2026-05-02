@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-export type ViewMode = 'list' | 'cards' | 'detail';
+export type ViewMode = 'list' | 'cards' | 'detail' | 'kanban';
 
 export interface ColumnConfig {
   key: string;
@@ -28,9 +28,7 @@ interface UseListingViewReturn {
 }
 
 function getDefaultVisible(columns: ColumnConfig[]): string[] {
-  return columns
-    .filter((c) => c.defaultVisible !== false)
-    .map((c) => c.key);
+  return columns.filter((c) => c.defaultVisible !== false).map((c) => c.key);
 }
 
 export function useListingView({
@@ -47,8 +45,11 @@ export function useListingView({
   const [mode, setModeState] = useState<ViewMode>(() => {
     try {
       const stored = localStorage.getItem(modeKey);
-      if (stored === 'list' || stored === 'cards' || stored === 'detail') return stored;
-    } catch {}
+      if (stored === 'list' || stored === 'cards' || stored === 'detail' || stored === 'kanban')
+        return stored;
+    } catch (_e) {
+      /* localStorage unavailable */
+    }
     return defaultMode;
   });
 
@@ -60,7 +61,9 @@ export function useListingView({
         const valid = parsed.filter((k) => allKeys.includes(k));
         if (valid.length > 0) return valid;
       }
-    } catch {}
+    } catch (_e) {
+      /* localStorage unavailable */
+    }
     return defaultVisible;
   });
 
@@ -68,7 +71,9 @@ export function useListingView({
     setModeState(newMode);
     try {
       localStorage.setItem(modeKey, newMode);
-    } catch {}
+    } catch (_e) {
+      /* localStorage unavailable */
+    }
   };
 
   const toggleColumn = (key: string) => {
@@ -83,13 +88,13 @@ export function useListingView({
       // Prevent hiding last optional column
       if (prev.includes(key) && optionalVisible.length <= 1) return prev;
 
-      const next = prev.includes(key)
-        ? prev.filter((k) => k !== key)
-        : [...prev, key];
+      const next = prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key];
 
       try {
         localStorage.setItem(colsKey, JSON.stringify(next));
-      } catch {}
+      } catch (_e) {
+        /* localStorage unavailable */
+      }
       return next;
     });
   };
@@ -100,7 +105,9 @@ export function useListingView({
     setVisibleColumnKeys(defaultVisible);
     try {
       localStorage.removeItem(colsKey);
-    } catch {}
+    } catch (_e) {
+      /* localStorage unavailable */
+    }
   };
 
   const optionalColumns = columns.filter((c) => !c.required);

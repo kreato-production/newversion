@@ -40,6 +40,7 @@ interface Parametro {
   codigo_externo: string;
   nome: string;
   descricao: string;
+  cor?: string | null;
   created_at: string;
   created_by: string;
 }
@@ -49,6 +50,7 @@ interface ParametroLegacy {
   codigoExterno: string;
   nome: string;
   descricao: string;
+  cor?: string | null;
   dataCadastro: string;
   usuarioCadastro: string;
 }
@@ -60,6 +62,7 @@ interface ParametroListPageProps {
   storageKey: string;
   permissionPath?: [string, string, string?];
   showExportImport?: boolean;
+  showCor?: boolean;
 }
 
 const apiRepository = new ApiParametrosRepository();
@@ -189,6 +192,7 @@ const ParametroListPage = ({
   storageKey,
   permissionPath,
   showExportImport = true,
+  showCor = false,
 }: ParametroListPageProps) => {
   const { toast } = useToast();
   const { t } = useLanguage();
@@ -248,6 +252,7 @@ const ParametroListPage = ({
     codigoExterno: data.codigo_externo || '',
     nome: data.nome,
     descricao: data.descricao || '',
+    cor: data.cor ?? null,
     dataCadastro: data.created_at ? new Date(data.created_at).toLocaleDateString('pt-BR') : '',
     usuarioCadastro: user?.nome || '',
   });
@@ -265,6 +270,7 @@ const ParametroListPage = ({
       codigoExterno: data.codigoExterno,
       nome: data.nome,
       descricao: data.descricao,
+      cor: data.cor ?? null,
     });
     toast({
       title: t('common.success'),
@@ -613,6 +619,7 @@ const ParametroListPage = ({
         onSave={handleSave}
         title={entityName}
         data={editingItem}
+        showCor={showCor}
         readOnly={
           !!editingItem && permissionPath
             ? !canAlterar(permissionPath[0], permissionPath[1], permissionPath[2] || '-')

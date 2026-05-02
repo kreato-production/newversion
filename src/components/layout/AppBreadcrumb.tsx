@@ -19,6 +19,9 @@ const MODULE_LABELS: Record<string, string> = {
   financeiro: 'Financeiro',
   admin: 'Administração',
   global: 'Global',
+  'api-docs': 'API',
+  arquitetura: 'Arquitetura',
+  sobre: 'Sobre o Sistema',
 };
 
 const MODULE_PATHS: Record<string, string> = {

@@ -5,6 +5,7 @@ export type ParametroApiItem = {
   codigo_externo: string;
   nome: string;
   descricao: string;
+  cor?: string | null;
   created_at: string;
   created_by: string;
 };
@@ -14,6 +15,7 @@ export type ParametroApiInput = {
   codigoExterno?: string;
   nome: string;
   descricao?: string;
+  cor?: string | null;
 };
 
 type PaginatedParametrosResponse = {

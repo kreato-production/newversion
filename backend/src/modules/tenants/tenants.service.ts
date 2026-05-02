@@ -1,6 +1,10 @@
 import { z } from 'zod';
 import type { SessionUser } from '../auth/auth.types.js';
+import { hashPassword } from '../../lib/security/password.js';
+import { isValidPasswordPolicy, PASSWORD_POLICY_MESSAGE } from '../../lib/security/password-policy.js';
+import { AccessError } from '../common/access.js';
 import type { TenantsRepository } from './tenants.repository.js';
+import type { UsersRepository } from '../users/users.repository.js';
 
 export const saveTenantSchema = z.object({
   id: z.string().uuid().optional(),
@@ -8,6 +12,9 @@ export const saveTenantSchema = z.object({
   plano: z.string().optional().nullable(),
   status: z.enum(['Ativo', 'Inativo', 'Bloqueado']),
   notas: z.string().optional().nullable(),
+  adminNome: z.string().min(1).optional(),
+  adminUsuario: z.string().min(1).optional(),
+  adminSenha: z.string().optional(),
 });
 
 export type SaveTenantDto = z.infer<typeof saveTenantSchema>;
@@ -43,7 +50,10 @@ const statusLabelMap = {
 } as const;
 
 export class TenantsService {
-  constructor(private readonly repository: TenantsRepository) {}
+  constructor(
+    private readonly repository: TenantsRepository,
+    private readonly usersRepository: UsersRepository,
+  ) {}
 
   private async getTenant(id: string) {
     const tenant = await this.repository.findById(id);
@@ -56,18 +66,47 @@ export class TenantsService {
 
   async list(_actor: SessionUser) {
     const data = await this.repository.list();
-    return data.map((item) => ({
-      id: item.id,
-      nome: item.nome,
-      plano: item.plano || 'Mensal',
-      status: statusLabelMap[item.status],
-      notas: item.notas || '',
-      createdAt: item.createdAt.toISOString(),
-      licencaFim: item.licencaFim?.toISOString() ?? null,
-    }));
+    const results = await Promise.all(
+      data.map(async (item) => {
+        const admin = await this.usersRepository.findTenantAdmin(item.id);
+        return {
+          id: item.id,
+          nome: item.nome,
+          plano: item.plano || 'Mensal',
+          status: statusLabelMap[item.status],
+          notas: item.notas || '',
+          createdAt: item.createdAt.toISOString(),
+          licencaFim: item.licencaFim?.toISOString() ?? null,
+          adminNome: admin?.nome ?? null,
+          adminUsuario: admin?.usuario ?? null,
+        };
+      }),
+    );
+    return results;
   }
 
   async save(_actor: SessionUser, input: SaveTenantDto) {
+    const isNew = !input.id;
+
+    // Validate admin fields: required when creating, password policy when provided
+    if (isNew) {
+      if (!input.adminNome || !input.adminUsuario || !input.adminSenha) {
+        throw new AccessError('adminNome, adminUsuario e adminSenha sao obrigatorios ao criar um tenant', 400);
+      }
+    }
+    if (input.adminSenha && !isValidPasswordPolicy(input.adminSenha)) {
+      throw new AccessError(PASSWORD_POLICY_MESSAGE, 400);
+    }
+
+    // Check username uniqueness before saving the tenant
+    if (input.adminUsuario) {
+      const existingUser = await this.usersRepository.findByUsername(input.adminUsuario);
+      // On create, any match is a conflict. On update, only conflict if it belongs to a different tenant.
+      if (existingUser && (isNew || existingUser.tenantId !== input.id)) {
+        throw new AccessError('Ja existe um usuario com este nome de usuario', 409);
+      }
+    }
+
     const item = await this.repository.save({
       id: input.id,
       nome: input.nome,
@@ -75,6 +114,23 @@ export class TenantsService {
       notas: input.notas,
       status: statusMap[input.status],
     });
+
+    // Create or update the TENANT_ADMIN user
+    if (input.adminNome && input.adminUsuario) {
+      const existingAdmin = await this.usersRepository.findTenantAdmin(item.id);
+
+      await this.usersRepository.save({
+        id: existingAdmin?.id,
+        tenantId: item.id,
+        nome: input.adminNome,
+        email: `${input.adminUsuario}@kreato.internal`,
+        usuario: input.adminUsuario,
+        passwordHash: input.adminSenha ? hashPassword(input.adminSenha) : undefined,
+        status: 'ATIVO',
+        tipoAcesso: 'Administração',
+        role: 'TENANT_ADMIN',
+      });
+    }
 
     return {
       id: item.id,

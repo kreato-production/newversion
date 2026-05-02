@@ -21,7 +21,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import {
   Table,
@@ -35,6 +42,7 @@ import { Badge } from '@/components/ui/badge';
 import { DataCard, PageHeader } from '@/components/shared/PageComponents';
 import { ListActionBar } from '@/components/shared/ListActionBar';
 import { useListingView, ViewSwitcher, CardGrid, MasterDetail } from '@/components/listing';
+import { TarefaKanbanView } from '@/components/producao/TarefaKanbanView';
 import { TarefaFormModal } from '@/components/producao/TarefaFormModal';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -335,7 +343,7 @@ const Tarefas = () => {
               ))}
             </SelectContent>
           </Select>
-          <ViewSwitcher mode={mode} onModeChange={setMode} />
+          <ViewSwitcher mode={mode} onModeChange={setMode} showKanban />
         </ListActionBar>
 
         {isLoading ? (
@@ -347,7 +355,13 @@ const Tarefas = () => {
             <div className="text-center py-12 border-2 border-dashed rounded-lg">
               <p className="text-muted-foreground mb-4">{t('tasks.empty')}</p>
               {podeIncluir && (
-                <Button variant="outline" onClick={() => { setEditingTarefa(null); setIsModalOpen(true); }}>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setEditingTarefa(null);
+                    setIsModalOpen(true);
+                  }}
+                >
                   {t('tasks.addFirst')}
                 </Button>
               )}
@@ -378,14 +392,22 @@ const Tarefas = () => {
                       <TableCell>{tarefa.recursoHumanoNome || '-'}</TableCell>
                       <TableCell>
                         {tarefa.statusNome && (
-                          <Badge style={{ backgroundColor: tarefa.statusCor || '#888' }} className="text-white">
+                          <Badge
+                            style={{ backgroundColor: tarefa.statusCor || '#888' }}
+                            className="text-white"
+                          >
                             {tarefa.statusNome}
                           </Badge>
                         )}
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          <div className={cn('w-2.5 h-2.5 rounded-full', getPrioridadeColor(tarefa.prioridade))} />
+                          <div
+                            className={cn(
+                              'w-2.5 h-2.5 rounded-full',
+                              getPrioridadeColor(tarefa.prioridade),
+                            )}
+                          />
                           {getPrioridadeLabel(tarefa.prioridade)}
                         </div>
                       </TableCell>
@@ -409,15 +431,24 @@ const Tarefas = () => {
             getRowKey={(item) => item.id}
             emptyTitle={t('tasks.empty')}
             emptyDescription=""
-            onEmptyAction={() => { setEditingTarefa(null); setIsModalOpen(true); }}
+            onEmptyAction={() => {
+              setEditingTarefa(null);
+              setIsModalOpen(true);
+            }}
             emptyActionLabel={t('tasks.new')}
             renderCard={(tarefa) => (
-              <Card className="flex flex-col hover:shadow-md transition-shadow cursor-pointer" onClick={() => handleEdit(tarefa)}>
+              <Card
+                className="flex flex-col hover:shadow-md transition-shadow cursor-pointer"
+                onClick={() => handleEdit(tarefa)}
+              >
                 <CardHeader className="pb-2 pt-3 px-4">
                   <div className="flex items-start justify-between gap-2">
                     <p className="font-medium text-sm leading-snug line-clamp-2">{tarefa.titulo}</p>
                     {tarefa.statusNome && (
-                      <Badge style={{ backgroundColor: tarefa.statusCor || '#888' }} className="text-white text-xs shrink-0">
+                      <Badge
+                        style={{ backgroundColor: tarefa.statusCor || '#888' }}
+                        className="text-white text-xs shrink-0"
+                      >
                         {tarefa.statusNome}
                       </Badge>
                     )}
@@ -429,8 +460,12 @@ const Tarefas = () => {
                 </CardContent>
                 <CardFooter className="px-4 py-2 border-t flex items-center justify-between">
                   <div className="flex items-center gap-1.5">
-                    <div className={cn('w-2 h-2 rounded-full', getPrioridadeColor(tarefa.prioridade))} />
-                    <span className="text-xs text-muted-foreground">{getPrioridadeLabel(tarefa.prioridade)}</span>
+                    <div
+                      className={cn('w-2 h-2 rounded-full', getPrioridadeColor(tarefa.prioridade))}
+                    />
+                    <span className="text-xs text-muted-foreground">
+                      {getPrioridadeLabel(tarefa.prioridade)}
+                    </span>
                   </div>
                   <span className="text-xs text-muted-foreground">
                     {tarefa.dataFim ? formatDate(tarefa.dataFim) : '-'}
@@ -438,6 +473,13 @@ const Tarefas = () => {
                 </CardFooter>
               </Card>
             )}
+          />
+        ) : mode === 'kanban' ? (
+          <TarefaKanbanView
+            tarefas={sortedTarefas}
+            statusList={statusList}
+            onEdit={handleEdit}
+            formatDate={formatDate}
           />
         ) : (
           <MasterDetail
@@ -450,7 +492,9 @@ const Tarefas = () => {
             emptyDetailDescription="Clique em uma tarefa para ver os detalhes."
             renderRow={(tarefa, isSelected) => (
               <div>
-                <p className={cn('text-sm font-medium truncate', isSelected && 'text-primary')}>{tarefa.titulo}</p>
+                <p className={cn('text-sm font-medium truncate', isSelected && 'text-primary')}>
+                  {tarefa.titulo}
+                </p>
                 <div className="flex items-center gap-2 mt-0.5">
                   {tarefa.statusNome && (
                     <span className="text-xs text-muted-foreground">{tarefa.statusNome}</span>
@@ -462,14 +506,19 @@ const Tarefas = () => {
               <div className="space-y-4">
                 <div>
                   <h3 className="font-semibold text-base">{tarefa.titulo}</h3>
-                  {tarefa.descricao && <p className="text-sm text-muted-foreground mt-1">{tarefa.descricao}</p>}
+                  {tarefa.descricao && (
+                    <p className="text-sm text-muted-foreground mt-1">{tarefa.descricao}</p>
+                  )}
                 </div>
                 <Separator />
                 <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
                   {tarefa.statusNome && (
                     <div>
                       <p className="text-xs text-muted-foreground mb-0.5">{t('tasks.status')}</p>
-                      <Badge style={{ backgroundColor: tarefa.statusCor || '#888' }} className="text-white">
+                      <Badge
+                        style={{ backgroundColor: tarefa.statusCor || '#888' }}
+                        className="text-white"
+                      >
                         {tarefa.statusNome}
                       </Badge>
                     </div>
@@ -477,7 +526,12 @@ const Tarefas = () => {
                   <div>
                     <p className="text-xs text-muted-foreground mb-0.5">{t('tasks.priority')}</p>
                     <div className="flex items-center gap-1.5">
-                      <div className={cn('w-2.5 h-2.5 rounded-full', getPrioridadeColor(tarefa.prioridade))} />
+                      <div
+                        className={cn(
+                          'w-2.5 h-2.5 rounded-full',
+                          getPrioridadeColor(tarefa.prioridade),
+                        )}
+                      />
                       {getPrioridadeLabel(tarefa.prioridade)}
                     </div>
                   </div>
@@ -526,7 +580,9 @@ const Tarefas = () => {
         recursosHumanos={recursosHumanos}
         readOnly={Boolean(editingTarefa) && !podeAlterar}
         navigation={(() => {
-          const idx = editingTarefa ? sortedTarefas.findIndex((i) => i.id === editingTarefa.id) : -1;
+          const idx = editingTarefa
+            ? sortedTarefas.findIndex((i) => i.id === editingTarefa.id)
+            : -1;
           return idx >= 0
             ? {
                 currentIndex: idx,

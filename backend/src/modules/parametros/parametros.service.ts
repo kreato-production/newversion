@@ -9,6 +9,7 @@ export const saveParametroSchema = z.object({
   codigoExterno: z.string().optional().nullable(),
   nome: z.string().min(1),
   descricao: z.string().optional().nullable(),
+  cor: z.string().optional().nullable(),
 });
 
 export type SaveParametroDto = z.infer<typeof saveParametroSchema>;
@@ -27,6 +28,7 @@ export class ParametrosService {
         codigo_externo: item.codigoExterno || '',
         nome: item.nome,
         descricao: item.descricao || '',
+        cor: item.cor ?? null,
         created_at: item.createdAt?.toISOString() ?? '',
         created_by: item.createdBy || '',
       })),
@@ -50,6 +52,7 @@ export class ParametrosService {
       codigoExterno: input.codigoExterno,
       nome: input.nome,
       descricao: input.descricao,
+      cor: input.cor,
       createdBy: actor.id,
     });
 
@@ -58,6 +61,7 @@ export class ParametrosService {
       codigo_externo: item.codigoExterno || '',
       nome: item.nome,
       descricao: item.descricao || '',
+      cor: item.cor ?? null,
       created_at: item.createdAt?.toISOString() ?? '',
       created_by: item.createdBy || '',
     };

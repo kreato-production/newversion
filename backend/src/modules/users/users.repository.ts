@@ -59,6 +59,7 @@ export interface UsersRepository {
   findById(id: string): Promise<UserRecord | null>;
   findByEmail(email: string): Promise<UserRecord | null>;
   findByUsername(usuario: string): Promise<UserRecord | null>;
+  findTenantAdmin(tenantId: string): Promise<UserRecord | null>;
   save(input: SaveUserInput): Promise<UserRecord>;
   remove(id: string): Promise<void>;
   listAvailableUnidades(tenantId: string): Promise<UserLinkedUnidadeRecord[]>;
@@ -180,6 +181,14 @@ export class PrismaUsersRepository implements UsersRepository {
 
   async findByUsername(usuario: string): Promise<UserRecord | null> {
     const item = await prisma.user.findUnique({ where: { usuario } });
+    return item ? this.map(item) : null;
+  }
+
+  async findTenantAdmin(tenantId: string): Promise<UserRecord | null> {
+    const item = await prisma.user.findFirst({
+      where: { tenantId, role: 'TENANT_ADMIN' },
+      orderBy: { createdAt: 'asc' },
+    });
     return item ? this.map(item) : null;
   }
 

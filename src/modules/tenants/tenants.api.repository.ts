@@ -8,6 +8,8 @@ export type TenantApiItem = {
   notas: string;
   createdAt: string;
   licencaFim?: string | null;
+  adminNome?: string | null;
+  adminUsuario?: string | null;
 };
 
 export type TenantApiInput = {
@@ -16,6 +18,9 @@ export type TenantApiInput = {
   plano: 'Mensal' | 'Anual';
   status: 'Ativo' | 'Inativo' | 'Bloqueado';
   notas: string;
+  adminNome?: string;
+  adminUsuario?: string;
+  adminSenha?: string;
 };
 
 export type TenantLicenseApiItem = {

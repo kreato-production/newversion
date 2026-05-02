@@ -85,7 +85,12 @@ export class AdminConfigService {
   }
 
   async getFormularioCampos(actor: SessionUser, formularioId: string, targetTenantId?: string) {
-    const tenantId = resolveTenantId(actor, targetTenantId ?? actor.tenantId);
+    const resolved = targetTenantId ?? actor.tenantId;
+    // GLOBAL_ADMIN without a target tenant has no tenant-specific config — return empty
+    if (!resolved) {
+      return { formulario: formularioId, tenantId: null, campos: [] };
+    }
+    const tenantId = resolveTenantId(actor, resolved);
     const campos = await this.repository.listFormularioCampos(tenantId, formularioId);
 
     return {

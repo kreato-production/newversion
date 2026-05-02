@@ -39,6 +39,8 @@ export interface Tenant {
   notas: string;
   createdAt: string;
   licencaFim?: string;
+  adminNome?: string;
+  adminUsuario?: string;
 }
 
 const apiRepository = new ApiTenantsRepository();
@@ -46,14 +48,17 @@ const apiRepository = new ApiTenantsRepository();
 const STORAGE_KEY = 'kreato_tenants_table';
 
 const COLUMN_CONFIG: ColumnConfig[] = [
-  { key: 'nome',       label: 'Nome',         required: true },
-  { key: 'plano',      label: 'Plano',        defaultVisible: true },
-  { key: 'licencaFim', label: 'Licença Até',  defaultVisible: true },
-  { key: 'status',     label: 'Status',       defaultVisible: true },
-  { key: 'acoes',      label: 'Ações',        required: true },
+  { key: 'nome', label: 'Nome', required: true },
+  { key: 'plano', label: 'Plano', defaultVisible: true },
+  { key: 'licencaFim', label: 'Licença Até', defaultVisible: true },
+  { key: 'status', label: 'Status', defaultVisible: true },
+  { key: 'acoes', label: 'Ações', required: true },
 ];
 
-const statusVariants: Record<Tenant['status'], 'default' | 'secondary' | 'destructive' | 'outline'> = {
+const statusVariants: Record<
+  Tenant['status'],
+  'default' | 'secondary' | 'destructive' | 'outline'
+> = {
   Ativo: 'default',
   Inativo: 'secondary',
   Bloqueado: 'destructive',
@@ -395,7 +400,10 @@ const Tenants = () => {
                     {item.nome}
                   </p>
                 </div>
-                <Badge variant={statusVariants[item.status]} className="text-[10px] h-4 px-1.5 shrink-0">
+                <Badge
+                  variant={statusVariants[item.status]}
+                  className="text-[10px] h-4 px-1.5 shrink-0"
+                >
                   {item.status}
                 </Badge>
               </div>
@@ -442,7 +450,8 @@ const Tenants = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmar exclusão do Tenant</AlertDialogTitle>
             <AlertDialogDescription>
-              ATENÇÃO: Excluir um tenant removerá todos os dados associados. Esta ação é irreversível.
+              ATENÇÃO: Excluir um tenant removerá todos os dados associados. Esta ação é
+              irreversível.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

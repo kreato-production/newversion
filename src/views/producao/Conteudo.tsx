@@ -37,12 +37,12 @@ import {
 // ─── Column configuration ─────────────────────────────────────────────────────
 
 const COLUMN_CONFIG: ColumnConfig[] = [
-  { key: 'descricao',            label: 'Descrição',          required: true },
-  { key: 'quantidadeEpisodios',  label: 'Episódios',          defaultVisible: true },
-  { key: 'centroLucro',          label: 'Centro de Lucro',    defaultVisible: true },
-  { key: 'anoProducao',          label: 'Ano de Produção',    defaultVisible: true },
-  { key: 'dataCadastro',         label: 'Data Cadastro',      defaultVisible: true },
-  { key: 'acoes',                label: 'Ações',              required: true },
+  { key: 'descricao', label: 'Descrição', required: true },
+  { key: 'quantidadeEpisodios', label: 'Episódios', defaultVisible: true },
+  { key: 'centroLucro', label: 'Centro de Lucro', defaultVisible: true },
+  { key: 'anoProducao', label: 'Ano de Produção', defaultVisible: true },
+  { key: 'dataCadastro', label: 'Data Cadastro', defaultVisible: true },
+  { key: 'acoes', label: 'Ações', required: true },
 ];
 
 const STORAGE_KEY = 'kreato_conteudos_table';
@@ -213,13 +213,7 @@ const Conteudo = () => {
     setIsLoading(true);
     try {
       const data = await conteudosRepository.list();
-      setItems(
-        user?.unidadeIds && user.unidadeIds.length > 0
-          ? data.filter(
-              (item) => !item.unidadeNegocioId || user.unidadeIds?.includes(item.unidadeNegocioId),
-            )
-          : data,
-      );
+      setItems(data);
     } catch (error) {
       console.error('Error fetching conteudos:', error);
       toast({
@@ -230,7 +224,7 @@ const Conteudo = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [session, t, toast, user?.unidadeIds]);
+  }, [session, t, toast]);
 
   useEffect(() => {
     void fetchConteudos();

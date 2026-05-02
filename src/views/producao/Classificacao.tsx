@@ -7,6 +7,7 @@ const Classificacao = () => (
     entityName="Classificação"
     storageKey="kreato_classificacao"
     permissionPath={['Produção', 'Parametrizações', 'Classificação']}
+    showCor
   />
 );
 

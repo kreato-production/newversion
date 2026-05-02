@@ -16,11 +16,30 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { ModalNavigation, type ModalNavigationProps } from '@/components/shared/ModalNavigation';
 
+const COLOR_PALETTE = [
+  '#3B82F6',
+  '#EF4444',
+  '#22C55E',
+  '#F59E0B',
+  '#8B5CF6',
+  '#EC4899',
+  '#14B8A6',
+  '#F97316',
+  '#6366F1',
+  '#84CC16',
+  '#DC2626',
+  '#0EA5E9',
+  '#A855F7',
+  '#10B981',
+  '#F43F5E',
+];
+
 interface ParametroFormData {
   id?: string;
   codigoExterno: string;
   nome: string;
   descricao: string;
+  cor?: string | null;
   dataCadastro?: string;
   usuarioCadastro?: string;
 }
@@ -32,6 +51,7 @@ interface ParametroFormModalProps {
   title: string;
   data?: ParametroFormData | null;
   readOnly?: boolean;
+  showCor?: boolean;
   navigation?: ModalNavigationProps;
 }
 
@@ -39,6 +59,7 @@ const emptyFormData: ParametroFormData = {
   codigoExterno: '',
   nome: '',
   descricao: '',
+  cor: null,
 };
 
 export const ParametroFormModal = ({
@@ -48,6 +69,7 @@ export const ParametroFormModal = ({
   title,
   data,
   readOnly = false,
+  showCor = false,
   navigation,
 }: ParametroFormModalProps) => {
   const { user } = useAuth();
@@ -119,6 +141,39 @@ export const ParametroFormModal = ({
               />
             </div>
           </div>
+
+          {showCor && (
+            <div className="space-y-2">
+              <Label>Cor</Label>
+              <div className="flex flex-wrap gap-2 items-center">
+                {COLOR_PALETTE.map((color) => (
+                  <button
+                    key={color}
+                    type="button"
+                    disabled={readOnly || isSubmitting}
+                    onClick={() =>
+                      setFormData({ ...formData, cor: formData.cor === color ? null : color })
+                    }
+                    className="w-8 h-8 rounded-full transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
+                    style={{
+                      backgroundColor: color,
+                      boxShadow:
+                        formData.cor === color ? `0 0 0 3px white, 0 0 0 5px ${color}` : undefined,
+                      transform: formData.cor === color ? 'scale(1.15)' : undefined,
+                    }}
+                    title={color}
+                  />
+                ))}
+                {formData.cor && !COLOR_PALETTE.includes(formData.cor) && (
+                  <div
+                    className="w-8 h-8 rounded-full border-2 border-dashed border-muted-foreground"
+                    style={{ backgroundColor: formData.cor }}
+                    title={formData.cor}
+                  />
+                )}
+              </div>
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="descricao">{t('common.description')}</Label>

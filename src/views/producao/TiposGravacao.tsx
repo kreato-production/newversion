@@ -7,6 +7,7 @@ const TiposGravacao = () => (
     entityName="Tipo de Gravação"
     storageKey="kreato_tipos_gravacao"
     permissionPath={['Produção', 'Parametrizações', 'Tipos Gravação']}
+    showCor
   />
 );
 

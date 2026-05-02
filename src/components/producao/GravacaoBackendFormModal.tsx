@@ -1,8 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -15,9 +14,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { SearchableSelect } from '@/components/shared/SearchableSelect';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { usePermissions } from '@/hooks/usePermissions';
-import { programasRepository } from '@/modules/programas/programas.repository.provider';
-import { unidadesRepository } from '@/modules/unidades/unidades.repository.provider';
+import { conteudosRepository } from '@/modules/conteudos/conteudos.repository.provider';
+import { ApiParametrizacoesRepository } from '@/modules/parametrizacoes/parametrizacoes.api.repository';
 import type { Gravacao, GravacaoInput } from '@/modules/gravacoes/gravacoes.types';
+import type { Conteudo } from '@/modules/conteudos/conteudos.types';
 import { ModalNavigation, type ModalNavigationProps } from '@/components/shared/ModalNavigation';
 import { GravacaoReportGenerator } from './GravacaoReportGenerator';
 import { RecursosTab } from './RecursosTab';
@@ -39,9 +39,29 @@ interface GravacaoBackendFormModalProps {
   navigation?: ModalNavigationProps;
 }
 
+const parametrizacoesRepository = new ApiParametrizacoesRepository();
+
 function generateCodigoGravacao(): string {
   const currentYear = new Date().getFullYear();
   return `${currentYear}${Math.floor(Math.random() * 90000 + 10000)}`;
+}
+
+type CentroLucroOption = { id: string; nome: string; parentId: string | null; status: string };
+
+function buildHierarchy(
+  items: CentroLucroOption[],
+  parentId: string | null = null,
+  level = 0,
+): { id: string; nome: string; displayName: string }[] {
+  return items
+    .filter((item) => item.parentId === parentId)
+    .flatMap((child) => {
+      const prefix = level > 0 ? `${'| '.repeat(level - 1)}|- ` : '';
+      return [
+        { id: child.id, nome: child.nome, displayName: `${prefix}${child.nome}` },
+        ...buildHierarchy(items, child.id, level + 1),
+      ];
+    });
 }
 
 export const GravacaoBackendFormModal = ({
@@ -70,30 +90,46 @@ export const GravacaoBackendFormModal = ({
     orcamento: 0,
     programaId: '',
   });
+
+  // Option lists
   const [unidades, setUnidades] = useState<{ id: string; nome: string }[]>([]);
+  const [centrosLucro, setCentrosLucro] = useState<CentroLucroOption[]>([]);
+  const [centroLucroUnidades, setCentroLucroUnidades] = useState<
+    { centroLucroId: string; unidadeNegocioId: string }[]
+  >([]);
   const [programas, setProgramas] = useState<
     { id: string; nome: string; unidadeNegocioId: string }[]
   >([]);
+  const [tipos, setTipos] = useState<{ id: string; nome: string }[]>([]);
+  const [classificacoes, setClassificacoes] = useState<{ id: string; nome: string }[]>([]);
+  const [statusOptions, setStatusOptions] = useState<{ id: string; nome: string }[]>([]);
+  const [conteudos, setConteudos] = useState<Conteudo[]>([]);
 
   useEffect(() => {
     if (!isOpen) return;
 
-    Promise.all([unidadesRepository.list(''), programasRepository.list()])
-      .then(([unidadesData, programasData]) => {
-        setUnidades(unidadesData.map((item) => ({ id: item.id, nome: item.nome })));
+    Promise.all([
+      conteudosRepository.listOptions(),
+      parametrizacoesRepository.listStatusGravacao(),
+      conteudosRepository.list(),
+    ])
+      .then(([options, statusData, conteudosData]) => {
+        setUnidades(options.unidades.map((u) => ({ id: u.id, nome: u.nome })));
+        setCentrosLucro(options.centrosLucro);
+        setCentroLucroUnidades(options.centroLucroUnidades);
+        setTipos(options.tipos);
+        setClassificacoes(options.classificacoes);
         setProgramas(
-          programasData.map((item) => ({
-            id: item.id,
-            nome: item.nome,
-            unidadeNegocioId: item.unidadeNegocioId || '',
+          options.programas.map((p) => ({
+            id: p.id,
+            nome: p.nome,
+            unidadeNegocioId: p.unidadeNegocioId || '',
           })),
         );
+        setStatusOptions(statusData.data);
+        setConteudos(conteudosData);
       })
-      .catch((error) => {
-        console.error('Error loading gravacao backend form options:', error);
-        setUnidades([]);
-        setProgramas([]);
-      });
+      .catch((err) => console.error('Error loading gravacao form options:', err));
   }, [isOpen]);
 
   useEffect(() => {
@@ -128,28 +164,53 @@ export const GravacaoBackendFormModal = ({
       classificacao: '',
       tipoConteudo: '',
       descricao: '',
-      status: 'Planejada',
+      status: statusOptions.find((s) => s.nome === 'Planejada')?.nome ?? '',
       dataPrevista: '',
       conteudoId: '',
       orcamento: 0,
       programaId: '',
     });
-  }, [data, isOpen]);
+  }, [data, isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const filteredProgramas = programas.filter(
-    (programa) =>
-      !formData.unidadeNegocioId || programa.unidadeNegocioId === formData.unidadeNegocioId,
+  const filteredCentrosLucro = useMemo(() => {
+    if (!formData.unidadeNegocioId) return centrosLucro;
+    const allowed = new Set(
+      centroLucroUnidades
+        .filter((item) => item.unidadeNegocioId === formData.unidadeNegocioId)
+        .map((item) => item.centroLucroId),
+    );
+    return centrosLucro.filter((item) => allowed.has(item.id));
+  }, [centroLucroUnidades, centrosLucro, formData.unidadeNegocioId]);
+
+  const hierarchicalCentros = useMemo(
+    () => buildHierarchy(filteredCentrosLucro),
+    [filteredCentrosLucro],
+  );
+
+  const filteredProgramas = useMemo(
+    () =>
+      formData.unidadeNegocioId
+        ? programas.filter((p) => p.unidadeNegocioId === formData.unidadeNegocioId)
+        : programas,
+    [formData.unidadeNegocioId, programas],
+  );
+
+  const filteredConteudos = useMemo(
+    () =>
+      formData.unidadeNegocioId
+        ? conteudos.filter((c) => c.unidadeNegocioId === formData.unidadeNegocioId)
+        : conteudos,
+    [conteudos, formData.unidadeNegocioId],
   );
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setIsSaving(true);
-
     try {
       await onSave(formData);
       onClose();
     } catch {
-      // Keep the modal open so the user can adjust the form after a save failure.
+      // keep modal open on error
     } finally {
       setIsSaving(false);
     }
@@ -188,19 +249,14 @@ export const GravacaoBackendFormModal = ({
       <DialogContent className="w-[1400px] max-w-[95vw] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-center justify-between">
-            <div>
-              <DialogTitle>{data ? 'Editar Gravação' : 'Nova Gravação'}</DialogTitle>
-              <DialogDescription>
-                Fluxo de gravações operando pelo backend próprio.
-              </DialogDescription>
-            </div>
+            <DialogTitle>{data ? 'Editar Gravação' : 'Nova Gravação'}</DialogTitle>
             {data && <GravacaoReportGenerator gravacaoId={data.id} />}
           </div>
         </DialogHeader>
 
         <form
-          onSubmit={(event) => {
-            void handleSubmit(event);
+          onSubmit={(e) => {
+            void handleSubmit(e);
           }}
           className="space-y-4"
         >
@@ -217,29 +273,23 @@ export const GravacaoBackendFormModal = ({
             </TabsList>
 
             <TabsContent value="dadosGerais" className="mt-4 space-y-4">
+              {/* Row 1: Código | Código Externo | Nome */}
               <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="codigo">{t('common.code')}</Label>
-                  <Input
-                    id="codigo"
-                    value={formData.codigo}
-                    readOnly
-                    className="bg-muted font-mono"
-                  />
+                  <Label>{t('common.code')}</Label>
+                  <Input value={formData.codigo} readOnly className="bg-muted font-mono" />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="codigoExterno">{t('common.externalCode')}</Label>
+                  <Label>{t('common.externalCode')}</Label>
                   <Input
-                    id="codigoExterno"
                     value={formData.codigoExterno}
                     onChange={(e) => setFormData({ ...formData, codigoExterno: e.target.value })}
                     disabled={readOnly}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="nome">{t('common.name')}</Label>
+                  <Label>{t('common.name')}</Label>
                   <Input
-                    id="nome"
                     value={formData.nome}
                     onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
                     required
@@ -248,40 +298,104 @@ export const GravacaoBackendFormModal = ({
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
+              {/* Row 2: Unidade | Centro de Custos | Programa | Tipo de Conteúdo */}
+              <div className="grid grid-cols-4 gap-4">
                 <div className="space-y-2">
                   <Label>Unidade de Negócio</Label>
                   <SearchableSelect
-                    options={unidades.map((item) => ({ value: item.id, label: item.nome }))}
+                    options={unidades.map((u) => ({ value: u.id, label: u.nome }))}
                     value={formData.unidadeNegocioId || ''}
                     onValueChange={(value) =>
-                      setFormData({ ...formData, unidadeNegocioId: value, programaId: '' })
+                      setFormData({
+                        ...formData,
+                        unidadeNegocioId: value,
+                        programaId: '',
+                        centroLucro: '',
+                        conteudoId: '',
+                      })
                     }
                     placeholder={t('common.select')}
                     searchPlaceholder="Pesquisar unidade..."
-                    emptyMessage="Nenhuma unidade encontrada."
+                    disabled={readOnly}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Centro de Custos</Label>
+                  <SearchableSelect
+                    options={hierarchicalCentros.map((c) => ({
+                      value: c.nome,
+                      label: c.nome,
+                      displayLabel: c.displayName,
+                    }))}
+                    value={formData.centroLucro || ''}
+                    onValueChange={(value) => setFormData({ ...formData, centroLucro: value })}
+                    placeholder={t('common.select')}
+                    searchPlaceholder="Pesquisar centro de custos..."
                     disabled={readOnly}
                   />
                 </div>
                 <div className="space-y-2">
                   <Label>Programa</Label>
                   <SearchableSelect
-                    options={filteredProgramas.map((item) => ({
-                      value: item.id,
-                      label: item.nome,
-                    }))}
+                    options={filteredProgramas.map((p) => ({ value: p.id, label: p.nome }))}
                     value={formData.programaId || ''}
                     onValueChange={(value) => setFormData({ ...formData, programaId: value })}
                     placeholder={t('common.select')}
                     searchPlaceholder="Pesquisar programa..."
-                    emptyMessage="Nenhum programa encontrado."
                     disabled={readOnly}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="dataPrevista">{t('recordings.expectedDate')}</Label>
+                  <Label>Tipo de Conteúdo</Label>
+                  <SearchableSelect
+                    options={tipos.map((tp) => ({ value: tp.nome, label: tp.nome }))}
+                    value={formData.tipoConteudo || ''}
+                    onValueChange={(value) => setFormData({ ...formData, tipoConteudo: value })}
+                    placeholder={t('common.select')}
+                    searchPlaceholder="Pesquisar tipo..."
+                    disabled={readOnly}
+                  />
+                </div>
+              </div>
+
+              {/* Row 3: Classificação | Status | Conteúdo | Data Prevista */}
+              <div className="grid grid-cols-4 gap-4">
+                <div className="space-y-2">
+                  <Label>Classificação</Label>
+                  <SearchableSelect
+                    options={classificacoes.map((c) => ({ value: c.nome, label: c.nome }))}
+                    value={formData.classificacao || ''}
+                    onValueChange={(value) => setFormData({ ...formData, classificacao: value })}
+                    placeholder={t('common.select')}
+                    searchPlaceholder="Pesquisar classificação..."
+                    disabled={readOnly}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Status</Label>
+                  <SearchableSelect
+                    options={statusOptions.map((s) => ({ value: s.nome, label: s.nome }))}
+                    value={formData.status || ''}
+                    onValueChange={(value) => setFormData({ ...formData, status: value })}
+                    placeholder={t('common.select')}
+                    searchPlaceholder="Pesquisar status..."
+                    disabled={readOnly}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Conteúdo</Label>
+                  <SearchableSelect
+                    options={filteredConteudos.map((c) => ({ value: c.id, label: c.descricao }))}
+                    value={formData.conteudoId || ''}
+                    onValueChange={(value) => setFormData({ ...formData, conteudoId: value })}
+                    placeholder={t('common.select')}
+                    searchPlaceholder="Pesquisar conteúdo..."
+                    disabled={readOnly}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>{t('recordings.expectedDate')}</Label>
                   <Input
-                    id="dataPrevista"
                     type="date"
                     value={formData.dataPrevista}
                     onChange={(e) => setFormData({ ...formData, dataPrevista: e.target.value })}
@@ -290,50 +404,11 @@ export const GravacaoBackendFormModal = ({
                 </div>
               </div>
 
-              <div className="grid grid-cols-4 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="centroLucro">Centro de Custos</Label>
-                  <Input
-                    id="centroLucro"
-                    value={formData.centroLucro}
-                    onChange={(e) => setFormData({ ...formData, centroLucro: e.target.value })}
-                    disabled={readOnly}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="classificacao">Classificação</Label>
-                  <Input
-                    id="classificacao"
-                    value={formData.classificacao}
-                    onChange={(e) => setFormData({ ...formData, classificacao: e.target.value })}
-                    disabled={readOnly}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="tipoConteudo">Tipo de Conteúdo</Label>
-                  <Input
-                    id="tipoConteudo"
-                    value={formData.tipoConteudo}
-                    onChange={(e) => setFormData({ ...formData, tipoConteudo: e.target.value })}
-                    disabled={readOnly}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="status">Status</Label>
-                  <Input
-                    id="status"
-                    value={formData.status}
-                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                    disabled={readOnly}
-                  />
-                </div>
-              </div>
-
+              {/* Row 4: Orçamento | Descrição */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="orcamento">{t('field.budget') || 'Orçamento'}</Label>
+                  <Label>{t('field.budget') || 'Orçamento'}</Label>
                   <Input
-                    id="orcamento"
                     type="number"
                     min="0"
                     step="0.01"
@@ -345,26 +420,37 @@ export const GravacaoBackendFormModal = ({
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="conteudoId">Conteúdo Id</Label>
-                  <Input
-                    id="conteudoId"
-                    value={formData.conteudoId || ''}
-                    onChange={(e) => setFormData({ ...formData, conteudoId: e.target.value })}
+                  <Label>{t('common.description')}</Label>
+                  <Textarea
+                    value={formData.descricao}
+                    onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
+                    rows={3}
                     disabled={readOnly}
                   />
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="descricao">{t('common.description')}</Label>
-                <Textarea
-                  id="descricao"
-                  value={formData.descricao}
-                  onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
-                  rows={3}
-                  disabled={readOnly}
-                />
-              </div>
+              {/* Row 5 (read-only, only when editing): Data de Cadastro */}
+              {data && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Usuário de Cadastro</Label>
+                    <Input value="" disabled className="bg-muted" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Data de Cadastro</Label>
+                    <Input
+                      value={
+                        data.dataCadastro
+                          ? new Date(data.dataCadastro).toLocaleDateString('pt-BR')
+                          : ''
+                      }
+                      disabled
+                      className="bg-muted"
+                    />
+                  </div>
+                </div>
+              )}
             </TabsContent>
 
             {data && isVisible('Produção', 'Gravação', '-', 'Tabulador "Espaços"') && (
