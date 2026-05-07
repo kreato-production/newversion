@@ -72,6 +72,7 @@ const actor: SessionUser = {
   unidadeIds: [],
   enabledModules: ['Dashboard', 'Recursos'],
   permissions: [],
+  tenantNome: null,
 };
 
 describe('DepartamentosService', () => {

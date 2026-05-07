@@ -26,6 +26,7 @@ class RouteAuthRepository implements AuthRepository {
     status: 'ATIVO' as UserStatus,
     passwordHash: hashPassword('123456'),
     tenantStatus: 'ATIVO' as TenantStatus,
+    tenantNome: null,
   };
   tenantValidation: TenantValidation = { valid: true };
   refreshTokens = new Map<string, RefreshTokenRecord>();

@@ -14,7 +14,6 @@ export function createPessoasRoutes(authService: AuthService, pessoasService: Pe
   return async (app) => {
     const authenticate = createAuthenticate(authService);
     const requireTenantAccess = createRequireTenantAccess();
-    const requireAdminRole = createRequireRole(['GLOBAL_ADMIN', 'TENANT_ADMIN']);
 
     app.get('/pessoas', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
@@ -33,20 +32,20 @@ export function createPessoasRoutes(authService: AuthService, pessoasService: Pe
       return reply.status(200).send(await pessoasService.listGravacoes(user, params.id));
     });
 
-    app.post('/pessoas', { preHandler: [authenticate, requireAdminRole, requireTenantAccess] }, async (request, reply) => {
+    app.post('/pessoas', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const body = savePessoaSchema.parse(request.body);
       return reply.status(200).send(await pessoasService.save(user, body));
     });
 
-    app.put('/pessoas/:id', { preHandler: [authenticate, requireAdminRole, requireTenantAccess] }, async (request, reply) => {
+    app.put('/pessoas/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const params = request.params as { id: string };
       const body = savePessoaSchema.parse({ ...(request.body as object), id: params.id });
       return reply.status(200).send(await pessoasService.save(user, body));
     });
 
-    app.delete('/pessoas/:id', { preHandler: [authenticate, requireAdminRole, requireTenantAccess] }, async (request, reply) => {
+    app.delete('/pessoas/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const params = request.params as { id: string };
       await pessoasService.remove(user, params.id);

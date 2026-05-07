@@ -40,6 +40,7 @@ export type TenantValidation = {
 export type SessionUser = {
   id: string;
   tenantId: string | null;
+  tenantNome: string | null;
   role: UserRole;
   email: string;
   usuario: string;

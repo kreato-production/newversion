@@ -1452,8 +1452,8 @@ export class PrismaParametrizacoesRepository {
     return prisma.$queryRawUnsafe<UnidadeRow[]>(
       `
         SELECT id::text as id, nome
-        FROM unidades_negocio
-        WHERE tenant_id::text = $1
+        FROM "UnidadeNegocio"
+        WHERE "tenantId"::text = $1
         ORDER BY nome ASC
       `,
       tenantId,

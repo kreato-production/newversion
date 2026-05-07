@@ -98,6 +98,11 @@ export class TenantsService {
       throw new AccessError(PASSWORD_POLICY_MESSAGE, 400);
     }
 
+    // Normalize username to lowercase
+    if (input.adminUsuario) {
+      input.adminUsuario = input.adminUsuario.toLowerCase();
+    }
+
     // Check username uniqueness before saving the tenant
     if (input.adminUsuario) {
       const existingUser = await this.usersRepository.findByUsername(input.adminUsuario);

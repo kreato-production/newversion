@@ -85,6 +85,7 @@ export async function tryAuthenticateInternalToken(
       unidadeIds: [],
       enabledModules: [],
       permissions: [],
+      tenantNome: null,
     };
 
     return true;

@@ -8,7 +8,6 @@ export function createElencoRoutes(authService: AuthService, elencoService: Elen
   return async (app) => {
     const authenticate = createAuthenticate(authService);
     const requireTenantAccess = createRequireTenantAccess();
-    const requireAdminRole = createRequireRole(['GLOBAL_ADMIN', 'TENANT_ADMIN']);
 
     app.get('/elenco/:entityType/:entityId', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
@@ -16,21 +15,21 @@ export function createElencoRoutes(authService: AuthService, elencoService: Elen
       return reply.status(200).send(await elencoService.list(user, params.entityType, params.entityId));
     });
 
-    app.post('/elenco/:entityType/:entityId', { preHandler: [authenticate, requireAdminRole, requireTenantAccess] }, async (request, reply) => {
+    app.post('/elenco/:entityType/:entityId', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const params = request.params as { entityType: 'gravacao' | 'conteudo'; entityId: string };
       const body = saveElencoSchema.parse(request.body);
       return reply.status(200).send(await elencoService.add(user, params.entityType, params.entityId, body));
     });
 
-    app.put('/elenco/:entityType/:entityId/:itemId', { preHandler: [authenticate, requireAdminRole, requireTenantAccess] }, async (request, reply) => {
+    app.put('/elenco/:entityType/:entityId/:itemId', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const params = request.params as { entityType: 'gravacao' | 'conteudo'; entityId: string; itemId: string };
       const body = updateElencoSchema.parse(request.body);
       return reply.status(200).send(await elencoService.update(user, params.entityType, params.entityId, params.itemId, body));
     });
 
-    app.delete('/elenco/:entityType/:entityId/:itemId', { preHandler: [authenticate, requireAdminRole, requireTenantAccess] }, async (request, reply) => {
+    app.delete('/elenco/:entityType/:entityId/:itemId', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const params = request.params as { entityType: 'gravacao' | 'conteudo'; entityId: string; itemId: string };
       await elencoService.remove(user, params.entityType, params.entityId, params.itemId);

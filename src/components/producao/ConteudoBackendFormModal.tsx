@@ -48,6 +48,7 @@ import { ModalNavigation, type ModalNavigationProps } from '@/components/shared/
 import { ConteudoRecursosTab } from './ConteudoRecursosTab';
 import { ConteudoTerceirosTab } from './ConteudoTerceirosTab';
 import { ConteudoCustosBackendTab } from './ConteudoCustosBackendTab';
+import { ConteudoEspacosTab } from './ConteudoEspacosTab';
 
 interface ConteudoBackendFormModalProps {
   isOpen: boolean;
@@ -443,6 +444,8 @@ export const ConteudoBackendFormModal = ({
       visibleTabs.push({ value: 'recursosTecnicos', label: t('contentTab.technicalResources') });
     if (isVisible('ProduÃ§Ã£o', 'ConteÃºdo', '-', 'Tabulador "Recursos FÃ­sicos"'))
       visibleTabs.push({ value: 'recursosFisicos', label: t('contentTab.physicalResources') });
+    if (isVisible('ProduÃ§Ã£o', 'ConteÃºdo', '-', 'Tabulador "EspaÃ§os"'))
+      visibleTabs.push({ value: 'espacos', label: 'Espaços' });
     if (isVisible('ProduÃ§Ã£o', 'ConteÃºdo', '-', 'Tabulador "Terceiros"'))
       visibleTabs.push({ value: 'terceiros', label: t('contentTab.thirdParties') });
     if (isVisible('ProduÃ§Ã£o', 'ConteÃºdo', '-', 'Tabulador "Custos"'))
@@ -896,6 +899,11 @@ export const ConteudoBackendFormModal = ({
                   readOnly={readOnly}
                   tipo="fisico"
                 />
+              </TabsContent>
+            )}
+            {data && isVisible('ProduÃ§Ã£o', 'ConteÃºdo', '-', 'Tabulador "EspaÃ§os"') && (
+              <TabsContent value="espacos" className="mt-4">
+                <ConteudoEspacosTab conteudoId={data.id} readOnly={readOnly} />
               </TabsContent>
             )}
             {data && isVisible('ProduÃ§Ã£o', 'ConteÃºdo', '-', 'Tabulador "Terceiros"') && (

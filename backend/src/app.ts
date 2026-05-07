@@ -102,6 +102,9 @@ import { TurnosService } from './modules/turnos/turnos.service.js';
 import { PrismaEscalasRepository } from './modules/escalas/escalas.repository.js';
 import { createEscalasRoutes } from './modules/escalas/routes/index.js';
 import { EscalasService } from './modules/escalas/escalas.service.js';
+import { PrismaEspacosRepository } from './modules/espacos/espacos.repository.js';
+import { createEspacosRoutes } from './modules/espacos/routes/index.js';
+import { EspacosService } from './modules/espacos/espacos.service.js';
 import { authErrorHandler } from './plugins/auth.js';
 import { observabilityPlugin } from './plugins/observability.js';
 import { createHealthRoutes } from './routes/health/index.js';
@@ -136,6 +139,7 @@ type BuildAppOptions = {
   tenantsService?: TenantsService;
   turnosService?: TurnosService;
   escalasService?: EscalasService;
+  espacosService?: EspacosService;
   unidadesService?: UnidadesService;
   usersService?: UsersService;
   healthService?: HealthService;
@@ -193,6 +197,7 @@ export async function buildApp(options: BuildAppOptions = {}) {
   const tenantsService = options.tenantsService ?? new TenantsService(new PrismaTenantsRepository(), new PrismaUsersRepository());
   const turnosService = options.turnosService ?? new TurnosService(new PrismaTurnosRepository());
   const escalasService = options.escalasService ?? new EscalasService(new PrismaEscalasRepository());
+  const espacosService = options.espacosService ?? new EspacosService(new PrismaEspacosRepository());
   const unidadesService = options.unidadesService ?? new UnidadesService(new PrismaUnidadesRepository());
   const usersService = options.usersService ?? new UsersService(new PrismaUsersRepository());
 
@@ -411,6 +416,7 @@ export async function buildApp(options: BuildAppOptions = {}) {
   await app.register(createTenantsRoutes(authService, tenantsService));
   await app.register(createTurnosRoutes(authService, turnosService));
   await app.register(createEscalasRoutes(authService, escalasService));
+  await app.register(createEspacosRoutes(authService, espacosService));
   await app.register(createUnidadesRoutes(authService, unidadesService));
   await app.register(createUsersRoutes(authService, usersService));
 

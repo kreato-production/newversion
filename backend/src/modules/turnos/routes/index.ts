@@ -17,7 +17,6 @@ export function createTurnosRoutes(
   return async (app) => {
     const authenticate = createAuthenticate(authService);
     const requireTenantAccess = createRequireTenantAccess();
-    const requireAdminRole = createRequireRole(['GLOBAL_ADMIN', 'TENANT_ADMIN']);
 
     app.get('/turnos', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
@@ -25,20 +24,20 @@ export function createTurnosRoutes(
       return reply.status(200).send(await turnosService.list(user, opts));
     });
 
-    app.post('/turnos', { preHandler: [authenticate, requireAdminRole, requireTenantAccess] }, async (request, reply) => {
+    app.post('/turnos', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const body = saveTurnoSchema.parse(request.body);
       return reply.status(200).send(await turnosService.save(user, body));
     });
 
-    app.put('/turnos/:id', { preHandler: [authenticate, requireAdminRole, requireTenantAccess] }, async (request, reply) => {
+    app.put('/turnos/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const params = request.params as { id: string };
       const body = saveTurnoSchema.parse({ ...(request.body as object), id: params.id });
       return reply.status(200).send(await turnosService.save(user, body));
     });
 
-    app.delete('/turnos/:id', { preHandler: [authenticate, requireAdminRole, requireTenantAccess] }, async (request, reply) => {
+    app.delete('/turnos/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const params = request.params as { id: string };
       await turnosService.remove(user, params.id);

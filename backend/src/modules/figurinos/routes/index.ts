@@ -14,7 +14,6 @@ export function createFigurinosRoutes(authService: AuthService, figurinosService
   return async (app) => {
     const authenticate = createAuthenticate(authService);
     const requireTenantAccess = createRequireTenantAccess();
-    const requireAdminRole = createRequireRole(['GLOBAL_ADMIN', 'TENANT_ADMIN']);
 
     app.get('/figurinos', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
@@ -27,20 +26,20 @@ export function createFigurinosRoutes(authService: AuthService, figurinosService
       return reply.status(200).send(await figurinosService.listOptions(user));
     });
 
-    app.post('/figurinos', { preHandler: [authenticate, requireAdminRole, requireTenantAccess] }, async (request, reply) => {
+    app.post('/figurinos', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const body = saveFigurinoSchema.parse(request.body);
       return reply.status(200).send(await figurinosService.save(user, body));
     });
 
-    app.put('/figurinos/:id', { preHandler: [authenticate, requireAdminRole, requireTenantAccess] }, async (request, reply) => {
+    app.put('/figurinos/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const params = request.params as { id: string };
       const body = saveFigurinoSchema.parse({ ...(request.body as object), id: params.id });
       return reply.status(200).send(await figurinosService.save(user, body));
     });
 
-    app.delete('/figurinos/:id', { preHandler: [authenticate, requireAdminRole, requireTenantAccess] }, async (request, reply) => {
+    app.delete('/figurinos/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const params = request.params as { id: string };
       await figurinosService.remove(user, params.id);

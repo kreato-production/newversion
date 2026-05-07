@@ -17,7 +17,6 @@ export function createFeriadosRoutes(
   return async (app) => {
     const authenticate = createAuthenticate(authService);
     const requireTenantAccess = createRequireTenantAccess();
-    const requireAdminRole = createRequireRole(['GLOBAL_ADMIN', 'TENANT_ADMIN']);
 
     app.get('/feriados', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
@@ -27,7 +26,7 @@ export function createFeriadosRoutes(
 
     app.post(
       '/feriados',
-      { preHandler: [authenticate, requireAdminRole, requireTenantAccess] },
+      { preHandler: [authenticate, requireTenantAccess] },
       async (request, reply) => {
         const { user } = request as AuthenticatedRequest;
         const body = saveFeriadoSchema.parse(request.body);
@@ -37,7 +36,7 @@ export function createFeriadosRoutes(
 
     app.put(
       '/feriados/:id',
-      { preHandler: [authenticate, requireAdminRole, requireTenantAccess] },
+      { preHandler: [authenticate, requireTenantAccess] },
       async (request, reply) => {
         const { user } = request as AuthenticatedRequest;
         const params = request.params as { id: string };
@@ -48,7 +47,7 @@ export function createFeriadosRoutes(
 
     app.delete(
       '/feriados/:id',
-      { preHandler: [authenticate, requireAdminRole, requireTenantAccess] },
+      { preHandler: [authenticate, requireTenantAccess] },
       async (request, reply) => {
         const { user } = request as AuthenticatedRequest;
         const params = request.params as { id: string };

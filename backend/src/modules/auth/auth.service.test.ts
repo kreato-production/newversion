@@ -52,6 +52,7 @@ class InMemoryAuthRepository implements AuthRepository {
         role: this.user.role,
         status: this.user.status,
         tenantStatus: this.user.tenantStatus,
+        tenantNome: this.user.tenantNome,
       },
     });
   }
@@ -93,6 +94,7 @@ describe('AuthService', () => {
       status: 'ATIVO' as UserStatus,
       passwordHash: hashPassword('123456'),
       tenantStatus: 'ATIVO' as TenantStatus,
+      tenantNome: null,
     };
     return repository;
   }

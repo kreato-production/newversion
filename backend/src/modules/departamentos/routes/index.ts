@@ -14,7 +14,6 @@ export function createDepartamentosRoutes(authService: AuthService, departamento
   return async (app) => {
     const authenticate = createAuthenticate(authService);
     const requireTenantAccess = createRequireTenantAccess();
-    const requireAdminRole = createRequireRole(['GLOBAL_ADMIN', 'TENANT_ADMIN']);
 
     app.get('/departamentos', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
@@ -22,20 +21,20 @@ export function createDepartamentosRoutes(authService: AuthService, departamento
       return reply.status(200).send(await departamentosService.list(user, opts));
     });
 
-    app.post('/departamentos', { preHandler: [authenticate, requireAdminRole, requireTenantAccess] }, async (request, reply) => {
+    app.post('/departamentos', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const body = saveDepartamentoSchema.parse(request.body);
       return reply.status(200).send(await departamentosService.save(user, body));
     });
 
-    app.put('/departamentos/:id', { preHandler: [authenticate, requireAdminRole, requireTenantAccess] }, async (request, reply) => {
+    app.put('/departamentos/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const params = request.params as { id: string };
       const body = saveDepartamentoSchema.parse({ ...(request.body as object), id: params.id });
       return reply.status(200).send(await departamentosService.save(user, body));
     });
 
-    app.delete('/departamentos/:id', { preHandler: [authenticate, requireAdminRole, requireTenantAccess] }, async (request, reply) => {
+    app.delete('/departamentos/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const params = request.params as { id: string };
       await departamentosService.remove(user, params.id);
@@ -48,14 +47,14 @@ export function createDepartamentosRoutes(authService: AuthService, departamento
       return reply.status(200).send(await departamentosService.listFuncoes(user, params.id));
     });
 
-    app.post('/departamentos/:id/funcoes', { preHandler: [authenticate, requireAdminRole, requireTenantAccess] }, async (request, reply) => {
+    app.post('/departamentos/:id/funcoes', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const params = request.params as { id: string };
       const body = saveDepartamentoFuncaoSchema.parse(request.body);
       return reply.status(200).send(await departamentosService.addFuncao(user, params.id, body.funcaoId));
     });
 
-    app.delete('/departamentos/:id/funcoes/:associacaoId', { preHandler: [authenticate, requireAdminRole, requireTenantAccess] }, async (request, reply) => {
+    app.delete('/departamentos/:id/funcoes/:associacaoId', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const params = request.params as { id: string; associacaoId: string };
       await departamentosService.removeFuncao(user, params.id, params.associacaoId);

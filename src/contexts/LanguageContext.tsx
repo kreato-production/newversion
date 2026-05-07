@@ -176,6 +176,7 @@ const translations: Record<Language, Record<string, string>> = {
     'menu.holidays': 'Feriados',
     'menu.shifts': 'Turnos',
     'menu.escalas': 'Escalas',
+    'menu.spaces': 'Espaços',
     'menu.supplierCategory': 'Categoria de Fornecedores',
     'menu.peopleClassification': 'Classificação Pessoas',
     'menu.costumeType': 'Tipo Figurino',
@@ -766,6 +767,25 @@ const translations: Record<Language, Record<string, string>> = {
     'turns.peoplePerDay': 'Pessoas por Dia',
     'turns.peoplePerDayHint': 'Configure os dias ativos e o número de pessoas por dia.',
 
+    // Spaces (Espaços)
+    'spaces.title': 'Espaços',
+    'spaces.description': 'Gerencie os espaços de produção',
+    'spaces.new': 'Novo Espaço',
+    'spaces.edit': 'Editar Espaço',
+    'spaces.newDescription': 'Cadastrar novo espaço.',
+    'spaces.editDescription': 'Altere os dados do espaço.',
+    'spaces.empty': 'Nenhum espaço cadastrado. Adicione um espaço.',
+    'spaces.emptyDetailTitle': 'Selecione um espaço',
+    'spaces.emptyDetailDescription': 'Selecione um espaço da lista para visualizar os detalhes.',
+    'spaces.created': 'Espaço criado com sucesso!',
+    'spaces.updated': 'Espaço atualizado com sucesso!',
+    'spaces.deleted': 'Espaço removido com sucesso!',
+    'spaces.loadError': 'Erro ao carregar espaços',
+    'spaces.saveError': 'Erro ao salvar espaço',
+    'spaces.deleteError': 'Erro ao excluir espaço',
+    'spaces.deleteConfirmation':
+      'Tem certeza que deseja excluir este espaço? Esta ação não pode ser desfeita.',
+
     // Scales (Escalas)
     'scales.title': 'Escalas',
     'scales.description': 'Gerencie as escalas de trabalho',
@@ -979,6 +999,7 @@ const translations: Record<Language, Record<string, string>> = {
     'menu.holidays': 'Holidays',
     'menu.shifts': 'Shifts',
     'menu.escalas': 'Schedules',
+    'menu.spaces': 'Spaces',
     'menu.supplierCategory': 'Supplier Categories',
     'menu.peopleClassification': 'People Classification',
     'menu.costumeType': 'Costume Type',
@@ -1566,6 +1587,25 @@ const translations: Record<Language, Record<string, string>> = {
     'turns.peoplePerDay': 'People per Day',
     'turns.peoplePerDayHint': 'Configure active days and the number of people per day.',
 
+    // Spaces (Espaços)
+    'spaces.title': 'Spaces',
+    'spaces.description': 'Manage production spaces',
+    'spaces.new': 'New Space',
+    'spaces.edit': 'Edit Space',
+    'spaces.newDescription': 'Register a new space.',
+    'spaces.editDescription': 'Edit space details.',
+    'spaces.empty': 'No spaces registered. Add a space.',
+    'spaces.emptyDetailTitle': 'Select a space',
+    'spaces.emptyDetailDescription': 'Select a space from the list to view details.',
+    'spaces.created': 'Space created successfully!',
+    'spaces.updated': 'Space updated successfully!',
+    'spaces.deleted': 'Space removed successfully!',
+    'spaces.loadError': 'Error loading spaces',
+    'spaces.saveError': 'Error saving space',
+    'spaces.deleteError': 'Error deleting space',
+    'spaces.deleteConfirmation':
+      'Are you sure you want to delete this space? This action cannot be undone.',
+
     // Scales (Escalas)
     'scales.title': 'Schedules',
     'scales.description': 'Manage work schedules',
@@ -1776,6 +1816,7 @@ const translations: Record<Language, Record<string, string>> = {
     'menu.holidays': 'Feriados',
     'menu.shifts': 'Turnos',
     'menu.escalas': 'Escalas',
+    'menu.spaces': 'Espacios',
     'menu.supplierCategory': 'Categorías de Proveedores',
     'menu.peopleClassification': 'Clasificación de Personas',
     'menu.costumeType': 'Tipo de Vestuario',
@@ -2368,6 +2409,25 @@ const translations: Record<Language, Record<string, string>> = {
     'turns.specialDayOffOption.2_domingos_mes': '2 Domingos por Mes',
     'turns.peoplePerDay': 'Personas por Día',
     'turns.peoplePerDayHint': 'Configure los días activos y el número de personas por día.',
+
+    // Spaces (Espaços)
+    'spaces.title': 'Espacios',
+    'spaces.description': 'Gestione los espacios de producción',
+    'spaces.new': 'Nuevo Espacio',
+    'spaces.edit': 'Editar Espacio',
+    'spaces.newDescription': 'Registrar nuevo espacio.',
+    'spaces.editDescription': 'Alterar los datos del espacio.',
+    'spaces.empty': 'No hay espacios registrados. Añada un espacio.',
+    'spaces.emptyDetailTitle': 'Seleccione un espacio',
+    'spaces.emptyDetailDescription': 'Seleccione un espacio de la lista para ver los detalles.',
+    'spaces.created': '¡Espacio creado con éxito!',
+    'spaces.updated': '¡Espacio actualizado con éxito!',
+    'spaces.deleted': '¡Espacio eliminado con éxito!',
+    'spaces.loadError': 'Error al cargar espacios',
+    'spaces.saveError': 'Error al guardar espacio',
+    'spaces.deleteError': 'Error al eliminar espacio',
+    'spaces.deleteConfirmation':
+      '¿Está seguro de que desea eliminar este espacio? Esta acción no se puede deshacer.',
 
     // Scales (Escalas)
     'scales.title': 'Escalas',

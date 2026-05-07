@@ -6,6 +6,7 @@ import type { AuthenticatedUser, AuthorizationContext, PermissionItem, TenantVal
 export type LoginUserRecord = AuthenticatedUser & {
   passwordHash: string | null;
   tenantStatus: TenantStatus | null;
+  tenantNome: string | null;
   perfil?: string | null;
   tipoAcesso?: string | null;
 };
@@ -18,6 +19,7 @@ export type RefreshTokenRecord = {
   revokedAt: Date | null;
   user: AuthenticatedUser & {
     tenantStatus: TenantStatus | null;
+    tenantNome: string | null;
     perfil?: string | null;
     tipoAcesso?: string | null;
   };
@@ -90,7 +92,7 @@ function mapUser(user: {
   passwordHash: string | null;
   perfil: string | null;
   tipoAcesso: string;
-  tenant: { status: TenantStatus } | null;
+  tenant: { status: TenantStatus; nome: string } | null;
 }): LoginUserRecord {
   return {
     id: user.id,
@@ -102,6 +104,7 @@ function mapUser(user: {
     status: user.status,
     passwordHash: user.passwordHash,
     tenantStatus: user.tenant?.status ?? null,
+    tenantNome: user.tenant?.nome ?? null,
     perfil: user.perfil,
     tipoAcesso: user.tipoAcesso,
   };
@@ -145,14 +148,15 @@ export class PrismaAuthRepository implements AuthRepository {
     const user = await prisma.user.findFirst({
       where: {
         OR: [
-          { usuario: identifier },
-          { email: identifier },
+          { usuario: { equals: identifier, mode: 'insensitive' } },
+          { email: { equals: identifier, mode: 'insensitive' } },
         ],
       },
       include: {
         tenant: {
           select: {
             status: true,
+            nome: true,
           },
         },
       },
@@ -168,6 +172,7 @@ export class PrismaAuthRepository implements AuthRepository {
         tenant: {
           select: {
             status: true,
+            nome: true,
           },
         },
       },
@@ -192,10 +197,16 @@ export class PrismaAuthRepository implements AuthRepository {
         tipo_acesso: string | null;
         perfil_nome: string | null;
       }>>`
-        SELECT p.tenant_id, p.perfil_id, p.tipo_acesso, pa.nome AS perfil_nome
-        FROM profiles p
-        LEFT JOIN perfis_acesso pa ON pa.id = p.perfil_id
-        WHERE p.id = ${userId}
+        SELECT
+          u."tenantId"    AS tenant_id,
+          pa.id::text     AS perfil_id,
+          u."tipoAcesso"  AS tipo_acesso,
+          pa.nome         AS perfil_nome
+        FROM "User" u
+        LEFT JOIN perfis_acesso pa
+          ON pa.nome = u.perfil
+         AND pa.tenant_id::text = u."tenantId"
+        WHERE u.id = ${userId}
         LIMIT 1
       `;
 
@@ -232,7 +243,7 @@ export class PrismaAuthRepository implements AuthRepository {
           }>>`
             SELECT modulo, sub_modulo1, sub_modulo2, campo, acao, somente_leitura, incluir, alterar, excluir, tipo
             FROM perfil_permissoes
-            WHERE perfil_id = ${perfilId}
+            WHERE perfil_id = ${perfilId}::uuid
           `
         : [];
 
@@ -297,7 +308,7 @@ export class PrismaAuthRepository implements AuthRepository {
         user: {
           include: {
             tenant: {
-              select: { status: true },
+              select: { status: true, nome: true },
             },
           },
         },
@@ -323,6 +334,7 @@ export class PrismaAuthRepository implements AuthRepository {
         role: refreshToken.user.role,
         status: refreshToken.user.status,
         tenantStatus: refreshToken.user.tenant?.status ?? null,
+        tenantNome: refreshToken.user.tenant?.nome ?? null,
         perfil: refreshToken.user.perfil,
         tipoAcesso: refreshToken.user.tipoAcesso,
       },
@@ -349,7 +361,7 @@ export class PrismaAuthRepository implements AuthRepository {
   async findUserByKeycloakId(keycloakId: string): Promise<LoginUserRecord | null> {
     const user = await prisma.user.findUnique({
       where: { keycloakId },
-      include: { tenant: { select: { status: true } } },
+      include: { tenant: { select: { status: true, nome: true } } },
     });
     return user ? mapUser(user) : null;
   }

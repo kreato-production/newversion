@@ -11,7 +11,7 @@
  * quando disponível — para Credentials a constraint é JWT.
  */
 
-import NextAuth from 'next-auth';
+import NextAuth, { CredentialsSignin } from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
 import Keycloak from 'next-auth/providers/keycloak';
 import { PrismaAdapter } from '@auth/prisma-adapter';
@@ -25,6 +25,7 @@ type FastifyLoginResponse = {
   user: {
     id: string;
     tenantId: string | null;
+    tenantNome: string | null;
     nome: string;
     email: string;
     usuario: string;
@@ -42,6 +43,7 @@ type SessionTokenShape = {
   userId?: string;
   role?: KreatoUserRole;
   tenantId?: string | null;
+  tenantNome?: string | null;
   usuario?: string;
   perfil?: string;
   tipoAcesso?: string;
@@ -168,14 +170,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           });
 
           if (!response.ok) {
-            const err = (await response.json().catch(() => ({}))) as { message?: string };
-            throw new Error(err.message ?? 'Credenciais inválidas');
+            throw new CredentialsSignin();
           }
 
           data = (await response.json()) as FastifyLoginResponse;
         } catch (err) {
-          if (err instanceof Error) throw err;
-          throw new Error('Erro ao comunicar com o servidor');
+          if (err instanceof CredentialsSignin) throw err;
+          throw new CredentialsSignin();
         }
 
         const u = data.user;
@@ -194,7 +195,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           tipoAcesso: u.tipoAcesso,
           unidadeIds: u.unidadeIds,
           enabledModules: u.enabledModules,
-          permissions: u.permissions,
+          // Permissions are NOT stored in the JWT to keep the cookie small.
+          // They are fetched client-side via /api/user/permissions after login.
+          permissions: [],
         };
       },
     }),
@@ -227,12 +230,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         sessionToken.userId = u.id as string;
         sessionToken.role = (u.role ?? 'USER') as KreatoUserRole;
         sessionToken.tenantId = (u.tenantId as string | null) ?? null;
+        sessionToken.tenantNome = (u.tenantNome as string | null | undefined) ?? null;
         sessionToken.usuario = (u.usuario as string | undefined) ?? u.email ?? '';
         sessionToken.perfil = (u.perfil as string | undefined) ?? 'Usuário';
         sessionToken.tipoAcesso = (u.tipoAcesso as string | undefined) ?? 'Operacional';
         sessionToken.unidadeIds = (u.unidadeIds as string[] | undefined) ?? [];
         sessionToken.enabledModules = (u.enabledModules as string[] | undefined) ?? [];
-        sessionToken.permissions = (u.permissions as KreatoPermission[] | undefined) ?? [];
+        // permissions are NOT stored in JWT — fetched via /api/user/permissions after login
+        sessionToken.permissions = [];
         sessionToken.checkedAt = Date.now(); // timestamp da última validação
       }
 
@@ -275,7 +280,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         !sessionToken.usuario ||
         !sessionToken.perfil ||
         !Array.isArray(sessionToken.enabledModules) ||
-        !Array.isArray(sessionToken.permissions) ||
         !Array.isArray(sessionToken.unidadeIds);
       const needsCheck =
         needsRecovery ||
@@ -318,9 +322,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           sessionToken.unidadeIds = Array.isArray(sessionToken.unidadeIds)
             ? sessionToken.unidadeIds
             : [];
-          sessionToken.permissions = Array.isArray(sessionToken.permissions)
-            ? sessionToken.permissions
-            : [];
+          sessionToken.permissions = []; // always empty in JWT — fetched client-side
           sessionToken.checkedAt = Date.now();
         } catch {
           // Falha de banco não invalida a sessão (degradação graciosa)
@@ -341,6 +343,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       session.user.id = resolvedUserId ?? '';
       session.user.role = sessionToken.role ?? 'USER';
       session.user.tenantId = sessionToken.tenantId ?? null;
+      session.user.tenantNome = sessionToken.tenantNome ?? null;
       session.user.usuario = sessionToken.usuario ?? session.user.email ?? '';
       session.user.perfil = sessionToken.perfil ?? 'Usuário';
       session.user.tipoAcesso = sessionToken.tipoAcesso ?? 'Operacional';

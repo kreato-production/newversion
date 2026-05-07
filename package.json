@@ -4,9 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
+    "dev": "node --max-http-header-size=65536 node_modules/next/dist/bin/next dev",
+    "build": "node --max-http-header-size=65536 node_modules/next/dist/bin/next build",
+    "start": "node --max-http-header-size=65536 node_modules/next/dist/bin/next start",
     "lint": "next lint",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",

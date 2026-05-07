@@ -59,6 +59,8 @@ class InMemoryUsersRepository implements UsersRepository {
     this.items.delete(id);
   }
 
+  async findTenantAdmin(_tenantId: string) { return null; }
+
   async listAvailableUnidades() { return []; }
   async listUserUnidades() { return []; }
   async addUserUnidade() {}
@@ -85,6 +87,7 @@ const tenantAdmin: SessionUser = {
   unidadeIds: [],
   enabledModules: ['Dashboard', 'Produ��o', 'Recursos', 'Administra��o'],
   permissions: [],
+  tenantNome: null,
 };
 
 const globalAdmin: SessionUser = {
@@ -99,6 +102,7 @@ const globalAdmin: SessionUser = {
   unidadeIds: [],
   enabledModules: ['Dashboard', 'Produção', 'Recursos', 'Administração'],
   permissions: [],
+  tenantNome: null,
 };
 
 describe('UsersService', () => {

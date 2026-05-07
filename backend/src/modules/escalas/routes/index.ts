@@ -17,7 +17,6 @@ export function createEscalasRoutes(
   return async (app) => {
     const authenticate = createAuthenticate(authService);
     const requireTenantAccess = createRequireTenantAccess();
-    const requireAdminRole = createRequireRole(['GLOBAL_ADMIN', 'TENANT_ADMIN']);
 
     app.get('/escalas', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
@@ -25,20 +24,20 @@ export function createEscalasRoutes(
       return reply.status(200).send(await escalasService.list(user, opts));
     });
 
-    app.post('/escalas', { preHandler: [authenticate, requireAdminRole, requireTenantAccess] }, async (request, reply) => {
+    app.post('/escalas', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const body = saveEscalaSchema.parse(request.body);
       return reply.status(200).send(await escalasService.save(user, body));
     });
 
-    app.put('/escalas/:id', { preHandler: [authenticate, requireAdminRole, requireTenantAccess] }, async (request, reply) => {
+    app.put('/escalas/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const params = request.params as { id: string };
       const body = saveEscalaSchema.parse({ ...(request.body as object), id: params.id });
       return reply.status(200).send(await escalasService.save(user, body));
     });
 
-    app.delete('/escalas/:id', { preHandler: [authenticate, requireAdminRole, requireTenantAccess] }, async (request, reply) => {
+    app.delete('/escalas/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const params = request.params as { id: string };
       await escalasService.remove(user, params.id);
@@ -51,7 +50,7 @@ export function createEscalasRoutes(
       return reply.status(200).send(await escalasService.getColaboradores(user, params.id));
     });
 
-    app.put('/escalas/:id/colaboradores', { preHandler: [authenticate, requireAdminRole, requireTenantAccess] }, async (request, reply) => {
+    app.put('/escalas/:id/colaboradores', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const params = request.params as { id: string };
       const body = saveColaboradoresSchema.parse(request.body);

@@ -20,7 +20,6 @@ export function createFornecedoresRoutes(authService: AuthService, fornecedoresS
   return async (app) => {
     const authenticate = createAuthenticate(authService);
     const requireTenantAccess = createRequireTenantAccess();
-    const requireAdminRole = createRequireRole(['GLOBAL_ADMIN', 'TENANT_ADMIN']);
 
     app.get('/fornecedores', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
@@ -33,20 +32,20 @@ export function createFornecedoresRoutes(authService: AuthService, fornecedoresS
       return reply.status(200).send(await fornecedoresService.listOptions(user));
     });
 
-    app.post('/fornecedores', { preHandler: [authenticate, requireAdminRole, requireTenantAccess] }, async (request, reply) => {
+    app.post('/fornecedores', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const body = saveFornecedorSchema.parse(request.body);
       return reply.status(200).send(await fornecedoresService.save(user, body));
     });
 
-    app.put('/fornecedores/:id', { preHandler: [authenticate, requireAdminRole, requireTenantAccess] }, async (request, reply) => {
+    app.put('/fornecedores/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const params = request.params as { id: string };
       const body = saveFornecedorSchema.parse({ ...(request.body as object), id: params.id });
       return reply.status(200).send(await fornecedoresService.save(user, body));
     });
 
-    app.delete('/fornecedores/:id', { preHandler: [authenticate, requireAdminRole, requireTenantAccess] }, async (request, reply) => {
+    app.delete('/fornecedores/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const params = request.params as { id: string };
       await fornecedoresService.remove(user, params.id);
@@ -59,21 +58,21 @@ export function createFornecedoresRoutes(authService: AuthService, fornecedoresS
       return reply.status(200).send(await fornecedoresService.listServicos(user, params.id));
     });
 
-    app.post('/fornecedores/:id/servicos', { preHandler: [authenticate, requireAdminRole, requireTenantAccess] }, async (request, reply) => {
+    app.post('/fornecedores/:id/servicos', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const params = request.params as { id: string };
       const body = addFornecedorServicoSchema.parse(request.body);
       return reply.status(200).send(await fornecedoresService.addServico(user, params.id, body));
     });
 
-    app.put('/fornecedores/:id/servicos/:itemId', { preHandler: [authenticate, requireAdminRole, requireTenantAccess] }, async (request, reply) => {
+    app.put('/fornecedores/:id/servicos/:itemId', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const params = request.params as { id: string; itemId: string };
       const body = updateFornecedorServicoSchema.parse(request.body);
       return reply.status(200).send(await fornecedoresService.updateServico(user, params.id, params.itemId, body));
     });
 
-    app.delete('/fornecedores/:id/servicos/:itemId', { preHandler: [authenticate, requireAdminRole, requireTenantAccess] }, async (request, reply) => {
+    app.delete('/fornecedores/:id/servicos/:itemId', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const params = request.params as { id: string; itemId: string };
       await fornecedoresService.removeServico(user, params.id, params.itemId);
@@ -86,14 +85,14 @@ export function createFornecedoresRoutes(authService: AuthService, fornecedoresS
       return reply.status(200).send(await fornecedoresService.listArquivos(user, params.id));
     });
 
-    app.post('/fornecedores/:id/arquivos', { preHandler: [authenticate, requireAdminRole, requireTenantAccess] }, async (request, reply) => {
+    app.post('/fornecedores/:id/arquivos', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const params = request.params as { id: string };
       const body = addFornecedorArquivoSchema.parse(request.body);
       return reply.status(200).send(await fornecedoresService.addArquivo(user, params.id, body));
     });
 
-    app.delete('/fornecedores/:id/arquivos/:arquivoId', { preHandler: [authenticate, requireAdminRole, requireTenantAccess] }, async (request, reply) => {
+    app.delete('/fornecedores/:id/arquivos/:arquivoId', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const params = request.params as { id: string; arquivoId: string };
       await fornecedoresService.removeArquivo(user, params.id, params.arquivoId);

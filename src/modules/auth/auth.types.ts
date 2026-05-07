@@ -1,5 +1,5 @@
 export interface PermissionItem {
-  id: string;
+  id?: string;
   modulo: string;
   subModulo1: string;
   subModulo2: string;
@@ -37,6 +37,7 @@ export interface AuthUserProfile {
   recursoHumanoId?: string;
   unidadeIds?: string[];
   tenantId?: string;
+  tenantNome?: string | null;
   role?: string;
   permissions?: PermissionItem[];
   enabledModules?: string[];

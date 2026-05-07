@@ -14,7 +14,6 @@ export function createRecursosTecnicosRoutes(authService: AuthService, recursosT
   return async (app) => {
     const authenticate = createAuthenticate(authService);
     const requireTenantAccess = createRequireTenantAccess();
-    const requireAdminRole = createRequireRole(['GLOBAL_ADMIN', 'TENANT_ADMIN']);
 
     app.get('/recursos-tecnicos', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
@@ -27,20 +26,20 @@ export function createRecursosTecnicosRoutes(authService: AuthService, recursosT
       return reply.status(200).send(await recursosTecnicosService.listOptions(user));
     });
 
-    app.post('/recursos-tecnicos', { preHandler: [authenticate, requireAdminRole, requireTenantAccess] }, async (request, reply) => {
+    app.post('/recursos-tecnicos', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const body = saveRecursoTecnicoSchema.parse(request.body);
       return reply.status(200).send(await recursosTecnicosService.save(user, body));
     });
 
-    app.put('/recursos-tecnicos/:id', { preHandler: [authenticate, requireAdminRole, requireTenantAccess] }, async (request, reply) => {
+    app.put('/recursos-tecnicos/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const params = request.params as { id: string };
       const body = saveRecursoTecnicoSchema.parse({ ...(request.body as object), id: params.id });
       return reply.status(200).send(await recursosTecnicosService.save(user, body));
     });
 
-    app.delete('/recursos-tecnicos/:id', { preHandler: [authenticate, requireAdminRole, requireTenantAccess] }, async (request, reply) => {
+    app.delete('/recursos-tecnicos/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const params = request.params as { id: string };
       await recursosTecnicosService.remove(user, params.id);

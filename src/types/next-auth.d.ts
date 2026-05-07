@@ -8,7 +8,7 @@ import type { DefaultSession, DefaultJWT } from 'next-auth';
 export type KreatoUserRole = 'GLOBAL_ADMIN' | 'TENANT_ADMIN' | 'USER';
 
 export type KreatoPermission = {
-  id: string;
+  id?: string;
   modulo: string;
   subModulo1: string;
   subModulo2: string;
@@ -25,6 +25,7 @@ type KreatoSessionUser = {
   id: string;
   role: KreatoUserRole;
   tenantId: string | null;
+  tenantNome: string | null;
   usuario: string;
   perfil: string;
   tipoAcesso: string;
@@ -57,6 +58,7 @@ declare module 'next-auth/jwt' {
     userId?: string;
     role?: KreatoUserRole;
     tenantId?: string | null;
+    tenantNome?: string | null;
     usuario?: string;
     perfil?: string;
     tipoAcesso?: string;

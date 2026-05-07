@@ -17,7 +17,6 @@ export function createTabelasPrecoRoutes(authService: AuthService, tabelasPrecoS
   return async (app) => {
     const authenticate = createAuthenticate(authService);
     const requireTenantAccess = createRequireTenantAccess();
-    const requireAdminRole = createRequireRole(['GLOBAL_ADMIN', 'TENANT_ADMIN']);
 
     app.get('/tabelas-preco', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
@@ -29,20 +28,20 @@ export function createTabelasPrecoRoutes(authService: AuthService, tabelasPrecoS
       return reply.status(200).send(await tabelasPrecoService.listOptions(user));
     });
 
-    app.post('/tabelas-preco', { preHandler: [authenticate, requireAdminRole, requireTenantAccess] }, async (request, reply) => {
+    app.post('/tabelas-preco', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const body = saveTabelaPrecoSchema.parse(request.body);
       return reply.status(200).send(await tabelasPrecoService.save(user, body));
     });
 
-    app.put('/tabelas-preco/:id', { preHandler: [authenticate, requireAdminRole, requireTenantAccess] }, async (request, reply) => {
+    app.put('/tabelas-preco/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const params = request.params as { id: string };
       const body = saveTabelaPrecoSchema.parse({ ...(request.body as object), id: params.id });
       return reply.status(200).send(await tabelasPrecoService.save(user, body));
     });
 
-    app.delete('/tabelas-preco/:id', { preHandler: [authenticate, requireAdminRole, requireTenantAccess] }, async (request, reply) => {
+    app.delete('/tabelas-preco/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const params = request.params as { id: string };
       await tabelasPrecoService.remove(user, params.id);
@@ -56,7 +55,7 @@ export function createTabelasPrecoRoutes(authService: AuthService, tabelasPrecoS
       return reply.status(200).send(await tabelasPrecoService.listRecursos(user, params.id, parsed.tipo));
     });
 
-    app.post('/tabelas-preco/:id/recursos/:tipo', { preHandler: [authenticate, requireAdminRole, requireTenantAccess] }, async (request, reply) => {
+    app.post('/tabelas-preco/:id/recursos/:tipo', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const params = request.params as { id: string; tipo: string };
       const parsedParams = tipoParamsSchema.parse({ tipo: params.tipo });
@@ -64,7 +63,7 @@ export function createTabelasPrecoRoutes(authService: AuthService, tabelasPrecoS
       return reply.status(200).send(await tabelasPrecoService.addRecurso(user, params.id, body));
     });
 
-    app.delete('/tabelas-preco/:id/recursos/:tipo/:itemId', { preHandler: [authenticate, requireAdminRole, requireTenantAccess] }, async (request, reply) => {
+    app.delete('/tabelas-preco/:id/recursos/:tipo/:itemId', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const params = request.params as { id: string; tipo: string; itemId: string };
       const parsed = tipoParamsSchema.parse({ tipo: params.tipo });

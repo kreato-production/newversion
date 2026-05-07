@@ -10,7 +10,7 @@ import type { SaveUnidadeInput, UnidadeRecord, UnidadesRepository } from '../uni
 
 class RouteAuthRepository implements AuthRepository {
   user: LoginUserRecord = {
-    id: 'user-1', tenantId: '11111111-1111-1111-1111-111111111111', nome: 'Ana Silva', email: 'ana@kreato.app', usuario: 'ana', role: 'TENANT_ADMIN' as UserRole, status: 'ATIVO' as UserStatus, passwordHash: hashPassword('123456'), tenantStatus: 'ATIVO' as TenantStatus,
+    id: 'user-1', tenantId: '11111111-1111-1111-1111-111111111111', nome: 'Ana Silva', email: 'ana@kreato.app', usuario: 'ana', role: 'TENANT_ADMIN' as UserRole, status: 'ATIVO' as UserStatus, passwordHash: hashPassword('123456'), tenantStatus: 'ATIVO' as TenantStatus, tenantNome: null,
   };
   tenantValidation: TenantValidation = { valid: true };
   refreshTokens = new Map<string, RefreshTokenRecord>();

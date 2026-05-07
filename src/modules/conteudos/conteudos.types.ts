@@ -60,6 +60,14 @@ export interface ConteudoFormOptions {
   programas: Array<{ id: string; nome: string; unidadeNegocioId: string | null }>;
 }
 
+export interface EspacoConteudo {
+  id: string;
+  tenantId: string;
+  conteudoId: string;
+  nome: string;
+  descricao: string | null;
+}
+
 export const generateCodigoConteudo = (): string => {
   const timestamp = Date.now().toString().slice(-6);
   return `C${timestamp}`;

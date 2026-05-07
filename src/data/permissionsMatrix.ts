@@ -5,7 +5,7 @@
 import { ApiAdminConfigRepository } from '@/modules/admin/admin-config.api';
 
 export interface PermissionItem {
-  id: string;
+  id?: string;
   modulo: string;
   subModulo1: string;
   subModulo2: string;
@@ -1778,6 +1778,68 @@ export const basePermissionsMatrix: Omit<PermissionItem, 'id'>[] = [
   {
     modulo: 'Recursos',
     subModulo1: 'Recursos Físicos',
+    subModulo2: '-',
+    campo: 'Tabulador "Disponibilidade"',
+    acao: 'visible',
+    somenteLeitura: false,
+    incluir: true,
+    alterar: true,
+    excluir: true,
+    tipo: 'campo',
+  },
+
+  // Recursos > Espaços
+  {
+    modulo: 'Recursos',
+    subModulo1: 'Espaços',
+    subModulo2: '-',
+    campo: '-',
+    acao: 'visible',
+    somenteLeitura: false,
+    incluir: true,
+    alterar: true,
+    excluir: true,
+    tipo: 'submodulo1',
+  },
+  {
+    modulo: 'Recursos',
+    subModulo1: 'Espaços',
+    subModulo2: '-',
+    campo: 'Código Externo',
+    acao: 'visible',
+    somenteLeitura: false,
+    incluir: true,
+    alterar: true,
+    excluir: true,
+    tipo: 'campo',
+  },
+  {
+    modulo: 'Recursos',
+    subModulo1: 'Espaços',
+    subModulo2: '-',
+    campo: 'Título',
+    acao: 'visible',
+    somenteLeitura: false,
+    incluir: true,
+    alterar: true,
+    excluir: true,
+    tipo: 'campo',
+  },
+  {
+    modulo: 'Recursos',
+    subModulo1: 'Espaços',
+    subModulo2: '-',
+    campo: 'Descrição',
+    acao: 'visible',
+    somenteLeitura: false,
+    incluir: true,
+    alterar: true,
+    excluir: true,
+    tipo: 'campo',
+  },
+  {
+    modulo: 'Recursos',
+    subModulo1: 'Espaços',
     subModulo2: '-',
     campo: 'Tabulador "Disponibilidade"',
     acao: 'visible',

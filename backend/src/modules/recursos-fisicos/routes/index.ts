@@ -14,7 +14,6 @@ export function createRecursosFisicosRoutes(authService: AuthService, recursosFi
   return async (app) => {
     const authenticate = createAuthenticate(authService);
     const requireTenantAccess = createRequireTenantAccess();
-    const requireAdminRole = createRequireRole(['GLOBAL_ADMIN', 'TENANT_ADMIN']);
     const ocupacaoQuerySchema = z.object({
       dataInicio: z.string().min(1),
       dataFim: z.string().min(1),
@@ -32,20 +31,20 @@ export function createRecursosFisicosRoutes(authService: AuthService, recursosFi
       return reply.status(200).send(await recursosFisicosService.listOcupacoes(user, query.dataInicio, query.dataFim));
     });
 
-    app.post('/recursos-fisicos', { preHandler: [authenticate, requireAdminRole, requireTenantAccess] }, async (request, reply) => {
+    app.post('/recursos-fisicos', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const body = saveRecursoFisicoSchema.parse(request.body);
       return reply.status(200).send(await recursosFisicosService.save(user, body));
     });
 
-    app.put('/recursos-fisicos/:id', { preHandler: [authenticate, requireAdminRole, requireTenantAccess] }, async (request, reply) => {
+    app.put('/recursos-fisicos/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const params = request.params as { id: string };
       const body = saveRecursoFisicoSchema.parse({ ...(request.body as object), id: params.id });
       return reply.status(200).send(await recursosFisicosService.save(user, body));
     });
 
-    app.delete('/recursos-fisicos/:id', { preHandler: [authenticate, requireAdminRole, requireTenantAccess] }, async (request, reply) => {
+    app.delete('/recursos-fisicos/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const params = request.params as { id: string };
       await recursosFisicosService.remove(user, params.id);

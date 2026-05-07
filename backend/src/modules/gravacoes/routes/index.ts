@@ -21,7 +21,6 @@ export function createGravacoesRoutes(authService: AuthService, gravacoesService
   return async (app) => {
     const authenticate = createAuthenticate(authService);
     const requireTenantAccess = createRequireTenantAccess();
-    const requireAdminRole = createRequireRole(['GLOBAL_ADMIN', 'TENANT_ADMIN']);
 
     app.get('/gravacoes', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
@@ -29,20 +28,20 @@ export function createGravacoesRoutes(authService: AuthService, gravacoesService
       return reply.status(200).send(await gravacoesService.list(user, opts));
     });
 
-    app.post('/gravacoes', { preHandler: [authenticate, requireAdminRole, requireTenantAccess] }, async (request, reply) => {
+    app.post('/gravacoes', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const body = saveGravacaoSchema.parse(request.body);
       return reply.status(200).send(await gravacoesService.save(user, body));
     });
 
-    app.put('/gravacoes/:id', { preHandler: [authenticate, requireAdminRole, requireTenantAccess] }, async (request, reply) => {
+    app.put('/gravacoes/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const params = request.params as { id: string };
       const body = saveGravacaoSchema.parse({ ...(request.body as object), id: params.id });
       return reply.status(200).send(await gravacoesService.save(user, body));
     });
 
-    app.delete('/gravacoes/:id', { preHandler: [authenticate, requireAdminRole, requireTenantAccess] }, async (request, reply) => {
+    app.delete('/gravacoes/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const params = request.params as { id: string };
       await gravacoesService.remove(user, params.id);
@@ -55,21 +54,21 @@ export function createGravacoesRoutes(authService: AuthService, gravacoesService
       return reply.status(200).send(await gravacoesService.listFigurinos(user, params.id));
     });
 
-    app.post('/gravacoes/:id/figurinos', { preHandler: [authenticate, requireAdminRole, requireTenantAccess] }, async (request, reply) => {
+    app.post('/gravacoes/:id/figurinos', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const params = request.params as { id: string };
       const body = saveGravacaoFigurinoSchema.parse(request.body);
       return reply.status(200).send(await gravacoesService.addFigurino(user, params.id, body));
     });
 
-    app.put('/gravacoes/:id/figurinos/:itemId', { preHandler: [authenticate, requireAdminRole, requireTenantAccess] }, async (request, reply) => {
+    app.put('/gravacoes/:id/figurinos/:itemId', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const params = request.params as { id: string; itemId: string };
       const body = updateGravacaoFigurinoSchema.parse(request.body);
       return reply.status(200).send(await gravacoesService.updateFigurino(user, params.id, params.itemId, body));
     });
 
-    app.delete('/gravacoes/:id/figurinos/:itemId', { preHandler: [authenticate, requireAdminRole, requireTenantAccess] }, async (request, reply) => {
+    app.delete('/gravacoes/:id/figurinos/:itemId', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const params = request.params as { id: string; itemId: string };
       await gravacoesService.removeFigurino(user, params.id, params.itemId);
@@ -82,14 +81,14 @@ export function createGravacoesRoutes(authService: AuthService, gravacoesService
       return reply.status(200).send(await gravacoesService.listTerceiros(user, params.id));
     });
 
-    app.post('/gravacoes/:id/terceiros', { preHandler: [authenticate, requireAdminRole, requireTenantAccess] }, async (request, reply) => {
+    app.post('/gravacoes/:id/terceiros', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const params = request.params as { id: string };
       const body = saveGravacaoTerceiroSchema.parse(request.body);
       return reply.status(200).send(await gravacoesService.addTerceiro(user, params.id, body));
     });
 
-    app.delete('/gravacoes/:id/terceiros/:itemId', { preHandler: [authenticate, requireAdminRole, requireTenantAccess] }, async (request, reply) => {
+    app.delete('/gravacoes/:id/terceiros/:itemId', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const params = request.params as { id: string; itemId: string };
       await gravacoesService.removeTerceiro(user, params.id, params.itemId);
@@ -102,14 +101,14 @@ export function createGravacoesRoutes(authService: AuthService, gravacoesService
       return reply.status(200).send(await gravacoesService.listConvidados(user, params.id));
     });
 
-    app.post('/gravacoes/:id/convidados', { preHandler: [authenticate, requireAdminRole, requireTenantAccess] }, async (request, reply) => {
+    app.post('/gravacoes/:id/convidados', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const params = request.params as { id: string };
       const body = saveGravacaoConvidadoSchema.parse(request.body);
       return reply.status(200).send(await gravacoesService.addConvidado(user, params.id, body));
     });
 
-    app.delete('/gravacoes/:id/convidados/:itemId', { preHandler: [authenticate, requireAdminRole, requireTenantAccess] }, async (request, reply) => {
+    app.delete('/gravacoes/:id/convidados/:itemId', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const params = request.params as { id: string; itemId: string };
       await gravacoesService.removeConvidado(user, params.id, params.itemId);

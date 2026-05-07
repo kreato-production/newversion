@@ -126,6 +126,73 @@ export const conteudosRelacionamentosApi = {
     });
   },
 
+  listAvailableEspacos() {
+    return apiRequest<Array<{ id: string; titulo: string; descricao: string | null }>>(
+      `/conteudos/espacos-disponiveis`,
+    );
+  },
+
+  listEspacos(conteudoId: string) {
+    return apiRequest<
+      Array<{
+        id: string;
+        tenantId: string;
+        conteudoId: string;
+        espacoId: string | null;
+        espacoNome: string;
+        descricao: string | null;
+        horaInicio: string | null;
+        horaFim: string | null;
+      }>
+    >(`/conteudos/${conteudoId}/espacos`);
+  },
+
+  addEspaco(
+    conteudoId: string,
+    input: {
+      espacoId: string;
+      descricao?: string | null;
+      horaInicio?: string | null;
+      horaFim?: string | null;
+    },
+  ) {
+    return apiRequest<{
+      id: string;
+      espacoId: string | null;
+      espacoNome: string;
+      descricao: string | null;
+      horaInicio: string | null;
+      horaFim: string | null;
+    }>(`/conteudos/${conteudoId}/espacos`, { method: 'POST', body: JSON.stringify(input) });
+  },
+
+  updateEspaco(
+    conteudoId: string,
+    itemId: string,
+    input: {
+      espacoId: string;
+      descricao?: string | null;
+      horaInicio?: string | null;
+      horaFim?: string | null;
+    },
+  ) {
+    return apiRequest<{
+      id: string;
+      espacoId: string | null;
+      espacoNome: string;
+      descricao: string | null;
+      horaInicio: string | null;
+      horaFim: string | null;
+    }>(`/conteudos/${conteudoId}/espacos/${itemId}`, {
+      method: 'PUT',
+      body: JSON.stringify(input),
+    });
+  },
+
+  removeEspaco(conteudoId: string, itemId: string) {
+    return apiRequest<void>(`/conteudos/${conteudoId}/espacos/${itemId}`, { method: 'DELETE' });
+  },
+
   generateGravacoes(conteudoId: string) {
     return apiRequest<{
       items: Array<{

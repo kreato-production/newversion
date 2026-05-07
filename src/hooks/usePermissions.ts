@@ -95,6 +95,17 @@ export const usePermissions = (): UsePermissionsResult => {
 
   const isGlobalAdmin = user?.role === 'GLOBAL_ADMIN';
 
+  const isTenantAdmin = user?.role === 'TENANT_ADMIN';
+
+  // Returns true if the profile has at least one permission entry for this module (any level)
+  const hasAnyEntryForModule = useCallback(
+    (modulo: string): boolean => {
+      const normalizedModulo = normalizePermissionKey(modulo);
+      return permissions.some((p) => normalizePermissionKey(p.modulo) === normalizedModulo);
+    },
+    [permissions],
+  );
+
   const isVisible = useCallback(
     (
       modulo: string,
@@ -118,6 +129,13 @@ export const usePermissions = (): UsePermissionsResult => {
 
       const moduloPermission = findPermission(modulo, '-', '-', '-');
       if (moduloPermission?.acao === 'invisible') return false;
+
+      // For regular users with a configured profile: if the profile has no entries
+      // for this module at any level, the module is not accessible.
+      if (!isTenantAdmin && permissions.length > 0 && !hasAnyEntryForModule(modulo)) {
+        return false;
+      }
+
       if (subModulo1 === '-') return true;
 
       const subModulo1Permission = findPermission(modulo, subModulo1, '-', '-');
@@ -136,7 +154,14 @@ export const usePermissions = (): UsePermissionsResult => {
 
       return true;
     },
-    [findPermission, isGlobalAdmin, normalizedEnabledModules],
+    [
+      findPermission,
+      hasAnyEntryForModule,
+      isGlobalAdmin,
+      isTenantAdmin,
+      normalizedEnabledModules,
+      permissions.length,
+    ],
   );
 
   const hasPermission = isVisible;

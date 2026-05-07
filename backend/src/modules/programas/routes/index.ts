@@ -14,7 +14,6 @@ export function createProgramasRoutes(authService: AuthService, programasService
   return async (app) => {
     const authenticate = createAuthenticate(authService);
     const requireTenantAccess = createRequireTenantAccess();
-    const requireAdminRole = createRequireRole(['GLOBAL_ADMIN', 'TENANT_ADMIN']);
 
     app.get('/programas', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
@@ -22,20 +21,20 @@ export function createProgramasRoutes(authService: AuthService, programasService
       return reply.status(200).send(await programasService.list(user, opts));
     });
 
-    app.post('/programas', { preHandler: [authenticate, requireAdminRole, requireTenantAccess] }, async (request, reply) => {
+    app.post('/programas', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const body = saveProgramaSchema.parse(request.body);
       return reply.status(200).send(await programasService.save(user, body));
     });
 
-    app.put('/programas/:id', { preHandler: [authenticate, requireAdminRole, requireTenantAccess] }, async (request, reply) => {
+    app.put('/programas/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const params = request.params as { id: string };
       const body = saveProgramaSchema.parse({ ...(request.body as object), id: params.id });
       return reply.status(200).send(await programasService.save(user, body));
     });
 
-    app.delete('/programas/:id', { preHandler: [authenticate, requireAdminRole, requireTenantAccess] }, async (request, reply) => {
+    app.delete('/programas/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const params = request.params as { id: string };
       await programasService.remove(user, params.id);

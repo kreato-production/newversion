@@ -10,7 +10,7 @@ import type { SaveUserInput, UserRecord, UsersRepository } from '../users.reposi
 
 class RouteAuthRepository implements AuthRepository {
   user: LoginUserRecord = {
-    id: 'user-1', tenantId: '11111111-1111-1111-1111-111111111111', nome: 'Ana Silva', email: 'ana@kreato.app', usuario: 'ana', role: 'TENANT_ADMIN' as UserRole, status: 'ATIVO' as UserStatus, passwordHash: hashPassword('123456'), tenantStatus: 'ATIVO' as TenantStatus,
+    id: 'user-1', tenantId: '11111111-1111-1111-1111-111111111111', nome: 'Ana Silva', email: 'ana@kreato.app', usuario: 'ana', role: 'TENANT_ADMIN' as UserRole, status: 'ATIVO' as UserStatus, passwordHash: hashPassword('123456'), tenantStatus: 'ATIVO' as TenantStatus, tenantNome: null,
   };
   tenantValidation: TenantValidation = { valid: true };
   refreshTokens = new Map<string, RefreshTokenRecord>();
@@ -32,6 +32,7 @@ class InMemoryUsersRepository implements UsersRepository {
   async findByUsername(usuario: string) { return [...this.items.values()].find((item) => item.usuario === usuario) ?? null; }
   async save(input: SaveUserInput) { const item: UserRecord = { id: input.id ?? crypto.randomUUID(), tenantId: input.tenantId, codigoExterno: input.codigoExterno ?? null, nome: input.nome, email: input.email, usuario: input.usuario, fotoUrl: input.fotoUrl ?? null, perfil: input.perfil ?? null, descricao: input.descricao ?? null, status: input.status, tipoAcesso: input.tipoAcesso ?? 'Operacional', recursoHumanoId: input.recursoHumanoId ?? null, role: input.role ?? 'USER', createdAt: new Date('2026-03-25T12:00:00.000Z') }; this.items.set(item.id, item); return item; }
   async remove(id: string) { this.items.delete(id); }
+  async findTenantAdmin(_tenantId: string) { return null; }
   async listAvailableUnidades() { return []; }
   async listUserUnidades() { return []; }
   async addUserUnidade() {}

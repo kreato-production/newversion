@@ -17,6 +17,7 @@ class RouteAuthRepository implements AuthRepository {
     status: 'ATIVO' as UserStatus,
     passwordHash: hashPassword('123456'),
     tenantStatus: 'ATIVO' as TenantStatus,
+    tenantNome: null,
   };
   tenantValidation: TenantValidation = { valid: true };
   refreshTokens = new Map<string, RefreshTokenRecord>();
@@ -34,7 +35,7 @@ class RouteAuthRepository implements AuthRepository {
   }
 
   async getAuthorizationContext() {
-    return { perfil: 'Administrador Tenant', tipoAcesso: 'Operacional', unidadeIds: ['unidade-1'], enabledModules: ['Dashboard', 'Produção', 'Recursos', 'Administração'], permissions: [] };
+    return { perfil: 'Administrador Tenant', tipoAcesso: 'Operacional', unidadeIds: ['unidade-1'], enabledModules: ['Dashboard', 'Produï¿½ï¿½o', 'Recursos', 'Administraï¿½ï¿½o'], permissions: [] };
   }
 
   async createRefreshToken(input: { userId: string; tokenHash: string; expiresAt: Date }) {
@@ -53,6 +54,7 @@ class RouteAuthRepository implements AuthRepository {
         role: this.user.role,
         status: this.user.status,
         tenantStatus: this.user.tenantStatus,
+        tenantNome: this.user.tenantNome,
       },
     });
   }

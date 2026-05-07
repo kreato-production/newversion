@@ -74,6 +74,12 @@ export function createAuthRoutes(authService: AuthService): FastifyPluginAsync {
       return reply.status(200).send({ user: request.user });
     });
 
+    app.get('/auth/permissions', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+      const user = request.user!;
+      const data = await authService.getPermissionsForUser(user.id, user.tenantId, user.role);
+      return reply.status(200).send(data);
+    });
+
     app.get('/auth/admin-access', { preHandler: [authenticate, requireAdminRole] }, async (_request, reply) => {
       return reply.status(200).send({ ok: true });
     });

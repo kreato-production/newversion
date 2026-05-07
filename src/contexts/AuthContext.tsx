@@ -13,8 +13,14 @@
 
 import React, { createContext, useContext, useMemo, type ReactNode } from 'react';
 import { useSession, signIn, signOut } from 'next-auth/react';
+import { useQuery } from '@tanstack/react-query';
 import { clearKreatoLocalStorage } from '@/lib/kreato-local-storage';
-import type { AuthSession, AuthSessionUser, AuthUserProfile } from '@/modules/auth/auth.types';
+import type {
+  AuthSession,
+  AuthSessionUser,
+  AuthUserProfile,
+  PermissionItem,
+} from '@/modules/auth/auth.types';
 
 export type User = AuthUserProfile;
 
@@ -30,12 +36,32 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+async function fetchUserPermissions(): Promise<{
+  permissions: PermissionItem[];
+  enabledModules: string[];
+}> {
+  const res = await fetch('/api/user/permissions');
+  if (!res.ok) throw new Error('Erro ao buscar permissões');
+  return res.json() as Promise<{ permissions: PermissionItem[]; enabledModules: string[] }>;
+}
+
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const { data: nextAuthSession, status } = useSession();
 
   const isLoading = status === 'loading';
+  const isAuthenticated = status === 'authenticated' && !!nextAuthSession?.user;
+
+  const { data: permissionsData } = useQuery({
+    queryKey: ['user-permissions', nextAuthSession?.user?.id],
+    queryFn: fetchUserPermissions,
+    enabled: isAuthenticated,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000,
+    retry: 2,
+  });
 
   // Mapeia session.user (Auth.js v5) → AuthUserProfile (contrato legado)
+  // Permissions are fetched separately via /api/user/permissions to keep the JWT cookie small.
   const user: User | null = useMemo(() => {
     if (!nextAuthSession?.user) return null;
     const u = nextAuthSession.user;
@@ -49,11 +75,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       tipoAcesso: u.tipoAcesso ?? 'Operacional',
       unidadeIds: u.unidadeIds ?? [],
       tenantId: u.tenantId ?? undefined,
+      tenantNome: u.tenantNome ?? null,
       role: u.role ?? 'USER',
-      permissions: u.permissions ?? [],
-      enabledModules: u.enabledModules ?? [],
+      permissions: permissionsData?.permissions ?? [],
+      enabledModules: permissionsData?.enabledModules ?? u.enabledModules ?? [],
     };
-  }, [nextAuthSession]);
+  }, [nextAuthSession, permissionsData]);
 
   const sessionUser: AuthSessionUser | null = useMemo(() => {
     if (!nextAuthSession?.user) return null;
@@ -109,7 +136,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         user,
         sessionUser,
         session,
-        isAuthenticated: status === 'authenticated' && !!user,
+        isAuthenticated: isAuthenticated && !!user,
         isLoading,
         login,
         logout,

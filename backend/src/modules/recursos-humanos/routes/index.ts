@@ -19,7 +19,6 @@ export function createRecursosHumanosRoutes(authService: AuthService, recursosHu
   return async (app) => {
     const authenticate = createAuthenticate(authService);
     const requireTenantAccess = createRequireTenantAccess();
-    const requireAdminRole = createRequireRole(['GLOBAL_ADMIN', 'TENANT_ADMIN']);
 
     app.get('/recursos-humanos', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
@@ -38,20 +37,20 @@ export function createRecursosHumanosRoutes(authService: AuthService, recursosHu
       return reply.status(200).send(await recursosHumanosService.listOcupacoes(user, query.dataInicio, query.dataFim));
     });
 
-    app.post('/recursos-humanos', { preHandler: [authenticate, requireAdminRole, requireTenantAccess] }, async (request, reply) => {
+    app.post('/recursos-humanos', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const body = saveRecursoHumanoSchema.parse(request.body);
       return reply.status(200).send(await recursosHumanosService.save(user, body));
     });
 
-    app.put('/recursos-humanos/:id', { preHandler: [authenticate, requireAdminRole, requireTenantAccess] }, async (request, reply) => {
+    app.put('/recursos-humanos/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const params = request.params as { id: string };
       const body = saveRecursoHumanoSchema.parse({ ...(request.body as object), id: params.id });
       return reply.status(200).send(await recursosHumanosService.save(user, body));
     });
 
-    app.delete('/recursos-humanos/:id', { preHandler: [authenticate, requireAdminRole, requireTenantAccess] }, async (request, reply) => {
+    app.delete('/recursos-humanos/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const params = request.params as { id: string };
       await recursosHumanosService.remove(user, params.id);

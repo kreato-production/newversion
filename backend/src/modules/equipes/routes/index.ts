@@ -14,7 +14,6 @@ export function createEquipesRoutes(authService: AuthService, equipesService: Eq
   return async (app) => {
     const authenticate = createAuthenticate(authService);
     const requireTenantAccess = createRequireTenantAccess();
-    const requireAdminRole = createRequireRole(['GLOBAL_ADMIN', 'TENANT_ADMIN']);
 
     app.get('/equipes', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
@@ -22,20 +21,20 @@ export function createEquipesRoutes(authService: AuthService, equipesService: Eq
       return reply.status(200).send(await equipesService.list(user, opts));
     });
 
-    app.post('/equipes', { preHandler: [authenticate, requireAdminRole, requireTenantAccess] }, async (request, reply) => {
+    app.post('/equipes', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const body = saveEquipeSchema.parse(request.body);
       return reply.status(200).send(await equipesService.save(user, body));
     });
 
-    app.put('/equipes/:id', { preHandler: [authenticate, requireAdminRole, requireTenantAccess] }, async (request, reply) => {
+    app.put('/equipes/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const params = request.params as { id: string };
       const body = saveEquipeSchema.parse({ ...(request.body as object), id: params.id });
       return reply.status(200).send(await equipesService.save(user, body));
     });
 
-    app.delete('/equipes/:id', { preHandler: [authenticate, requireAdminRole, requireTenantAccess] }, async (request, reply) => {
+    app.delete('/equipes/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const params = request.params as { id: string };
       await equipesService.remove(user, params.id);
@@ -48,14 +47,14 @@ export function createEquipesRoutes(authService: AuthService, equipesService: Eq
       return reply.status(200).send(await equipesService.listMembros(user, params.id));
     });
 
-    app.post('/equipes/:id/membros', { preHandler: [authenticate, requireAdminRole, requireTenantAccess] }, async (request, reply) => {
+    app.post('/equipes/:id/membros', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const params = request.params as { id: string };
       const body = saveEquipeMembroSchema.parse(request.body);
       return reply.status(200).send(await equipesService.addMembro(user, params.id, body.targetId));
     });
 
-    app.delete('/equipes/:id/membros/:targetId', { preHandler: [authenticate, requireAdminRole, requireTenantAccess] }, async (request, reply) => {
+    app.delete('/equipes/:id/membros/:targetId', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const params = request.params as { id: string; targetId: string };
       await equipesService.removeMembro(user, params.id, params.targetId);

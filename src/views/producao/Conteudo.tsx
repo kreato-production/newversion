@@ -189,9 +189,9 @@ const Conteudo = () => {
   const { user, session } = useAuth();
   const { canIncluir, canAlterar, canExcluir } = usePermissions();
 
-  const podeIncluir = canIncluir('ProduÃƒÂ§ÃƒÂ£o', 'ConteÃƒÂºdo');
-  const podeAlterar = canAlterar('ProduÃƒÂ§ÃƒÂ£o', 'ConteÃƒÂºdo');
-  const podeExcluir = canExcluir('ProduÃƒÂ§ÃƒÂ£o', 'ConteÃƒÂºdo');
+  const podeIncluir = canIncluir('Produção', 'Conteúdo');
+  const podeAlterar = canAlterar('Produção', 'Conteúdo');
+  const podeExcluir = canExcluir('Produção', 'Conteúdo');
 
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -218,7 +218,7 @@ const Conteudo = () => {
       console.error('Error fetching conteudos:', error);
       toast({
         title: t('common.error'),
-        description: `Erro ao carregar conteÃºdos: ${(error as Error).message}`,
+        description: `Erro ao carregar conteúdos: ${(error as Error).message}`,
         variant: 'destructive',
       });
     } finally {
@@ -251,7 +251,7 @@ const Conteudo = () => {
       console.error('Error saving conteudo:', error);
       toast({
         title: t('common.error'),
-        description: `Erro ao salvar conteÃºdo: ${(error as Error).message}`,
+        description: `Erro ao salvar conteúdo: ${(error as Error).message}`,
         variant: 'destructive',
       });
       throw error;
@@ -269,7 +269,7 @@ const Conteudo = () => {
       console.error('Error deleting conteudo:', error);
       toast({
         title: t('common.error'),
-        description: `Erro ao excluir conteÃºdo: ${(error as Error).message}`,
+        description: `Erro ao excluir conteúdo: ${(error as Error).message}`,
         variant: 'destructive',
       });
     } finally {

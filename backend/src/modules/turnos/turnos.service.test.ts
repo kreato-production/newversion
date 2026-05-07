@@ -65,6 +65,7 @@ const actor: SessionUser = {
   unidadeIds: [],
   enabledModules: ['Dashboard', 'Recursos'],
   permissions: [],
+  tenantNome: null,
 };
 
 function weekdayFlags(active: WeekdayKey[] = []) {

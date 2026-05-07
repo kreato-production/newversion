@@ -10,6 +10,7 @@ import type { AuthorizationContext, LoginResult, RefreshSessionResult, SessionUs
 function toSessionUser(user: {
   id: string;
   tenantId: string | null;
+  tenantNome?: string | null;
   nome: string;
   email: string;
   usuario: string;
@@ -18,6 +19,7 @@ function toSessionUser(user: {
   return {
     id: user.id,
     tenantId: user.tenantId,
+    tenantNome: user.tenantNome ?? null,
     nome: user.nome,
     email: user.email,
     usuario: user.usuario,
@@ -150,6 +152,11 @@ export class AuthService {
 
     const context = await this.repository.getAuthorizationContext(user.id, user.tenantId, user.role);
     return toSessionUser(user, context);
+  }
+
+  async getPermissionsForUser(userId: string, tenantId: string | null, role: UserRole): Promise<{ permissions: AuthorizationContext['permissions']; enabledModules: string[] }> {
+    const context = await this.repository.getAuthorizationContext(userId, tenantId, role);
+    return { permissions: context.permissions, enabledModules: context.enabledModules };
   }
 
   /**

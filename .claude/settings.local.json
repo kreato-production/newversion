@@ -24,7 +24,39 @@
       "Bash(grep -E \"\\\\.tsx$|\\\\.ts$\")",
       "Read(//tmp/**)",
       "Bash(grep -r \"import.*Tab\\\\|from.*Tab\" /c/Projetos/Kreato_Local/kreatoproduction/src/components/producao/*.tsx)",
-      "Bash(node_modules/.bin/tsc --noEmit)"
+      "Bash(node_modules/.bin/tsc --noEmit)",
+      "Read(//c/Projetos/Kreato NewVersion/**)",
+      "Bash(docker compose *)",
+      "Bash(netstat -ano)",
+      "Bash(node -e ' *)",
+      "Bash(psql -U postgres -d postgres -c \"\\\\d tipos_gravacao\")",
+      "Bash(npx prisma *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "PowerShell(try { $r = Invoke-WebRequest -Uri \"http://localhost:3333/health\" -TimeoutSec 5 -UseBasicParsing; \"Backend OK: $\\($r.StatusCode\\)\" } catch { \"Backend ERRO: $_\" })",
+      "PowerShell(netstat -ano)",
+      "PowerShell(Get-Process | Where-Object { $_.ProcessName -match \"node\" } | Select-Object Id, ProcessName, CPU, StartTime | Format-Table -AutoSize)",
+      "PowerShell(Get-Process | Where-Object { $_.ProcessName -match \"docker|postgres|node|next\" } | Select-Object Id, ProcessName | Format-Table -AutoSize)",
+      "PowerShell(Get-Process | Where-Object { $_.ProcessName -match \"node\" } | Select-Object Id, ProcessName | Format-Table -AutoSize)",
+      "Bash(node -e \"const fs=require\\('fs'\\); const content=fs.readFileSync\\('src/modules/equipes/equipes.service.test.ts','utf8'\\); const lines=content.split\\('\\\\n'\\); lines.slice\\(48,58\\).forEach\\(\\(l,i\\)=>console.log\\(i+49,JSON.stringify\\(l\\)\\)\\);\")",
+      "Bash(Get-ChildItem \"c:\\\\Projetos\\\\Kreato_Local\\\\kreatoproduction\\\\backend\\\\prisma\\\\migrations\" -ErrorAction SilentlyContinue)",
+      "Bash(Select-Object Name)",
+      "Bash(Get-ChildItem \"c:\\\\Projetos\\\\Kreato_Local\\\\kreatoproduction\\\\backend\\\\prisma\")",
+      "Bash(taskkill /PID 33156 /F)",
+      "PowerShell(Get-Process -Name \"node\" -ErrorAction SilentlyContinue)",
+      "PowerShell(Stop-Process -Force)",
+      "Bash(Start-Sleep 5)",
+      "Bash(Get-Content \"c:\\\\Projetos\\\\Kreato_Local\\\\kreatoproduction\\\\.codex-logs\\\\backend-dev.out.log\" -Tail 15)",
+      "Bash(Select-Object -First 20)",
+      "Bash(grep -E \"\\\\.\\(ts|tsx\\)$\")",
+      "Bash(grep -E \"\\\\.\\(ts|tsx|json\\)$\")"
+    ],
+    "additionalDirectories": [
+      "C:\\Projetos\\Kreato NewVersion\\backend\\src\\modules\\conteudos",
+      "C:\\Projetos\\Kreato NewVersion\\src\\views\\producao",
+      "\\tmp",
+      "c:\\Projetos\\Kreato_Local\\kreatoproduction\\src\\app\\(app)"
     ]
   }
 }

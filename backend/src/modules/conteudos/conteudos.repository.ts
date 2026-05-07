@@ -135,6 +135,42 @@ export type UpdateConteudoTerceiroInput = {
   valorPrevisto: number;
 };
 
+export type ConteudoEspacoRecord = {
+  id: string;
+  tenantId: string;
+  conteudoId: string;
+  espacoId: string | null;
+  espacoNome: string;
+  descricao: string | null;
+  horaInicio: string | null;
+  horaFim: string | null;
+};
+
+export type SaveConteudoEspacoInput = {
+  tenantId: string;
+  conteudoId: string;
+  espacoId: string;
+  descricao?: string | null;
+  horaInicio?: string | null;
+  horaFim?: string | null;
+  createdBy?: string | null;
+};
+
+export type UpdateConteudoEspacoInput = {
+  id: string;
+  espacoId: string;
+  descricao?: string | null;
+  horaInicio?: string | null;
+  horaFim?: string | null;
+};
+
+export type EspacoDisponibilidadeRecord = {
+  id: string;
+  horaInicio: string;
+  horaFim: string;
+  diasSemana: unknown;
+};
+
 export type GeneratedConteudoGravacaoRecord = {
   id: string;
   codigo: string;
@@ -181,6 +217,13 @@ export interface ConteudosRepository {
   addTerceiro(input: SaveConteudoTerceiroInput): Promise<ConteudoTerceiroItemRecord>;
   updateTerceiro(input: UpdateConteudoTerceiroInput): Promise<ConteudoTerceiroItemRecord | null>;
   removeTerceiro(id: string): Promise<void>;
+  listEspacos(tenantId: string, conteudoId: string): Promise<ConteudoEspacoRecord[]>;
+  listAvailableEspacos(tenantId: string): Promise<Array<{ id: string; titulo: string; descricao: string | null }>>;
+  findEspacoAvailability(espacoId: string): Promise<EspacoDisponibilidadeRecord[]>;
+  findEspacoById(id: string): Promise<ConteudoEspacoRecord | null>;
+  addEspaco(input: SaveConteudoEspacoInput): Promise<ConteudoEspacoRecord>;
+  updateEspaco(input: UpdateConteudoEspacoInput): Promise<ConteudoEspacoRecord | null>;
+  removeEspaco(id: string): Promise<void>;
   generateGravacoes(input: { tenantId: string; conteudoId: string; createdById?: string | null }): Promise<GeneratedConteudoGravacaoRecord[]>;
 }
 
@@ -340,9 +383,25 @@ async function ensureConteudosSchema() {
           created_at timestamptz NULL DEFAULT NOW()
         )
       `);
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS public.conteudo_espacos (
+          id text PRIMARY KEY,
+          tenant_id text NOT NULL REFERENCES "Tenant"(id) ON DELETE CASCADE,
+          conteudo_id text NOT NULL REFERENCES public.conteudos(id) ON DELETE CASCADE,
+          nome text NOT NULL,
+          descricao text NULL,
+          created_by text NULL,
+          created_at timestamptz NULL DEFAULT NOW()
+        )
+      `);
       await prisma.$executeRawUnsafe('CREATE INDEX IF NOT EXISTS conteudo_recursos_tecnicos_conteudo_idx ON public.conteudo_recursos_tecnicos (conteudo_id)');
       await prisma.$executeRawUnsafe('CREATE INDEX IF NOT EXISTS conteudo_recursos_fisicos_conteudo_idx ON public.conteudo_recursos_fisicos (conteudo_id)');
       await prisma.$executeRawUnsafe('CREATE INDEX IF NOT EXISTS conteudo_terceiros_conteudo_idx ON public.conteudo_terceiros (conteudo_id)');
+      await prisma.$executeRawUnsafe('CREATE INDEX IF NOT EXISTS conteudo_espacos_conteudo_idx ON public.conteudo_espacos (conteudo_id)');
+      await prisma.$executeRawUnsafe(`ALTER TABLE public.conteudo_espacos ADD COLUMN IF NOT EXISTS espaco_id text NULL`);
+      await prisma.$executeRawUnsafe(`ALTER TABLE public.conteudo_espacos ADD COLUMN IF NOT EXISTS hora_inicio text NULL`);
+      await prisma.$executeRawUnsafe(`ALTER TABLE public.conteudo_espacos ADD COLUMN IF NOT EXISTS hora_fim text NULL`);
+      await prisma.$executeRawUnsafe(`ALTER TABLE public.conteudo_espacos ALTER COLUMN nome DROP NOT NULL`);
       await prisma.$executeRawUnsafe('CREATE INDEX IF NOT EXISTS gravacao_recursos_gravacao_idx ON public.gravacao_recursos (gravacao_id)');
     })();
     promise.catch(() => {
@@ -635,8 +694,8 @@ export class PrismaConteudosRepository implements ConteudosRepository {
       `),
       prisma.$queryRaw<Array<{ id: string; nome: string; moeda: string | null }>>(Prisma.sql`
         select id::text as id, nome, moeda
-        from public.unidades_negocio
-        where tenant_id = ${tenantId}::uuid
+        from "UnidadeNegocio"
+        where "tenantId" = ${tenantId}
         ${unitFilter}
         order by nome asc
       `),
@@ -658,9 +717,9 @@ export class PrismaConteudosRepository implements ConteudosRepository {
         where tenant_id = ${tenantId}
       `),
       prisma.$queryRaw<Array<{ id: string; nome: string; unidadeNegocioId: string | null }>>(Prisma.sql`
-        select id::text as id, nome, unidade_negocio_id::text as "unidadeNegocioId"
-        from public.programas
-        where tenant_id = ${tenantId}::uuid
+        select id::text as id, nome, "unidadeNegocioId"::text as "unidadeNegocioId"
+        from "Programa"
+        where "tenantId" = ${tenantId}
         order by nome asc
       `),
       statusTableExists
@@ -1053,6 +1112,105 @@ export class PrismaConteudosRepository implements ConteudosRepository {
   async removeTerceiro(id: string): Promise<void> {
     await ensureConteudosSchema();
     await prisma.$executeRaw`delete from public.conteudo_terceiros where id = ${id}`;
+  }
+
+  async listEspacos(tenantId: string, conteudoId: string): Promise<ConteudoEspacoRecord[]> {
+    await ensureConteudosSchema();
+    return prisma.$queryRaw<ConteudoEspacoRecord[]>`
+      select
+        ce.id,
+        ce.tenant_id as "tenantId",
+        ce.conteudo_id as "conteudoId",
+        ce.espaco_id as "espacoId",
+        COALESCE(e.titulo, ce.nome, '') as "espacoNome",
+        ce.descricao,
+        ce.hora_inicio as "horaInicio",
+        ce.hora_fim as "horaFim"
+      from public.conteudo_espacos ce
+      left join public.espacos e on e.id = ce.espaco_id
+      where ce.tenant_id = ${tenantId}
+        and ce.conteudo_id = ${conteudoId}
+      order by ce.created_at asc
+    `;
+  }
+
+  async listAvailableEspacos(tenantId: string): Promise<Array<{ id: string; titulo: string; descricao: string | null }>> {
+    await ensureConteudosSchema();
+    const tableCheck = await prisma.$queryRaw<Array<{ exists: boolean }>>`
+      select to_regclass('public.espacos') is not null as "exists"
+    `;
+    if (!tableCheck[0]?.exists) return [];
+    return prisma.$queryRaw<Array<{ id: string; titulo: string; descricao: string | null }>>`
+      select id, titulo, descricao
+      from public.espacos
+      where tenant_id = ${tenantId}
+      order by titulo asc
+    `;
+  }
+
+  async findEspacoAvailability(espacoId: string): Promise<EspacoDisponibilidadeRecord[]> {
+    await ensureConteudosSchema();
+    const tableCheck = await prisma.$queryRaw<Array<{ exists: boolean }>>`
+      select to_regclass('public.espaco_faixas_disponibilidade') is not null as "exists"
+    `;
+    if (!tableCheck[0]?.exists) return [];
+    return prisma.$queryRaw<EspacoDisponibilidadeRecord[]>`
+      select
+        id,
+        hora_inicio as "horaInicio",
+        hora_fim as "horaFim",
+        dias_semana as "diasSemana"
+      from public.espaco_faixas_disponibilidade
+      where espaco_id = ${espacoId}
+    `;
+  }
+
+  async findEspacoById(id: string): Promise<ConteudoEspacoRecord | null> {
+    await ensureConteudosSchema();
+    const rows = await prisma.$queryRaw<ConteudoEspacoRecord[]>`
+      select
+        ce.id,
+        ce.tenant_id as "tenantId",
+        ce.conteudo_id as "conteudoId",
+        ce.espaco_id as "espacoId",
+        COALESCE(e.titulo, ce.nome, '') as "espacoNome",
+        ce.descricao,
+        ce.hora_inicio as "horaInicio",
+        ce.hora_fim as "horaFim"
+      from public.conteudo_espacos ce
+      left join public.espacos e on e.id = ce.espaco_id
+      where ce.id = ${id}
+      limit 1
+    `;
+    return rows[0] ?? null;
+  }
+
+  async addEspaco(input: SaveConteudoEspacoInput): Promise<ConteudoEspacoRecord> {
+    await ensureConteudosSchema();
+    const id = randomUUID();
+    await prisma.$executeRaw`
+      insert into public.conteudo_espacos (id, tenant_id, conteudo_id, espaco_id, descricao, hora_inicio, hora_fim, created_by)
+      values (${id}, ${input.tenantId}, ${input.conteudoId}, ${input.espacoId}, ${input.descricao ?? null}, ${input.horaInicio ?? null}, ${input.horaFim ?? null}, ${input.createdBy ?? null})
+    `;
+    const saved = await this.findEspacoById(id);
+    if (!saved) throw new Error('Espaco do conteudo nao encontrado apos salvar');
+    return saved;
+  }
+
+  async updateEspaco(input: UpdateConteudoEspacoInput): Promise<ConteudoEspacoRecord | null> {
+    await ensureConteudosSchema();
+    await prisma.$executeRaw`
+      update public.conteudo_espacos
+      set espaco_id = ${input.espacoId}, descricao = ${input.descricao ?? null},
+          hora_inicio = ${input.horaInicio ?? null}, hora_fim = ${input.horaFim ?? null}
+      where id = ${input.id}
+    `;
+    return this.findEspacoById(input.id);
+  }
+
+  async removeEspaco(id: string): Promise<void> {
+    await ensureConteudosSchema();
+    await prisma.$executeRaw`delete from public.conteudo_espacos where id = ${id}`;
   }
 
   async generateGravacoes(input: { tenantId: string; conteudoId: string; createdById?: string | null }): Promise<GeneratedConteudoGravacaoRecord[]> {

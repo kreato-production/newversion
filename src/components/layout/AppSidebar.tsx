@@ -11,15 +11,11 @@ import {
   Globe,
   ChevronRight,
   ChevronUp,
-  ChevronsUpDown,
-  Check,
-  Building,
   Settings2,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { usePermissions } from '@/hooks/usePermissions';
-import { useWorkspace } from '@/hooks/useWorkspace';
 import {
   Sidebar,
   SidebarContent,
@@ -39,7 +35,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
@@ -252,6 +247,11 @@ const getNavItems = (isGlobalAdmin: boolean, t: (k: string) => string): NavItem[
         permission: { modulo: 'Recursos', subModulo1: 'Escalas' },
       },
       {
+        label: t('menu.spaces'),
+        path: '/recursos/espacos',
+        permission: { modulo: 'Recursos', subModulo1: 'Espaços' },
+      },
+      {
         label: t('menu.parameters'),
         isGroup: true,
         children: [
@@ -446,10 +446,10 @@ const AppSidebar = () => {
   const { user, logout } = useAuth();
   const { t } = useLanguage();
   const { isVisible } = usePermissions();
-  const { activeUnit, units, switchUnit } = useWorkspace();
   const pathname = usePathname();
 
   const isGlobalAdmin = user?.role === 'GLOBAL_ADMIN';
+  const tenantLabel = isGlobalAdmin ? 'Kreato' : (user?.tenantNome ?? 'Kreato');
   const navItems = getNavItems(isGlobalAdmin, t);
 
   const logoSrc = typeof kreatoLogo === 'string' ? kreatoLogo : kreatoLogo.src;
@@ -481,81 +481,31 @@ const AppSidebar = () => {
 
   return (
     <Sidebar collapsible="icon">
-      {/* ── Workspace switcher ── */}
+      {/* ── Tenant identity ── */}
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            {units.length <= 1 ? (
-              <SidebarMenuButton
-                size="lg"
-                asChild
-                className="hover:bg-transparent active:bg-transparent"
-              >
-                <Link href="/dashboard">
-                  <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary shrink-0">
-                    <img
-                      src={logoSrc}
-                      alt="Kreato"
-                      className="h-5 w-5 object-contain dark:brightness-0 dark:invert"
-                    />
-                  </div>
-                  <div className="grid flex-1 text-left text-sm leading-tight">
-                    <span className="truncate font-semibold text-sidebar-foreground">
-                      {activeUnit?.nome ?? 'Kreato'}
-                    </span>
-                    <span className="truncate text-xs text-sidebar-foreground/60">Produção</span>
-                  </div>
-                </Link>
-              </SidebarMenuButton>
-            ) : (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <SidebarMenuButton
-                    size="lg"
-                    className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
-                    tooltip={activeUnit?.nome ?? 'Selecionar unidade'}
-                  >
-                    <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary shrink-0">
-                      <img
-                        src={logoSrc}
-                        alt="Kreato"
-                        className="h-5 w-5 object-contain dark:brightness-0 dark:invert"
-                      />
-                    </div>
-                    <div className="grid flex-1 text-left text-sm leading-tight">
-                      <span className="truncate font-semibold">{activeUnit?.nome ?? 'Kreato'}</span>
-                      <span className="truncate text-xs text-sidebar-foreground/60">Produção</span>
-                    </div>
-                    <ChevronsUpDown className="ml-auto size-4 shrink-0" />
-                  </SidebarMenuButton>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg"
-                  align="start"
-                  side="bottom"
-                  sideOffset={4}
-                >
-                  <DropdownMenuLabel className="text-xs text-muted-foreground">
-                    Unidades de Negócio
-                  </DropdownMenuLabel>
-                  {units.map((unit) => (
-                    <DropdownMenuItem
-                      key={unit.id}
-                      onClick={() => switchUnit(unit.id)}
-                      className="cursor-pointer gap-2"
-                    >
-                      <div className="flex size-6 items-center justify-center rounded-sm border bg-background shrink-0">
-                        <Building className="size-3.5 shrink-0" />
-                      </div>
-                      <span className="flex-1 truncate">{unit.nome}</span>
-                      {activeUnit?.id === unit.id && (
-                        <Check className="ml-auto size-4 text-primary" />
-                      )}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
+            <SidebarMenuButton
+              size="lg"
+              asChild
+              className="hover:bg-transparent active:bg-transparent"
+            >
+              <Link href="/dashboard">
+                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary shrink-0">
+                  <img
+                    src={logoSrc}
+                    alt="Kreato"
+                    className="h-5 w-5 object-contain dark:brightness-0 dark:invert"
+                  />
+                </div>
+                <div className="grid flex-1 text-left text-sm leading-tight">
+                  <span className="truncate font-semibold text-sidebar-foreground">
+                    {tenantLabel}
+                  </span>
+                  <span className="truncate text-xs text-sidebar-foreground/60">Produção</span>
+                </div>
+              </Link>
+            </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>

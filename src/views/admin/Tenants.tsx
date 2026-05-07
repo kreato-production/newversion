@@ -213,6 +213,8 @@ const Tenants = () => {
           notas: item.notas || '',
           createdAt: item.createdAt,
           licencaFim: item.licencaFim || undefined,
+          adminNome: item.adminNome || undefined,
+          adminUsuario: item.adminUsuario || undefined,
         })),
       );
     } catch (err) {

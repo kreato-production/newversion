@@ -51,6 +51,7 @@ const actor: SessionUser = {
   unidadeIds: [],
   enabledModules: ['Dashboard', 'Produ��o', 'Recursos', 'Administra��o'],
   permissions: [],
+  tenantNome: null,
 };
 
 describe('EquipesService', () => {
