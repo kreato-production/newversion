@@ -67,6 +67,28 @@ export const updateConteudoEspacoSchema = z.object({
   horaFim: z.string().optional().nullable(),
 });
 
+export const conteudoEspacoResourceTypeSchema = z.enum(['fisico', 'tecnico']);
+
+export const saveConteudoEspacoResourceSchema = z.object({
+  recursoId: z.string().min(1),
+  valorHora: z.number().nonnegative().default(0),
+  quantidade: z.number().int().min(1).default(1),
+  horaInicio: z.string().optional().nullable(),
+  horaFim: z.string().optional().nullable(),
+  valorTotal: z.number().nonnegative().default(0),
+  descontoPercentual: z.number().min(0).max(100).default(0),
+  valorComDesconto: z.number().nonnegative().default(0),
+});
+
+export const updateConteudoEspacoResourceSchema = z.object({
+  quantidade: z.number().int().min(1),
+  horaInicio: z.string().optional().nullable(),
+  horaFim: z.string().optional().nullable(),
+  valorTotal: z.number().nonnegative(),
+  descontoPercentual: z.number().min(0).max(100),
+  valorComDesconto: z.number().nonnegative(),
+});
+
 export type SaveConteudoDto = z.infer<typeof saveConteudoSchema>;
 
 function formatDate(date: Date | null): string {
@@ -375,6 +397,72 @@ export class ConteudosService {
     if (!existing) throw new Error('Espaco do conteudo nao encontrado');
     ensureSameTenant(actor, existing.tenantId);
     await this.repository.removeEspaco(itemId);
+  }
+
+  async listEspacoResources(
+    actor: SessionUser,
+    conteudoEspacoId: string,
+    tipo: z.infer<typeof conteudoEspacoResourceTypeSchema>,
+  ) {
+    const espaco = await this.repository.findEspacoById(conteudoEspacoId);
+    if (!espaco) throw new Error('Espaco do conteudo nao encontrado');
+    ensureSameTenant(actor, espaco.tenantId);
+    return this.repository.listEspacoResources(espaco.tenantId, conteudoEspacoId, tipo);
+  }
+
+  async addEspacoResource(
+    actor: SessionUser,
+    conteudoEspacoId: string,
+    tipo: z.infer<typeof conteudoEspacoResourceTypeSchema>,
+    input: z.infer<typeof saveConteudoEspacoResourceSchema>,
+  ) {
+    const espaco = await this.repository.findEspacoById(conteudoEspacoId);
+    if (!espaco) throw new Error('Espaco do conteudo nao encontrado');
+    ensureSameTenant(actor, espaco.tenantId);
+    return this.repository.addEspacoResource({
+      tenantId: espaco.tenantId,
+      conteudoEspacoId,
+      tipo,
+      recursoId: input.recursoId,
+      valorHora: input.valorHora,
+      quantidade: input.quantidade,
+      horaInicio: input.horaInicio ?? null,
+      horaFim: input.horaFim ?? null,
+      valorTotal: input.valorTotal,
+      descontoPercentual: input.descontoPercentual,
+      valorComDesconto: input.valorComDesconto,
+    });
+  }
+
+  async updateEspacoResource(
+    actor: SessionUser,
+    recursoItemId: string,
+    tipo: z.infer<typeof conteudoEspacoResourceTypeSchema>,
+    input: z.infer<typeof updateConteudoEspacoResourceSchema>,
+  ) {
+    const existing = await this.repository.findEspacoResourceById(recursoItemId, tipo);
+    if (!existing) throw new Error('Recurso do espaco nao encontrado');
+    ensureSameTenant(actor, existing.tenantId);
+    return this.repository.updateEspacoResource({
+      id: recursoItemId,
+      quantidade: input.quantidade,
+      horaInicio: input.horaInicio ?? null,
+      horaFim: input.horaFim ?? null,
+      valorTotal: input.valorTotal,
+      descontoPercentual: input.descontoPercentual,
+      valorComDesconto: input.valorComDesconto,
+    }, tipo);
+  }
+
+  async removeEspacoResource(
+    actor: SessionUser,
+    recursoItemId: string,
+    tipo: z.infer<typeof conteudoEspacoResourceTypeSchema>,
+  ) {
+    const existing = await this.repository.findEspacoResourceById(recursoItemId, tipo);
+    if (!existing) throw new Error('Recurso do espaco nao encontrado');
+    ensureSameTenant(actor, existing.tenantId);
+    await this.repository.removeEspacoResource(recursoItemId, tipo);
   }
 
   async generateGravacoes(actor: SessionUser, conteudoId: string) {

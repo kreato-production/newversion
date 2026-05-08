@@ -193,6 +193,101 @@ export const conteudosRelacionamentosApi = {
     return apiRequest<void>(`/conteudos/${conteudoId}/espacos/${itemId}`, { method: 'DELETE' });
   },
 
+  listEspacoResources(conteudoId: string, espacoItemId: string, tipo: 'fisico' | 'tecnico') {
+    return apiRequest<{
+      items: Array<{
+        id: string;
+        tenantId: string;
+        conteudoEspacoId: string;
+        recursoId: string;
+        recursoNome: string;
+        valorHora: number;
+        quantidade: number;
+        horaInicio: string | null;
+        horaFim: string | null;
+        valorTotal: number;
+        descontoPercentual: number;
+        valorComDesconto: number;
+      }>;
+      availableResources: Array<{ recursoId: string; recursoNome: string; valorHora: number }>;
+    }>(`/conteudos/${conteudoId}/espacos/${espacoItemId}/recursos?tipo=${tipo}`);
+  },
+
+  addEspacoResource(
+    conteudoId: string,
+    espacoItemId: string,
+    tipo: 'fisico' | 'tecnico',
+    input: {
+      recursoId: string;
+      valorHora: number;
+      quantidade: number;
+      horaInicio?: string | null;
+      horaFim?: string | null;
+      valorTotal: number;
+      descontoPercentual: number;
+      valorComDesconto: number;
+    },
+  ) {
+    return apiRequest<{
+      id: string;
+      recursoId: string;
+      recursoNome: string;
+      valorHora: number;
+      quantidade: number;
+      horaInicio: string | null;
+      horaFim: string | null;
+      valorTotal: number;
+      descontoPercentual: number;
+      valorComDesconto: number;
+    }>(`/conteudos/${conteudoId}/espacos/${espacoItemId}/recursos?tipo=${tipo}`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  },
+
+  updateEspacoResource(
+    conteudoId: string,
+    espacoItemId: string,
+    recursoItemId: string,
+    tipo: 'fisico' | 'tecnico',
+    input: {
+      quantidade: number;
+      horaInicio?: string | null;
+      horaFim?: string | null;
+      valorTotal: number;
+      descontoPercentual: number;
+      valorComDesconto: number;
+    },
+  ) {
+    return apiRequest<{
+      id: string;
+      recursoId: string;
+      recursoNome: string;
+      valorHora: number;
+      quantidade: number;
+      horaInicio: string | null;
+      horaFim: string | null;
+      valorTotal: number;
+      descontoPercentual: number;
+      valorComDesconto: number;
+    }>(`/conteudos/${conteudoId}/espacos/${espacoItemId}/recursos/${recursoItemId}?tipo=${tipo}`, {
+      method: 'PUT',
+      body: JSON.stringify(input),
+    });
+  },
+
+  removeEspacoResource(
+    conteudoId: string,
+    espacoItemId: string,
+    recursoItemId: string,
+    tipo: 'fisico' | 'tecnico',
+  ) {
+    return apiRequest<void>(
+      `/conteudos/${conteudoId}/espacos/${espacoItemId}/recursos/${recursoItemId}?tipo=${tipo}`,
+      { method: 'DELETE' },
+    );
+  },
+
   generateGravacoes(conteudoId: string) {
     return apiRequest<{
       items: Array<{

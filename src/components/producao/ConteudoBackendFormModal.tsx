@@ -45,7 +45,6 @@ import { gravacoesRepository } from '@/modules/gravacoes/gravacoes.repository.pr
 import type { Gravacao } from '@/modules/gravacoes/gravacoes.types';
 import { ElencoTab } from './ElencoTab';
 import { ModalNavigation, type ModalNavigationProps } from '@/components/shared/ModalNavigation';
-import { ConteudoRecursosTab } from './ConteudoRecursosTab';
 import { ConteudoTerceirosTab } from './ConteudoTerceirosTab';
 import { ConteudoCustosBackendTab } from './ConteudoCustosBackendTab';
 import { ConteudoEspacosTab } from './ConteudoEspacosTab';
@@ -63,8 +62,8 @@ type FormState = {
   codigoExterno: string;
   descricao: string;
   quantidadeEpisodios: string;
-  centroLucro: string;
-  unidadeNegocio: string;
+  centroLucroId: string;
+  unidadeNegocioId: string;
   programaId: string;
   tipoConteudo: string;
   classificacao: string;
@@ -119,8 +118,8 @@ export const ConteudoBackendFormModal = ({
     codigoExterno: '',
     descricao: '',
     quantidadeEpisodios: '',
-    centroLucro: '',
-    unidadeNegocio: '',
+    centroLucroId: '',
+    unidadeNegocioId: '',
     programaId: '',
     tipoConteudo: '',
     classificacao: '',
@@ -153,35 +152,29 @@ export const ConteudoBackendFormModal = ({
   const [gravacoes, setGravacoes] = useState<Gravacao[]>([]);
 
   const filteredCentrosLucro = useMemo(() => {
-    if (!formData.unidadeNegocio) return [];
-    const unidade = unidades.find((item) => item.nome === formData.unidadeNegocio);
-    if (!unidade) return [];
+    if (!formData.unidadeNegocioId) return [];
     const allowedCentroIds = new Set(
       centroLucroUnidades
-        .filter((item) => item.unidadeNegocioId === unidade.id)
+        .filter((item) => item.unidadeNegocioId === formData.unidadeNegocioId)
         .map((item) => item.centroLucroId),
     );
     return centrosLucro.filter((item) => allowedCentroIds.has(item.id));
-  }, [centroLucroUnidades, centrosLucro, formData.unidadeNegocio, unidades]);
+  }, [centroLucroUnidades, centrosLucro, formData.unidadeNegocioId]);
 
   const filteredProgramas = useMemo(() => {
-    if (!formData.unidadeNegocio) return [];
-    const unidade = unidades.find((item) => item.nome === formData.unidadeNegocio);
-    if (!unidade) return [];
-    return programas.filter((item) => item.unidadeNegocioId === unidade.id);
-  }, [formData.unidadeNegocio, programas, unidades]);
+    if (!formData.unidadeNegocioId) return [];
+    return programas.filter((item) => item.unidadeNegocioId === formData.unidadeNegocioId);
+  }, [formData.unidadeNegocioId, programas]);
 
   const filteredTabelasPreco = useMemo(() => {
-    if (!formData.unidadeNegocio) return [];
-    const unidade = unidades.find((item) => item.nome === formData.unidadeNegocio);
-    if (!unidade) return [];
-    return tabelasPreco.filter((item) => item.unidadeNegocioId === unidade.id);
-  }, [formData.unidadeNegocio, tabelasPreco, unidades]);
+    if (!formData.unidadeNegocioId) return [];
+    return tabelasPreco.filter((item) => item.unidadeNegocioId === formData.unidadeNegocioId);
+  }, [formData.unidadeNegocioId, tabelasPreco]);
 
   const selectedCurrency = useMemo(() => {
-    const unidade = unidades.find((item) => item.nome === formData.unidadeNegocio);
+    const unidade = unidades.find((item) => item.id === formData.unidadeNegocioId);
     return unidade?.moeda || 'BRL';
-  }, [formData.unidadeNegocio, unidades]);
+  }, [formData.unidadeNegocioId, unidades]);
 
   const hierarchicalCentros = useMemo(() => {
     const buildHierarchy = (
@@ -265,8 +258,8 @@ export const ConteudoBackendFormModal = ({
         codigoExterno: data.codigoExterno || '',
         descricao: data.descricao || '',
         quantidadeEpisodios: String(data.quantidadeEpisodios || ''),
-        centroLucro: data.centroLucro || '',
-        unidadeNegocio: data.unidadeNegocio || '',
+        centroLucroId: data.centroLucroId || '',
+        unidadeNegocioId: data.unidadeNegocioId || '',
         programaId: data.programaId || '',
         tipoConteudo: data.tipoConteudo || '',
         classificacao: data.classificacao || '',
@@ -286,8 +279,8 @@ export const ConteudoBackendFormModal = ({
       codigoExterno: generateCodigoConteudo(),
       descricao: '',
       quantidadeEpisodios: '',
-      centroLucro: '',
-      unidadeNegocio: '',
+      centroLucroId: '',
+      unidadeNegocioId: '',
       programaId: '',
       tipoConteudo: '',
       classificacao: '',
@@ -305,10 +298,8 @@ export const ConteudoBackendFormModal = ({
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
 
-    const unidadeSelecionada = unidades.find((item) => item.nome === formData.unidadeNegocio);
-    const centroSelecionado = filteredCentrosLucro.find(
-      (item) => item.nome === formData.centroLucro,
-    );
+    const unidadeSelecionada = unidades.find((item) => item.id === formData.unidadeNegocioId);
+    const centroSelecionado = centrosLucro.find((item) => item.id === formData.centroLucroId);
     const tipoSelecionado = tipos.find((item) => item.nome === formData.tipoConteudo);
     const classificacaoSelecionada = classificacoes.find(
       (item) => item.nome === formData.classificacao,
@@ -328,11 +319,11 @@ export const ConteudoBackendFormModal = ({
       codigoExterno: formData.codigoExterno,
       descricao: formData.descricao,
       quantidadeEpisodios: parseInt(formData.quantidadeEpisodios, 10) || 0,
-      centroLucro: formData.centroLucro,
-      centroLucroId: centroSelecionado?.id || data?.centroLucroId,
-      unidadeNegocio: formData.unidadeNegocio,
-      unidadeNegocioId: unidadeSelecionada?.id || data?.unidadeNegocioId,
-      programaId: formData.programaId || undefined,
+      centroLucro: centroSelecionado?.nome || data?.centroLucro || '',
+      centroLucroId: formData.centroLucroId || data?.centroLucroId,
+      unidadeNegocio: unidadeSelecionada?.nome || data?.unidadeNegocio || '',
+      unidadeNegocioId: formData.unidadeNegocioId || data?.unidadeNegocioId,
+      programaId: formData.programaId || data?.programaId || undefined,
       tipoConteudo: formData.tipoConteudo,
       tipoConteudoId: tipoSelecionado?.id || data?.tipoConteudoId,
       classificacao: formData.classificacao,
@@ -395,8 +386,14 @@ export const ConteudoBackendFormModal = ({
             codigoExterno: item.codigoExterno || '',
             nome: item.nome,
             unidadeNegocioId: data.unidadeNegocioId || '',
-            unidadeNegocio: formData.unidadeNegocio,
-            centroLucro: formData.centroLucro,
+            unidadeNegocio:
+              unidades.find((u) => u.id === formData.unidadeNegocioId)?.nome ||
+              data.unidadeNegocio ||
+              '',
+            centroLucro:
+              centrosLucro.find((c) => c.id === formData.centroLucroId)?.nome ||
+              data.centroLucro ||
+              '',
             classificacao: formData.classificacao,
             tipoConteudo: formData.tipoConteudo,
             descricao: '',
@@ -440,10 +437,7 @@ export const ConteudoBackendFormModal = ({
       visibleTabs.push({ value: 'gravacoes', label: t('field.recordings') });
     if (isVisible('ProduÃ§Ã£o', 'ConteÃºdo', '-', 'Tabulador "Elenco"'))
       visibleTabs.push({ value: 'elenco', label: t('field.cast') });
-    if (isVisible('ProduÃ§Ã£o', 'ConteÃºdo', '-', 'Tabulador "Recursos TÃ©cnicos"'))
-      visibleTabs.push({ value: 'recursosTecnicos', label: t('contentTab.technicalResources') });
-    if (isVisible('ProduÃ§Ã£o', 'ConteÃºdo', '-', 'Tabulador "Recursos FÃ­sicos"'))
-      visibleTabs.push({ value: 'recursosFisicos', label: t('contentTab.physicalResources') });
+
     if (isVisible('ProduÃ§Ã£o', 'ConteÃºdo', '-', 'Tabulador "EspaÃ§os"'))
       visibleTabs.push({ value: 'espacos', label: 'Espaços' });
     if (isVisible('ProduÃ§Ã£o', 'ConteÃºdo', '-', 'Tabulador "Terceiros"'))
@@ -530,13 +524,13 @@ export const ConteudoBackendFormModal = ({
                 <div className="space-y-2">
                   <Label>{t('recordings.businessUnit')}</Label>
                   <SearchableSelect
-                    options={unidades.map((item) => ({ value: item.nome, label: item.nome }))}
-                    value={formData.unidadeNegocio}
+                    options={unidades.map((item) => ({ value: item.id, label: item.nome }))}
+                    value={formData.unidadeNegocioId}
                     onValueChange={(value) =>
                       setFormData((prev) => ({
                         ...prev,
-                        unidadeNegocio: value,
-                        centroLucro: '',
+                        unidadeNegocioId: value,
+                        centroLucroId: '',
                         tabelaPrecoId: '',
                         programaId: '',
                       }))
@@ -550,19 +544,19 @@ export const ConteudoBackendFormModal = ({
                   <Label>{t('recordings.profitCenter')}</Label>
                   <SearchableSelect
                     options={hierarchicalCentros.map((item) => ({
-                      value: item.nome,
+                      value: item.id,
                       label: item.nome,
                       displayLabel: item.displayName,
                     }))}
-                    value={formData.centroLucro}
+                    value={formData.centroLucroId}
                     onValueChange={(value) =>
-                      setFormData((prev) => ({ ...prev, centroLucro: value }))
+                      setFormData((prev) => ({ ...prev, centroLucroId: value }))
                     }
                     placeholder={
-                      !formData.unidadeNegocio ? t('field.selectUnitFirst') : t('common.select')
+                      !formData.unidadeNegocioId ? t('field.selectUnitFirst') : t('common.select')
                     }
                     searchPlaceholder="Pesquisar centro de custos..."
-                    disabled={!formData.unidadeNegocio || readOnly}
+                    disabled={!formData.unidadeNegocioId || readOnly}
                   />
                 </div>
                 <div className="space-y-2">
@@ -577,10 +571,10 @@ export const ConteudoBackendFormModal = ({
                       setFormData((prev) => ({ ...prev, tabelaPrecoId: value }))
                     }
                     placeholder={
-                      !formData.unidadeNegocio ? t('field.selectUnitFirst') : t('common.select')
+                      !formData.unidadeNegocioId ? t('field.selectUnitFirst') : t('common.select')
                     }
                     searchPlaceholder="Pesquisar tabela de preco..."
-                    disabled={!formData.unidadeNegocio || readOnly}
+                    disabled={!formData.unidadeNegocioId || readOnly}
                   />
                 </div>
               </div>
@@ -598,10 +592,10 @@ export const ConteudoBackendFormModal = ({
                       setFormData((prev) => ({ ...prev, programaId: value }))
                     }
                     placeholder={
-                      !formData.unidadeNegocio ? t('field.selectUnitFirst') : t('common.select')
+                      !formData.unidadeNegocioId ? t('field.selectUnitFirst') : t('common.select')
                     }
                     searchPlaceholder="Pesquisar programa..."
-                    disabled={!formData.unidadeNegocio || readOnly}
+                    disabled={!formData.unidadeNegocioId || readOnly}
                   />
                 </div>
                 <div className="space-y-2">
@@ -672,7 +666,7 @@ export const ConteudoBackendFormModal = ({
                     onChange={(event) =>
                       setFormData((prev) => ({ ...prev, orcamento: event.target.value }))
                     }
-                    disabled={!formData.unidadeNegocio || readOnly}
+                    disabled={!formData.unidadeNegocioId || readOnly}
                     step="0.01"
                     min="0"
                   />
@@ -878,32 +872,13 @@ export const ConteudoBackendFormModal = ({
                 <ElencoTab entityId={data.id} storagePrefix="conteudo" />
               </TabsContent>
             )}
-            {data &&
-              isVisible('ProduÃ§Ã£o', 'ConteÃºdo', '-', 'Tabulador "Recursos TÃ©cnicos"') && (
-                <TabsContent value="recursosTecnicos" className="mt-4">
-                  <ConteudoRecursosTab
-                    conteudoId={data.id}
-                    tabelaPrecoId={formData.tabelaPrecoId}
-                    moeda={selectedCurrency}
-                    readOnly={readOnly}
-                    tipo="tecnico"
-                  />
-                </TabsContent>
-              )}
-            {data && isVisible('ProduÃ§Ã£o', 'ConteÃºdo', '-', 'Tabulador "Recursos FÃ­sicos"') && (
-              <TabsContent value="recursosFisicos" className="mt-4">
-                <ConteudoRecursosTab
-                  conteudoId={data.id}
-                  tabelaPrecoId={formData.tabelaPrecoId}
-                  moeda={selectedCurrency}
-                  readOnly={readOnly}
-                  tipo="fisico"
-                />
-              </TabsContent>
-            )}
             {data && isVisible('ProduÃ§Ã£o', 'ConteÃºdo', '-', 'Tabulador "EspaÃ§os"') && (
               <TabsContent value="espacos" className="mt-4">
-                <ConteudoEspacosTab conteudoId={data.id} readOnly={readOnly} />
+                <ConteudoEspacosTab
+                  conteudoId={data.id}
+                  readOnly={readOnly}
+                  moeda={selectedCurrency}
+                />
               </TabsContent>
             )}
             {data && isVisible('ProduÃ§Ã£o', 'ConteÃºdo', '-', 'Tabulador "Terceiros"') && (

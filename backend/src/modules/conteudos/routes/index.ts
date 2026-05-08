@@ -6,13 +6,16 @@ import type { AuthService } from '../../auth/auth.service.js';
 import {
   ConteudosService,
   conteudoResourceTypeSchema,
+  conteudoEspacoResourceTypeSchema,
   saveConteudoResourceSchema,
   saveConteudoSchema,
   saveConteudoTerceiroSchema,
   saveConteudoEspacoSchema,
+  saveConteudoEspacoResourceSchema,
   updateConteudoResourceSchema,
   updateConteudoTerceiroSchema,
   updateConteudoEspacoSchema,
+  updateConteudoEspacoResourceSchema,
 } from '../conteudos.service.js';
 
 const listQuerySchema = z.object({
@@ -147,6 +150,39 @@ export function createConteudosRoutes(authService: AuthService, conteudosService
       const { user } = request as AuthenticatedRequest;
       const params = request.params as { id: string; itemId: string };
       await conteudosService.removeEspaco(user, params.itemId);
+      return reply.status(204).send();
+    });
+
+    const espacoResourceQuerySchema = z.object({ tipo: conteudoEspacoResourceTypeSchema });
+
+    app.get('/conteudos/:id/espacos/:espacoItemId/recursos', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      const params = request.params as { id: string; espacoItemId: string };
+      const query = espacoResourceQuerySchema.parse(request.query);
+      return reply.status(200).send(await conteudosService.listEspacoResources(user, params.espacoItemId, query.tipo));
+    });
+
+    app.post('/conteudos/:id/espacos/:espacoItemId/recursos', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      const params = request.params as { id: string; espacoItemId: string };
+      const query = espacoResourceQuerySchema.parse(request.query);
+      const body = saveConteudoEspacoResourceSchema.parse(request.body);
+      return reply.status(200).send(await conteudosService.addEspacoResource(user, params.espacoItemId, query.tipo, body));
+    });
+
+    app.put('/conteudos/:id/espacos/:espacoItemId/recursos/:recursoItemId', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      const params = request.params as { id: string; espacoItemId: string; recursoItemId: string };
+      const query = espacoResourceQuerySchema.parse(request.query);
+      const body = updateConteudoEspacoResourceSchema.parse(request.body);
+      return reply.status(200).send(await conteudosService.updateEspacoResource(user, params.recursoItemId, query.tipo, body));
+    });
+
+    app.delete('/conteudos/:id/espacos/:espacoItemId/recursos/:recursoItemId', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      const params = request.params as { id: string; espacoItemId: string; recursoItemId: string };
+      const query = espacoResourceQuerySchema.parse(request.query);
+      await conteudosService.removeEspacoResource(user, params.recursoItemId, query.tipo);
       return reply.status(204).send();
     });
 
