@@ -97,6 +97,17 @@ class InMemoryGravacoesRepository implements GravacoesRepository {
   }
 
   async removeConvidado() {}
+
+  async listEspacos() { return []; }
+  async findEspacoById() { return null; }
+  async addEspaco(): Promise<never> { throw new Error('not implemented'); }
+  async updateEspaco() { return null; }
+  async removeEspaco() {}
+  async listEspacoResources() { return { items: [], availableResources: [] }; }
+  async addEspacoResource(): Promise<never> { throw new Error('not implemented'); }
+  async updateEspacoResource() { return null; }
+  async removeEspacoResource() {}
+  async listStatusCores() { return []; }
 }
 
 const actor: SessionUser = {

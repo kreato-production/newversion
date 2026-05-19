@@ -38,16 +38,16 @@ import {
 // ─── Column configuration (drives both table and ColumnSelector) ──────────────
 
 const COLUMN_CONFIG: ColumnConfig[] = [
-  { key: 'codigo',        label: 'Código',           required: true },
-  { key: 'nome',          label: 'Nome',              required: true },
-  { key: 'tipoConteudo',  label: 'Tipo',              defaultVisible: true },
-  { key: 'classificacao', label: 'Classificação',     defaultVisible: true },
-  { key: 'status',        label: 'Status',            defaultVisible: true },
-  { key: 'dataPrevista',  label: 'Data Prevista',     defaultVisible: true },
-  { key: 'unidadeNegocio',label: 'Unidade de Negócio',defaultVisible: false },
-  { key: 'programa',      label: 'Programa',          defaultVisible: false },
-  { key: 'centroLucro',   label: 'Centro de Lucro',   defaultVisible: false },
-  { key: 'acoes',         label: 'Ações',             required: true },
+  { key: 'codigo', label: 'Código', required: true },
+  { key: 'nome', label: 'Nome', required: true },
+  { key: 'tipoConteudo', label: 'Tipo', defaultVisible: true },
+  { key: 'classificacao', label: 'Classificação', defaultVisible: true },
+  { key: 'status', label: 'Status', defaultVisible: true },
+  { key: 'dataPrevista', label: 'Data Prevista', defaultVisible: true },
+  { key: 'unidadeNegocio', label: 'Unidade de Negócio', defaultVisible: false },
+  { key: 'programa', label: 'Programa', defaultVisible: false },
+  { key: 'centroLucro', label: 'Centro de Lucro', defaultVisible: false },
+  { key: 'acoes', label: 'Ações', required: true },
 ];
 
 const STORAGE_KEY = 'kreato_gravacoes_backend_table';
@@ -59,8 +59,13 @@ function formatDate(value: string | undefined | null) {
   return new Date(`${value}T00:00:00`).toLocaleDateString('pt-BR');
 }
 
-function StatusBadge({ status }: { status?: string | null }) {
+function StatusBadge({ status, cor }: { status?: string | null; cor?: string | null }) {
   if (!status) return <Badge variant="outline">Sem status</Badge>;
+  if (cor) {
+    return (
+      <Badge style={{ backgroundColor: cor, borderColor: cor, color: '#fff' }}>{status}</Badge>
+    );
+  }
   return <Badge variant="secondary">{status}</Badge>;
 }
 
@@ -87,7 +92,7 @@ function GravacaoCard({
             <p className="font-medium text-sm leading-snug truncate">{item.nome}</p>
             <p className="text-xs font-mono text-primary mt-0.5">{item.codigo || '-'}</p>
           </div>
-          <StatusBadge status={item.status} />
+          <StatusBadge status={item.status} cor={item.statusCor} />
         </div>
       </CardHeader>
 
@@ -170,7 +175,7 @@ function GravacaoDetailPanel({
           <h3 className="font-semibold text-base leading-snug">{item.nome}</h3>
           <p className="text-xs font-mono text-primary mt-0.5">{item.codigo}</p>
         </div>
-        <StatusBadge status={item.status} />
+        <StatusBadge status={item.status} cor={item.statusCor} />
       </div>
 
       <Separator />
@@ -247,8 +252,15 @@ export const BackendGravacaoList = () => {
   const [items, setItems] = useState<Gravacao[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const { mode, setMode, visibleColumnKeys, toggleColumn, isColumnVisible, resetColumns, optionalColumns } =
-    useListingView({ storageKey: STORAGE_KEY, columns: COLUMN_CONFIG });
+  const {
+    mode,
+    setMode,
+    visibleColumnKeys,
+    toggleColumn,
+    isColumnVisible,
+    resetColumns,
+    optionalColumns,
+  } = useListingView({ storageKey: STORAGE_KEY, columns: COLUMN_CONFIG });
 
   // ── Data fetching ──────────────────────────────────────────────────────────
 
@@ -359,7 +371,7 @@ export const BackendGravacaoList = () => {
     {
       key: 'status',
       label: t('common.status'),
-      render: (item) => <StatusBadge status={item.status} />,
+      render: (item) => <StatusBadge status={item.status} cor={item.statusCor} />,
     },
     {
       key: 'dataPrevista',
@@ -393,12 +405,7 @@ export const BackendGravacaoList = () => {
       render: (item) => (
         <div className="flex justify-end gap-1">
           {podeAlterar && (
-            <Button
-              size="icon"
-              variant="ghost"
-              className="h-7 w-7"
-              onClick={() => openEdit(item)}
-            >
+            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(item)}>
               <Edit className="w-3.5 h-3.5" />
             </Button>
           )}
@@ -520,7 +527,19 @@ export const BackendGravacaoList = () => {
                 <div className="flex items-center gap-2 mt-0.5">
                   <span className="text-xs font-mono text-muted-foreground">{item.codigo}</span>
                   {item.status && (
-                    <Badge variant="secondary" className="text-[10px] h-4 px-1.5">
+                    <Badge
+                      className="text-[10px] h-4 px-1.5"
+                      style={
+                        item.statusCor
+                          ? {
+                              backgroundColor: item.statusCor,
+                              borderColor: item.statusCor,
+                              color: '#fff',
+                            }
+                          : undefined
+                      }
+                      variant={item.statusCor ? undefined : 'secondary'}
+                    >
                       {item.status}
                     </Badge>
                   )}

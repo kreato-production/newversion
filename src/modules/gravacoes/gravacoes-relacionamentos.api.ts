@@ -67,6 +67,48 @@ export type GravacaoConvidadoItem = {
   observacoes: string;
 };
 
+export type GravacaoEspacoItem = {
+  id: string;
+  espacoId: string;
+  espacoNome: string;
+  descricao: string | null;
+  horaInicio: string | null;
+  horaFim: string | null;
+};
+
+export type GravacaoEspacoResourceItem = {
+  id: string;
+  recursoId: string;
+  recursoNome: string;
+  valorHora: number;
+  quantidade: number;
+  horaInicio: string | null;
+  horaFim: string | null;
+  valorTotal: number;
+  descontoPercentual: number;
+  valorComDesconto: number;
+};
+
+export type GravacaoEspacoAvailableResource = {
+  recursoId: string;
+  recursoNome: string;
+  valorHora: number;
+};
+
+export type GravacaoCustoItem = {
+  categoria: string;
+  recurso: string;
+  descricao: string;
+  horas: number;
+  custoUnitario: number;
+  custoTotal: number;
+};
+
+export type GravacaoCustosResult = {
+  moeda: string;
+  itens: GravacaoCustoItem[];
+};
+
 export const gravacoesRelacionamentosApi = {
   listFigurinos(gravacaoId: string) {
     return apiRequest<{ figurinos: GravacaoFigurinoOption[]; items: GravacaoFigurinoItem[] }>(
@@ -149,5 +191,108 @@ export const gravacoesRelacionamentosApi = {
     return apiRequest<void>(`/gravacoes/${gravacaoId}/convidados/${itemId}`, {
       method: 'DELETE',
     });
+  },
+
+  listEspacos(gravacaoId: string) {
+    return apiRequest<GravacaoEspacoItem[]>(`/gravacoes/${gravacaoId}/espacos`);
+  },
+
+  addEspaco(
+    gravacaoId: string,
+    data: {
+      espacoId: string;
+      descricao: string | null;
+      horaInicio: string | null;
+      horaFim: string | null;
+    },
+  ) {
+    return apiRequest<GravacaoEspacoItem>(`/gravacoes/${gravacaoId}/espacos`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  updateEspaco(
+    gravacaoId: string,
+    itemId: string,
+    data: {
+      espacoId: string;
+      descricao: string | null;
+      horaInicio: string | null;
+      horaFim: string | null;
+    },
+  ) {
+    return apiRequest<GravacaoEspacoItem>(`/gravacoes/${gravacaoId}/espacos/${itemId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  removeEspaco(gravacaoId: string, itemId: string) {
+    return apiRequest<void>(`/gravacoes/${gravacaoId}/espacos/${itemId}`, { method: 'DELETE' });
+  },
+
+  listEspacoResources(gravacaoId: string, espacoItemId: string, tipo: 'fisico' | 'tecnico') {
+    return apiRequest<{
+      items: GravacaoEspacoResourceItem[];
+      availableResources: GravacaoEspacoAvailableResource[];
+    }>(`/gravacoes/${gravacaoId}/espacos/${espacoItemId}/recursos?tipo=${tipo}`);
+  },
+
+  addEspacoResource(
+    gravacaoId: string,
+    espacoItemId: string,
+    tipo: 'fisico' | 'tecnico',
+    input: {
+      recursoId: string;
+      valorHora: number;
+      quantidade: number;
+      horaInicio: string | null;
+      horaFim: string | null;
+      valorTotal: number;
+      descontoPercentual: number;
+      valorComDesconto: number;
+    },
+  ) {
+    return apiRequest<GravacaoEspacoResourceItem>(
+      `/gravacoes/${gravacaoId}/espacos/${espacoItemId}/recursos?tipo=${tipo}`,
+      { method: 'POST', body: JSON.stringify(input) },
+    );
+  },
+
+  updateEspacoResource(
+    gravacaoId: string,
+    espacoItemId: string,
+    itemId: string,
+    tipo: 'fisico' | 'tecnico',
+    input: {
+      quantidade: number;
+      horaInicio: string | null;
+      horaFim: string | null;
+      valorTotal: number;
+      descontoPercentual: number;
+      valorComDesconto: number;
+    },
+  ) {
+    return apiRequest<GravacaoEspacoResourceItem>(
+      `/gravacoes/${gravacaoId}/espacos/${espacoItemId}/recursos/${itemId}?tipo=${tipo}`,
+      { method: 'PUT', body: JSON.stringify(input) },
+    );
+  },
+
+  removeEspacoResource(
+    gravacaoId: string,
+    espacoItemId: string,
+    itemId: string,
+    tipo: 'fisico' | 'tecnico',
+  ) {
+    return apiRequest<void>(
+      `/gravacoes/${gravacaoId}/espacos/${espacoItemId}/recursos/${itemId}?tipo=${tipo}`,
+      { method: 'DELETE' },
+    );
+  },
+
+  getCustos(gravacaoId: string) {
+    return apiRequest<GravacaoCustosResult>(`/gravacoes/${gravacaoId}/custos`);
   },
 };

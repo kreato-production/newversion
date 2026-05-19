@@ -489,6 +489,17 @@ async function ensureConteudosSchema() {
       `);
       await prisma.$executeRawUnsafe('CREATE INDEX IF NOT EXISTS cerf_espaco_idx ON public.conteudo_espaco_recursos_fisicos (conteudo_espaco_id)');
       await prisma.$executeRawUnsafe('CREATE INDEX IF NOT EXISTS cert_espaco_idx ON public.conteudo_espaco_recursos_tecnicos (conteudo_espaco_id)');
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS public.gravacao_espacos (
+          id text PRIMARY KEY,
+          tenant_id text NOT NULL REFERENCES "Tenant"(id) ON DELETE CASCADE,
+          gravacao_id text NOT NULL REFERENCES "Gravacao"(id) ON DELETE CASCADE,
+          espaco_id text NULL,
+          descricao text NULL,
+          created_at timestamptz NULL DEFAULT NOW()
+        )
+      `);
+      await prisma.$executeRawUnsafe('CREATE INDEX IF NOT EXISTS gravacao_espacos_gravacao_idx ON public.gravacao_espacos (gravacao_id)');
     })();
     promise.catch(() => {
       // Reset so the next request can retry instead of receiving the cached rejection.
@@ -1521,6 +1532,18 @@ export class PrismaConteudosRepository implements ConteudosRepository {
         and conteudo_id = ${input.conteudoId}
     `);
 
+    const espacos = await prisma.$queryRaw<Array<{
+      espacoId: string | null;
+      descricao: string | null;
+      horaInicio: string | null;
+      horaFim: string | null;
+    }>>(Prisma.sql`
+      select espaco_id as "espacoId", descricao, hora_inicio as "horaInicio", hora_fim as "horaFim"
+      from public.conteudo_espacos
+      where tenant_id = ${input.tenantId}
+        and conteudo_id = ${input.conteudoId}
+    `);
+
     const frequencyDates = [];
     if (conteudo.frequenciaDataInicio && conteudo.frequenciaDataFim && conteudo.frequenciaDiasSemana?.length) {
       const current = new Date(`${conteudo.frequenciaDataInicio}T00:00:00.000Z`);
@@ -1624,6 +1647,15 @@ export class PrismaConteudosRepository implements ConteudosRepository {
               ${timeRange.horaInicio},
               ${timeRange.horaFim}
             )
+          `;
+        }
+      }
+
+      for (const espaco of espacos) {
+        if (espaco.espacoId) {
+          await prisma.$executeRaw`
+            insert into public.gravacao_espacos (id, tenant_id, gravacao_id, espaco_id, descricao, hora_inicio, hora_fim)
+            values (${randomUUID()}, ${input.tenantId}, ${gravacao.id}, ${espaco.espacoId}, ${espaco.descricao ?? null}, ${espaco.horaInicio ?? null}, ${espaco.horaFim ?? null})
           `;
         }
       }

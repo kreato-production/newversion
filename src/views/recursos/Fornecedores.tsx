@@ -267,12 +267,23 @@ const Fornecedores = () => {
       Categoria: item.categoria || '',
       'E-mail': item.email || '',
       País: item.pais || '',
+      'Identificação Fiscal': item.identificacaoFiscal || '',
+      Descrição: item.descricao || '',
       'Data de Cadastro': item.dataCadastro
         ? new Date(item.dataCadastro).toLocaleDateString('pt-BR')
         : '',
     }));
     const ws = XLSX.utils.json_to_sheet(data);
-    ws['!cols'] = [{ wch: 18 }, { wch: 40 }, { wch: 30 }, { wch: 35 }, { wch: 20 }, { wch: 18 }];
+    ws['!cols'] = [
+      { wch: 18 },
+      { wch: 40 },
+      { wch: 30 },
+      { wch: 35 },
+      { wch: 20 },
+      { wch: 25 },
+      { wch: 40 },
+      { wch: 18 },
+    ];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Fornecedores');
     XLSX.writeFile(wb, `fornecedores_${new Date().toISOString().split('T')[0]}.xlsx`);
@@ -322,6 +333,8 @@ const Fornecedores = () => {
             categoria: String(row['Categoria'] ?? '').trim(),
             email: String(row['E-mail'] ?? '').trim(),
             pais: String(row['País'] ?? '').trim(),
+            identificacaoFiscal: String(row['Identificação Fiscal'] ?? '').trim(),
+            descricao: String(row['Descrição'] ?? '').trim(),
             tenantId: user?.tenantId ?? null,
           });
           ok++;

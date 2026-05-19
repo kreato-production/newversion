@@ -10,6 +10,7 @@ export interface Gravacao {
   tipoConteudo: string;
   descricao: string;
   status: string;
+  statusCor?: string;
   dataPrevista: string;
   dataCadastro: string;
   conteudoId?: string;

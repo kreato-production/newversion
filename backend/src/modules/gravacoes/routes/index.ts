@@ -5,10 +5,15 @@ import type { AuthenticatedRequest } from '../../../fastify.js';
 import type { AuthService } from '../../auth/auth.service.js';
 import {
   GravacoesService,
+  gravacaoEspacoResourceTypeSchema,
   saveGravacaoConvidadoSchema,
+  saveGravacaoEspacoSchema,
+  saveGravacaoEspacoResourceSchema,
   saveGravacaoFigurinoSchema,
   saveGravacaoSchema,
   saveGravacaoTerceiroSchema,
+  updateGravacaoEspacoSchema,
+  updateGravacaoEspacoResourceSchema,
   updateGravacaoFigurinoSchema,
 } from '../gravacoes.service.js';
 
@@ -113,6 +118,74 @@ export function createGravacoesRoutes(authService: AuthService, gravacoesService
       const params = request.params as { id: string; itemId: string };
       await gravacoesService.removeConvidado(user, params.id, params.itemId);
       return reply.status(204).send();
+    });
+
+    app.get('/gravacoes/:id/espacos', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      const params = request.params as { id: string };
+      return reply.status(200).send(await gravacoesService.listEspacos(user, params.id));
+    });
+
+    app.post('/gravacoes/:id/espacos', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      const params = request.params as { id: string };
+      const body = saveGravacaoEspacoSchema.parse(request.body);
+      return reply.status(200).send(await gravacoesService.addEspaco(user, params.id, body));
+    });
+
+    app.put('/gravacoes/:id/espacos/:itemId', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      const params = request.params as { id: string; itemId: string };
+      const body = updateGravacaoEspacoSchema.parse(request.body);
+      return reply.status(200).send(await gravacoesService.updateEspaco(user, params.id, params.itemId, body));
+    });
+
+    app.delete('/gravacoes/:id/espacos/:itemId', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      const params = request.params as { id: string; itemId: string };
+      await gravacoesService.removeEspaco(user, params.id, params.itemId);
+      return reply.status(204).send();
+    });
+
+    app.get('/gravacoes/:id/espacos/:espacoItemId/recursos', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      const params = request.params as { id: string; espacoItemId: string };
+      const query = request.query as { tipo?: string };
+      const tipo = gravacaoEspacoResourceTypeSchema.parse(query.tipo ?? 'fisico');
+      return reply.status(200).send(await gravacoesService.listEspacoResources(user, params.id, params.espacoItemId, tipo));
+    });
+
+    app.post('/gravacoes/:id/espacos/:espacoItemId/recursos', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      const params = request.params as { id: string; espacoItemId: string };
+      const query = request.query as { tipo?: string };
+      const tipo = gravacaoEspacoResourceTypeSchema.parse(query.tipo ?? 'fisico');
+      const body = saveGravacaoEspacoResourceSchema.parse(request.body);
+      return reply.status(200).send(await gravacoesService.addEspacoResource(user, params.id, params.espacoItemId, tipo, body));
+    });
+
+    app.put('/gravacoes/:id/espacos/:espacoItemId/recursos/:resourceItemId', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      const params = request.params as { id: string; espacoItemId: string; resourceItemId: string };
+      const query = request.query as { tipo?: string };
+      const tipo = gravacaoEspacoResourceTypeSchema.parse(query.tipo ?? 'fisico');
+      const body = updateGravacaoEspacoResourceSchema.parse(request.body);
+      return reply.status(200).send(await gravacoesService.updateEspacoResource(user, params.id, params.espacoItemId, params.resourceItemId, tipo, body));
+    });
+
+    app.delete('/gravacoes/:id/espacos/:espacoItemId/recursos/:resourceItemId', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      const params = request.params as { id: string; espacoItemId: string; resourceItemId: string };
+      const query = request.query as { tipo?: string };
+      const tipo = gravacaoEspacoResourceTypeSchema.parse(query.tipo ?? 'fisico');
+      await gravacoesService.removeEspacoResource(user, params.id, params.espacoItemId, params.resourceItemId, tipo);
+      return reply.status(204).send();
+    });
+
+    app.get('/gravacoes/:id/custos', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      const params = request.params as { id: string };
+      return reply.status(200).send(await gravacoesService.getCustos(user, params.id));
     });
   };
 }

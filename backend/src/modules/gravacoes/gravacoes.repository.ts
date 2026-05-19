@@ -151,6 +151,82 @@ export type SaveGravacaoTerceiroInput = {
   observacao?: string | null;
 };
 
+export type GravacaoEspacoRecord = {
+  id: string;
+  tenantId: string;
+  gravacaoId: string;
+  espacoId: string | null;
+  espacoNome: string;
+  descricao: string | null;
+  horaInicio: string | null;
+  horaFim: string | null;
+};
+
+export type SaveGravacaoEspacoInput = {
+  tenantId: string;
+  gravacaoId: string;
+  espacoId: string;
+  descricao?: string | null;
+  horaInicio?: string | null;
+  horaFim?: string | null;
+  createdBy?: string | null;
+};
+
+export type UpdateGravacaoEspacoInput = {
+  id: string;
+  espacoId: string;
+  descricao?: string | null;
+  horaInicio?: string | null;
+  horaFim?: string | null;
+};
+
+export type GravacaoEspacoResourceType = 'fisico' | 'tecnico';
+
+export type GravacaoEspacoResourceRecord = {
+  id: string;
+  tenantId: string;
+  gravacaoEspacoId: string;
+  recursoId: string;
+  recursoNome: string;
+  valorHora: number;
+  quantidade: number;
+  horaInicio: string | null;
+  horaFim: string | null;
+  valorTotal: number;
+  descontoPercentual: number;
+  valorComDesconto: number;
+};
+
+export type GravacaoEspacoAvailableResourceRecord = {
+  recursoId: string;
+  recursoNome: string;
+  valorHora: number;
+};
+
+export type SaveGravacaoEspacoResourceInput = {
+  tenantId: string;
+  gravacaoEspacoId: string;
+  tipo: GravacaoEspacoResourceType;
+  recursoId: string;
+  valorHora: number;
+  quantidade: number;
+  horaInicio?: string | null;
+  horaFim?: string | null;
+  valorTotal: number;
+  descontoPercentual: number;
+  valorComDesconto: number;
+};
+
+export type UpdateGravacaoEspacoResourceInput = {
+  id: string;
+  quantidade: number;
+  horaInicio?: string | null;
+  horaFim?: string | null;
+  valorTotal: number;
+  descontoPercentual: number;
+  valorComDesconto: number;
+};
+
 export type GravacaoRelationRecord = {
   id: string;
   tenantId: string;
@@ -289,6 +365,52 @@ export interface GravacoesRepository {
   addConvidado(input: SaveGravacaoConvidadoInput): Promise<GravacaoConvidadoRecord>;
   findConvidadoById(id: string): Promise<GravacaoRelationRecord | null>;
   removeConvidado(id: string): Promise<void>;
+  listEspacos(tenantId: string, gravacaoId: string): Promise<GravacaoEspacoRecord[]>;
+  findEspacoById(id: string): Promise<GravacaoEspacoRecord | null>;
+  addEspaco(input: SaveGravacaoEspacoInput): Promise<GravacaoEspacoRecord>;
+  updateEspaco(input: UpdateGravacaoEspacoInput): Promise<GravacaoEspacoRecord | null>;
+  removeEspaco(id: string): Promise<void>;
+  listEspacoResources(
+    tenantId: string,
+    gravacaoEspacoId: string,
+    tipo: GravacaoEspacoResourceType,
+  ): Promise<{ items: GravacaoEspacoResourceRecord[]; availableResources: GravacaoEspacoAvailableResourceRecord[] }>;
+  addEspacoResource(input: SaveGravacaoEspacoResourceInput): Promise<GravacaoEspacoResourceRecord>;
+  updateEspacoResource(input: UpdateGravacaoEspacoResourceInput, tipo: GravacaoEspacoResourceType): Promise<GravacaoEspacoResourceRecord | null>;
+  removeEspacoResource(id: string, tipo: GravacaoEspacoResourceType): Promise<void>;
+  listStatusCores(tenantId: string): Promise<Array<{ nome: string; cor: string | null }>>;
+  getCustos(tenantId: string, gravacaoId: string): Promise<GravacaoCustosResult>;
+}
+
+export type GravacaoCustoItem = {
+  categoria: string;
+  recurso: string;
+  descricao: string;
+  horas: number;
+  custoUnitario: number;
+  custoTotal: number;
+};
+
+export type GravacaoCustosResult = {
+  moeda: string;
+  itens: GravacaoCustoItem[];
+};
+
+function buildGravacaoEspacoResourceTableNames(tipo: GravacaoEspacoResourceType) {
+  if (tipo === 'tecnico') {
+    return {
+      itemTable: Prisma.raw('gravacao_espaco_recursos_tecnicos'),
+      idCol: Prisma.raw('recurso_tecnico_id'),
+      resourceTable: Prisma.raw('recursos_tecnicos'),
+      valorHoraExpr: '0',
+    };
+  }
+  return {
+    itemTable: Prisma.raw('gravacao_espaco_recursos_fisicos'),
+    idCol: Prisma.raw('recurso_fisico_id'),
+    resourceTable: Prisma.raw('recursos_fisicos'),
+    valorHoraExpr: 'coalesce(custo_hora, 0)',
+  };
 }
 
 export class PrismaGravacoesRepository implements GravacoesRepository {
@@ -1122,10 +1244,579 @@ export class PrismaGravacoesRepository implements GravacoesRepository {
           CREATE INDEX IF NOT EXISTS gravacao_terceiros_gravacao_idx
           ON gravacao_terceiros (gravacao_id, fornecedor_id)
         `);
+
+        await prisma.$executeRawUnsafe(`
+          CREATE TABLE IF NOT EXISTS gravacao_espacos (
+            id text PRIMARY KEY,
+            tenant_id text NOT NULL REFERENCES "Tenant"(id) ON DELETE CASCADE,
+            gravacao_id text NOT NULL REFERENCES "Gravacao"(id) ON DELETE CASCADE,
+            espaco_id text NULL,
+            descricao text NULL,
+            hora_inicio text NULL,
+            hora_fim text NULL,
+            created_at timestamptz NULL DEFAULT NOW()
+          )
+        `);
+
+        await prisma.$executeRawUnsafe(`ALTER TABLE gravacao_espacos ADD COLUMN IF NOT EXISTS hora_inicio text NULL`);
+        await prisma.$executeRawUnsafe(`ALTER TABLE gravacao_espacos ADD COLUMN IF NOT EXISTS hora_fim text NULL`);
+
+        await prisma.$executeRawUnsafe(`
+          CREATE INDEX IF NOT EXISTS gravacao_espacos_gravacao_idx
+          ON gravacao_espacos (gravacao_id)
+        `);
+
+        await prisma.$executeRawUnsafe(`
+          CREATE TABLE IF NOT EXISTS gravacao_espaco_recursos_fisicos (
+            id text PRIMARY KEY,
+            tenant_id text NOT NULL REFERENCES "Tenant"(id) ON DELETE CASCADE,
+            gravacao_espaco_id text NOT NULL REFERENCES gravacao_espacos(id) ON DELETE CASCADE,
+            recurso_fisico_id text NOT NULL,
+            valor_hora numeric(12,2) NULL DEFAULT 0,
+            quantidade integer NULL DEFAULT 1,
+            hora_inicio text NULL,
+            hora_fim text NULL,
+            valor_total numeric(12,2) NULL DEFAULT 0,
+            desconto_percentual numeric(5,2) NULL DEFAULT 0,
+            valor_com_desconto numeric(12,2) NULL DEFAULT 0,
+            created_at timestamptz NULL DEFAULT NOW()
+          )
+        `);
+
+        await prisma.$executeRawUnsafe(`
+          CREATE TABLE IF NOT EXISTS gravacao_espaco_recursos_tecnicos (
+            id text PRIMARY KEY,
+            tenant_id text NOT NULL REFERENCES "Tenant"(id) ON DELETE CASCADE,
+            gravacao_espaco_id text NOT NULL REFERENCES gravacao_espacos(id) ON DELETE CASCADE,
+            recurso_tecnico_id text NOT NULL,
+            valor_hora numeric(12,2) NULL DEFAULT 0,
+            quantidade integer NULL DEFAULT 1,
+            hora_inicio text NULL,
+            hora_fim text NULL,
+            valor_total numeric(12,2) NULL DEFAULT 0,
+            desconto_percentual numeric(5,2) NULL DEFAULT 0,
+            valor_com_desconto numeric(12,2) NULL DEFAULT 0,
+            created_at timestamptz NULL DEFAULT NOW()
+          )
+        `);
+
+        await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS gerf_espaco_idx ON gravacao_espaco_recursos_fisicos (gravacao_espaco_id)`);
+        await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS gert_espaco_idx ON gravacao_espaco_recursos_tecnicos (gravacao_espaco_id)`);
       })();
     }
 
     await this.ready;
+  }
+
+  async listEspacos(tenantId: string, gravacaoId: string): Promise<GravacaoEspacoRecord[]> {
+    await this.ensureTables();
+
+    const gravacao = await prisma.gravacao.findUnique({
+      where: { id: gravacaoId },
+      select: { conteudoId: true },
+    });
+
+    // Load conteudo espacos to use as source of truth for hora/descricao
+    const conteudoEspacosMap = new Map<string, { id: string; descricao: string | null; horaInicio: string | null; horaFim: string | null }>();
+    if (gravacao?.conteudoId) {
+      const rows = await prisma.$queryRaw<Array<{
+        id: string;
+        espacoId: string | null;
+        descricao: string | null;
+        horaInicio: string | null;
+        horaFim: string | null;
+      }>>`
+        select id, espaco_id as "espacoId", descricao, hora_inicio as "horaInicio", hora_fim as "horaFim"
+        from public.conteudo_espacos
+        where conteudo_id = ${gravacao.conteudoId}
+          and tenant_id = ${tenantId}
+      `;
+      for (const r of rows) {
+        if (r.espacoId) conteudoEspacosMap.set(r.espacoId, r);
+      }
+    }
+
+    const existing = await prisma.$queryRaw<GravacaoEspacoRecord[]>`
+      select
+        ge.id,
+        ge.tenant_id as "tenantId",
+        ge.gravacao_id as "gravacaoId",
+        ge.espaco_id as "espacoId",
+        coalesce(e.titulo, '') as "espacoNome",
+        ge.descricao,
+        ge.hora_inicio as "horaInicio",
+        ge.hora_fim as "horaFim"
+      from gravacao_espacos ge
+      left join public.espacos e on e.id = ge.espaco_id
+      where ge.tenant_id = ${tenantId}
+        and ge.gravacao_id = ${gravacaoId}
+      order by ge.created_at asc
+    `;
+
+    if (existing.length > 0) {
+      // Seed resources for any espaco that has none yet
+      for (const ge of existing) {
+        if (!ge.espacoId) continue;
+        const ce = conteudoEspacosMap.get(ge.espacoId);
+        if (!ce) continue;
+        const existingResources = await prisma.$queryRaw<Array<{ count: bigint }>>`
+          select count(*)::bigint as count from gravacao_espaco_recursos_fisicos where gravacao_espaco_id = ${ge.id}
+          union all
+          select count(*)::bigint as count from gravacao_espaco_recursos_tecnicos where gravacao_espaco_id = ${ge.id}
+        `;
+        const totalResources = existingResources.reduce((sum, r) => sum + Number(r.count), 0);
+        if (totalResources === 0) {
+          await this.seedEspacoResources(tenantId, ge.id, ce.id);
+        }
+      }
+
+      // Override hora/descricao in-memory from conteudo (source of truth)
+      return existing.map((ge) => {
+        if (!ge.espacoId) return ge;
+        const ce = conteudoEspacosMap.get(ge.espacoId);
+        if (!ce) return ge;
+        return { ...ge, horaInicio: ce.horaInicio, horaFim: ce.horaFim, descricao: ce.descricao };
+      });
+    }
+
+    // No gravacao espacos yet — seed from conteudo
+    if (conteudoEspacosMap.size === 0) return [];
+
+    for (const [espacoId, ce] of conteudoEspacosMap) {
+      const gravacaoEspacoId = randomUUID();
+      await prisma.$executeRaw`
+        insert into gravacao_espacos (id, tenant_id, gravacao_id, espaco_id, descricao, hora_inicio, hora_fim)
+        values (${gravacaoEspacoId}, ${tenantId}, ${gravacaoId}, ${espacoId}, ${ce.descricao ?? null}, ${ce.horaInicio ?? null}, ${ce.horaFim ?? null})
+      `;
+      await this.seedEspacoResources(tenantId, gravacaoEspacoId, ce.id);
+    }
+
+    return prisma.$queryRaw<GravacaoEspacoRecord[]>`
+      select
+        ge.id,
+        ge.tenant_id as "tenantId",
+        ge.gravacao_id as "gravacaoId",
+        ge.espaco_id as "espacoId",
+        coalesce(e.titulo, '') as "espacoNome",
+        ge.descricao,
+        ge.hora_inicio as "horaInicio",
+        ge.hora_fim as "horaFim"
+      from gravacao_espacos ge
+      left join public.espacos e on e.id = ge.espaco_id
+      where ge.tenant_id = ${tenantId}
+        and ge.gravacao_id = ${gravacaoId}
+      order by ge.created_at asc
+    `;
+  }
+
+  private async seedEspacoResources(tenantId: string, gravacaoEspacoId: string, conteudoEspacoId: string): Promise<void> {
+    const fisicos = await prisma.$queryRaw<Array<{
+      recursoFisicoId: string;
+      valorHora: string | null;
+      quantidade: number | null;
+      horaInicio: string | null;
+      horaFim: string | null;
+      valorTotal: string | null;
+      descontoPercentual: string | null;
+      valorComDesconto: string | null;
+    }>>`
+      select recurso_fisico_id as "recursoFisicoId", valor_hora as "valorHora", quantidade,
+             hora_inicio as "horaInicio", hora_fim as "horaFim", valor_total as "valorTotal",
+             desconto_percentual as "descontoPercentual", valor_com_desconto as "valorComDesconto"
+      from public.conteudo_espaco_recursos_fisicos
+      where conteudo_espaco_id = ${conteudoEspacoId}
+    `;
+
+    for (const r of fisicos) {
+      await prisma.$executeRaw`
+        insert into gravacao_espaco_recursos_fisicos
+          (id, tenant_id, gravacao_espaco_id, recurso_fisico_id, valor_hora, quantidade, hora_inicio, hora_fim, valor_total, desconto_percentual, valor_com_desconto)
+        values
+          (${randomUUID()}, ${tenantId}, ${gravacaoEspacoId}, ${r.recursoFisicoId}, ${r.valorHora ?? null}, ${r.quantidade ?? 1}, ${r.horaInicio ?? null}, ${r.horaFim ?? null}, ${r.valorTotal ?? null}, ${r.descontoPercentual ?? null}, ${r.valorComDesconto ?? null})
+      `;
+    }
+
+    const tecnicos = await prisma.$queryRaw<Array<{
+      recursoTecnicoId: string;
+      valorHora: string | null;
+      quantidade: number | null;
+      horaInicio: string | null;
+      horaFim: string | null;
+      valorTotal: string | null;
+      descontoPercentual: string | null;
+      valorComDesconto: string | null;
+    }>>`
+      select recurso_tecnico_id as "recursoTecnicoId", valor_hora as "valorHora", quantidade,
+             hora_inicio as "horaInicio", hora_fim as "horaFim", valor_total as "valorTotal",
+             desconto_percentual as "descontoPercentual", valor_com_desconto as "valorComDesconto"
+      from public.conteudo_espaco_recursos_tecnicos
+      where conteudo_espaco_id = ${conteudoEspacoId}
+    `;
+
+    for (const r of tecnicos) {
+      await prisma.$executeRaw`
+        insert into gravacao_espaco_recursos_tecnicos
+          (id, tenant_id, gravacao_espaco_id, recurso_tecnico_id, valor_hora, quantidade, hora_inicio, hora_fim, valor_total, desconto_percentual, valor_com_desconto)
+        values
+          (${randomUUID()}, ${tenantId}, ${gravacaoEspacoId}, ${r.recursoTecnicoId}, ${r.valorHora ?? null}, ${r.quantidade ?? 1}, ${r.horaInicio ?? null}, ${r.horaFim ?? null}, ${r.valorTotal ?? null}, ${r.descontoPercentual ?? null}, ${r.valorComDesconto ?? null})
+      `;
+    }
+  }
+
+  async findEspacoById(id: string): Promise<GravacaoEspacoRecord | null> {
+    await this.ensureTables();
+    const rows = await prisma.$queryRaw<GravacaoEspacoRecord[]>`
+      select
+        ge.id,
+        ge.tenant_id as "tenantId",
+        ge.gravacao_id as "gravacaoId",
+        ge.espaco_id as "espacoId",
+        coalesce(e.titulo, '') as "espacoNome",
+        ge.descricao,
+        ge.hora_inicio as "horaInicio",
+        ge.hora_fim as "horaFim"
+      from gravacao_espacos ge
+      left join public.espacos e on e.id = ge.espaco_id
+      where ge.id = ${id}
+      limit 1
+    `;
+    return rows[0] ?? null;
+  }
+
+  async addEspaco(input: SaveGravacaoEspacoInput): Promise<GravacaoEspacoRecord> {
+    await this.ensureTables();
+    const id = randomUUID();
+    await prisma.$executeRaw`
+      insert into gravacao_espacos (id, tenant_id, gravacao_id, espaco_id, descricao, hora_inicio, hora_fim)
+      values (${id}, ${input.tenantId}, ${input.gravacaoId}, ${input.espacoId}, ${input.descricao ?? null}, ${input.horaInicio ?? null}, ${input.horaFim ?? null})
+    `;
+    const saved = await this.findEspacoById(id);
+    if (!saved) throw new Error('Espaco da gravacao nao encontrado apos salvar');
+    return saved;
+  }
+
+  async updateEspaco(input: UpdateGravacaoEspacoInput): Promise<GravacaoEspacoRecord | null> {
+    await this.ensureTables();
+    await prisma.$executeRaw`
+      update gravacao_espacos
+      set espaco_id = ${input.espacoId}, descricao = ${input.descricao ?? null},
+          hora_inicio = ${input.horaInicio ?? null}, hora_fim = ${input.horaFim ?? null}
+      where id = ${input.id}
+    `;
+    return this.findEspacoById(input.id);
+  }
+
+  async removeEspaco(id: string): Promise<void> {
+    await this.ensureTables();
+    await prisma.$executeRaw`delete from gravacao_espacos where id = ${id}`;
+  }
+
+  async listEspacoResources(
+    tenantId: string,
+    gravacaoEspacoId: string,
+    tipo: GravacaoEspacoResourceType,
+  ): Promise<{ items: GravacaoEspacoResourceRecord[]; availableResources: GravacaoEspacoAvailableResourceRecord[] }> {
+    await this.ensureTables();
+    const { itemTable, idCol, resourceTable, valorHoraExpr } = buildGravacaoEspacoResourceTableNames(tipo);
+
+    const items = await prisma.$queryRaw<GravacaoEspacoResourceRecord[]>(Prisma.sql`
+      select
+        r.id,
+        r.tenant_id as "tenantId",
+        r.gravacao_espaco_id as "gravacaoEspacoId",
+        r.${idCol} as "recursoId",
+        res.nome as "recursoNome",
+        coalesce(r.valor_hora, 0)::float as "valorHora",
+        coalesce(r.quantidade, 1) as "quantidade",
+        r.hora_inicio as "horaInicio",
+        r.hora_fim as "horaFim",
+        coalesce(r.valor_total, 0)::float as "valorTotal",
+        coalesce(r.desconto_percentual, 0)::float as "descontoPercentual",
+        coalesce(r.valor_com_desconto, 0)::float as "valorComDesconto"
+      from ${itemTable} r
+      join public.${resourceTable} res on res.id = r.${idCol}
+      where r.tenant_id = ${tenantId}
+        and r.gravacao_espaco_id = ${gravacaoEspacoId}
+      order by res.nome asc
+    `);
+
+    const usedIds = items.map((i) => i.recursoId);
+
+    const availableResources = await prisma.$queryRaw<GravacaoEspacoAvailableResourceRecord[]>(Prisma.sql`
+      select
+        id as "recursoId",
+        nome as "recursoNome",
+        ${Prisma.raw(valorHoraExpr)}::float as "valorHora"
+      from public.${resourceTable}
+      where tenant_id = ${tenantId}
+        ${usedIds.length > 0 ? Prisma.sql`and id not in (${Prisma.join(usedIds)})` : Prisma.empty}
+      order by nome asc
+    `);
+
+    return { items, availableResources };
+  }
+
+  async addEspacoResource(input: SaveGravacaoEspacoResourceInput): Promise<GravacaoEspacoResourceRecord> {
+    await this.ensureTables();
+    const { itemTable, idCol, resourceTable, valorHoraExpr } = buildGravacaoEspacoResourceTableNames(input.tipo);
+    const id = randomUUID();
+
+    await prisma.$executeRaw(Prisma.sql`
+      insert into ${itemTable} (
+        id, tenant_id, gravacao_espaco_id, ${idCol},
+        valor_hora, quantidade, hora_inicio, hora_fim,
+        valor_total, desconto_percentual, valor_com_desconto
+      ) values (
+        ${id}, ${input.tenantId}, ${input.gravacaoEspacoId}, ${input.recursoId},
+        ${input.valorHora}, ${input.quantidade}, ${input.horaInicio ?? null}, ${input.horaFim ?? null},
+        ${input.valorTotal}, ${input.descontoPercentual}, ${input.valorComDesconto}
+      )
+    `);
+
+    const rows = await prisma.$queryRaw<GravacaoEspacoResourceRecord[]>(Prisma.sql`
+      select
+        r.id, r.tenant_id as "tenantId", r.gravacao_espaco_id as "gravacaoEspacoId",
+        r.${idCol} as "recursoId", res.nome as "recursoNome",
+        coalesce(r.valor_hora, 0)::float as "valorHora",
+        coalesce(r.quantidade, 1) as "quantidade",
+        r.hora_inicio as "horaInicio", r.hora_fim as "horaFim",
+        coalesce(r.valor_total, 0)::float as "valorTotal",
+        coalesce(r.desconto_percentual, 0)::float as "descontoPercentual",
+        coalesce(r.valor_com_desconto, 0)::float as "valorComDesconto"
+      from ${itemTable} r
+      join public.${resourceTable} res on res.id = r.${idCol}
+      where r.id = ${id}
+      limit 1
+    `);
+
+    if (!rows[0]) throw new Error('Recurso do espaco nao encontrado apos salvar');
+    return rows[0];
+  }
+
+  async updateEspacoResource(input: UpdateGravacaoEspacoResourceInput, tipo: GravacaoEspacoResourceType): Promise<GravacaoEspacoResourceRecord | null> {
+    await this.ensureTables();
+    const { itemTable, idCol, resourceTable } = buildGravacaoEspacoResourceTableNames(tipo);
+
+    await prisma.$executeRaw(Prisma.sql`
+      update ${itemTable}
+      set quantidade = ${input.quantidade}, hora_inicio = ${input.horaInicio ?? null},
+          hora_fim = ${input.horaFim ?? null}, valor_total = ${input.valorTotal},
+          desconto_percentual = ${input.descontoPercentual}, valor_com_desconto = ${input.valorComDesconto}
+      where id = ${input.id}
+    `);
+
+    const rows = await prisma.$queryRaw<GravacaoEspacoResourceRecord[]>(Prisma.sql`
+      select
+        r.id, r.tenant_id as "tenantId", r.gravacao_espaco_id as "gravacaoEspacoId",
+        r.${idCol} as "recursoId", res.nome as "recursoNome",
+        coalesce(r.valor_hora, 0)::float as "valorHora",
+        coalesce(r.quantidade, 1) as "quantidade",
+        r.hora_inicio as "horaInicio", r.hora_fim as "horaFim",
+        coalesce(r.valor_total, 0)::float as "valorTotal",
+        coalesce(r.desconto_percentual, 0)::float as "descontoPercentual",
+        coalesce(r.valor_com_desconto, 0)::float as "valorComDesconto"
+      from ${itemTable} r
+      join public.${resourceTable} res on res.id = r.${idCol}
+      where r.id = ${input.id}
+      limit 1
+    `);
+
+    return rows[0] ?? null;
+  }
+
+  async removeEspacoResource(id: string, tipo: GravacaoEspacoResourceType): Promise<void> {
+    await this.ensureTables();
+    const { itemTable } = buildGravacaoEspacoResourceTableNames(tipo);
+    await prisma.$executeRaw(Prisma.sql`delete from ${itemTable} where id = ${id}`);
+  }
+
+  async getCustos(tenantId: string, gravacaoId: string): Promise<GravacaoCustosResult> {
+    await this.ensureTables();
+
+    const gravacao = await prisma.gravacao.findUnique({
+      where: { id: gravacaoId },
+      select: { unidadeNegocioId: true },
+    });
+
+    const moedaRows = gravacao?.unidadeNegocioId
+      ? await prisma.$queryRaw<Array<{ moeda: string | null }>>`
+          select moeda from public."UnidadeNegocio" where id = ${gravacao.unidadeNegocioId} limit 1
+        `
+      : [];
+    const moeda = moedaRows[0]?.moeda ?? 'BRL';
+
+    type ResourceRow = {
+      id: string;
+      parentRecursoId: string | null;
+      recursoTecnicoNome: string | null;
+      recursoHumanoId: string | null;
+      recursoHumanoNome: string | null;
+      recursoHumanoSobrenome: string | null;
+      recursoHumanoCustoHora: string | null;
+      recursoFisicoId: string | null;
+      recursoFisicoNome: string | null;
+      recursoFisicoCustoHora: string | null;
+      horaInicio: string | null;
+      horaFim: string | null;
+    };
+
+    const tableExists = await this.tableExists('gravacao_recursos');
+    const rows = tableExists
+      ? await prisma.$queryRaw<ResourceRow[]>(Prisma.sql`
+          select
+            gr.id,
+            gr.parent_recurso_id as "parentRecursoId",
+            rt.nome as "recursoTecnicoNome",
+            gr.recurso_humano_id as "recursoHumanoId",
+            rh.nome as "recursoHumanoNome",
+            rh.sobrenome as "recursoHumanoSobrenome",
+            rh.custo_hora as "recursoHumanoCustoHora",
+            gr.recurso_fisico_id as "recursoFisicoId",
+            rf.nome as "recursoFisicoNome",
+            rf.custo_hora as "recursoFisicoCustoHora",
+            gr.hora_inicio as "horaInicio",
+            gr.hora_fim as "horaFim"
+          from gravacao_recursos gr
+          left join recursos_tecnicos rt on rt.id = gr.recurso_tecnico_id
+          left join recursos_humanos rh on rh.id = gr.recurso_humano_id
+          left join recursos_fisicos rf on rf.id = gr.recurso_fisico_id
+          where gr.tenant_id = ${tenantId}
+            and gr.gravacao_id = ${gravacaoId}
+          order by gr.created_at asc, gr.id asc
+        `)
+      : [];
+
+    const calcHoras = (inicio: string | null, fim: string | null): number => {
+      if (!inicio || !fim) return 0;
+      const [hI, mI] = inicio.split(':').map(Number);
+      const [hF, mF] = fim.split(':').map(Number);
+      const mins = hF * 60 + mF - (hI * 60 + mI);
+      return mins > 0 ? mins / 60 : 0;
+    };
+
+    const itens: GravacaoCustoItem[] = [];
+    const humanosProcessados = new Set<string>();
+
+    for (const row of rows) {
+      const horas = calcHoras(row.horaInicio, row.horaFim);
+
+      if (row.recursoHumanoId && row.recursoHumanoNome) {
+        if (!humanosProcessados.has(row.recursoHumanoId) && horas > 0) {
+          const nome = `${row.recursoHumanoNome} ${row.recursoHumanoSobrenome ?? ''}`.trim();
+          const custoUnitario = row.recursoHumanoCustoHora ? Number(row.recursoHumanoCustoHora) : 0;
+          const descricao = row.recursoTecnicoNome
+            ? `${horas.toFixed(1)}h operando ${row.recursoTecnicoNome}`
+            : `${horas.toFixed(1)}h de trabalho`;
+          itens.push({ categoria: 'Recursos Humanos', recurso: nome, descricao, horas, custoUnitario, custoTotal: horas * custoUnitario });
+          humanosProcessados.add(row.recursoHumanoId);
+        }
+        continue;
+      }
+
+      if (row.recursoFisicoId && row.recursoFisicoNome && horas > 0) {
+        const custoUnitario = row.recursoFisicoCustoHora ? Number(row.recursoFisicoCustoHora) : 0;
+        itens.push({ categoria: 'Recursos Físicos', recurso: row.recursoFisicoNome, descricao: `${horas.toFixed(1)}h de ocupação`, horas, custoUnitario, custoTotal: horas * custoUnitario });
+      }
+    }
+
+    // Resources from Espaços tab (gravacao_espaco_recursos_fisicos / _tecnicos)
+    type EspacoResourceRow = {
+      recursoNome: string;
+      espacoNome: string | null;
+      valorHora: string | null;
+      quantidade: number | null;
+      horaInicio: string | null;
+      horaFim: string | null;
+      valorComDesconto: string | null;
+    };
+
+    const espacosFisicosExist = await this.tableExists('gravacao_espaco_recursos_fisicos');
+    if (espacosFisicosExist) {
+      const fisicoRows = await prisma.$queryRaw<EspacoResourceRow[]>(Prisma.sql`
+        select
+          rf.nome as "recursoNome",
+          e.titulo as "espacoNome",
+          gerf.valor_hora::text as "valorHora",
+          gerf.quantidade as "quantidade",
+          gerf.hora_inicio as "horaInicio",
+          gerf.hora_fim as "horaFim",
+          gerf.valor_com_desconto::text as "valorComDesconto"
+        from gravacao_espaco_recursos_fisicos gerf
+        join gravacao_espacos ge on ge.id = gerf.gravacao_espaco_id
+        join recursos_fisicos rf on rf.id = gerf.recurso_fisico_id
+        left join public.espacos e on e.id = ge.espaco_id
+        where ge.gravacao_id = ${gravacaoId}
+          and gerf.tenant_id = ${tenantId}
+        order by rf.nome asc
+      `);
+      for (const r of fisicoRows) {
+        const horas = calcHoras(r.horaInicio, r.horaFim) * (r.quantidade ?? 1);
+        const custoUnitario = r.valorHora ? Number(r.valorHora) : 0;
+        const custoTotal = r.valorComDesconto ? Number(r.valorComDesconto) : horas * custoUnitario;
+        const descricao = r.espacoNome ? `${horas.toFixed(1)}h no espaço ${r.espacoNome}` : `${horas.toFixed(1)}h de ocupação`;
+        itens.push({ categoria: 'Recursos Físicos', recurso: r.recursoNome, descricao, horas, custoUnitario, custoTotal });
+      }
+    }
+
+    const espacosTecnicosExist = await this.tableExists('gravacao_espaco_recursos_tecnicos');
+    if (espacosTecnicosExist) {
+      const tecnicoRows = await prisma.$queryRaw<EspacoResourceRow[]>(Prisma.sql`
+        select
+          rt.nome as "recursoNome",
+          e.titulo as "espacoNome",
+          gert.valor_hora::text as "valorHora",
+          gert.quantidade as "quantidade",
+          gert.hora_inicio as "horaInicio",
+          gert.hora_fim as "horaFim",
+          gert.valor_com_desconto::text as "valorComDesconto"
+        from gravacao_espaco_recursos_tecnicos gert
+        join gravacao_espacos ge on ge.id = gert.gravacao_espaco_id
+        join recursos_tecnicos rt on rt.id = gert.recurso_tecnico_id
+        left join public.espacos e on e.id = ge.espaco_id
+        where ge.gravacao_id = ${gravacaoId}
+          and gert.tenant_id = ${tenantId}
+        order by rt.nome asc
+      `);
+      for (const r of tecnicoRows) {
+        const horas = calcHoras(r.horaInicio, r.horaFim) * (r.quantidade ?? 1);
+        const custoUnitario = r.valorHora ? Number(r.valorHora) : 0;
+        const custoTotal = r.valorComDesconto ? Number(r.valorComDesconto) : horas * custoUnitario;
+        const descricao = r.espacoNome ? `${horas.toFixed(1)}h no espaço ${r.espacoNome}` : `${horas.toFixed(1)}h de uso`;
+        itens.push({ categoria: 'Equipamentos Técnicos', recurso: r.recursoNome, descricao, horas, custoUnitario, custoTotal });
+      }
+    }
+
+    const terceirosExist = await this.tableExists('gravacao_terceiros');
+    if (terceirosExist) {
+      const terceiros = await prisma.$queryRaw<Array<{
+        fornecedorNome: string;
+        servicoNome: string | null;
+        observacao: string | null;
+        valor: string | null;
+      }>>`
+        select f.nome as "fornecedorNome", fs.nome as "servicoNome", gt.observacao, gt.valor
+        from gravacao_terceiros gt
+        inner join fornecedores f on f.id = gt.fornecedor_id
+        left join fornecedor_servicos fs on fs.id = gt.servico_id
+        where gt.tenant_id = ${tenantId} and gt.gravacao_id = ${gravacaoId}
+      `;
+      for (const t of terceiros) {
+        const valor = t.valor ? Number(t.valor) : 0;
+        itens.push({ categoria: 'Terceiros', recurso: t.fornecedorNome, descricao: t.servicoNome ?? t.observacao ?? 'Serviço', horas: 0, custoUnitario: valor, custoTotal: valor });
+      }
+    }
+
+    return { moeda, itens };
+  }
+
+  async listStatusCores(tenantId: string): Promise<Array<{ nome: string; cor: string | null }>> {
+    const exists = await this.tableExists('status_gravacao');
+    if (!exists) return [];
+    return prisma.$queryRaw<Array<{ nome: string; cor: string | null }>>`
+      select nome, cor
+      from public.status_gravacao
+      where tenant_id = ${tenantId}
+    `;
   }
 
   private async tableExists(tableName: string): Promise<boolean> {

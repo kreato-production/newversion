@@ -55,6 +55,42 @@ export const saveGravacaoConvidadoSchema = z.object({
   observacao: optionalNullableString,
 });
 
+export const saveGravacaoEspacoSchema = z.object({
+  espacoId: z.string().min(1),
+  descricao: optionalNullableString,
+  horaInicio: optionalNullableString,
+  horaFim: optionalNullableString,
+});
+
+export const updateGravacaoEspacoSchema = z.object({
+  espacoId: z.string().min(1),
+  descricao: optionalNullableString,
+  horaInicio: optionalNullableString,
+  horaFim: optionalNullableString,
+});
+
+export const gravacaoEspacoResourceTypeSchema = z.enum(['fisico', 'tecnico']);
+
+export const saveGravacaoEspacoResourceSchema = z.object({
+  recursoId: z.string().min(1),
+  valorHora: z.number(),
+  quantidade: z.number().int().min(1),
+  horaInicio: optionalNullableString,
+  horaFim: optionalNullableString,
+  valorTotal: z.number(),
+  descontoPercentual: z.number(),
+  valorComDesconto: z.number(),
+});
+
+export const updateGravacaoEspacoResourceSchema = z.object({
+  quantidade: z.number().int().min(1),
+  horaInicio: optionalNullableString,
+  horaFim: optionalNullableString,
+  valorTotal: z.number(),
+  descontoPercentual: z.number(),
+  valorComDesconto: z.number(),
+});
+
 export type SaveGravacaoDto = z.infer<typeof saveGravacaoSchema>;
 
 function formatDate(date: Date | null): string {
@@ -66,7 +102,12 @@ export class GravacoesService {
 
   async list(actor: SessionUser, opts?: { limit?: number; offset?: number }) {
     const tenantId = resolveTenantId(actor, actor.tenantId);
-    const { data, total } = await this.repository.listByTenant(tenantId, opts);
+    const [{ data, total }, statusCores] = await Promise.all([
+      this.repository.listByTenant(tenantId, opts),
+      this.repository.listStatusCores(tenantId),
+    ]);
+
+    const corByNome = new Map(statusCores.map((s) => [s.nome, s.cor ?? '']));
 
     return {
       total,
@@ -82,6 +123,7 @@ export class GravacoesService {
         tipoConteudo: item.tipoConteudo || '',
         descricao: item.descricao || '',
         status: item.status || '',
+        statusCor: item.status ? (corByNome.get(item.status) ?? '') : '',
         dataPrevista: formatDate(item.dataPrevista),
         dataCadastro: item.createdAt.toISOString(),
         conteudoId: item.conteudoId || '',
@@ -405,5 +447,116 @@ export class GravacoesService {
 
     ensureSameTenant(actor, item.tenantId);
     await this.repository.removeConvidado(itemId);
+  }
+
+  async listEspacos(actor: SessionUser, gravacaoId: string) {
+    const gravacao = await this.repository.findById(gravacaoId);
+    if (!gravacao) throw new Error('Gravacao nao encontrada');
+    ensureSameTenant(actor, gravacao.tenantId);
+    const items = await this.repository.listEspacos(gravacao.tenantId, gravacaoId);
+    return items.map((item) => ({
+      id: item.id,
+      espacoId: item.espacoId || '',
+      espacoNome: item.espacoNome,
+      descricao: item.descricao || '',
+    }));
+  }
+
+  async addEspaco(actor: SessionUser, gravacaoId: string, input: z.infer<typeof saveGravacaoEspacoSchema>) {
+    const gravacao = await this.repository.findById(gravacaoId);
+    if (!gravacao) throw new Error('Gravacao nao encontrada');
+    ensureSameTenant(actor, gravacao.tenantId);
+    const item = await this.repository.addEspaco({
+      tenantId: gravacao.tenantId,
+      gravacaoId,
+      espacoId: input.espacoId,
+      descricao: input.descricao,
+      horaInicio: input.horaInicio,
+      horaFim: input.horaFim,
+      createdBy: actor.id,
+    });
+    return this.mapEspaco(item);
+  }
+
+  async updateEspaco(actor: SessionUser, gravacaoId: string, itemId: string, input: z.infer<typeof updateGravacaoEspacoSchema>) {
+    const existing = await this.repository.findEspacoById(itemId);
+    if (!existing || existing.gravacaoId !== gravacaoId) throw new Error('Espaco da gravacao nao encontrado');
+    ensureSameTenant(actor, existing.tenantId);
+    const updated = await this.repository.updateEspaco({ id: itemId, espacoId: input.espacoId, descricao: input.descricao, horaInicio: input.horaInicio, horaFim: input.horaFim });
+    if (!updated) throw new Error('Espaco da gravacao nao encontrado');
+    return this.mapEspaco(updated);
+  }
+
+  async removeEspaco(actor: SessionUser, gravacaoId: string, itemId: string) {
+    const existing = await this.repository.findEspacoById(itemId);
+    if (!existing || existing.gravacaoId !== gravacaoId) throw new Error('Espaco da gravacao nao encontrado');
+    ensureSameTenant(actor, existing.tenantId);
+    await this.repository.removeEspaco(itemId);
+  }
+
+  async listEspacoResources(actor: SessionUser, gravacaoId: string, espacoItemId: string, tipo: z.infer<typeof gravacaoEspacoResourceTypeSchema>) {
+    const gravacao = await this.repository.findById(gravacaoId);
+    if (!gravacao) throw new Error('Gravacao nao encontrada');
+    ensureSameTenant(actor, gravacao.tenantId);
+    return this.repository.listEspacoResources(gravacao.tenantId, espacoItemId, tipo);
+  }
+
+  async addEspacoResource(actor: SessionUser, gravacaoId: string, espacoItemId: string, tipo: z.infer<typeof gravacaoEspacoResourceTypeSchema>, input: z.infer<typeof saveGravacaoEspacoResourceSchema>) {
+    const gravacao = await this.repository.findById(gravacaoId);
+    if (!gravacao) throw new Error('Gravacao nao encontrada');
+    ensureSameTenant(actor, gravacao.tenantId);
+    return this.repository.addEspacoResource({
+      tenantId: gravacao.tenantId,
+      gravacaoEspacoId: espacoItemId,
+      tipo,
+      recursoId: input.recursoId,
+      valorHora: input.valorHora,
+      quantidade: input.quantidade,
+      horaInicio: input.horaInicio,
+      horaFim: input.horaFim,
+      valorTotal: input.valorTotal,
+      descontoPercentual: input.descontoPercentual,
+      valorComDesconto: input.valorComDesconto,
+    });
+  }
+
+  async updateEspacoResource(actor: SessionUser, gravacaoId: string, _espacoItemId: string, resourceItemId: string, tipo: z.infer<typeof gravacaoEspacoResourceTypeSchema>, input: z.infer<typeof updateGravacaoEspacoResourceSchema>) {
+    const gravacao = await this.repository.findById(gravacaoId);
+    if (!gravacao) throw new Error('Gravacao nao encontrada');
+    ensureSameTenant(actor, gravacao.tenantId);
+    return this.repository.updateEspacoResource({
+      id: resourceItemId,
+      quantidade: input.quantidade,
+      horaInicio: input.horaInicio,
+      horaFim: input.horaFim,
+      valorTotal: input.valorTotal,
+      descontoPercentual: input.descontoPercentual,
+      valorComDesconto: input.valorComDesconto,
+    }, tipo);
+  }
+
+  async removeEspacoResource(actor: SessionUser, gravacaoId: string, _espacoItemId: string, resourceItemId: string, tipo: z.infer<typeof gravacaoEspacoResourceTypeSchema>) {
+    const gravacao = await this.repository.findById(gravacaoId);
+    if (!gravacao) throw new Error('Gravacao nao encontrada');
+    ensureSameTenant(actor, gravacao.tenantId);
+    await this.repository.removeEspacoResource(resourceItemId, tipo);
+  }
+
+  async getCustos(actor: SessionUser, gravacaoId: string) {
+    const gravacao = await this.repository.findById(gravacaoId);
+    if (!gravacao) throw new Error('Gravacao nao encontrada');
+    ensureSameTenant(actor, gravacao.tenantId);
+    return this.repository.getCustos(gravacao.tenantId, gravacaoId);
+  }
+
+  private mapEspaco(item: import('./gravacoes.repository.js').GravacaoEspacoRecord) {
+    return {
+      id: item.id,
+      espacoId: item.espacoId || '',
+      espacoNome: item.espacoNome,
+      descricao: item.descricao || '',
+      horaInicio: item.horaInicio || null,
+      horaFim: item.horaFim || null,
+    };
   }
 }

@@ -1,16 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  ChevronDown,
-  ChevronRight,
-  Filter,
-  Loader2,
-  TrendingUp,
-  Building2,
-} from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { ChevronDown, ChevronRight, Filter, Loader2, TrendingUp, Building2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import {
   Select,
   SelectContent,
@@ -48,16 +40,6 @@ function fmt(value: number): string {
   }).format(value);
 }
 
-/** Build a 12-element array summing costs per month (1-indexed) */
-function buildMonthlyArray(rows: CostRow[]): number[] {
-  const arr = new Array<number>(12).fill(0);
-  for (const r of rows) {
-    const idx = r.mes - 1;
-    if (idx >= 0 && idx < 12) arr[idx] += r.custo;
-  }
-  return arr;
-}
-
 function sumArr(arr: number[]): number {
   return arr.reduce((s, v) => s + v, 0);
 }
@@ -92,7 +74,10 @@ function TableHead() {
           &nbsp;
         </th>
         {MONTHS.map((m) => (
-          <th key={m} className="px-2 py-2 text-right text-xs font-semibold text-muted-foreground w-20">
+          <th
+            key={m}
+            className="px-2 py-2 text-right text-xs font-semibold text-muted-foreground w-20"
+          >
             {m}
           </th>
         ))}
@@ -133,7 +118,11 @@ function buildUnidadeRows(rows: CostRow[]): UnidadeRow[] {
 function UnidadeTable({ rows }: { rows: CostRow[] }) {
   const unidadeRows = useMemo(() => buildUnidadeRows(rows), [rows]);
   const grandTotal = useMemo(
-    () => unidadeRows.reduce((arr, r) => arr.map((v, i) => v + r.monthly[i]), new Array(12).fill(0) as number[]),
+    () =>
+      unidadeRows.reduce(
+        (arr, r) => arr.map((v, i) => v + r.monthly[i]),
+        new Array(12).fill(0) as number[],
+      ),
     [unidadeRows],
   );
 
@@ -153,7 +142,9 @@ function UnidadeTable({ rows }: { rows: CostRow[] }) {
           {unidadeRows.map((u) => (
             <tr key={u.id ?? 'none'} className="border-b hover:bg-muted/20 transition-colors">
               <td className="px-3 py-1.5 font-medium text-sm">{u.nome}</td>
-              {u.monthly.map((v, i) => <MonthCell key={i} value={v} />)}
+              {u.monthly.map((v, i) => (
+                <MonthCell key={i} value={v} />
+              ))}
               <TotalCell value={sumArr(u.monthly)} bold />
             </tr>
           ))}
@@ -161,7 +152,10 @@ function UnidadeTable({ rows }: { rows: CostRow[] }) {
           <tr className="bg-muted/30 font-semibold border-t-2">
             <td className="px-3 py-2 text-sm font-bold">Total Geral</td>
             {grandTotal.map((v, i) => (
-              <td key={i} className="px-2 py-2 text-right tabular-nums text-xs font-semibold whitespace-nowrap">
+              <td
+                key={i}
+                className="px-2 py-2 text-right tabular-nums text-xs font-semibold whitespace-nowrap"
+              >
                 {fmt(v)}
               </td>
             ))}
@@ -223,14 +217,22 @@ function CentroTable({ rows }: { rows: CostRow[] }) {
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
 
   const grandTotal = useMemo(
-    () => centroRows.reduce((arr, r) => arr.map((v, i) => v + r.monthly[i]), new Array(12).fill(0) as number[]),
+    () =>
+      centroRows.reduce(
+        (arr, r) => arr.map((v, i) => v + r.monthly[i]),
+        new Array(12).fill(0) as number[],
+      ),
     [centroRows],
   );
 
   const toggle = (id: string) =>
     setExpanded((prev) => {
       const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
       return next;
     });
 
@@ -250,10 +252,9 @@ function CentroTable({ rows }: { rows: CostRow[] }) {
           {centroRows.map((centro) => {
             const isOpen = expanded.has(centro.id ?? '__sem_cl__');
             return (
-              <>
+              <React.Fragment key={centro.id ?? '__sem_cl__'}>
                 {/* Centro row */}
                 <tr
-                  key={`centro-${centro.id}`}
                   className="border-b bg-muted/20 cursor-pointer hover:bg-muted/40 transition-colors"
                   onClick={() => toggle(centro.id ?? '__sem_cl__')}
                 >
@@ -267,7 +268,9 @@ function CentroTable({ rows }: { rows: CostRow[] }) {
                       {centro.nome}
                     </div>
                   </td>
-                  {centro.monthly.map((v, i) => <MonthCell key={i} value={v} />)}
+                  {centro.monthly.map((v, i) => (
+                    <MonthCell key={i} value={v} />
+                  ))}
                   <TotalCell value={sumArr(centro.monthly)} bold />
                 </tr>
 
@@ -284,11 +287,13 @@ function CentroTable({ rows }: { rows: CostRow[] }) {
                           {rec.nome}
                         </div>
                       </td>
-                      {rec.monthly.map((v, i) => <MonthCell key={i} value={v} />)}
+                      {rec.monthly.map((v, i) => (
+                        <MonthCell key={i} value={v} />
+                      ))}
                       <TotalCell value={sumArr(rec.monthly)} />
                     </tr>
                   ))}
-              </>
+              </React.Fragment>
             );
           })}
 
@@ -296,7 +301,10 @@ function CentroTable({ rows }: { rows: CostRow[] }) {
           <tr className="bg-muted/30 font-semibold border-t-2">
             <td className="px-3 py-2 text-sm font-bold">Total Geral</td>
             {grandTotal.map((v, i) => (
-              <td key={i} className="px-2 py-2 text-right tabular-nums text-xs font-semibold whitespace-nowrap">
+              <td
+                key={i}
+                className="px-2 py-2 text-right tabular-nums text-xs font-semibold whitespace-nowrap"
+              >
                 {fmt(v)}
               </td>
             ))}
@@ -367,14 +375,14 @@ function FiltersBar({
           </div>
 
           <div className="space-y-1">
-            <Label className="text-xs">Centro de Custo</Label>
+            <Label className="text-xs">Centro de Lucro</Label>
             <SearchableSelect
               options={centroLucroOptions}
               value={filters.centroLucroId ?? NONE}
               onValueChange={(v) => onChange({ ...filters, centroLucroId: v === NONE ? null : v })}
               placeholder="Todos"
-              searchPlaceholder="Pesquisar centro de custo..."
-              emptyMessage="Nenhum centro de custo encontrado."
+              searchPlaceholder="Pesquisar centro de lucro..."
+              emptyMessage="Nenhum centro de lucro encontrado."
               triggerClassName="h-8"
             />
           </div>
@@ -447,7 +455,11 @@ const ApropriacaoCustos = () => {
         setUnidades(data.unidades);
       } catch (err) {
         console.error(err);
-        toast({ title: 'Erro', description: 'Erro ao carregar dados de apropriação de custos', variant: 'destructive' });
+        toast({
+          title: 'Erro',
+          description: 'Erro ao carregar dados de apropriação de custos',
+          variant: 'destructive',
+        });
       } finally {
         setIsLoading(false);
       }
@@ -504,10 +516,10 @@ const ApropriacaoCustos = () => {
             <CardHeader className="pb-2 pt-4 px-4">
               <CardTitle className="text-base flex items-center gap-2">
                 <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                Custos por Centro de Custo — {filters.ano}
+                Custos por Centro de Lucro — {filters.ano}
               </CardTitle>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Clique num centro de custo para expandir os recursos
+                Clique num centro de lucro para expandir os recursos
               </p>
             </CardHeader>
             <CardContent className="px-0 pb-2">

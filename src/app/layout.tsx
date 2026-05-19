@@ -6,6 +6,10 @@ export const metadata: Metadata = {
   title: 'Kreato — Sistema de Gestão de Produção',
   description:
     'Sistema de gestão de gravações, programas, equipes e recursos de produção audiovisual.',
+  icons: {
+    icon: '/Kreato.png',
+    apple: '/Kreato.png',
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
