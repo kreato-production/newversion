@@ -735,8 +735,31 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
   }, []);
 
   const recursosDisponiveis = selectedTipo === 'tecnico' ? recursosTecnicos : recursosFisicos;
-  const recursosTecnicosAlocados = recursos.filter((r) => r.tipo === 'tecnico');
-  const recursosFisicosAlocados = recursos.filter((r) => r.tipo === 'fisico');
+
+  const recursosTecnicosNoMes = useMemo(() => {
+    return recursos.filter((r) => {
+      if (r.tipo !== 'tecnico') return false;
+      const hasAnyHours = Object.values(r.horas).some((h) => h > 0);
+      if (!hasAnyHours) return true;
+      return diasDoMes.some((d) => (r.horas[d.dataKey] ?? 0) > 0);
+    });
+  }, [recursos, diasDoMes]);
+
+  const recursosFisicosNoMes = useMemo(() => {
+    return recursos.filter((r) => {
+      if (r.tipo !== 'fisico') return false;
+      const hasAnyHours = Object.values(r.horas).some((h) => h > 0);
+      if (!hasAnyHours) return true;
+      return diasDoMes.some((d) => (r.horas[d.dataKey] ?? 0) > 0);
+    });
+  }, [recursos, diasDoMes]);
+
+  const espacoRecursosNoMes = useMemo(() => {
+    if (!dataPrevistaGravacao) return false;
+    const [dpYear, dpMonth] = dataPrevistaGravacao.split('-').map(Number);
+    const [selYear, selMonth] = mesAno.split('-').map(Number);
+    return dpYear === selYear && dpMonth === selMonth;
+  }, [dataPrevistaGravacao, mesAno]);
 
   const rhAlocadosNoDia = useMemo(() => {
     if (!rhModalRecurso || !rhModalDia) return [];
@@ -1171,10 +1194,10 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
         </Button>
       </div>
 
-      {recursos.length > 0 && (
+      {(recursosTecnicosNoMes.length > 0 || recursosFisicosNoMes.length > 0) && (
         <div className="space-y-4">
-          {renderRecursosTable(recursosTecnicosAlocados, 'Recursos Técnicos', '🔧', true)}
-          {renderRecursosTable(recursosFisicosAlocados, 'Recursos Físicos', '🏢', false)}
+          {renderRecursosTable(recursosTecnicosNoMes, 'Recursos Técnicos', '🔧', true)}
+          {renderRecursosTable(recursosFisicosNoMes, 'Recursos Físicos', '🏢', false)}
         </div>
       )}
 
@@ -1185,23 +1208,32 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
         </div>
       )}
 
-      {/* Recursos vinculados aos Espaços (somente leitura) */}
-      {(espacoRecursosTecnicos.length > 0 || espacoRecursosFisicos.length > 0) && (
-        <div className="border-t pt-4 space-y-4">
-          <div className="flex items-center gap-2">
-            <h3 className="text-sm font-semibold">Recursos dos Espaços</h3>
-            <Badge variant="secondary" className="text-[10px]">
-              somente leitura
-            </Badge>
+      {recursos.length > 0 &&
+        recursosTecnicosNoMes.length === 0 &&
+        recursosFisicosNoMes.length === 0 && (
+          <div className="text-center py-6 text-muted-foreground">
+            <p className="text-sm">Nenhum recurso utilizado no mês selecionado.</p>
           </div>
-          {renderEspacoRecursosTable(espacoRecursosTecnicos, 'Recursos Técnicos', '🔧')}
-          {renderEspacoRecursosTable(
-            espacoRecursosFisicos,
-            'Equipamentos / Recursos Físicos',
-            '🏢',
-          )}
-        </div>
-      )}
+        )}
+
+      {/* Recursos vinculados aos Espaços (somente leitura) */}
+      {espacoRecursosNoMes &&
+        (espacoRecursosTecnicos.length > 0 || espacoRecursosFisicos.length > 0) && (
+          <div className="border-t pt-4 space-y-4">
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-semibold">Recursos dos Espaços</h3>
+              <Badge variant="secondary" className="text-[10px]">
+                somente leitura
+              </Badge>
+            </div>
+            {renderEspacoRecursosTable(espacoRecursosTecnicos, 'Recursos Técnicos', '🔧')}
+            {renderEspacoRecursosTable(
+              espacoRecursosFisicos,
+              'Equipamentos / Recursos Físicos',
+              '🏢',
+            )}
+          </div>
+        )}
 
       {/* Modal for managing human resources */}
       <Dialog open={rhModalOpen} onOpenChange={setRhModalOpen}>
