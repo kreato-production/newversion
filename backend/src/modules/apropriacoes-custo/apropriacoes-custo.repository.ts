@@ -64,11 +64,12 @@ export class PrismaApropriacoesCustoRepository implements ApropriacoesCustoRepos
     const safe = (s: string) => s.replace(/'/g, "''");
     const st = safe(tenantId);
 
-    const clWhere = opts.centroLucroId ? `AND g."centroLucro" = '${safe(opts.centroLucroId)}'` : '';
+    // centroLucro stores the centro's name (not id) — join by nome
+    const clWhere = opts.centroLucroId ? `AND cl.id = '${safe(opts.centroLucroId)}'` : '';
     const unWhere = opts.unidadeId ? `AND g."unidadeNegocioId" = '${safe(opts.unidadeId)}'` : '';
 
     const commonGravJoins = `
-      LEFT JOIN centros_lucro cl ON cl.id = g."centroLucro"
+      LEFT JOIN centros_lucro cl ON cl.nome = g."centroLucro"
       LEFT JOIN "UnidadeNegocio" un ON un.id = g."unidadeNegocioId"
     `;
 
@@ -191,6 +192,27 @@ export class PrismaApropriacoesCustoRepository implements ApropriacoesCustoRepos
           AND EXTRACT(YEAR FROM g."dataPrevista") = ${ano}
           ${clWhere} ${unWhere}
         GROUP BY 1, cl.id, cl.nome, un.id, un.nome, fs.nome
+      `);
+      parts.push(rows);
+    }
+
+    // 5. Despesas vinculadas às gravações (gravacao_despesas) — uma linha por centro/mês
+    if (await this.tableExists('gravacao_despesas')) {
+      const rows = await prisma.$queryRawUnsafe<RawRow[]>(`
+        SELECT
+          EXTRACT(MONTH FROM g."dataPrevista")::int AS mes,
+          cl.id AS centro_lucro_id, cl.nome AS centro_lucro_nome,
+          un.id::text AS unidade_id, un.nome AS unidade_nome,
+          'Despesas' AS recurso_nome,
+          SUM(COALESCE(gd.valor, 0)) AS custo
+        FROM gravacao_despesas gd
+        JOIN "Gravacao" g ON g.id = gd.gravacao_id
+        ${commonGravJoins}
+        WHERE gd.tenant_id = '${st}'
+          AND g."dataPrevista" IS NOT NULL
+          AND EXTRACT(YEAR FROM g."dataPrevista") = ${ano}
+          ${clWhere} ${unWhere}
+        GROUP BY 1, cl.id, cl.nome, un.id, un.nome
       `);
       parts.push(rows);
     }
