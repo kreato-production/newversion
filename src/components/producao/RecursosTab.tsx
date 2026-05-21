@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { parseISO, isWithinInterval } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -138,7 +138,7 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
   const [selectedEstoqueItem, setSelectedEstoqueItem] = useState('');
   const [estoqueItens, setEstoqueItens] = useState<EstoqueItem[]>([]);
 
-  // Modal de recursos humanos (para recursos tÃ©cnicos)
+  // Modal de recursos humanos (para recursos técnicos)
   const [rhModalOpen, setRhModalOpen] = useState(false);
   const [rhModalRecurso, setRhModalRecurso] = useState<RecursoAlocado | null>(null);
   const [rhModalDia, setRhModalDia] = useState('');
@@ -146,7 +146,7 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
   const [horaInicio, setHoraInicio] = useState('08:00');
   const [horaFim, setHoraFim] = useState('18:00');
 
-  // Modal de horÃ¡rio de ocupaÃ§Ã£o (para recursos fÃ­sicos)
+  // Modal de horário de ocupação (para recursos físicos)
   const [horarioModalOpen, setHorarioModalOpen] = useState(false);
   const [horarioModalRecurso, setHorarioModalRecurso] = useState<RecursoAlocado | null>(null);
   const [horarioModalDia, setHorarioModalDia] = useState('');
@@ -661,8 +661,8 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
 
     if (!disponibilidade.disponivel) {
       toast({
-        title: 'HorÃ¡rio indisponÃ­vel',
-        description: disponibilidade.motivo || 'O horÃ¡rio selecionado nÃ£o estÃ¡ disponÃ­vel.',
+        title: 'Horário indisponível',
+        description: disponibilidade.motivo || 'O horário selecionado não está disponível.',
         variant: 'destructive',
       });
       return;
@@ -869,7 +869,7 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
                                   </TooltipTrigger>
                                   <TooltipContent side="top" className="text-xs">
                                     <p className="font-medium text-destructive">
-                                      Recurso indisponÃ­vel
+                                      Recurso indisponível
                                     </p>
                                     <p className="text-muted-foreground">Alocado em: {conflito}</p>
                                   </TooltipContent>
@@ -922,14 +922,14 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
                                         <ul className="text-xs space-y-0.5">
                                           {rhList.map((rh) => (
                                             <li key={rh.id} className="text-muted-foreground">
-                                              â€¢ {rh.nome} ({rh.horaInicio} - {rh.horaFim})
+                                              • {rh.nome} ({rh.horaInicio} - {rh.horaFim})
                                             </li>
                                           ))}
                                         </ul>
                                       </div>
                                     ) : faltaColaborador ? (
                                       <p className="text-xs text-destructive font-medium">
-                                        AtenÃ§Ã£o: recurso sem colaborador associado!
+                                        Atenção: recurso sem colaborador associado!
                                       </p>
                                     ) : (
                                       <p className="text-xs text-muted-foreground">
@@ -962,20 +962,18 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
                                   <TooltipContent side="top" className="max-w-xs">
                                     {horario ? (
                                       <div className="space-y-1">
-                                        <p className="font-medium text-xs">
-                                          HorÃ¡rio de ocupaÃ§Ã£o:
-                                        </p>
+                                        <p className="font-medium text-xs">Horário de ocupação:</p>
                                         <p className="text-xs text-muted-foreground">
                                           {horario.horaInicio} - {horario.horaFim}
                                         </p>
                                       </div>
                                     ) : faltaHorario ? (
                                       <p className="text-xs text-destructive font-medium">
-                                        AtenÃ§Ã£o: defina o horÃ¡rio de ocupaÃ§Ã£o!
+                                        Atenção: defina o horário de ocupação!
                                       </p>
                                     ) : (
                                       <p className="text-xs text-muted-foreground">
-                                        Clique para definir horÃ¡rio
+                                        Clique para definir horário
                                       </p>
                                     )}
                                   </TooltipContent>
@@ -1095,7 +1093,7 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
     <div className="space-y-4 mt-4">
       <div className="flex flex-wrap gap-3 items-end">
         <div className="space-y-1">
-          <label className="text-sm text-muted-foreground">MÃªs/Ano</label>
+          <label className="text-sm text-muted-foreground">Mês/Ano</label>
           <Select value={mesAno} onValueChange={setMesAno}>
             <SelectTrigger className="w-48">
               <SelectValue />
@@ -1120,8 +1118,8 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="tecnico">TÃ©cnico</SelectItem>
-              <SelectItem value="fisico">FÃ­sico</SelectItem>
+              <SelectItem value="tecnico">Técnico</SelectItem>
+              <SelectItem value="fisico">Físico</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -1172,15 +1170,15 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
 
       {recursos.length > 0 && (
         <div className="space-y-4">
-          {renderRecursosTable(recursosTecnicosAlocados, 'Recursos TÃ©cnicos', 'ðŸ”§', true)}
-          {renderRecursosTable(recursosFisicosAlocados, 'Recursos FÃ­sicos', 'ðŸ¢', false)}
+          {renderRecursosTable(recursosTecnicosAlocados, 'Recursos Técnicos', '🔧', true)}
+          {renderRecursosTable(recursosFisicosAlocados, 'Recursos Físicos', '🏢', false)}
         </div>
       )}
 
       {recursos.length === 0 && (
         <div className="text-center py-8 text-muted-foreground">
           <p>Nenhum recurso adicionado ainda.</p>
-          <p className="text-sm">Adicione recursos tÃ©cnicos ou fÃ­sicos acima.</p>
+          <p className="text-sm">Adicione recursos técnicos ou físicos acima.</p>
         </div>
       )}
 
@@ -1228,7 +1226,7 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
                       key={rh.id}
                       className="text-xs text-muted-foreground flex items-center gap-2"
                     >
-                      <span>â€¢ {rh.nome}</span>
+                      <span>• {rh.nome}</span>
                       <span className="bg-amber-500/20 text-amber-600 dark:text-amber-400 px-1.5 py-0.5 rounded text-[10px]">
                         {rh.motivoAusencia}
                       </span>
@@ -1242,7 +1240,7 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
               <Label className="text-sm font-medium">Adicionar Colaborador</Label>
               {rhModalRecurso?.funcaoOperador && (
                 <p className="text-xs text-muted-foreground">
-                  Exibindo colaboradores com funÃ§Ã£o:{' '}
+                  Exibindo colaboradores com função:{' '}
                   <strong>{rhModalRecurso.funcaoOperador}</strong>
                 </p>
               )}
@@ -1257,8 +1255,8 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
                       {recursosHumanosFiltrados.length === 0 ? (
                         <div className="px-2 py-4 text-sm text-muted-foreground text-center">
                           {colaboradoresAusentes.length > 0
-                            ? 'Todos os colaboradores estÃ£o ausentes nesta data'
-                            : `Nenhum colaborador encontrado${rhModalRecurso?.funcaoOperador ? ` com funÃ§Ã£o "${rhModalRecurso.funcaoOperador}"` : ''}`}
+                            ? 'Todos os colaboradores estão ausentes nesta data'
+                            : `Nenhum colaborador encontrado${rhModalRecurso?.funcaoOperador ? ` com função "${rhModalRecurso.funcaoOperador}"` : ''}`}
                         </div>
                       ) : (
                         recursosHumanosFiltrados.map((rh) => (
@@ -1272,7 +1270,7 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">Hora InÃ­cio</Label>
+                    <Label className="text-xs text-muted-foreground">Hora Início</Label>
                     <Input
                       type="time"
                       value={horaInicio}
@@ -1345,7 +1343,7 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Clock className="w-5 h-5" />
-              HorÃ¡rio de OcupaÃ§Ã£o - {horarioModalRecurso?.recursoNome}
+              Horário de Ocupação - {horarioModalRecurso?.recursoNome}
             </DialogTitle>
             <p className="text-sm text-muted-foreground">
               Data:{' '}
@@ -1386,7 +1384,7 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
                   <div className="bg-destructive/5 border border-destructive/20 rounded-lg p-3 space-y-2">
                     <Label className="text-xs font-medium flex items-center gap-1.5 text-destructive">
                       <Ban className="w-3.5 h-3.5" />
-                      PerÃ­odos jÃ¡ ocupados
+                      Períodos já ocupados
                     </Label>
                     <div className="space-y-1">
                       {horarioModalDisponibilidade.ocupacoes.map((oc, idx) => (
@@ -1421,7 +1419,7 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">Hora InÃ­cio</Label>
+                <Label className="text-xs text-muted-foreground">Hora Início</Label>
                 <Input
                   type="time"
                   value={horarioInicio}
