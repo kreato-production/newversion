@@ -9,18 +9,10 @@
 import { auth } from '@/auth-edge';
 import { NextResponse } from 'next/server';
 
-const PUBLIC_PREFIXES = [
-  '/login',
-  '/unauthorized',
-  '/api/auth',
-  '/_next',
-  '/favicon.ico',
-];
+const PUBLIC_PREFIXES = ['/login', '/unauthorized', '/api/auth', '/_next', '/favicon.ico'];
 
 function isPublic(pathname: string): boolean {
-  return PUBLIC_PREFIXES.some(
-    (p) => pathname === p || pathname.startsWith(p + '/'),
-  );
+  return PUBLIC_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + '/'));
 }
 
 export default auth(function middleware(request) {
@@ -46,8 +38,7 @@ export default auth(function middleware(request) {
 
   // ── LEGACY FALLBACK (remover após migração completa) ──────────────────────
   const hasLegacyCookie =
-    request.cookies.has('kreato_access_token') ||
-    request.cookies.has('kreato_session');
+    request.cookies.has('kreato_access_token') || request.cookies.has('kreato_session');
 
   if (hasLegacyCookie) {
     return NextResponse.next();

@@ -2,6 +2,7 @@ import { z } from 'zod';
 import type { SessionUser } from '../auth/auth.types.js';
 import { ensureSameTenant, resolveTenantId } from '../common/access.js';
 import type { GravacoesRepository } from './gravacoes.repository.js';
+import type { ContasPagarRepository } from '../contas-pagar/contas-pagar.repository.js';
 
 const emptyStringToNull = (value: unknown) => {
   if (typeof value === 'string' && value.trim() === '') {
@@ -91,6 +92,19 @@ export const updateGravacaoEspacoResourceSchema = z.object({
   valorComDesconto: z.number(),
 });
 
+export const saveGravacaoDespesaSchema = z.object({
+  titulo: z.string().min(1),
+  numeroDocumento: optionalNullableString,
+  descricao: optionalNullableString,
+  status: optionalNullableString,
+  tipoDocumento: optionalNullableString,
+  categoria: optionalNullableString,
+  dataVencimento: optionalNullableString,
+  valor: z.number().optional().nullable(),
+  fornecedorId: optionalNullableUuid,
+  formaPagamento: optionalNullableString,
+});
+
 export type SaveGravacaoDto = z.infer<typeof saveGravacaoSchema>;
 
 function formatDate(date: Date | null): string {
@@ -98,7 +112,10 @@ function formatDate(date: Date | null): string {
 }
 
 export class GravacoesService {
-  constructor(private readonly repository: GravacoesRepository) {}
+  constructor(
+    private readonly repository: GravacoesRepository,
+    private readonly contasPagarRepository?: ContasPagarRepository,
+  ) {}
 
   async list(actor: SessionUser, opts?: { limit?: number; offset?: number }) {
     const tenantId = resolveTenantId(actor, actor.tenantId);
@@ -547,6 +564,145 @@ export class GravacoesService {
     if (!gravacao) throw new Error('Gravacao nao encontrada');
     ensureSameTenant(actor, gravacao.tenantId);
     return this.repository.getCustos(gravacao.tenantId, gravacaoId);
+  }
+
+  async listDespesas(actor: SessionUser, gravacaoId: string) {
+    const gravacao = await this.repository.findById(gravacaoId);
+    if (!gravacao) throw new Error('Gravacao nao encontrada');
+    ensureSameTenant(actor, gravacao.tenantId);
+    const items = await this.repository.listDespesas(gravacao.tenantId, gravacaoId);
+    return {
+      items: items.map((item) => ({
+        id: item.id,
+        titulo: item.titulo,
+        numeroDocumento: item.numeroDocumento || '',
+        descricao: item.descricao || '',
+        status: item.status || '',
+        tipoDocumento: item.tipoDocumento || '',
+        categoria: item.categoria || '',
+        dataVencimento: item.dataVencimento || '',
+        valor: item.valor ?? 0,
+        fornecedorId: item.fornecedorId || '',
+        fornecedorNome: item.fornecedorNome || '',
+        formaPagamento: item.formaPagamento || '',
+      })),
+    };
+  }
+
+  async addDespesa(actor: SessionUser, gravacaoId: string, input: z.infer<typeof saveGravacaoDespesaSchema>) {
+    const gravacao = await this.repository.findById(gravacaoId);
+    if (!gravacao) throw new Error('Gravacao nao encontrada');
+    ensureSameTenant(actor, gravacao.tenantId);
+    const item = await this.repository.addDespesa({
+      tenantId: gravacao.tenantId,
+      gravacaoId,
+      titulo: input.titulo,
+      numeroDocumento: input.numeroDocumento,
+      descricao: input.descricao,
+      status: input.status,
+      tipoDocumento: input.tipoDocumento,
+      categoria: input.categoria,
+      dataVencimento: input.dataVencimento,
+      valor: input.valor,
+      fornecedorId: input.fornecedorId,
+      formaPagamento: input.formaPagamento,
+    });
+
+    if (this.contasPagarRepository) {
+      await this.contasPagarRepository.saveLinkedToGravacaoDespesa({
+        gravacaoDespesaId: item.id,
+        tenantId: gravacao.tenantId,
+        createdBy: actor.id,
+        titulo: item.titulo,
+        numeroDocumento: item.numeroDocumento,
+        descricao: item.descricao,
+        dataVencimento: item.dataVencimento,
+        valor: item.valor,
+        fornecedorId: item.fornecedorId,
+        statusTitulo: item.status,
+        categoriaTitulo: item.categoria,
+        tipoDocumentoTitulo: item.tipoDocumento,
+        formaPagamentoTitulo: item.formaPagamento,
+      }).catch(() => {});
+    }
+
+    return {
+      id: item.id,
+      titulo: item.titulo,
+      numeroDocumento: item.numeroDocumento || '',
+      descricao: item.descricao || '',
+      status: item.status || '',
+      tipoDocumento: item.tipoDocumento || '',
+      categoria: item.categoria || '',
+      dataVencimento: item.dataVencimento || '',
+      valor: item.valor ?? 0,
+      fornecedorId: item.fornecedorId || '',
+      fornecedorNome: item.fornecedorNome || '',
+      formaPagamento: item.formaPagamento || '',
+    };
+  }
+
+  async updateDespesa(actor: SessionUser, gravacaoId: string, itemId: string, input: z.infer<typeof saveGravacaoDespesaSchema>) {
+    const existing = await this.repository.findDespesaById(itemId);
+    if (!existing || existing.gravacaoId !== gravacaoId) throw new Error('Despesa da gravacao nao encontrada');
+    ensureSameTenant(actor, existing.tenantId);
+    const item = await this.repository.updateDespesa({
+      id: itemId,
+      titulo: input.titulo,
+      numeroDocumento: input.numeroDocumento,
+      descricao: input.descricao,
+      status: input.status,
+      tipoDocumento: input.tipoDocumento,
+      categoria: input.categoria,
+      dataVencimento: input.dataVencimento,
+      valor: input.valor,
+      fornecedorId: input.fornecedorId,
+      formaPagamento: input.formaPagamento,
+    });
+    if (!item) throw new Error('Despesa da gravacao nao encontrada');
+
+    if (this.contasPagarRepository) {
+      await this.contasPagarRepository.updateLinkedToGravacaoDespesa({
+        gravacaoDespesaId: itemId,
+        tenantId: existing.tenantId,
+        createdBy: actor.id,
+        titulo: item.titulo,
+        numeroDocumento: item.numeroDocumento,
+        descricao: item.descricao,
+        dataVencimento: item.dataVencimento,
+        valor: item.valor,
+        fornecedorId: item.fornecedorId,
+        statusTitulo: item.status,
+        categoriaTitulo: item.categoria,
+        tipoDocumentoTitulo: item.tipoDocumento,
+        formaPagamentoTitulo: item.formaPagamento,
+      }).catch(() => {});
+    }
+
+    return {
+      id: item.id,
+      titulo: item.titulo,
+      numeroDocumento: item.numeroDocumento || '',
+      descricao: item.descricao || '',
+      status: item.status || '',
+      tipoDocumento: item.tipoDocumento || '',
+      categoria: item.categoria || '',
+      dataVencimento: item.dataVencimento || '',
+      valor: item.valor ?? 0,
+      fornecedorId: item.fornecedorId || '',
+      fornecedorNome: item.fornecedorNome || '',
+      formaPagamento: item.formaPagamento || '',
+    };
+  }
+
+  async removeDespesa(actor: SessionUser, gravacaoId: string, itemId: string) {
+    const item = await this.repository.findDespesaById(itemId);
+    if (!item || item.gravacaoId !== gravacaoId) throw new Error('Despesa da gravacao nao encontrada');
+    ensureSameTenant(actor, item.tenantId);
+    await this.repository.removeDespesa(itemId);
+    if (this.contasPagarRepository) {
+      await this.contasPagarRepository.deleteByGravacaoDespesaId(item.tenantId, itemId).catch(() => {});
+    }
   }
 
   private mapEspaco(item: import('./gravacoes.repository.js').GravacaoEspacoRecord) {

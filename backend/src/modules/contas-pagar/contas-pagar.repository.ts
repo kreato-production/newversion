@@ -27,6 +27,22 @@ export type ContaPagarRecord = {
   updatedAt: Date | null;
 };
 
+export type SaveContaPagarFromDespesaInput = {
+  gravacaoDespesaId: string;
+  tenantId: string;
+  createdBy: string | null;
+  titulo: string;
+  numeroDocumento: string | null;
+  descricao: string | null;
+  dataVencimento: string | null;
+  valor: number | null;
+  fornecedorId: string | null;
+  statusTitulo: string | null;
+  categoriaTitulo: string | null;
+  tipoDocumentoTitulo: string | null;
+  formaPagamentoTitulo: string | null;
+};
+
 export type SaveContaPagarInput = {
   id?: string;
   tenantId: string;
@@ -126,6 +142,10 @@ async function ensureTables() {
       await prisma.$executeRawUnsafe(`
         CREATE INDEX IF NOT EXISTS contas_pagar_tenant_idx ON contas_pagar (tenant_id)
       `);
+
+      await prisma.$executeRawUnsafe(`
+        ALTER TABLE contas_pagar ADD COLUMN IF NOT EXISTS gravacao_despesa_id text NULL
+      `);
     })();
   }
 
@@ -185,6 +205,9 @@ export interface ContasPagarRepository {
   findById(id: string, tenantId: string): Promise<ContaPagarRecord | null>;
   save(input: SaveContaPagarInput): Promise<ContaPagarRecord>;
   remove(id: string, tenantId: string): Promise<void>;
+  saveLinkedToGravacaoDespesa(input: SaveContaPagarFromDespesaInput): Promise<void>;
+  updateLinkedToGravacaoDespesa(input: SaveContaPagarFromDespesaInput): Promise<void>;
+  deleteByGravacaoDespesaId(tenantId: string, gravacaoDespesaId: string): Promise<void>;
 }
 
 export class PrismaContasPagarRepository implements ContasPagarRepository {
@@ -301,6 +324,72 @@ export class PrismaContasPagarRepository implements ContasPagarRepository {
       `DELETE FROM contas_pagar WHERE id = $1 AND tenant_id = $2`,
       id,
       tenantId,
+    );
+  }
+
+  private async resolveParametrizacoesIds(tenantId: string, input: SaveContaPagarFromDespesaInput) {
+    const [statusRows, categoriaRows, tipoDocRows, formaPagRows] = await Promise.all([
+      input.statusTitulo
+        ? prisma.$queryRawUnsafe<[{ id: string }]>(`SELECT id FROM status_conta_pagar WHERE tenant_id = $1 AND titulo = $2 LIMIT 1`, tenantId, input.statusTitulo)
+        : Promise.resolve([] as { id: string }[]),
+      input.categoriaTitulo
+        ? prisma.$queryRawUnsafe<[{ id: string }]>(`SELECT id FROM categorias_despesa WHERE tenant_id = $1 AND titulo = $2 LIMIT 1`, tenantId, input.categoriaTitulo)
+        : Promise.resolve([] as { id: string }[]),
+      input.tipoDocumentoTitulo
+        ? prisma.$queryRawUnsafe<[{ id: string }]>(`SELECT id FROM tipos_documento_financeiro WHERE tenant_id = $1 AND titulo = $2 LIMIT 1`, tenantId, input.tipoDocumentoTitulo)
+        : Promise.resolve([] as { id: string }[]),
+      input.formaPagamentoTitulo
+        ? prisma.$queryRawUnsafe<[{ id: string }]>(`SELECT id FROM formas_pagamento WHERE tenant_id = $1 AND titulo = $2 LIMIT 1`, tenantId, input.formaPagamentoTitulo)
+        : Promise.resolve([] as { id: string }[]),
+    ]);
+    return {
+      statusId: statusRows[0]?.id ?? null,
+      categoriaId: categoriaRows[0]?.id ?? null,
+      tipoDocumentoId: tipoDocRows[0]?.id ?? null,
+      formaPagamentoId: formaPagRows[0]?.id ?? null,
+    };
+  }
+
+  async saveLinkedToGravacaoDespesa(input: SaveContaPagarFromDespesaInput): Promise<void> {
+    await ensureTables();
+    const ids = await this.resolveParametrizacoesIds(input.tenantId, input);
+    const today = new Date().toISOString().slice(0, 10);
+    const id = randomUUID();
+    const now = new Date();
+    await prisma.$executeRawUnsafe(
+      `INSERT INTO contas_pagar (id, tenant_id, gravacao_despesa_id, numero_documento, descricao, fornecedor_id, data_vencimento, valor, status_id, categoria_id, tipo_documento_id, forma_pagamento_id, observacoes, created_by, created_at, updated_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7::date,$8,$9,$10,$11,$12,$13,$14,$15,$16)`,
+      id, input.tenantId, input.gravacaoDespesaId,
+      input.numeroDocumento ?? null, input.titulo,
+      input.fornecedorId ?? null, input.dataVencimento ?? today,
+      input.valor ?? 0,
+      ids.statusId, ids.categoriaId, ids.tipoDocumentoId, ids.formaPagamentoId,
+      input.descricao ?? null, input.createdBy ?? null, now, now,
+    );
+  }
+
+  async updateLinkedToGravacaoDespesa(input: SaveContaPagarFromDespesaInput): Promise<void> {
+    await ensureTables();
+    const ids = await this.resolveParametrizacoesIds(input.tenantId, input);
+    const today = new Date().toISOString().slice(0, 10);
+    const now = new Date();
+    await prisma.$executeRawUnsafe(
+      `UPDATE contas_pagar SET numero_documento=$1, descricao=$2, fornecedor_id=$3, data_vencimento=$4::date, valor=$5, status_id=$6, categoria_id=$7, tipo_documento_id=$8, forma_pagamento_id=$9, observacoes=$10, updated_at=$11
+       WHERE tenant_id=$12 AND gravacao_despesa_id=$13`,
+      input.numeroDocumento ?? null, input.titulo,
+      input.fornecedorId ?? null, input.dataVencimento ?? today,
+      input.valor ?? 0,
+      ids.statusId, ids.categoriaId, ids.tipoDocumentoId, ids.formaPagamentoId,
+      input.descricao ?? null, now,
+      input.tenantId, input.gravacaoDespesaId,
+    );
+  }
+
+  async deleteByGravacaoDespesaId(tenantId: string, gravacaoDespesaId: string): Promise<void> {
+    await ensureTables();
+    await prisma.$executeRawUnsafe(
+      `DELETE FROM contas_pagar WHERE tenant_id = $1 AND gravacao_despesa_id = $2`,
+      tenantId, gravacaoDespesaId,
     );
   }
 }

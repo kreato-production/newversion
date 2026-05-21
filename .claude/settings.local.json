@@ -50,7 +50,21 @@
       "Bash(Get-Content \"c:\\\\Projetos\\\\Kreato_Local\\\\kreatoproduction\\\\.codex-logs\\\\backend-dev.out.log\" -Tail 15)",
       "Bash(Select-Object -First 20)",
       "Bash(grep -E \"\\\\.\\(ts|tsx\\)$\")",
-      "Bash(grep -E \"\\\\.\\(ts|tsx|json\\)$\")"
+      "Bash(grep -E \"\\\\.\\(ts|tsx|json\\)$\")",
+      "Bash(npm run *)",
+      "Bash(echo \"Backend starting with PID $!\")",
+      "Bash(echo \"Frontend starting with PID $!\")",
+      "PowerShell(docker exec $\\(docker ps --filter \"ancestor=postgres\" -q | Select-Object -First 1\\) psql -U postgres -c \"SELECT version\\(\\);\")",
+      "Bash(git config *)",
+      "Read(//c/Projetos/Kreato_Local/**)",
+      "Bash(package.json\")",
+      "PowerShell(Start-Process \"http://localhost:3001/login\")",
+      "PowerShell(Get-Process node -ErrorAction SilentlyContinue)",
+      "PowerShell(Start-Process powershell -ArgumentList \"-NoExit\", \"-Command\", \"cd 'c:\\\\Projetos\\\\Kreato_Local\\\\kreatoproduction\\\\backend'; npm run dev\")",
+      "Bash(curl -s http://localhost:3333/health)",
+      "PowerShell(Start-Process powershell -ArgumentList \"-NoExit\", \"-Command\", \"cd 'c:\\\\Projetos\\\\Kreato_Local\\\\kreatoproduction'; npm run dev\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3001)",
+      "PowerShell(Start-Process powershell -ArgumentList \"-NoExit\", \"-Command\", \"cd 'c:\\\\Projetos\\\\Kreato_Local\\\\kreatoproduction'; node --max-http-header-size=65536 node_modules/next/dist/bin/next dev -p 3001\")"
     ],
     "additionalDirectories": [
       "C:\\Projetos\\Kreato NewVersion\\backend\\src\\modules\\conteudos",

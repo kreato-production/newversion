@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   description:
     'Sistema de gestão de gravações, programas, equipes e recursos de produção audiovisual.',
   icons: {
-    icon: '/Kreato.png',
+    icon: [{ url: '/Kreato.png', type: 'image/png' }],
     apple: '/Kreato.png',
   },
 };

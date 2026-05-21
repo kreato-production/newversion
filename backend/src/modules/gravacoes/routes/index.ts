@@ -7,6 +7,7 @@ import {
   GravacoesService,
   gravacaoEspacoResourceTypeSchema,
   saveGravacaoConvidadoSchema,
+  saveGravacaoDespesaSchema,
   saveGravacaoEspacoSchema,
   saveGravacaoEspacoResourceSchema,
   saveGravacaoFigurinoSchema,
@@ -186,6 +187,33 @@ export function createGravacoesRoutes(authService: AuthService, gravacoesService
       const { user } = request as AuthenticatedRequest;
       const params = request.params as { id: string };
       return reply.status(200).send(await gravacoesService.getCustos(user, params.id));
+    });
+
+    app.get('/gravacoes/:id/despesas', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      const params = request.params as { id: string };
+      return reply.status(200).send(await gravacoesService.listDespesas(user, params.id));
+    });
+
+    app.post('/gravacoes/:id/despesas', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      const params = request.params as { id: string };
+      const body = saveGravacaoDespesaSchema.parse(request.body);
+      return reply.status(200).send(await gravacoesService.addDespesa(user, params.id, body));
+    });
+
+    app.put('/gravacoes/:id/despesas/:itemId', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      const params = request.params as { id: string; itemId: string };
+      const body = saveGravacaoDespesaSchema.parse(request.body);
+      return reply.status(200).send(await gravacoesService.updateDespesa(user, params.id, params.itemId, body));
+    });
+
+    app.delete('/gravacoes/:id/despesas/:itemId', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      const params = request.params as { id: string; itemId: string };
+      await gravacoesService.removeDespesa(user, params.id, params.itemId);
+      return reply.status(204).send();
     });
   };
 }

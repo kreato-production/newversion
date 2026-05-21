@@ -108,6 +108,12 @@ class InMemoryGravacoesRepository implements GravacoesRepository {
   async updateEspacoResource() { return null; }
   async removeEspacoResource() {}
   async listStatusCores() { return []; }
+  async getCustos() { return { moeda: 'BRL', itens: [] }; }
+  async listDespesas() { return []; }
+  async addDespesa(): Promise<never> { throw new Error('not implemented'); }
+  async updateDespesa() { return null; }
+  async findDespesaById() { return null; }
+  async removeDespesa() {}
 }
 
 const actor: SessionUser = {

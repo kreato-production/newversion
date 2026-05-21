@@ -3,7 +3,7 @@ setlocal
 
 set "ROOT=%~dp0.."
 set "BACKEND=%~dp0..\backend"
-set "FRONTEND_PORT=3000"
+set "FRONTEND_PORT=3001"
 set "BACKEND_PORT=3333"
 set "PROJECT_PATH=kreatoproduction"
 
@@ -43,7 +43,7 @@ timeout /t 3 /nobreak >nul
 
 :: --- Iniciar Frontend ---
 echo [3/3] Iniciando Frontend (porta %FRONTEND_PORT%)...
-start "Kreato Frontend" cmd /k "cd /d "%ROOT%" && node --max-http-header-size=65536 node_modules/next/dist/bin/next dev"
+start "Kreato Frontend" cmd /k "cd /d "%ROOT%" && npm run dev"
 
 :: Aguardar o frontend responder na porta antes de abrir o browser
 echo Aguardando frontend inicializar...

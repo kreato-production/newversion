@@ -109,6 +109,38 @@ export type GravacaoCustosResult = {
   itens: GravacaoCustoItem[];
 };
 
+export type GravacaoDespesaItem = {
+  id: string;
+  titulo: string;
+  numeroDocumento: string;
+  descricao: string;
+  status: string;
+  tipoDocumento: string;
+  categoria: string;
+  dataVencimento: string;
+  valor: number;
+  fornecedorId: string;
+  fornecedorNome: string;
+  formaPagamento: string;
+};
+
+export type GravacaoDespesaInput = {
+  titulo: string;
+  numeroDocumento?: string | null;
+  descricao?: string | null;
+  status?: string | null;
+  tipoDocumento?: string | null;
+  categoria?: string | null;
+  dataVencimento?: string | null;
+  valor?: number | null;
+  fornecedorId?: string | null;
+  formaPagamento?: string | null;
+};
+
+export type GravacaoDespesasResult = {
+  items: GravacaoDespesaItem[];
+};
+
 export const gravacoesRelacionamentosApi = {
   listFigurinos(gravacaoId: string) {
     return apiRequest<{ figurinos: GravacaoFigurinoOption[]; items: GravacaoFigurinoItem[] }>(
@@ -294,5 +326,27 @@ export const gravacoesRelacionamentosApi = {
 
   getCustos(gravacaoId: string) {
     return apiRequest<GravacaoCustosResult>(`/gravacoes/${gravacaoId}/custos`);
+  },
+
+  listDespesas(gravacaoId: string) {
+    return apiRequest<GravacaoDespesasResult>(`/gravacoes/${gravacaoId}/despesas`);
+  },
+
+  addDespesa(gravacaoId: string, input: GravacaoDespesaInput) {
+    return apiRequest<GravacaoDespesaItem>(`/gravacoes/${gravacaoId}/despesas`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  },
+
+  updateDespesa(gravacaoId: string, itemId: string, input: GravacaoDespesaInput) {
+    return apiRequest<GravacaoDespesaItem>(`/gravacoes/${gravacaoId}/despesas/${itemId}`, {
+      method: 'PUT',
+      body: JSON.stringify(input),
+    });
+  },
+
+  removeDespesa(gravacaoId: string, itemId: string) {
+    return apiRequest<void>(`/gravacoes/${gravacaoId}/despesas/${itemId}`, { method: 'DELETE' });
   },
 };

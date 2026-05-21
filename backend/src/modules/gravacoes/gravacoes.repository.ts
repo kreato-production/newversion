@@ -233,6 +233,53 @@ export type GravacaoRelationRecord = {
   gravacaoId: string;
 };
 
+export type GravacaoDespesaRecord = {
+  id: string;
+  tenantId: string;
+  gravacaoId: string;
+  titulo: string;
+  numeroDocumento: string | null;
+  descricao: string | null;
+  status: string | null;
+  tipoDocumento: string | null;
+  categoria: string | null;
+  dataVencimento: string | null;
+  valor: number | null;
+  fornecedorId: string | null;
+  fornecedorNome: string | null;
+  formaPagamento: string | null;
+  createdAt: Date;
+};
+
+export type SaveGravacaoDespesaInput = {
+  tenantId: string;
+  gravacaoId: string;
+  titulo: string;
+  numeroDocumento?: string | null;
+  descricao?: string | null;
+  status?: string | null;
+  tipoDocumento?: string | null;
+  categoria?: string | null;
+  dataVencimento?: string | null;
+  valor?: number | null;
+  fornecedorId?: string | null;
+  formaPagamento?: string | null;
+};
+
+export type UpdateGravacaoDespesaInput = {
+  id: string;
+  titulo: string;
+  numeroDocumento?: string | null;
+  descricao?: string | null;
+  status?: string | null;
+  tipoDocumento?: string | null;
+  categoria?: string | null;
+  dataVencimento?: string | null;
+  valor?: number | null;
+  fornecedorId?: string | null;
+  formaPagamento?: string | null;
+};
+
 export type ListOptions = { limit?: number; offset?: number };
 export type PaginatedResult<T> = { data: T[]; total: number };
 
@@ -380,6 +427,11 @@ export interface GravacoesRepository {
   removeEspacoResource(id: string, tipo: GravacaoEspacoResourceType): Promise<void>;
   listStatusCores(tenantId: string): Promise<Array<{ nome: string; cor: string | null }>>;
   getCustos(tenantId: string, gravacaoId: string): Promise<GravacaoCustosResult>;
+  listDespesas(tenantId: string, gravacaoId: string): Promise<GravacaoDespesaRecord[]>;
+  addDespesa(input: SaveGravacaoDespesaInput): Promise<GravacaoDespesaRecord>;
+  updateDespesa(input: UpdateGravacaoDespesaInput): Promise<GravacaoDespesaRecord | null>;
+  findDespesaById(id: string): Promise<GravacaoRelationRecord | null>;
+  removeDespesa(id: string): Promise<void>;
 }
 
 export type GravacaoCustoItem = {
@@ -1302,6 +1354,27 @@ export class PrismaGravacoesRepository implements GravacoesRepository {
 
         await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS gerf_espaco_idx ON gravacao_espaco_recursos_fisicos (gravacao_espaco_id)`);
         await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS gert_espaco_idx ON gravacao_espaco_recursos_tecnicos (gravacao_espaco_id)`);
+
+        await prisma.$executeRawUnsafe(`
+          CREATE TABLE IF NOT EXISTS gravacao_despesas (
+            id text PRIMARY KEY,
+            tenant_id text NOT NULL REFERENCES "Tenant"(id) ON DELETE CASCADE,
+            gravacao_id text NOT NULL REFERENCES "Gravacao"(id) ON DELETE CASCADE,
+            titulo text NOT NULL,
+            numero_documento text NULL,
+            descricao text NULL,
+            status text NULL,
+            tipo_documento text NULL,
+            categoria text NULL,
+            data_vencimento date NULL,
+            valor numeric(12,2) NULL,
+            fornecedor_id text NULL REFERENCES fornecedores(id) ON DELETE SET NULL,
+            forma_pagamento text NULL,
+            created_at timestamptz NOT NULL DEFAULT NOW()
+          )
+        `);
+
+        await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS gravacao_despesas_gravacao_idx ON gravacao_despesas (gravacao_id)`);
       })();
     }
 
@@ -1817,6 +1890,119 @@ export class PrismaGravacoesRepository implements GravacoesRepository {
       from public.status_gravacao
       where tenant_id = ${tenantId}
     `;
+  }
+
+  async listDespesas(tenantId: string, gravacaoId: string): Promise<GravacaoDespesaRecord[]> {
+    await this.ensureTables();
+    const rows = await prisma.$queryRaw<Array<{
+      id: string; tenantId: string; gravacaoId: string; titulo: string;
+      numeroDocumento: string | null; descricao: string | null; status: string | null;
+      tipoDocumento: string | null; categoria: string | null; dataVencimento: string | null;
+      valor: Prisma.Decimal | null; fornecedorId: string | null; fornecedorNome: string | null;
+      formaPagamento: string | null; createdAt: Date;
+    }>>(Prisma.sql`
+      SELECT gd.id, gd.tenant_id AS "tenantId", gd.gravacao_id AS "gravacaoId",
+        gd.titulo, gd.numero_documento AS "numeroDocumento", gd.descricao, gd.status,
+        gd.tipo_documento AS "tipoDocumento", gd.categoria,
+        gd.data_vencimento::text AS "dataVencimento", gd.valor,
+        gd.fornecedor_id AS "fornecedorId", f.nome AS "fornecedorNome",
+        gd.forma_pagamento AS "formaPagamento", gd.created_at AS "createdAt"
+      FROM gravacao_despesas gd
+      LEFT JOIN fornecedores f ON f.id = gd.fornecedor_id
+      WHERE gd.tenant_id = ${tenantId} AND gd.gravacao_id = ${gravacaoId}
+      ORDER BY gd.created_at DESC
+    `);
+    return rows.map((r) => ({ ...r, valor: r.valor != null ? Number(r.valor) : null }));
+  }
+
+  async addDespesa(input: SaveGravacaoDespesaInput): Promise<GravacaoDespesaRecord> {
+    await this.ensureTables();
+    const id = randomUUID();
+    await prisma.$executeRaw`
+      INSERT INTO gravacao_despesas (
+        id, tenant_id, gravacao_id, titulo, numero_documento, descricao, status,
+        tipo_documento, categoria, data_vencimento, valor, fornecedor_id, forma_pagamento, created_at
+      ) VALUES (
+        ${id}, ${input.tenantId}, ${input.gravacaoId}, ${input.titulo},
+        ${input.numeroDocumento ?? null}, ${input.descricao ?? null}, ${input.status ?? null},
+        ${input.tipoDocumento ?? null}, ${input.categoria ?? null},
+        ${input.dataVencimento ? Prisma.raw(`'${input.dataVencimento}'::date`) : Prisma.raw('NULL')},
+        ${input.valor ?? null}, ${input.fornecedorId ?? null}, ${input.formaPagamento ?? null},
+        NOW()
+      )
+    `;
+    const rows = await prisma.$queryRaw<Array<{
+      id: string; tenantId: string; gravacaoId: string; titulo: string;
+      numeroDocumento: string | null; descricao: string | null; status: string | null;
+      tipoDocumento: string | null; categoria: string | null; dataVencimento: string | null;
+      valor: Prisma.Decimal | null; fornecedorId: string | null; fornecedorNome: string | null;
+      formaPagamento: string | null; createdAt: Date;
+    }>>(Prisma.sql`
+      SELECT gd.id, gd.tenant_id AS "tenantId", gd.gravacao_id AS "gravacaoId",
+        gd.titulo, gd.numero_documento AS "numeroDocumento", gd.descricao, gd.status,
+        gd.tipo_documento AS "tipoDocumento", gd.categoria,
+        gd.data_vencimento::text AS "dataVencimento", gd.valor,
+        gd.fornecedor_id AS "fornecedorId", f.nome AS "fornecedorNome",
+        gd.forma_pagamento AS "formaPagamento", gd.created_at AS "createdAt"
+      FROM gravacao_despesas gd
+      LEFT JOIN fornecedores f ON f.id = gd.fornecedor_id
+      WHERE gd.id = ${id} LIMIT 1
+    `);
+    const saved = rows[0];
+    if (!saved) throw new Error('Despesa da gravacao nao encontrada apos salvar');
+    return { ...saved, valor: saved.valor != null ? Number(saved.valor) : null };
+  }
+
+  async updateDespesa(input: UpdateGravacaoDespesaInput): Promise<GravacaoDespesaRecord | null> {
+    await this.ensureTables();
+    await prisma.$executeRaw`
+      UPDATE gravacao_despesas SET
+        titulo = ${input.titulo},
+        numero_documento = ${input.numeroDocumento ?? null},
+        descricao = ${input.descricao ?? null},
+        status = ${input.status ?? null},
+        tipo_documento = ${input.tipoDocumento ?? null},
+        categoria = ${input.categoria ?? null},
+        data_vencimento = ${input.dataVencimento ? Prisma.raw(`'${input.dataVencimento}'::date`) : Prisma.raw('NULL')},
+        valor = ${input.valor ?? null},
+        fornecedor_id = ${input.fornecedorId ?? null},
+        forma_pagamento = ${input.formaPagamento ?? null}
+      WHERE id = ${input.id}
+    `;
+    const rows = await prisma.$queryRaw<Array<{
+      id: string; tenantId: string; gravacaoId: string; titulo: string;
+      numeroDocumento: string | null; descricao: string | null; status: string | null;
+      tipoDocumento: string | null; categoria: string | null; dataVencimento: string | null;
+      valor: Prisma.Decimal | null; fornecedorId: string | null; fornecedorNome: string | null;
+      formaPagamento: string | null; createdAt: Date;
+    }>>(Prisma.sql`
+      SELECT gd.id, gd.tenant_id AS "tenantId", gd.gravacao_id AS "gravacaoId",
+        gd.titulo, gd.numero_documento AS "numeroDocumento", gd.descricao, gd.status,
+        gd.tipo_documento AS "tipoDocumento", gd.categoria,
+        gd.data_vencimento::text AS "dataVencimento", gd.valor,
+        gd.fornecedor_id AS "fornecedorId", f.nome AS "fornecedorNome",
+        gd.forma_pagamento AS "formaPagamento", gd.created_at AS "createdAt"
+      FROM gravacao_despesas gd
+      LEFT JOIN fornecedores f ON f.id = gd.fornecedor_id
+      WHERE gd.id = ${input.id} LIMIT 1
+    `);
+    const saved = rows[0];
+    if (!saved) return null;
+    return { ...saved, valor: saved.valor != null ? Number(saved.valor) : null };
+  }
+
+  async findDespesaById(id: string): Promise<GravacaoRelationRecord | null> {
+    await this.ensureTables();
+    const rows = await prisma.$queryRaw<GravacaoRelationRecord[]>(Prisma.sql`
+      SELECT id, tenant_id AS "tenantId", gravacao_id AS "gravacaoId"
+      FROM gravacao_despesas WHERE id = ${id} LIMIT 1
+    `);
+    return rows[0] ?? null;
+  }
+
+  async removeDespesa(id: string): Promise<void> {
+    await this.ensureTables();
+    await prisma.$executeRaw`DELETE FROM gravacao_despesas WHERE id = ${id}`;
   }
 
   private async tableExists(tableName: string): Promise<boolean> {

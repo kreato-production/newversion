@@ -30,6 +30,7 @@ import FigurinosTab from './FigurinosTab';
 import { RoteiroTab } from './RoteiroTab';
 import { CustosTab } from './CustosTab';
 import { GravacaoEspacosTab } from './GravacaoEspacosTab';
+import { GravacaoDespesasTab } from './GravacaoDespesasTab';
 
 interface GravacaoBackendFormModalProps {
   isOpen: boolean;
@@ -487,9 +488,7 @@ export const GravacaoBackendFormModal = ({
 
             {data && isVisible('Produção', 'Gravação', '-', 'Tabulador "Despesas"') && (
               <TabsContent value="despesas" className="mt-4">
-                <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">
-                  Módulo de Despesas em desenvolvimento.
-                </div>
+                <GravacaoDespesasTab gravacaoId={data.id} gravacaoNome={data.nome} />
               </TabsContent>
             )}
 
