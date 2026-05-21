@@ -813,13 +813,13 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
           <table className="w-full text-[11px]">
             <thead>
               <tr className="border-b bg-muted/50">
-                <th className="text-left px-1.5 py-1 font-medium sticky left-0 bg-muted/50 min-w-40 text-xs">
+                <th className="text-left px-1.5 py-1 font-medium sticky left-0 bg-muted/50 min-w-36 text-xs">
                   Recurso
                 </th>
                 {diasDoMes.map((d) => (
                   <th
                     key={d.dia}
-                    className={`px-0.5 py-1 text-center font-medium w-12 ${d.isWeekend ? 'bg-weekend' : ''}`}
+                    className={`px-0 py-1 text-center font-medium w-9 ${d.isWeekend ? 'bg-weekend' : ''}`}
                   >
                     {d.dia}
                   </th>
@@ -863,7 +863,7 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
                               <TooltipProvider delayDuration={200}>
                                 <Tooltip>
                                   <TooltipTrigger asChild>
-                                    <div className="w-10 h-6 flex items-center justify-center bg-destructive/20 rounded border border-destructive/30 cursor-not-allowed">
+                                    <div className="w-8 h-5 flex items-center justify-center bg-destructive/20 rounded border border-destructive/30 cursor-not-allowed">
                                       <AlertTriangle className="w-3 h-3 text-destructive" />
                                     </div>
                                   </TooltipTrigger>
@@ -880,7 +880,7 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
                                 type="number"
                                 min="0"
                                 step="0.5"
-                                className="w-10 h-6 text-center p-0 text-[10px]"
+                                className="w-8 h-5 text-center p-0 text-[10px]"
                                 value={horasValue > 0 ? horasValue : ''}
                                 placeholder="h"
                                 onChange={(e) => {
@@ -1032,13 +1032,13 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
           <table className="w-full text-[11px]">
             <thead>
               <tr className="border-b bg-muted/50">
-                <th className="text-left px-1.5 py-1 font-medium sticky left-0 bg-muted/50 min-w-52 text-xs">
+                <th className="text-left px-1.5 py-1 font-medium sticky left-0 bg-muted/50 min-w-40 text-xs">
                   Recurso
                 </th>
                 {diasDoMes.map((d) => (
                   <th
                     key={d.dia}
-                    className={`px-0.5 py-1 text-center font-medium w-12 ${d.isWeekend ? 'bg-weekend' : ''}`}
+                    className={`px-0.5 py-1 text-center font-medium w-9 ${d.isWeekend ? 'bg-weekend' : ''}`}
                   >
                     {d.dia}
                   </th>

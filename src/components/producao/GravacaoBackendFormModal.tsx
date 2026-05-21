@@ -248,7 +248,7 @@ export const GravacaoBackendFormModal = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-[1400px] max-w-[95vw] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-[1400px] max-w-[95vw] max-h-[90vh] overflow-y-auto overflow-x-hidden">
         <DialogHeader>
           <div className="flex items-center justify-between">
             <DialogTitle>{data ? 'Editar Gravação' : 'Nova Gravação'}</DialogTitle>
