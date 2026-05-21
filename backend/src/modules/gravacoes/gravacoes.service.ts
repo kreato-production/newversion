@@ -566,6 +566,13 @@ export class GravacoesService {
     return this.repository.getCustos(gravacao.tenantId, gravacaoId);
   }
 
+  async listEspacoRecursosSummary(actor: SessionUser, gravacaoId: string) {
+    const gravacao = await this.repository.findById(gravacaoId);
+    if (!gravacao) throw new Error('Gravacao nao encontrada');
+    ensureSameTenant(actor, gravacao.tenantId);
+    return this.repository.listEspacoRecursosSummary(gravacao.tenantId, gravacaoId);
+  }
+
   async listDespesas(actor: SessionUser, gravacaoId: string) {
     const gravacao = await this.repository.findById(gravacaoId);
     if (!gravacao) throw new Error('Gravacao nao encontrada');

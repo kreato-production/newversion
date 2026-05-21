@@ -141,6 +141,21 @@ export type GravacaoDespesasResult = {
   items: GravacaoDespesaItem[];
 };
 
+export type EspacoRecursoSummaryItem = {
+  tipo: 'tecnico' | 'fisico';
+  recursoNome: string;
+  espacoNome: string | null;
+  horaInicio: string | null;
+  horaFim: string | null;
+  quantidade: number;
+  horas: number;
+};
+
+export type EspacoRecursosSummaryResult = {
+  dataPrevista: string | null;
+  items: EspacoRecursoSummaryItem[];
+};
+
 export const gravacoesRelacionamentosApi = {
   listFigurinos(gravacaoId: string) {
     return apiRequest<{ figurinos: GravacaoFigurinoOption[]; items: GravacaoFigurinoItem[] }>(
@@ -348,5 +363,9 @@ export const gravacoesRelacionamentosApi = {
 
   removeDespesa(gravacaoId: string, itemId: string) {
     return apiRequest<void>(`/gravacoes/${gravacaoId}/despesas/${itemId}`, { method: 'DELETE' });
+  },
+
+  listEspacoRecursosSummary(gravacaoId: string) {
+    return apiRequest<EspacoRecursosSummaryResult>(`/gravacoes/${gravacaoId}/recursos-espacos`);
   },
 };

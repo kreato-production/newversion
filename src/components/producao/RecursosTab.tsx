@@ -27,6 +27,10 @@ import { ApiGravacoesRepository } from '@/modules/gravacoes/gravacoes.api.reposi
 import { ApiRecursosFisicosRepository } from '@/modules/recursos-fisicos/recursos-fisicos.api.repository';
 import { ApiRecursosHumanosRepository } from '@/modules/recursos-humanos/recursos-humanos.api.repository';
 import { ApiRecursosTecnicosRepository } from '@/modules/recursos-tecnicos/recursos-tecnicos.api.repository';
+import {
+  gravacoesRelacionamentosApi,
+  type EspacoRecursoSummaryItem,
+} from '@/modules/gravacoes/gravacoes-relacionamentos.api';
 
 interface RecursoHumanoAlocado {
   id: string;
@@ -149,6 +153,15 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
   const [horarioInicio, setHorarioInicio] = useState('08:00');
   const [horarioFim, setHorarioFim] = useState('18:00');
 
+  // Espaço resources (read-only)
+  const [dataPrevistaGravacao, setDataPrevistaGravacao] = useState<string | null>(null);
+  const [espacoRecursosTecnicos, setEspacoRecursosTecnicos] = useState<EspacoRecursoSummaryItem[]>(
+    [],
+  );
+  const [espacoRecursosFisicos, setEspacoRecursosFisicos] = useState<EspacoRecursoSummaryItem[]>(
+    [],
+  );
+
   // Fetch gravacao info and set initial month
   useEffect(() => {
     const fetchGravacao = async () => {
@@ -263,6 +276,19 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
   useEffect(() => {
     fetchAlocacoes();
   }, [fetchAlocacoes]);
+
+  // Fetch espaço resources (read-only)
+  useEffect(() => {
+    if (!gravacaoId) return;
+    gravacoesRelacionamentosApi
+      .listEspacoRecursosSummary(gravacaoId)
+      .then((result) => {
+        setDataPrevistaGravacao(result.dataPrevista);
+        setEspacoRecursosTecnicos(result.items.filter((i) => i.tipo === 'tecnico'));
+        setEspacoRecursosFisicos(result.items.filter((i) => i.tipo === 'fisico'));
+      })
+      .catch((err) => console.error('Error fetching espaco recursos:', err));
+  }, [gravacaoId]);
 
   // Conflict detection
   const [conflitosCache, setConflitosCache] = useState<Record<string, Record<string, string>>>({});
@@ -980,6 +1006,83 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
     );
   };
 
+  const renderEspacoRecursosTable = (
+    items: EspacoRecursoSummaryItem[],
+    label: string,
+    icon: string,
+  ) => {
+    if (items.length === 0) return null;
+
+    const fmtHoras = (h: number) => {
+      if (h <= 0) return '-';
+      const intPart = Math.floor(h);
+      const dec = h - intPart;
+      return dec === 0 ? `${intPart}h` : `${h.toFixed(1)}h`;
+    };
+
+    return (
+      <div className="mb-4">
+        <h4 className="text-sm font-medium mb-2 flex items-center gap-2">
+          <span className="text-muted-foreground">{icon}</span>
+          {label}
+          <span className="text-xs text-muted-foreground">({items.length})</span>
+        </h4>
+        <div className="overflow-x-auto border rounded-lg">
+          <table className="w-full text-[11px]">
+            <thead>
+              <tr className="border-b bg-muted/50">
+                <th className="text-left px-1.5 py-1 font-medium sticky left-0 bg-muted/50 min-w-52 text-xs">
+                  Recurso
+                </th>
+                {diasDoMes.map((d) => (
+                  <th
+                    key={d.dia}
+                    className={`px-0.5 py-1 text-center font-medium w-12 ${d.isWeekend ? 'bg-weekend' : ''}`}
+                  >
+                    {d.dia}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((item, idx) => (
+                <tr key={idx} className="border-b hover:bg-muted/20">
+                  <td className="px-1.5 py-1.5 sticky left-0 bg-background">
+                    <div className="font-medium text-xs">{item.recursoNome}</div>
+                    {item.espacoNome && (
+                      <div className="text-[10px] text-muted-foreground">{item.espacoNome}</div>
+                    )}
+                    {item.horaInicio && item.horaFim && (
+                      <div className="text-[10px] text-muted-foreground font-mono">
+                        {item.horaInicio} – {item.horaFim}
+                        {item.quantidade > 1 ? ` × ${item.quantidade}` : ''}
+                      </div>
+                    )}
+                  </td>
+                  {diasDoMes.map((d) => {
+                    const isDataPrevista = dataPrevistaGravacao === d.dataKey;
+                    return (
+                      <td
+                        key={d.dia}
+                        className={`px-0.5 py-1 text-center ${d.isWeekend ? 'bg-weekend' : ''} ${isDataPrevista && item.horas > 0 ? 'bg-primary/10 font-semibold text-primary' : 'text-muted-foreground'}`}
+                      >
+                        {isDataPrevista && item.horas > 0 ? (
+                          fmtHoras(item.horas)
+                        ) : (
+                          <span className="opacity-30">-</span>
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-8">
@@ -1078,6 +1181,24 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
         <div className="text-center py-8 text-muted-foreground">
           <p>Nenhum recurso adicionado ainda.</p>
           <p className="text-sm">Adicione recursos tÃ©cnicos ou fÃ­sicos acima.</p>
+        </div>
+      )}
+
+      {/* Recursos vinculados aos Espaços (somente leitura) */}
+      {(espacoRecursosTecnicos.length > 0 || espacoRecursosFisicos.length > 0) && (
+        <div className="border-t pt-4 space-y-4">
+          <div className="flex items-center gap-2">
+            <h3 className="text-sm font-semibold">Recursos dos Espaços</h3>
+            <Badge variant="secondary" className="text-[10px]">
+              somente leitura
+            </Badge>
+          </div>
+          {renderEspacoRecursosTable(espacoRecursosTecnicos, 'Recursos Técnicos', '🔧')}
+          {renderEspacoRecursosTable(
+            espacoRecursosFisicos,
+            'Equipamentos / Recursos Físicos',
+            '🏢',
+          )}
         </div>
       )}
 

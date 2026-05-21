@@ -77,6 +77,7 @@ class InMemoryGravacoesRepository implements GravacoesRepository {
   async removeEspacoResource() {}
   async listStatusCores() { return []; }
   async getCustos() { return { moeda: 'BRL', itens: [] }; }
+  async listEspacoRecursosSummary() { return { dataPrevista: null, items: [] }; }
   async listDespesas() { return []; }
   async addDespesa(): Promise<never> { throw new Error('not implemented'); }
   async updateDespesa() { return null; }

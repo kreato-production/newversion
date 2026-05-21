@@ -189,6 +189,12 @@ export function createGravacoesRoutes(authService: AuthService, gravacoesService
       return reply.status(200).send(await gravacoesService.getCustos(user, params.id));
     });
 
+    app.get('/gravacoes/:id/recursos-espacos', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      const params = request.params as { id: string };
+      return reply.status(200).send(await gravacoesService.listEspacoRecursosSummary(user, params.id));
+    });
+
     app.get('/gravacoes/:id/despesas', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const params = request.params as { id: string };
