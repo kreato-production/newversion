@@ -14,7 +14,6 @@
 import NextAuth, { CredentialsSignin } from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
 import Keycloak from 'next-auth/providers/keycloak';
-import { PrismaAdapter } from '@auth/prisma-adapter';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import type { KreatoUserRole, KreatoPermission } from '@/types/next-auth';
@@ -111,10 +110,6 @@ function normalizeTokenShape(token: SessionTokenShape): string | undefined {
 // ─── Auth.js ──────────────────────────────────────────────────────────────────
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  // PrismaAdapter persiste contas OAuth (Account) e tokens de verificação.
-  // Para Credentials, a sessão fica no JWT — não no banco.
-  adapter: PrismaAdapter(prisma),
-
   session: {
     // JWT é obrigatório para o Credentials provider no Auth.js v5.
     // O token fica em cookie HttpOnly assinado — equivalente em segurança
