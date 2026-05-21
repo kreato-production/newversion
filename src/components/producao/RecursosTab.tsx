@@ -894,6 +894,7 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
                                 <Tooltip>
                                   <TooltipTrigger asChild>
                                     <Button
+                                      type="button"
                                       size="icon"
                                       variant="ghost"
                                       className={`h-5 w-5 relative ${
@@ -945,6 +946,7 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
                                 <Tooltip>
                                   <TooltipTrigger asChild>
                                     <Button
+                                      type="button"
                                       size="icon"
                                       variant="ghost"
                                       className={`h-5 w-5 relative ${
@@ -986,6 +988,7 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
                     })}
                     <td className="px-0 py-0.5">
                       <Button
+                        type="button"
                         size="icon"
                         variant="ghost"
                         onClick={() => handleRemoveRecurso(recurso.id)}
@@ -1163,7 +1166,7 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
           </div>
         )}
 
-        <Button onClick={handleAddRecurso} disabled={!selectedRecurso} size="icon">
+        <Button type="button" onClick={handleAddRecurso} disabled={!selectedRecurso} size="icon">
           <Plus className="w-4 h-4" />
         </Button>
       </div>
