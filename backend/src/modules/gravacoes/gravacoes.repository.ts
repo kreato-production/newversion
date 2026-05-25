@@ -1418,8 +1418,8 @@ export class PrismaGravacoesRepository implements GravacoesRepository {
       select: { conteudoId: true },
     });
 
-    // Load conteudo espacos to use as source of truth for hora/descricao
-    const conteudoEspacosMap = new Map<string, { id: string; descricao: string | null; horaInicio: string | null; horaFim: string | null }>();
+    // Load conteudo espacos to use as source of truth for hora/descricao/data
+    const conteudoEspacosMap = new Map<string, { id: string; descricao: string | null; horaInicio: string | null; horaFim: string | null; data: string | null }>();
     if (gravacao?.conteudoId) {
       const rows = await prisma.$queryRaw<Array<{
         id: string;
@@ -1427,8 +1427,9 @@ export class PrismaGravacoesRepository implements GravacoesRepository {
         descricao: string | null;
         horaInicio: string | null;
         horaFim: string | null;
+        data: string | null;
       }>>`
-        select id, espaco_id as "espacoId", descricao, hora_inicio as "horaInicio", hora_fim as "horaFim"
+        select id, espaco_id as "espacoId", descricao, hora_inicio as "horaInicio", hora_fim as "horaFim", data
         from public.conteudo_espacos
         where conteudo_id = ${gravacao.conteudoId}
           and tenant_id = ${tenantId}
@@ -1473,7 +1474,7 @@ export class PrismaGravacoesRepository implements GravacoesRepository {
         }
       }
 
-      // Merge hora/descricao: gravacao values take precedence, conteudo is fallback
+      // Merge hora/descricao/data: gravacao values take precedence, conteudo is fallback
       return existing.map((ge) => {
         if (!ge.espacoId) return ge;
         const ce = conteudoEspacosMap.get(ge.espacoId);
@@ -1483,6 +1484,7 @@ export class PrismaGravacoesRepository implements GravacoesRepository {
           horaInicio: ge.horaInicio ?? ce.horaInicio,
           horaFim: ge.horaFim ?? ce.horaFim,
           descricao: ge.descricao ?? ce.descricao,
+          data: ge.data ?? ce.data,
         };
       });
     }
@@ -1493,8 +1495,8 @@ export class PrismaGravacoesRepository implements GravacoesRepository {
     for (const [espacoId, ce] of conteudoEspacosMap) {
       const gravacaoEspacoId = randomUUID();
       await prisma.$executeRaw`
-        insert into gravacao_espacos (id, tenant_id, gravacao_id, espaco_id, descricao, hora_inicio, hora_fim)
-        values (${gravacaoEspacoId}, ${tenantId}, ${gravacaoId}, ${espacoId}, ${ce.descricao ?? null}, ${ce.horaInicio ?? null}, ${ce.horaFim ?? null})
+        insert into gravacao_espacos (id, tenant_id, gravacao_id, espaco_id, descricao, hora_inicio, hora_fim, data)
+        values (${gravacaoEspacoId}, ${tenantId}, ${gravacaoId}, ${espacoId}, ${ce.descricao ?? null}, ${ce.horaInicio ?? null}, ${ce.horaFim ?? null}, ${ce.data ?? null})
       `;
       await this.seedEspacoResources(tenantId, gravacaoEspacoId, ce.id);
     }
@@ -1508,7 +1510,8 @@ export class PrismaGravacoesRepository implements GravacoesRepository {
         coalesce(e.titulo, '') as "espacoNome",
         ge.descricao,
         ge.hora_inicio as "horaInicio",
-        ge.hora_fim as "horaFim"
+        ge.hora_fim as "horaFim",
+        ge.data
       from gravacao_espacos ge
       left join public.espacos e on e.id = ge.espaco_id
       where ge.tenant_id = ${tenantId}
@@ -1524,12 +1527,13 @@ export class PrismaGravacoesRepository implements GravacoesRepository {
       quantidade: number | null;
       horaInicio: string | null;
       horaFim: string | null;
+      data: string | null;
       valorTotal: string | null;
       descontoPercentual: string | null;
       valorComDesconto: string | null;
     }>>`
       select recurso_fisico_id as "recursoFisicoId", valor_hora as "valorHora", quantidade,
-             hora_inicio as "horaInicio", hora_fim as "horaFim", valor_total as "valorTotal",
+             hora_inicio as "horaInicio", hora_fim as "horaFim", data, valor_total as "valorTotal",
              desconto_percentual as "descontoPercentual", valor_com_desconto as "valorComDesconto"
       from public.conteudo_espaco_recursos_fisicos
       where conteudo_espaco_id = ${conteudoEspacoId}
@@ -1538,9 +1542,9 @@ export class PrismaGravacoesRepository implements GravacoesRepository {
     for (const r of fisicos) {
       await prisma.$executeRaw`
         insert into gravacao_espaco_recursos_fisicos
-          (id, tenant_id, gravacao_espaco_id, recurso_fisico_id, valor_hora, quantidade, hora_inicio, hora_fim, valor_total, desconto_percentual, valor_com_desconto)
+          (id, tenant_id, gravacao_espaco_id, recurso_fisico_id, valor_hora, quantidade, hora_inicio, hora_fim, data, valor_total, desconto_percentual, valor_com_desconto)
         values
-          (${randomUUID()}, ${tenantId}, ${gravacaoEspacoId}, ${r.recursoFisicoId}, ${r.valorHora ?? null}, ${r.quantidade ?? 1}, ${r.horaInicio ?? null}, ${r.horaFim ?? null}, ${r.valorTotal ?? null}, ${r.descontoPercentual ?? null}, ${r.valorComDesconto ?? null})
+          (${randomUUID()}, ${tenantId}, ${gravacaoEspacoId}, ${r.recursoFisicoId}, ${r.valorHora ?? null}, ${r.quantidade ?? 1}, ${r.horaInicio ?? null}, ${r.horaFim ?? null}, ${r.data ?? null}, ${r.valorTotal ?? null}, ${r.descontoPercentual ?? null}, ${r.valorComDesconto ?? null})
       `;
     }
 
@@ -1550,12 +1554,13 @@ export class PrismaGravacoesRepository implements GravacoesRepository {
       quantidade: number | null;
       horaInicio: string | null;
       horaFim: string | null;
+      data: string | null;
       valorTotal: string | null;
       descontoPercentual: string | null;
       valorComDesconto: string | null;
     }>>`
       select recurso_tecnico_id as "recursoTecnicoId", valor_hora as "valorHora", quantidade,
-             hora_inicio as "horaInicio", hora_fim as "horaFim", valor_total as "valorTotal",
+             hora_inicio as "horaInicio", hora_fim as "horaFim", data, valor_total as "valorTotal",
              desconto_percentual as "descontoPercentual", valor_com_desconto as "valorComDesconto"
       from public.conteudo_espaco_recursos_tecnicos
       where conteudo_espaco_id = ${conteudoEspacoId}
@@ -1564,9 +1569,9 @@ export class PrismaGravacoesRepository implements GravacoesRepository {
     for (const r of tecnicos) {
       await prisma.$executeRaw`
         insert into gravacao_espaco_recursos_tecnicos
-          (id, tenant_id, gravacao_espaco_id, recurso_tecnico_id, valor_hora, quantidade, hora_inicio, hora_fim, valor_total, desconto_percentual, valor_com_desconto)
+          (id, tenant_id, gravacao_espaco_id, recurso_tecnico_id, valor_hora, quantidade, hora_inicio, hora_fim, data, valor_total, desconto_percentual, valor_com_desconto)
         values
-          (${randomUUID()}, ${tenantId}, ${gravacaoEspacoId}, ${r.recursoTecnicoId}, ${r.valorHora ?? null}, ${r.quantidade ?? 1}, ${r.horaInicio ?? null}, ${r.horaFim ?? null}, ${r.valorTotal ?? null}, ${r.descontoPercentual ?? null}, ${r.valorComDesconto ?? null})
+          (${randomUUID()}, ${tenantId}, ${gravacaoEspacoId}, ${r.recursoTecnicoId}, ${r.valorHora ?? null}, ${r.quantidade ?? 1}, ${r.horaInicio ?? null}, ${r.horaFim ?? null}, ${r.data ?? null}, ${r.valorTotal ?? null}, ${r.descontoPercentual ?? null}, ${r.valorComDesconto ?? null})
       `;
     }
   }
