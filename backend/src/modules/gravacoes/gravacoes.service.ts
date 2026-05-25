@@ -752,6 +752,7 @@ export class GravacoesService {
       descricao: item.descricao || '',
       horaInicio: item.horaInicio || null,
       horaFim: item.horaFim || null,
+      data: item.data || null,
     };
   }
 }
