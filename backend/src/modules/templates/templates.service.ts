@@ -30,6 +30,7 @@ export const saveTemplateSchema = z.object({
   id: z.string().optional(),
   nome: z.string().min(1),
   descricao: z.string().optional().nullable(),
+  estado: z.enum(['Ativo', 'Inativo']).default('Ativo'),
   etapas: z.array(etapaSchema).default([]),
 });
 
@@ -63,6 +64,7 @@ export class TemplatesService {
       tenantId,
       nome: input.nome,
       descricao: input.descricao ?? null,
+      estado: input.estado,
       etapas: input.etapas.map((e, ei) => ({
         nome: e.nome,
         cor: e.cor,

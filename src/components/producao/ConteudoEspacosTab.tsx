@@ -42,6 +42,7 @@ interface EspacoItem {
   descricao: string | null;
   horaInicio: string | null;
   horaFim: string | null;
+  data: string | null;
 }
 
 interface EspacoOption {
@@ -496,6 +497,7 @@ interface EspacoModalProps {
     descricao: string | null;
     horaInicio: string | null;
     horaFim: string | null;
+    data: string | null;
   }) => Promise<EspacoItem | void>;
   editing?: EspacoItem | null;
   espacoOptions: EspacoOption[];
@@ -518,6 +520,7 @@ function EspacoModal({
   const [descricao, setDescricao] = useState('');
   const [horaInicio, setHoraInicio] = useState('');
   const [horaFim, setHoraFim] = useState('');
+  const [dataEspaco, setDataEspaco] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<'equipamentos' | 'tecnicos'>('equipamentos');
   const [savedItem, setSavedItem] = useState<EspacoItem | null>(null);
@@ -534,6 +537,7 @@ function EspacoModal({
     setDescricao(editing?.descricao ?? '');
     setHoraInicio(editing?.horaInicio ?? '');
     setHoraFim(editing?.horaFim ?? '');
+    setDataEspaco(editing?.data ?? '');
     setActiveTab('equipamentos');
   }, [isOpen, editing]);
 
@@ -550,6 +554,7 @@ function EspacoModal({
         descricao: descricao.trim() || null,
         horaInicio: horaInicio || null,
         horaFim: horaFim || null,
+        data: dataEspaco || null,
       });
       // If creating, result is the new EspacoItem — keep modal open for resource config
       if (!editing && result) {
@@ -627,8 +632,18 @@ function EspacoModal({
             </div>
           </div>
 
-          {/* Row 2: Hora Início + Hora Fim + Total */}
-          <div className="grid grid-cols-3 gap-4">
+          {/* Row 2: Data + Hora Início + Hora Fim + Total */}
+          <div className="grid grid-cols-4 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="espaco-data">Data</Label>
+              <Input
+                id="espaco-data"
+                type="date"
+                value={dataEspaco}
+                onChange={(e) => setDataEspaco(e.target.value)}
+                disabled={isSaving}
+              />
+            </div>
             <div className="space-y-2">
               <Label htmlFor="espaco-hora-inicio">Hora Início</Label>
               <Input
@@ -804,18 +819,19 @@ export function ConteudoEspacosTab({
   }, [load]);
 
   const handleSave = useCallback(
-    async (data: {
+    async (saveData: {
       espacoId: string;
       descricao: string | null;
       horaInicio: string | null;
       horaFim: string | null;
+      data: string | null;
     }): Promise<EspacoItem | void> => {
       try {
         if (editingItem) {
           const updated = await conteudosRelacionamentosApi.updateEspaco(
             conteudoId,
             editingItem.id,
-            data,
+            saveData,
           );
           if (updated) {
             setItems((prev) =>
@@ -824,7 +840,7 @@ export function ConteudoEspacosTab({
           }
           toast({ title: 'Espaço atualizado com sucesso!' });
         } else {
-          const created = await conteudosRelacionamentosApi.addEspaco(conteudoId, data);
+          const created = await conteudosRelacionamentosApi.addEspaco(conteudoId, saveData);
           const newItem: EspacoItem = {
             id: created.id,
             espacoId: created.espacoId,
@@ -832,6 +848,7 @@ export function ConteudoEspacosTab({
             descricao: created.descricao,
             horaInicio: created.horaInicio,
             horaFim: created.horaFim,
+            data: created.data,
           };
           setItems((prev) => [...prev, newItem]);
           toast({ title: 'Espaço adicionado! Configure os recursos abaixo.' });
@@ -887,6 +904,7 @@ export function ConteudoEspacosTab({
         <TableHeader>
           <TableRow>
             <TableHead>Espaço</TableHead>
+            <TableHead>Data</TableHead>
             <TableHead>Hora Início</TableHead>
             <TableHead>Hora Fim</TableHead>
             <TableHead>Total</TableHead>
@@ -898,7 +916,7 @@ export function ConteudoEspacosTab({
           {items.length === 0 ? (
             <TableRow>
               <TableCell
-                colSpan={readOnly ? 5 : 6}
+                colSpan={readOnly ? 6 : 7}
                 className="text-center text-muted-foreground py-8"
               >
                 Nenhum espaço adicionado.
@@ -908,6 +926,7 @@ export function ConteudoEspacosTab({
             items.map((item) => (
               <TableRow key={item.id}>
                 <TableCell className="font-medium">{item.espacoNome || '-'}</TableCell>
+                <TableCell>{item.data ?? '-'}</TableCell>
                 <TableCell>{item.horaInicio ?? '-'}</TableCell>
                 <TableCell>{item.horaFim ?? '-'}</TableCell>
                 <TableCell>{calcDuration(item.horaInicio, item.horaFim).label}</TableCell>

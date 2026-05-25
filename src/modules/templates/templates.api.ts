@@ -35,6 +35,7 @@ export type Template = {
   tenantId: string;
   nome: string;
   descricao: string | null;
+  estado: string;
   createdAt: string;
   updatedAt: string;
   etapas: TemplateEtapa[];
@@ -44,6 +45,7 @@ export type SaveTemplateInput = {
   id?: string;
   nome: string;
   descricao?: string | null;
+  estado?: string;
   etapas: {
     nome: string;
     cor: string;

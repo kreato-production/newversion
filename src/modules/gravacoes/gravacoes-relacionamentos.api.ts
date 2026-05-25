@@ -74,6 +74,7 @@ export type GravacaoEspacoItem = {
   descricao: string | null;
   horaInicio: string | null;
   horaFim: string | null;
+  data: string | null;
 };
 
 export type GravacaoEspacoResourceItem = {
@@ -251,6 +252,7 @@ export const gravacoesRelacionamentosApi = {
       descricao: string | null;
       horaInicio: string | null;
       horaFim: string | null;
+      data: string | null;
     },
   ) {
     return apiRequest<GravacaoEspacoItem>(`/gravacoes/${gravacaoId}/espacos`, {
@@ -267,6 +269,7 @@ export const gravacoesRelacionamentosApi = {
       descricao: string | null;
       horaInicio: string | null;
       horaFim: string | null;
+      data: string | null;
     },
   ) {
     return apiRequest<GravacaoEspacoItem>(`/gravacoes/${gravacaoId}/espacos/${itemId}`, {

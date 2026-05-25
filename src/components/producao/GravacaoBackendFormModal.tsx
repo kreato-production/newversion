@@ -96,7 +96,9 @@ export const GravacaoBackendFormModal = ({
   });
 
   // Option lists
-  const [unidades, setUnidades] = useState<{ id: string; nome: string }[]>([]);
+  const [unidades, setUnidades] = useState<{ id: string; nome: string; moeda?: string | null }[]>(
+    [],
+  );
   const [centrosLucro, setCentrosLucro] = useState<CentroLucroOption[]>([]);
   const [centroLucroUnidades, setCentroLucroUnidades] = useState<
     { centroLucroId: string; unidadeNegocioId: string }[]
@@ -118,7 +120,7 @@ export const GravacaoBackendFormModal = ({
       conteudosRepository.list(),
     ])
       .then(([options, statusData, conteudosData]) => {
-        setUnidades(options.unidades.map((u) => ({ id: u.id, nome: u.nome })));
+        setUnidades(options.unidades.map((u) => ({ id: u.id, nome: u.nome, moeda: u.moeda })));
         setCentrosLucro(options.centrosLucro);
         setCentroLucroUnidades(options.centroLucroUnidades);
         setTipos(options.tipos);
@@ -207,6 +209,11 @@ export const GravacaoBackendFormModal = ({
         : conteudos,
     [conteudos, formData.unidadeNegocioId],
   );
+
+  const selectedCurrency = useMemo(() => {
+    const unidade = unidades.find((u) => u.id === formData.unidadeNegocioId);
+    return unidade?.moeda || 'BRL';
+  }, [unidades, formData.unidadeNegocioId]);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -460,7 +467,7 @@ export const GravacaoBackendFormModal = ({
 
             {data && isVisible('Produção', 'Gravação', '-', 'Tabulador "Espaços"') && (
               <TabsContent value="espacos" className="mt-4">
-                <GravacaoEspacosTab gravacaoId={data.id} />
+                <GravacaoEspacosTab gravacaoId={data.id} moeda={selectedCurrency} />
               </TabsContent>
             )}
 

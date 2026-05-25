@@ -467,6 +467,7 @@ interface EspacoModalProps {
     descricao: string | null;
     horaInicio: string | null;
     horaFim: string | null;
+    data: string | null;
   }) => Promise<GravacaoEspacoItem | void>;
   editing?: GravacaoEspacoItem | null;
   espacoOptions: EspacoOption[];
@@ -489,6 +490,7 @@ function EspacoModal({
   const [descricao, setDescricao] = useState('');
   const [horaInicio, setHoraInicio] = useState('');
   const [horaFim, setHoraFim] = useState('');
+  const [dataEspaco, setDataEspaco] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<'equipamentos' | 'tecnicos'>('equipamentos');
   const [savedItem, setSavedItem] = useState<GravacaoEspacoItem | null>(null);
@@ -504,6 +506,7 @@ function EspacoModal({
     setDescricao(editing?.descricao ?? '');
     setHoraInicio(editing?.horaInicio ?? '');
     setHoraFim(editing?.horaFim ?? '');
+    setDataEspaco(editing?.data ?? '');
     setActiveTab('equipamentos');
   }, [isOpen, editing]);
 
@@ -520,6 +523,7 @@ function EspacoModal({
         descricao: descricao.trim() || null,
         horaInicio: horaInicio || null,
         horaFim: horaFim || null,
+        data: dataEspaco || null,
       });
       if (!editing && result) {
         setSavedItem(result as GravacaoEspacoItem);
@@ -595,7 +599,17 @@ function EspacoModal({
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-4 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="espaco-data">Data</Label>
+              <Input
+                id="espaco-data"
+                type="date"
+                value={dataEspaco}
+                onChange={(e) => setDataEspaco(e.target.value)}
+                disabled={isSaving}
+              />
+            </div>
             <div className="space-y-2">
               <Label htmlFor="espaco-hora-inicio">Hora Início</Label>
               <Input
@@ -764,23 +778,24 @@ export function GravacaoEspacosTab({ gravacaoId, moeda = 'BRL' }: GravacaoEspaco
   }, [load]);
 
   const handleSave = useCallback(
-    async (data: {
+    async (saveData: {
       espacoId: string;
       descricao: string | null;
       horaInicio: string | null;
       horaFim: string | null;
+      data: string | null;
     }): Promise<GravacaoEspacoItem | void> => {
       try {
         if (editingItem) {
           const updated = await gravacoesRelacionamentosApi.updateEspaco(
             gravacaoId,
             editingItem.id,
-            data,
+            saveData,
           );
           setItems((prev) => prev.map((i) => (i.id === editingItem.id ? { ...i, ...updated } : i)));
           toast({ title: 'Espaço atualizado com sucesso!' });
         } else {
-          const created = await gravacoesRelacionamentosApi.addEspaco(gravacaoId, data);
+          const created = await gravacoesRelacionamentosApi.addEspaco(gravacaoId, saveData);
           setItems((prev) => [...prev, created]);
           toast({ title: 'Espaço adicionado! Configure os recursos abaixo.' });
           return created;
@@ -833,6 +848,7 @@ export function GravacaoEspacosTab({ gravacaoId, moeda = 'BRL' }: GravacaoEspaco
         <TableHeader>
           <TableRow>
             <TableHead>Espaço</TableHead>
+            <TableHead>Data</TableHead>
             <TableHead>Hora Início</TableHead>
             <TableHead>Hora Fim</TableHead>
             <TableHead>Total</TableHead>
@@ -843,7 +859,7 @@ export function GravacaoEspacosTab({ gravacaoId, moeda = 'BRL' }: GravacaoEspaco
         <TableBody>
           {items.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+              <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                 Nenhum espaço adicionado.
               </TableCell>
             </TableRow>
@@ -851,6 +867,7 @@ export function GravacaoEspacosTab({ gravacaoId, moeda = 'BRL' }: GravacaoEspaco
             items.map((item) => (
               <TableRow key={item.id}>
                 <TableCell className="font-medium">{item.espacoNome || '-'}</TableCell>
+                <TableCell>{item.data ?? '-'}</TableCell>
                 <TableCell>{item.horaInicio ?? '-'}</TableCell>
                 <TableCell>{item.horaFim ?? '-'}</TableCell>
                 <TableCell>{calcDuration(item.horaInicio, item.horaFim).label}</TableCell>

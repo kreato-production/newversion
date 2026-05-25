@@ -160,6 +160,7 @@ export type GravacaoEspacoRecord = {
   descricao: string | null;
   horaInicio: string | null;
   horaFim: string | null;
+  data: string | null;
 };
 
 export type SaveGravacaoEspacoInput = {
@@ -169,6 +170,7 @@ export type SaveGravacaoEspacoInput = {
   descricao?: string | null;
   horaInicio?: string | null;
   horaFim?: string | null;
+  data?: string | null;
   createdBy?: string | null;
 };
 
@@ -178,6 +180,7 @@ export type UpdateGravacaoEspacoInput = {
   descricao?: string | null;
   horaInicio?: string | null;
   horaFim?: string | null;
+  data?: string | null;
 };
 
 export type GravacaoEspacoResourceType = 'fisico' | 'tecnico';
@@ -1329,6 +1332,7 @@ export class PrismaGravacoesRepository implements GravacoesRepository {
 
         await prisma.$executeRawUnsafe(`ALTER TABLE gravacao_espacos ADD COLUMN IF NOT EXISTS hora_inicio text NULL`);
         await prisma.$executeRawUnsafe(`ALTER TABLE gravacao_espacos ADD COLUMN IF NOT EXISTS hora_fim text NULL`);
+        await prisma.$executeRawUnsafe(`ALTER TABLE gravacao_espacos ADD COLUMN IF NOT EXISTS data text NULL`);
 
         await prisma.$executeRawUnsafe(`
           CREATE INDEX IF NOT EXISTS gravacao_espacos_gravacao_idx
@@ -1438,7 +1442,8 @@ export class PrismaGravacoesRepository implements GravacoesRepository {
         coalesce(e.titulo, '') as "espacoNome",
         ge.descricao,
         ge.hora_inicio as "horaInicio",
-        ge.hora_fim as "horaFim"
+        ge.hora_fim as "horaFim",
+        ge.data
       from gravacao_espacos ge
       left join public.espacos e on e.id = ge.espaco_id
       where ge.tenant_id = ${tenantId}
@@ -1572,7 +1577,8 @@ export class PrismaGravacoesRepository implements GravacoesRepository {
         coalesce(e.titulo, '') as "espacoNome",
         ge.descricao,
         ge.hora_inicio as "horaInicio",
-        ge.hora_fim as "horaFim"
+        ge.hora_fim as "horaFim",
+        ge.data
       from gravacao_espacos ge
       left join public.espacos e on e.id = ge.espaco_id
       where ge.id = ${id}
@@ -1585,8 +1591,8 @@ export class PrismaGravacoesRepository implements GravacoesRepository {
     await this.ensureTables();
     const id = randomUUID();
     await prisma.$executeRaw`
-      insert into gravacao_espacos (id, tenant_id, gravacao_id, espaco_id, descricao, hora_inicio, hora_fim)
-      values (${id}, ${input.tenantId}, ${input.gravacaoId}, ${input.espacoId}, ${input.descricao ?? null}, ${input.horaInicio ?? null}, ${input.horaFim ?? null})
+      insert into gravacao_espacos (id, tenant_id, gravacao_id, espaco_id, descricao, hora_inicio, hora_fim, data)
+      values (${id}, ${input.tenantId}, ${input.gravacaoId}, ${input.espacoId}, ${input.descricao ?? null}, ${input.horaInicio ?? null}, ${input.horaFim ?? null}, ${input.data ?? null})
     `;
     const saved = await this.findEspacoById(id);
     if (!saved) throw new Error('Espaco da gravacao nao encontrado apos salvar');
@@ -1598,7 +1604,8 @@ export class PrismaGravacoesRepository implements GravacoesRepository {
     await prisma.$executeRaw`
       update gravacao_espacos
       set espaco_id = ${input.espacoId}, descricao = ${input.descricao ?? null},
-          hora_inicio = ${input.horaInicio ?? null}, hora_fim = ${input.horaFim ?? null}
+          hora_inicio = ${input.horaInicio ?? null}, hora_fim = ${input.horaFim ?? null},
+          data = ${input.data ?? null}
       where id = ${input.id}
     `;
     return this.findEspacoById(input.id);

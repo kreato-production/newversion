@@ -144,6 +144,7 @@ export type ConteudoEspacoRecord = {
   descricao: string | null;
   horaInicio: string | null;
   horaFim: string | null;
+  data: string | null;
 };
 
 export type SaveConteudoEspacoInput = {
@@ -153,6 +154,7 @@ export type SaveConteudoEspacoInput = {
   descricao?: string | null;
   horaInicio?: string | null;
   horaFim?: string | null;
+  data?: string | null;
   createdBy?: string | null;
 };
 
@@ -162,6 +164,7 @@ export type UpdateConteudoEspacoInput = {
   descricao?: string | null;
   horaInicio?: string | null;
   horaFim?: string | null;
+  data?: string | null;
 };
 
 export type EspacoDisponibilidadeRecord = {
@@ -454,6 +457,7 @@ async function ensureConteudosSchema() {
       await prisma.$executeRawUnsafe(`ALTER TABLE public.conteudo_espacos ADD COLUMN IF NOT EXISTS hora_inicio text NULL`);
       await prisma.$executeRawUnsafe(`ALTER TABLE public.conteudo_espacos ADD COLUMN IF NOT EXISTS hora_fim text NULL`);
       await prisma.$executeRawUnsafe(`ALTER TABLE public.conteudo_espacos ALTER COLUMN nome DROP NOT NULL`);
+      await prisma.$executeRawUnsafe(`ALTER TABLE public.conteudo_espacos ADD COLUMN IF NOT EXISTS data text NULL`);
       await prisma.$executeRawUnsafe('CREATE INDEX IF NOT EXISTS gravacao_recursos_gravacao_idx ON public.gravacao_recursos (gravacao_id)');
       await prisma.$executeRawUnsafe(`
         CREATE TABLE IF NOT EXISTS public.conteudo_espaco_recursos_fisicos (
@@ -1229,7 +1233,8 @@ export class PrismaConteudosRepository implements ConteudosRepository {
         COALESCE(e.titulo, ce.nome, '') as "espacoNome",
         ce.descricao,
         ce.hora_inicio as "horaInicio",
-        ce.hora_fim as "horaFim"
+        ce.hora_fim as "horaFim",
+        ce.data
       from public.conteudo_espacos ce
       left join public.espacos e on e.id = ce.espaco_id
       where ce.tenant_id = ${tenantId}
@@ -1280,7 +1285,8 @@ export class PrismaConteudosRepository implements ConteudosRepository {
         COALESCE(e.titulo, ce.nome, '') as "espacoNome",
         ce.descricao,
         ce.hora_inicio as "horaInicio",
-        ce.hora_fim as "horaFim"
+        ce.hora_fim as "horaFim",
+        ce.data
       from public.conteudo_espacos ce
       left join public.espacos e on e.id = ce.espaco_id
       where ce.id = ${id}
@@ -1293,8 +1299,8 @@ export class PrismaConteudosRepository implements ConteudosRepository {
     await ensureConteudosSchema();
     const id = randomUUID();
     await prisma.$executeRaw`
-      insert into public.conteudo_espacos (id, tenant_id, conteudo_id, espaco_id, descricao, hora_inicio, hora_fim, created_by)
-      values (${id}, ${input.tenantId}, ${input.conteudoId}, ${input.espacoId}, ${input.descricao ?? null}, ${input.horaInicio ?? null}, ${input.horaFim ?? null}, ${input.createdBy ?? null})
+      insert into public.conteudo_espacos (id, tenant_id, conteudo_id, espaco_id, descricao, hora_inicio, hora_fim, data, created_by)
+      values (${id}, ${input.tenantId}, ${input.conteudoId}, ${input.espacoId}, ${input.descricao ?? null}, ${input.horaInicio ?? null}, ${input.horaFim ?? null}, ${input.data ?? null}, ${input.createdBy ?? null})
     `;
     const saved = await this.findEspacoById(id);
     if (!saved) throw new Error('Espaco do conteudo nao encontrado apos salvar');
@@ -1306,7 +1312,8 @@ export class PrismaConteudosRepository implements ConteudosRepository {
     await prisma.$executeRaw`
       update public.conteudo_espacos
       set espaco_id = ${input.espacoId}, descricao = ${input.descricao ?? null},
-          hora_inicio = ${input.horaInicio ?? null}, hora_fim = ${input.horaFim ?? null}
+          hora_inicio = ${input.horaInicio ?? null}, hora_fim = ${input.horaFim ?? null},
+          data = ${input.data ?? null}
       where id = ${input.id}
     `;
     return this.findEspacoById(input.id);

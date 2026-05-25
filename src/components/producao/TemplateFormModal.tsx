@@ -12,6 +12,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { EtapasTab, type Etapa } from './EtapasTab';
 import { PlanoProducaoModal } from './PlanoProducaoModal';
@@ -39,6 +46,7 @@ export function TemplateFormModal({
 }: TemplateFormModalProps) {
   const [nome, setNome] = useState('');
   const [descricao, setDescricao] = useState('');
+  const [estado, setEstado] = useState<'Ativo' | 'Inativo'>('Ativo');
   const [etapas, setEtapas] = useState<Etapa[]>([]);
   const [saving, setSaving] = useState(false);
   const [showPlano, setShowPlano] = useState(false);
@@ -48,10 +56,12 @@ export function TemplateFormModal({
     if (data) {
       setNome(data.nome);
       setDescricao(data.descricao ?? '');
+      setEstado((data.estado as 'Ativo' | 'Inativo') ?? 'Ativo');
       setEtapas(etapasFromTemplate(data));
     } else {
       setNome('');
       setDescricao('');
+      setEstado('Ativo');
       setEtapas([]);
     }
   }, [data, isOpen]);
@@ -65,6 +75,7 @@ export function TemplateFormModal({
         id: data?.id,
         nome: nome.trim(),
         descricao: descricao.trim() || null,
+        estado,
         etapas: etapasToInput(etapas),
       });
       onClose();
@@ -116,6 +127,22 @@ export function TemplateFormModal({
                     placeholder="Descrição opcional do template"
                     rows={3}
                   />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="estado">Estado</Label>
+                  <Select
+                    value={estado}
+                    onValueChange={(v) => setEstado(v as 'Ativo' | 'Inativo')}
+                    disabled={readOnly}
+                  >
+                    <SelectTrigger id="estado">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Ativo">Ativo</SelectItem>
+                      <SelectItem value="Inativo">Inativo</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </TabsContent>
 

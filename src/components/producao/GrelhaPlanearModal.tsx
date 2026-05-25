@@ -10,6 +10,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { GravacaoBackendFormModal } from './GravacaoBackendFormModal';
 import { ApiGravacoesRepository } from '@/modules/gravacoes/gravacoes.api.repository';
@@ -37,6 +45,7 @@ export function GrelhaPlanearModal({ item, onClose, onSuccess }: Props) {
   const { toast } = useToast();
   const [step, setStep] = useState<Step>('choice');
   const [templates, setTemplates] = useState<Template[]>([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState('');
   const [loadingTemplates, setLoadingTemplates] = useState(false);
   const [resolving, setResolving] = useState(false);
   const [initialValues, setInitialValues] = useState<Partial<GravacaoInput>>({});
@@ -49,6 +58,7 @@ export function GrelhaPlanearModal({ item, onClose, onSuccess }: Props) {
       setStep('choice');
       setInitialValues({});
       setTemplates([]);
+      setSelectedTemplateId('');
       setShowGravacaoForm(false);
     }
   }, [isOpen]);
@@ -127,7 +137,8 @@ export function GrelhaPlanearModal({ item, onClose, onSuccess }: Props) {
     setLoadingTemplates(true);
     try {
       const data = await templatesRepository.list();
-      setTemplates(data);
+      setTemplates(data.filter((t) => t.estado === 'Ativo'));
+      setSelectedTemplateId('');
       setStep('template-select');
     } catch {
       toast({ title: 'Erro', description: 'Erro ao carregar templates', variant: 'destructive' });
@@ -136,7 +147,8 @@ export function GrelhaPlanearModal({ item, onClose, onSuccess }: Props) {
     }
   };
 
-  const handleSelectTemplate = async (_template: Template) => {
+  const handleConfirmTemplate = async () => {
+    if (!selectedTemplateId) return;
     setResolving(true);
     try {
       const values = await resolveInitialValues();
@@ -232,47 +244,58 @@ export function GrelhaPlanearModal({ item, onClose, onSuccess }: Props) {
                 </DialogDescription>
               </DialogHeader>
 
-              <div className="max-h-72 overflow-y-auto space-y-1.5 py-1">
-                {templates.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-6">
-                    Nenhum template encontrado.
-                  </p>
-                ) : (
-                  templates.map((t) => (
-                    <button
-                      key={t.id}
-                      type="button"
-                      disabled={resolving}
-                      onClick={() => void handleSelectTemplate(t)}
-                      className="w-full flex items-start gap-3 rounded-md border px-3 py-2.5 text-left hover:border-primary hover:bg-primary/5 transition-colors disabled:opacity-50"
-                    >
-                      <BookOpen className="h-4 w-4 mt-0.5 shrink-0 text-muted-foreground" />
-                      <div className="min-w-0">
-                        <p className="font-medium text-sm truncate">{t.nome}</p>
-                        {t.descricao && (
-                          <p className="text-xs text-muted-foreground truncate">{t.descricao}</p>
-                        )}
-                        <p className="text-xs text-muted-foreground">{t.etapas.length} etapa(s)</p>
-                      </div>
-                    </button>
-                  ))
-                )}
-              </div>
-
-              {resolving && (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin" />A preparar dados...
+              <div className="space-y-3 py-2">
+                <div className="space-y-2">
+                  <Label>Template</Label>
+                  {templates.length === 0 ? (
+                    <p className="text-sm text-muted-foreground py-2">
+                      Nenhum template ativo disponível.
+                    </p>
+                  ) : (
+                    <Select value={selectedTemplateId} onValueChange={setSelectedTemplateId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione um template..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {templates.map((t) => (
+                          <SelectItem key={t.id} value={t.id}>
+                            {t.nome}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
                 </div>
-              )}
 
-              <Button
-                variant="ghost"
-                size="sm"
-                className="w-full"
-                onClick={() => setStep('choice')}
-              >
-                Voltar
-              </Button>
+                {resolving && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />A preparar dados...
+                  </div>
+                )}
+
+                <div className="flex gap-2 pt-1">
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => setStep('choice')}
+                    disabled={resolving}
+                  >
+                    Voltar
+                  </Button>
+                  <Button
+                    className="flex-1 gradient-primary hover:opacity-90"
+                    disabled={!selectedTemplateId || resolving}
+                    onClick={() => void handleConfirmTemplate()}
+                  >
+                    {resolving ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <BookOpen className="h-4 w-4 mr-2" />
+                    )}
+                    Usar Template
+                  </Button>
+                </div>
+              </div>
             </>
           )}
         </DialogContent>

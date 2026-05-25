@@ -143,6 +143,7 @@ export const conteudosRelacionamentosApi = {
         descricao: string | null;
         horaInicio: string | null;
         horaFim: string | null;
+        data: string | null;
       }>
     >(`/conteudos/${conteudoId}/espacos`);
   },
@@ -154,6 +155,7 @@ export const conteudosRelacionamentosApi = {
       descricao?: string | null;
       horaInicio?: string | null;
       horaFim?: string | null;
+      data?: string | null;
     },
   ) {
     return apiRequest<{
@@ -163,6 +165,7 @@ export const conteudosRelacionamentosApi = {
       descricao: string | null;
       horaInicio: string | null;
       horaFim: string | null;
+      data: string | null;
     }>(`/conteudos/${conteudoId}/espacos`, { method: 'POST', body: JSON.stringify(input) });
   },
 
@@ -174,6 +177,7 @@ export const conteudosRelacionamentosApi = {
       descricao?: string | null;
       horaInicio?: string | null;
       horaFim?: string | null;
+      data?: string | null;
     },
   ) {
     return apiRequest<{
@@ -183,6 +187,7 @@ export const conteudosRelacionamentosApi = {
       descricao: string | null;
       horaInicio: string | null;
       horaFim: string | null;
+      data: string | null;
     }>(`/conteudos/${conteudoId}/espacos/${itemId}`, {
       method: 'PUT',
       body: JSON.stringify(input),

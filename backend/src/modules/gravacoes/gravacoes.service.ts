@@ -61,6 +61,7 @@ export const saveGravacaoEspacoSchema = z.object({
   descricao: optionalNullableString,
   horaInicio: optionalNullableString,
   horaFim: optionalNullableString,
+  data: optionalNullableString,
 });
 
 export const updateGravacaoEspacoSchema = z.object({
@@ -68,6 +69,7 @@ export const updateGravacaoEspacoSchema = z.object({
   descricao: optionalNullableString,
   horaInicio: optionalNullableString,
   horaFim: optionalNullableString,
+  data: optionalNullableString,
 });
 
 export const gravacaoEspacoResourceTypeSchema = z.enum(['fisico', 'tecnico']);
@@ -515,6 +517,7 @@ export class GravacoesService {
       descricao: input.descricao,
       horaInicio: input.horaInicio,
       horaFim: input.horaFim,
+      data: input.data,
       createdBy: actor.id,
     });
     return this.mapEspaco(item);
@@ -524,7 +527,7 @@ export class GravacoesService {
     const existing = await this.repository.findEspacoById(itemId);
     if (!existing || existing.gravacaoId !== gravacaoId) throw new Error('Espaco da gravacao nao encontrado');
     ensureSameTenant(actor, existing.tenantId);
-    const updated = await this.repository.updateEspaco({ id: itemId, espacoId: input.espacoId, descricao: input.descricao, horaInicio: input.horaInicio, horaFim: input.horaFim });
+    const updated = await this.repository.updateEspaco({ id: itemId, espacoId: input.espacoId, descricao: input.descricao, horaInicio: input.horaInicio, horaFim: input.horaFim, data: input.data });
     if (!updated) throw new Error('Espaco da gravacao nao encontrado');
     return this.mapEspaco(updated);
   }

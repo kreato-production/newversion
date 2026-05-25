@@ -58,6 +58,7 @@ export const saveConteudoEspacoSchema = z.object({
   descricao: z.string().optional().nullable(),
   horaInicio: z.string().optional().nullable(),
   horaFim: z.string().optional().nullable(),
+  data: z.string().optional().nullable(),
 });
 
 export const updateConteudoEspacoSchema = z.object({
@@ -65,6 +66,7 @@ export const updateConteudoEspacoSchema = z.object({
   descricao: z.string().optional().nullable(),
   horaInicio: z.string().optional().nullable(),
   horaFim: z.string().optional().nullable(),
+  data: z.string().optional().nullable(),
 });
 
 export const conteudoEspacoResourceTypeSchema = z.enum(['fisico', 'tecnico']);
@@ -374,6 +376,7 @@ export class ConteudosService {
       descricao: input.descricao ?? null,
       horaInicio: input.horaInicio ?? null,
       horaFim: input.horaFim ?? null,
+      data: input.data ?? null,
       createdBy: actor.id,
     });
   }
@@ -389,6 +392,7 @@ export class ConteudosService {
       descricao: input.descricao ?? null,
       horaInicio: input.horaInicio ?? null,
       horaFim: input.horaFim ?? null,
+      data: input.data ?? null,
     });
   }
 

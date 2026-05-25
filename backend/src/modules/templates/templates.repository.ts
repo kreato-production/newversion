@@ -35,6 +35,7 @@ export type TemplateRecord = {
   tenantId: string;
   nome: string;
   descricao: string | null;
+  estado: string;
   createdAt: Date;
   updatedAt: Date;
   etapas: TemplateEtapaRecord[];
@@ -63,6 +64,7 @@ export type SaveTemplateInput = {
   tenantId: string;
   nome: string;
   descricao?: string | null;
+  estado?: string;
   etapas: SaveTemplateEtapaInput[];
 };
 
@@ -71,6 +73,7 @@ type TemplateRow = {
   tenant_id: string;
   nome: string;
   descricao: string | null;
+  estado: string | null;
   created_at: Date;
   updated_at: Date;
 };
@@ -113,14 +116,26 @@ function parseAlocacoes(raw: unknown): AlocacaoRecurso[] {
 }
 
 export class PrismaTemplatesRepository implements TemplatesRepository {
+  private ensureEstadoColumn = (() => {
+    let done = false;
+    return async () => {
+      if (done) return;
+      await prisma.$executeRawUnsafe(
+        `ALTER TABLE "Template" ADD COLUMN IF NOT EXISTS estado text NOT NULL DEFAULT 'Ativo'`,
+      );
+      done = true;
+    };
+  })();
+
   async listByTenant(tenantId: string) {
+    await this.ensureEstadoColumn();
     const [countRows, templates] = await Promise.all([
       prisma.$queryRawUnsafe<{ count: bigint }[]>(
         `SELECT COUNT(*) AS count FROM "Template" WHERE "tenantId" = $1`,
         tenantId,
       ),
       prisma.$queryRawUnsafe<TemplateRow[]>(
-        `SELECT id, "tenantId" AS tenant_id, nome, descricao, "createdAt" AS created_at, "updatedAt" AS updated_at
+        `SELECT id, "tenantId" AS tenant_id, nome, descricao, estado, "createdAt" AS created_at, "updatedAt" AS updated_at
          FROM "Template" WHERE "tenantId" = $1 ORDER BY nome ASC`,
         tenantId,
       ),
@@ -140,8 +155,9 @@ export class PrismaTemplatesRepository implements TemplatesRepository {
   }
 
   async findById(id: string): Promise<TemplateRecord | null> {
+    await this.ensureEstadoColumn();
     const rows = await prisma.$queryRawUnsafe<TemplateRow[]>(
-      `SELECT id, "tenantId" AS tenant_id, nome, descricao, "createdAt" AS created_at, "updatedAt" AS updated_at
+      `SELECT id, "tenantId" AS tenant_id, nome, descricao, estado, "createdAt" AS created_at, "updatedAt" AS updated_at
        FROM "Template" WHERE id = $1`,
       id,
     );
@@ -158,11 +174,15 @@ export class PrismaTemplatesRepository implements TemplatesRepository {
     const id = input.id || randomUUID();
     const now = new Date();
 
+    await this.ensureEstadoColumn();
+    const estado = input.estado ?? 'Ativo';
+
     if (input.id) {
       await prisma.$executeRawUnsafe(
-        `UPDATE "Template" SET nome = $1, descricao = $2, "updatedAt" = $3 WHERE id = $4`,
+        `UPDATE "Template" SET nome = $1, descricao = $2, estado = $3, "updatedAt" = $4 WHERE id = $5`,
         input.nome,
         input.descricao ?? null,
+        estado,
         now,
         id,
       );
@@ -172,12 +192,13 @@ export class PrismaTemplatesRepository implements TemplatesRepository {
       );
     } else {
       await prisma.$executeRawUnsafe(
-        `INSERT INTO "Template" (id, "tenantId", nome, descricao, "createdAt", "updatedAt")
-         VALUES ($1, $2, $3, $4, $5, $6)`,
+        `INSERT INTO "Template" (id, "tenantId", nome, descricao, estado, "createdAt", "updatedAt")
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
         id,
         input.tenantId,
         input.nome,
         input.descricao ?? null,
+        estado,
         now,
         now,
       );
@@ -255,6 +276,7 @@ export class PrismaTemplatesRepository implements TemplatesRepository {
       tenantId: t.tenant_id,
       nome: t.nome,
       descricao: t.descricao,
+      estado: t.estado ?? 'Ativo',
       createdAt: t.created_at,
       updatedAt: t.updated_at,
       etapas: myEtapas.map((e) => ({
