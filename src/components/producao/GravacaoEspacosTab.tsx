@@ -893,7 +893,7 @@ export function GravacaoEspacosTab({ gravacaoId, moeda = 'BRL' }: GravacaoEspaco
             items.map((item) => (
               <TableRow key={item.id}>
                 <TableCell className="font-medium">{item.espacoNome || '-'}</TableCell>
-                <TableCell>{item.data ?? '-'}</TableCell>
+                <TableCell>{item.data ? item.data.split('-').reverse().join('/') : '-'}</TableCell>
                 <TableCell>{item.horaInicio ?? '-'}</TableCell>
                 <TableCell>{item.horaFim ?? '-'}</TableCell>
                 <TableCell>{calcDuration(item.horaInicio, item.horaFim).label}</TableCell>
