@@ -568,7 +568,7 @@ function EspacoModal({
         if (!open) onClose();
       }}
     >
-      <DialogContent className="w-[900px] max-w-[96vw]">
+      <DialogContent className="w-[1200px] max-w-[96vw]">
         <DialogHeader>
           <DialogTitle>{editing ? 'Editar Espaço' : 'Adicionar Espaço'}</DialogTitle>
           <DialogDescription>Edite as informações do espaço e seus recursos.</DialogDescription>
