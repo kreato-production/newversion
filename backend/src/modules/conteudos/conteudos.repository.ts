@@ -186,6 +186,7 @@ export type ConteudoEspacoResourceRecord = {
   quantidade: number;
   horaInicio: string | null;
   horaFim: string | null;
+  data: string | null;
   valorTotal: number;
   descontoPercentual: number;
   valorComDesconto: number;
@@ -206,6 +207,7 @@ export type SaveConteudoEspacoResourceInput = {
   quantidade: number;
   horaInicio?: string | null;
   horaFim?: string | null;
+  data?: string | null;
   valorTotal: number;
   descontoPercentual: number;
   valorComDesconto: number;
@@ -216,6 +218,7 @@ export type UpdateConteudoEspacoResourceInput = {
   quantidade: number;
   horaInicio?: string | null;
   horaFim?: string | null;
+  data?: string | null;
   valorTotal: number;
   descontoPercentual: number;
   valorComDesconto: number;
@@ -493,6 +496,8 @@ async function ensureConteudosSchema() {
       `);
       await prisma.$executeRawUnsafe('CREATE INDEX IF NOT EXISTS cerf_espaco_idx ON public.conteudo_espaco_recursos_fisicos (conteudo_espaco_id)');
       await prisma.$executeRawUnsafe('CREATE INDEX IF NOT EXISTS cert_espaco_idx ON public.conteudo_espaco_recursos_tecnicos (conteudo_espaco_id)');
+      await prisma.$executeRawUnsafe('ALTER TABLE public.conteudo_espaco_recursos_fisicos ADD COLUMN IF NOT EXISTS data text NULL');
+      await prisma.$executeRawUnsafe('ALTER TABLE public.conteudo_espaco_recursos_tecnicos ADD COLUMN IF NOT EXISTS data text NULL');
       await prisma.$executeRawUnsafe(`
         CREATE TABLE IF NOT EXISTS public.gravacao_espacos (
           id text PRIMARY KEY,
@@ -1339,7 +1344,7 @@ export class PrismaConteudosRepository implements ConteudosRepository {
     type ResourceRow = {
       id: string; tenantId: string; conteudoEspacoId: string; recursoId: string;
       recursoNome: string | null; valorHora: Prisma.Decimal | number | string | null;
-      quantidade: number | null; horaInicio: string | null; horaFim: string | null;
+      quantidade: number | null; horaInicio: string | null; horaFim: string | null; data: string | null;
       valorTotal: Prisma.Decimal | number | string | null;
       descontoPercentual: Prisma.Decimal | number | string | null;
       valorComDesconto: Prisma.Decimal | number | string | null;
@@ -1350,7 +1355,7 @@ export class PrismaConteudosRepository implements ConteudosRepository {
       prisma.$queryRaw<ResourceRow[]>(Prisma.sql`
         select cr.id, cr.tenant_id as "tenantId", cr.conteudo_espaco_id as "conteudoEspacoId",
           cr.${idCol} as "recursoId", r.nome as "recursoNome", cr.valor_hora as "valorHora",
-          cr.quantidade, cr.hora_inicio as "horaInicio", cr.hora_fim as "horaFim",
+          cr.quantidade, cr.hora_inicio as "horaInicio", cr.hora_fim as "horaFim", cr.data,
           cr.valor_total as "valorTotal", cr.desconto_percentual as "descontoPercentual",
           cr.valor_com_desconto as "valorComDesconto"
         from ${itemTable} cr
@@ -1368,7 +1373,7 @@ export class PrismaConteudosRepository implements ConteudosRepository {
       id: row.id, tenantId: row.tenantId, conteudoEspacoId: row.conteudoEspacoId,
       recursoId: row.recursoId, recursoNome: row.recursoNome || 'Desconhecido',
       valorHora: toNumber(row.valorHora), quantidade: row.quantidade ?? 1,
-      horaInicio: row.horaInicio, horaFim: row.horaFim,
+      horaInicio: row.horaInicio, horaFim: row.horaFim, data: row.data,
       valorTotal: toNumber(row.valorTotal), descontoPercentual: toNumber(row.descontoPercentual),
       valorComDesconto: toNumber(row.valorComDesconto),
     }));
@@ -1391,7 +1396,7 @@ export class PrismaConteudosRepository implements ConteudosRepository {
     type ResourceRow = {
       id: string; tenantId: string; conteudoEspacoId: string; recursoId: string;
       recursoNome: string | null; valorHora: Prisma.Decimal | number | string | null;
-      quantidade: number | null; horaInicio: string | null; horaFim: string | null;
+      quantidade: number | null; horaInicio: string | null; horaFim: string | null; data: string | null;
       valorTotal: Prisma.Decimal | number | string | null;
       descontoPercentual: Prisma.Decimal | number | string | null;
       valorComDesconto: Prisma.Decimal | number | string | null;
@@ -1400,7 +1405,7 @@ export class PrismaConteudosRepository implements ConteudosRepository {
     const rows = await prisma.$queryRaw<ResourceRow[]>(Prisma.sql`
       select cr.id, cr.tenant_id as "tenantId", cr.conteudo_espaco_id as "conteudoEspacoId",
         cr.${idCol} as "recursoId", r.nome as "recursoNome", cr.valor_hora as "valorHora",
-        cr.quantidade, cr.hora_inicio as "horaInicio", cr.hora_fim as "horaFim",
+        cr.quantidade, cr.hora_inicio as "horaInicio", cr.hora_fim as "horaFim", cr.data,
         cr.valor_total as "valorTotal", cr.desconto_percentual as "descontoPercentual",
         cr.valor_com_desconto as "valorComDesconto"
       from ${itemTable} cr
@@ -1414,7 +1419,7 @@ export class PrismaConteudosRepository implements ConteudosRepository {
       id: row.id, tenantId: row.tenantId, conteudoEspacoId: row.conteudoEspacoId,
       recursoId: row.recursoId, recursoNome: row.recursoNome || 'Desconhecido',
       valorHora: toNumber(row.valorHora), quantidade: row.quantidade ?? 1,
-      horaInicio: row.horaInicio, horaFim: row.horaFim,
+      horaInicio: row.horaInicio, horaFim: row.horaFim, data: row.data,
       valorTotal: toNumber(row.valorTotal), descontoPercentual: toNumber(row.descontoPercentual),
       valorComDesconto: toNumber(row.valorComDesconto),
     };
@@ -1428,8 +1433,8 @@ export class PrismaConteudosRepository implements ConteudosRepository {
     const id = randomUUID();
 
     await prisma.$executeRaw(Prisma.sql`
-      insert into ${itemTable} (id, tenant_id, conteudo_espaco_id, ${idCol}, valor_hora, quantidade, hora_inicio, hora_fim, valor_total, desconto_percentual, valor_com_desconto)
-      values (${id}, ${input.tenantId}, ${input.conteudoEspacoId}, ${input.recursoId}, ${input.valorHora}, ${input.quantidade}, ${input.horaInicio ?? null}, ${input.horaFim ?? null}, ${input.valorTotal}, ${input.descontoPercentual}, ${input.valorComDesconto})
+      insert into ${itemTable} (id, tenant_id, conteudo_espaco_id, ${idCol}, valor_hora, quantidade, hora_inicio, hora_fim, data, valor_total, desconto_percentual, valor_com_desconto)
+      values (${id}, ${input.tenantId}, ${input.conteudoEspacoId}, ${input.recursoId}, ${input.valorHora}, ${input.quantidade}, ${input.horaInicio ?? null}, ${input.horaFim ?? null}, ${input.data ?? null}, ${input.valorTotal}, ${input.descontoPercentual}, ${input.valorComDesconto})
     `);
 
     const saved = await this.findEspacoResourceById(id, input.tipo);
@@ -1444,7 +1449,7 @@ export class PrismaConteudosRepository implements ConteudosRepository {
 
     await prisma.$executeRaw(Prisma.sql`
       update ${itemTable}
-      set quantidade = ${input.quantidade}, hora_inicio = ${input.horaInicio ?? null}, hora_fim = ${input.horaFim ?? null},
+      set quantidade = ${input.quantidade}, hora_inicio = ${input.horaInicio ?? null}, hora_fim = ${input.horaFim ?? null}, data = ${input.data ?? null},
           valor_total = ${input.valorTotal}, desconto_percentual = ${input.descontoPercentual}, valor_com_desconto = ${input.valorComDesconto}
       where id = ${input.id}
     `);

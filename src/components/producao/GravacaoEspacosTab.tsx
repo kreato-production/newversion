@@ -102,7 +102,13 @@ function ResourceTab({ gravacaoId, espacoItemId, tipo, label, moeda = 'BRL' }: R
   const [rowState, setRowState] = useState<
     Record<
       string,
-      { quantidade: string; horaInicio: string; horaFim: string; descontoPercentual: string }
+      {
+        quantidade: string;
+        horaInicio: string;
+        horaFim: string;
+        data: string;
+        descontoPercentual: string;
+      }
     >
   >({});
 
@@ -122,6 +128,7 @@ function ResourceTab({ gravacaoId, espacoItemId, tipo, label, moeda = 'BRL' }: R
           quantidade: String(item.quantidade),
           horaInicio: item.horaInicio ?? '',
           horaFim: item.horaFim ?? '',
+          data: item.data ?? '',
           descontoPercentual: String(item.descontoPercentual),
         };
       }
@@ -162,7 +169,13 @@ function ResourceTab({ gravacaoId, espacoItemId, tipo, label, moeda = 'BRL' }: R
       setAvailable((prev) => prev.filter((r) => r.recursoId !== selectedRecursoId));
       setRowState((prev) => ({
         ...prev,
-        [created.id]: { quantidade: '1', horaInicio: '', horaFim: '', descontoPercentual: '0' },
+        [created.id]: {
+          quantidade: '1',
+          horaInicio: '',
+          horaFim: '',
+          data: '',
+          descontoPercentual: '0',
+        },
       }));
       setSelectedRecursoId('');
     } catch (err) {
@@ -204,6 +217,7 @@ function ResourceTab({ gravacaoId, espacoItemId, tipo, label, moeda = 'BRL' }: R
       const quantidade = Math.max(1, parseInt(rs.quantidade, 10) || 1);
       const horaInicio = rs.horaInicio || null;
       const horaFim = rs.horaFim || null;
+      const dataRecurso = rs.data || null;
       const desconto = Math.min(100, Math.max(0, parseFloat(rs.descontoPercentual) || 0));
       const { valorTotal, valorComDesconto } = calcResourceValues({
         valorHora: item.valorHora,
@@ -222,6 +236,7 @@ function ResourceTab({ gravacaoId, espacoItemId, tipo, label, moeda = 'BRL' }: R
             quantidade,
             horaInicio,
             horaFim,
+            data: dataRecurso,
             valorTotal,
             descontoPercentual: desconto,
             valorComDesconto,
@@ -319,6 +334,7 @@ function ResourceTab({ gravacaoId, espacoItemId, tipo, label, moeda = 'BRL' }: R
               <TableHead className="text-xs w-16 text-center">Qtd.</TableHead>
               <TableHead className="text-xs w-28">Hora Início</TableHead>
               <TableHead className="text-xs w-28">Hora Fim</TableHead>
+              <TableHead className="text-xs w-32">Data</TableHead>
               <TableHead className="text-xs w-20 text-center">Total</TableHead>
               <TableHead className="text-xs w-20 text-right">Horas</TableHead>
               <TableHead className="text-xs text-right">Valor Total</TableHead>
@@ -330,7 +346,7 @@ function ResourceTab({ gravacaoId, espacoItemId, tipo, label, moeda = 'BRL' }: R
           <TableBody>
             {items.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={11} className="text-center text-muted-foreground py-6">
+                <TableCell colSpan={12} className="text-center text-muted-foreground py-6">
                   Nenhum {label.toLowerCase()} adicionado.
                 </TableCell>
               </TableRow>
@@ -340,6 +356,7 @@ function ResourceTab({ gravacaoId, espacoItemId, tipo, label, moeda = 'BRL' }: R
                   quantidade: '1',
                   horaInicio: '',
                   horaFim: '',
+                  data: '',
                   descontoPercentual: '0',
                 };
                 const qtd = parseInt(rs.quantidade, 10) || item.quantidade;
@@ -396,6 +413,15 @@ function ResourceTab({ gravacaoId, espacoItemId, tipo, label, moeda = 'BRL' }: R
                         onBlur={() => void saveRow(item)}
                       />
                     </TableCell>
+                    <TableCell>
+                      <Input
+                        type="date"
+                        className="h-7 text-xs"
+                        value={rs.data}
+                        onChange={(e) => updateRowField('data', e.target.value)}
+                        onBlur={() => void saveRow(item)}
+                      />
+                    </TableCell>
                     <TableCell className="text-center text-xs">{durationLabel}</TableCell>
                     <TableCell className="text-right text-xs">
                       {hours > 0 ? hours.toFixed(2) : '-'}
@@ -437,7 +463,7 @@ function ResourceTab({ gravacaoId, espacoItemId, tipo, label, moeda = 'BRL' }: R
           {items.length > 0 && (
             <tfoot>
               <tr className="border-t bg-muted/20">
-                <td colSpan={7} className="px-4 py-2 text-xs font-semibold text-right">
+                <td colSpan={8} className="px-4 py-2 text-xs font-semibold text-right">
                   Totais:
                 </td>
                 <td className="px-4 py-2 text-xs font-semibold text-right font-mono">

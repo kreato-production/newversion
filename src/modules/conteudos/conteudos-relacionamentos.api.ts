@@ -210,6 +210,7 @@ export const conteudosRelacionamentosApi = {
         quantidade: number;
         horaInicio: string | null;
         horaFim: string | null;
+        data: string | null;
         valorTotal: number;
         descontoPercentual: number;
         valorComDesconto: number;
@@ -228,6 +229,7 @@ export const conteudosRelacionamentosApi = {
       quantidade: number;
       horaInicio?: string | null;
       horaFim?: string | null;
+      data?: string | null;
       valorTotal: number;
       descontoPercentual: number;
       valorComDesconto: number;
@@ -259,6 +261,7 @@ export const conteudosRelacionamentosApi = {
       quantidade: number;
       horaInicio?: string | null;
       horaFim?: string | null;
+      data?: string | null;
       valorTotal: number;
       descontoPercentual: number;
       valorComDesconto: number;

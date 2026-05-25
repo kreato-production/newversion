@@ -195,6 +195,7 @@ export type GravacaoEspacoResourceRecord = {
   quantidade: number;
   horaInicio: string | null;
   horaFim: string | null;
+  data: string | null;
   valorTotal: number;
   descontoPercentual: number;
   valorComDesconto: number;
@@ -215,6 +216,7 @@ export type SaveGravacaoEspacoResourceInput = {
   quantidade: number;
   horaInicio?: string | null;
   horaFim?: string | null;
+  data?: string | null;
   valorTotal: number;
   descontoPercentual: number;
   valorComDesconto: number;
@@ -225,6 +227,7 @@ export type UpdateGravacaoEspacoResourceInput = {
   quantidade: number;
   horaInicio?: string | null;
   horaFim?: string | null;
+  data?: string | null;
   valorTotal: number;
   descontoPercentual: number;
   valorComDesconto: number;
@@ -1375,6 +1378,8 @@ export class PrismaGravacoesRepository implements GravacoesRepository {
 
         await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS gerf_espaco_idx ON gravacao_espaco_recursos_fisicos (gravacao_espaco_id)`);
         await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS gert_espaco_idx ON gravacao_espaco_recursos_tecnicos (gravacao_espaco_id)`);
+        await prisma.$executeRawUnsafe(`ALTER TABLE gravacao_espaco_recursos_fisicos ADD COLUMN IF NOT EXISTS data text NULL`);
+        await prisma.$executeRawUnsafe(`ALTER TABLE gravacao_espaco_recursos_tecnicos ADD COLUMN IF NOT EXISTS data text NULL`);
 
         await prisma.$executeRawUnsafe(`
           CREATE TABLE IF NOT EXISTS gravacao_despesas (
@@ -1635,6 +1640,7 @@ export class PrismaGravacoesRepository implements GravacoesRepository {
         coalesce(r.quantidade, 1) as "quantidade",
         r.hora_inicio as "horaInicio",
         r.hora_fim as "horaFim",
+        r.data,
         coalesce(r.valor_total, 0)::float as "valorTotal",
         coalesce(r.desconto_percentual, 0)::float as "descontoPercentual",
         coalesce(r.valor_com_desconto, 0)::float as "valorComDesconto"
@@ -1669,11 +1675,11 @@ export class PrismaGravacoesRepository implements GravacoesRepository {
     await prisma.$executeRaw(Prisma.sql`
       insert into ${itemTable} (
         id, tenant_id, gravacao_espaco_id, ${idCol},
-        valor_hora, quantidade, hora_inicio, hora_fim,
+        valor_hora, quantidade, hora_inicio, hora_fim, data,
         valor_total, desconto_percentual, valor_com_desconto
       ) values (
         ${id}, ${input.tenantId}, ${input.gravacaoEspacoId}, ${input.recursoId},
-        ${input.valorHora}, ${input.quantidade}, ${input.horaInicio ?? null}, ${input.horaFim ?? null},
+        ${input.valorHora}, ${input.quantidade}, ${input.horaInicio ?? null}, ${input.horaFim ?? null}, ${input.data ?? null},
         ${input.valorTotal}, ${input.descontoPercentual}, ${input.valorComDesconto}
       )
     `);
@@ -1684,7 +1690,7 @@ export class PrismaGravacoesRepository implements GravacoesRepository {
         r.${idCol} as "recursoId", res.nome as "recursoNome",
         coalesce(r.valor_hora, 0)::float as "valorHora",
         coalesce(r.quantidade, 1) as "quantidade",
-        r.hora_inicio as "horaInicio", r.hora_fim as "horaFim",
+        r.hora_inicio as "horaInicio", r.hora_fim as "horaFim", r.data,
         coalesce(r.valor_total, 0)::float as "valorTotal",
         coalesce(r.desconto_percentual, 0)::float as "descontoPercentual",
         coalesce(r.valor_com_desconto, 0)::float as "valorComDesconto"
@@ -1705,7 +1711,7 @@ export class PrismaGravacoesRepository implements GravacoesRepository {
     await prisma.$executeRaw(Prisma.sql`
       update ${itemTable}
       set quantidade = ${input.quantidade}, hora_inicio = ${input.horaInicio ?? null},
-          hora_fim = ${input.horaFim ?? null}, valor_total = ${input.valorTotal},
+          hora_fim = ${input.horaFim ?? null}, data = ${input.data ?? null}, valor_total = ${input.valorTotal},
           desconto_percentual = ${input.descontoPercentual}, valor_com_desconto = ${input.valorComDesconto}
       where id = ${input.id}
     `);
@@ -1716,7 +1722,7 @@ export class PrismaGravacoesRepository implements GravacoesRepository {
         r.${idCol} as "recursoId", res.nome as "recursoNome",
         coalesce(r.valor_hora, 0)::float as "valorHora",
         coalesce(r.quantidade, 1) as "quantidade",
-        r.hora_inicio as "horaInicio", r.hora_fim as "horaFim",
+        r.hora_inicio as "horaInicio", r.hora_fim as "horaFim", r.data,
         coalesce(r.valor_total, 0)::float as "valorTotal",
         coalesce(r.desconto_percentual, 0)::float as "descontoPercentual",
         coalesce(r.valor_com_desconto, 0)::float as "valorComDesconto"
