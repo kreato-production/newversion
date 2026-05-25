@@ -558,7 +558,10 @@ export class PrismaFornecedoresRepository implements FornecedoresRepository {
           CREATE INDEX IF NOT EXISTS fornecedores_tenant_nome_idx
           ON fornecedores (tenant_id, nome)
         `);
-      })();
+      })().catch((err) => {
+        this.ready = null;
+        throw err;
+      });
     }
 
     await this.ready;

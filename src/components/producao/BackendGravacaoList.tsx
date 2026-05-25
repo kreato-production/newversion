@@ -24,6 +24,12 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useAuth } from '@/contexts/AuthContext';
 import { GravacaoBackendFormModal } from './GravacaoBackendFormModal';
+import {
+  GravacaoFilterPanel,
+  type GravacaoFilters,
+  EMPTY_FILTERS,
+  countActiveFilters,
+} from './GravacaoFilterPanel';
 import { gravacoesRepository } from '@/modules/gravacoes/gravacoes.repository.provider';
 import type { Gravacao, GravacaoInput } from '@/modules/gravacoes/gravacoes.types';
 import {
@@ -245,6 +251,7 @@ export const BackendGravacaoList = () => {
   const podeExcluir = canExcluir('Produção', 'Gravação');
 
   const [search, setSearch] = useState('');
+  const [filters, setFilters] = useState<GravacaoFilters>(EMPTY_FILTERS);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Gravacao | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -333,14 +340,62 @@ export const BackendGravacaoList = () => {
     }
   };
 
-  // ── Filtering ──────────────────────────────────────────────────────────────
+  // ── Filtering + sorting ────────────────────────────────────────────────────
 
-  const filteredItems = items.filter(
-    (item) =>
-      item.nome.toLowerCase().includes(search.toLowerCase()) ||
-      item.codigo.toLowerCase().includes(search.toLowerCase()) ||
-      item.codigoExterno.toLowerCase().includes(search.toLowerCase()),
-  );
+  const filteredItems = (() => {
+    let result = items.filter(
+      (item) =>
+        item.nome.toLowerCase().includes(search.toLowerCase()) ||
+        item.codigo.toLowerCase().includes(search.toLowerCase()) ||
+        item.codigoExterno.toLowerCase().includes(search.toLowerCase()),
+    );
+
+    if (filters.status.length)
+      result = result.filter((i) => i.status && filters.status.includes(i.status));
+    if (filters.unidadeNegocioId.length)
+      result = result.filter(
+        (i) => i.unidadeNegocioId && filters.unidadeNegocioId.includes(i.unidadeNegocioId),
+      );
+    if (filters.centroLucro.length)
+      result = result.filter((i) => i.centroLucro && filters.centroLucro.includes(i.centroLucro));
+    if (filters.programaId.length)
+      result = result.filter((i) => i.programaId && filters.programaId.includes(i.programaId));
+    if (filters.tipoConteudo.length)
+      result = result.filter(
+        (i) => i.tipoConteudo && filters.tipoConteudo.includes(i.tipoConteudo),
+      );
+    if (filters.classificacao.length)
+      result = result.filter(
+        (i) => i.classificacao && filters.classificacao.includes(i.classificacao),
+      );
+    if (filters.conteudoId.length)
+      result = result.filter((i) => i.conteudoId && filters.conteudoId.includes(i.conteudoId));
+    if (filters.dataPrevistaFrom)
+      result = result.filter((i) => i.dataPrevista && i.dataPrevista >= filters.dataPrevistaFrom);
+    if (filters.dataPrevistaTo)
+      result = result.filter((i) => i.dataPrevista && i.dataPrevista <= filters.dataPrevistaTo);
+    if (filters.orcamentoMin)
+      result = result.filter((i) => (i.orcamento ?? 0) >= Number(filters.orcamentoMin));
+    if (filters.orcamentoMax)
+      result = result.filter((i) => (i.orcamento ?? 0) <= Number(filters.orcamentoMax));
+
+    if (filters.sortBy === 'nome-asc')
+      result = [...result].sort((a, b) => a.nome.localeCompare(b.nome));
+    else if (filters.sortBy === 'nome-desc')
+      result = [...result].sort((a, b) => b.nome.localeCompare(a.nome));
+    else if (filters.sortBy === 'data-asc')
+      result = [...result].sort((a, b) =>
+        (a.dataPrevista ?? '').localeCompare(b.dataPrevista ?? ''),
+      );
+    else if (filters.sortBy === 'data-desc')
+      result = [...result].sort((a, b) =>
+        (b.dataPrevista ?? '').localeCompare(a.dataPrevista ?? ''),
+      );
+
+    return result;
+  })();
+
+  const activeFilterCount = countActiveFilters(filters);
 
   // ── Table columns ──────────────────────────────────────────────────────────
 
@@ -458,6 +513,11 @@ export const BackendGravacaoList = () => {
         )}
         <div className="flex-1" />
         <SearchBar value={search} onChange={setSearch} placeholder={t('common.search')} />
+        <GravacaoFilterPanel
+          filters={filters}
+          onChange={setFilters}
+          resultCount={filteredItems.length}
+        />
         {/* Column selector — only makes sense in list mode */}
         {mode === 'list' && (
           <ColumnSelector

@@ -166,7 +166,7 @@ export const TipoPagamentoFormModal = ({
                     setFormData((current) => ({ ...current, cor: event.target.value }))
                   }
                   placeholder="#000000"
-                  className="w-28 font-mono text-sm"
+                  className="w-28 font-mono text-xs"
                   disabled={readOnly}
                 />
                 <Badge style={{ backgroundColor: formData.cor }} className="text-white ml-auto">

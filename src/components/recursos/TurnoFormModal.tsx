@@ -267,7 +267,7 @@ export const TurnoFormModal = ({
           <div className="space-y-2">
             <Label>Dias da Semana e Pessoas por Dia</Label>
             <div className="rounded-md border overflow-hidden">
-              <table className="w-full text-sm">
+              <table className="w-full text-xs">
                 <thead>
                   <tr className="bg-muted/40">
                     {displayOrder.map((key) => (
@@ -353,7 +353,7 @@ export const TurnoFormModal = ({
 
           {/* Folga Especial */}
           <div className="rounded-md border p-4 space-y-3">
-            <Label className="text-sm font-medium">Folga Especial</Label>
+            <Label className="text-xs font-medium">Folga Especial</Label>
             <RadioGroup
               value={formData.folgaEspecial || ''}
               onValueChange={(value) =>
@@ -378,7 +378,7 @@ export const TurnoFormModal = ({
                   />
                   <Label
                     htmlFor={`folga-${opt.value}`}
-                    className="font-normal cursor-pointer text-sm"
+                    className="font-normal cursor-pointer text-xs"
                   >
                     {opt.label}
                   </Label>

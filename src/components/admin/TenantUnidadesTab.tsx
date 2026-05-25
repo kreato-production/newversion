@@ -145,7 +145,7 @@ export const TenantUnidadesTab = ({ tenantId }: { tenantId: string }) => {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <div className="text-sm text-muted-foreground">
+        <div className="text-xs text-muted-foreground">
           Unidades de negocio vinculadas ao tenant na API local.
         </div>
         <Button onClick={() => setIsCreating(true)} size="sm">
@@ -154,7 +154,7 @@ export const TenantUnidadesTab = ({ tenantId }: { tenantId: string }) => {
         </Button>
       </div>
 
-      <div className="rounded-lg border bg-muted/20 p-4 text-sm text-muted-foreground">
+      <div className="rounded-lg border bg-muted/20 p-4 text-xs text-muted-foreground">
         No modo backend, as unidades pertencem diretamente ao tenant. A associacao de unidades ja
         existentes nao se aplica aqui.
       </div>
@@ -250,7 +250,10 @@ export const TenantUnidadesTab = ({ tenantId }: { tenantId: string }) => {
         }
       />
 
-      <AlertDialog open={Boolean(deletingItem)} onOpenChange={(open) => !open && setDeletingItem(null)}>
+      <AlertDialog
+        open={Boolean(deletingItem)}
+        onOpenChange={(open) => !open && setDeletingItem(null)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Remover unidade de negócio</AlertDialogTitle>

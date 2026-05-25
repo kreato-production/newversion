@@ -183,7 +183,7 @@ export function MapaOciosidadeModal({ isOpen, onClose, recursos }: Props) {
         </DialogHeader>
         <div className="flex items-center gap-4 flex-wrap">
           <div className="flex items-center gap-2">
-            <Label className="text-sm">Visualizacao:</Label>
+            <Label className="text-xs">Visualizacao:</Label>
             <Select value={viewMode} onValueChange={(value) => setViewMode(value as ViewMode)}>
               <SelectTrigger className="w-32">
                 <SelectValue />
@@ -267,7 +267,7 @@ export function MapaOciosidadeModal({ isOpen, onClose, recursos }: Props) {
         <ScrollArea className="h-[calc(90vh-200px)] border rounded-lg">
           <div className="min-w-max">
             <div className="flex sticky top-0 bg-background z-10 border-b">
-              <div className="w-48 min-w-48 px-3 py-2 font-medium text-sm border-r bg-muted/50 flex items-center">
+              <div className="w-48 min-w-48 px-3 py-2 font-medium text-xs border-r bg-muted/50 flex items-center">
                 Colaborador
               </div>
               {diasExibidos.map((dia) => {

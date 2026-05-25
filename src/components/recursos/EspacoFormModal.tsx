@@ -283,7 +283,7 @@ export function EspacoFormModal({
             {faixas.length === 0 ? (
               <div className="text-center py-8 border rounded-lg border-dashed bg-muted/20">
                 <Calendar className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
-                <p className="text-sm text-muted-foreground">
+                <p className="text-xs text-muted-foreground">
                   Nenhuma faixa de disponibilidade cadastrada.
                 </p>
                 {!readOnly && (
@@ -303,7 +303,7 @@ export function EspacoFormModal({
                 {faixas.map((faixa, index) => (
                   <div key={faixa.id} className="border rounded-lg p-4 bg-muted/10 space-y-4">
                     <div className="flex items-center justify-between">
-                      <span className="font-medium text-sm">Faixa {index + 1}</span>
+                      <span className="font-medium text-xs">Faixa {index + 1}</span>
                       {!readOnly && (
                         <Button
                           type="button"

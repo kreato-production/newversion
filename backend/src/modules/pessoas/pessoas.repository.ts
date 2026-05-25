@@ -450,7 +450,10 @@ export class PrismaPessoasRepository implements PessoasRepository {
           CREATE INDEX IF NOT EXISTS pessoas_tenant_nome_idx
           ON pessoas (tenant_id, nome, sobrenome)
         `);
-      })();
+      })().catch((err) => {
+        this.ready = null;
+        throw err;
+      });
     }
 
     await this.ready;

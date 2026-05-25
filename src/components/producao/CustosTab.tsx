@@ -88,7 +88,7 @@ export const CustosTab = ({ gravacaoId }: CustosTabProps) => {
           <Calculator className="w-8 h-8 text-muted-foreground" />
         </div>
         <h3 className="text-lg font-semibold text-foreground mb-1">{t('costsTab.noCosts')}</h3>
-        <p className="text-sm text-muted-foreground max-w-sm">{t('costsTab.noCostsDescription')}</p>
+        <p className="text-xs text-muted-foreground max-w-sm">{t('costsTab.noCostsDescription')}</p>
       </div>
     );
   }
@@ -98,7 +98,7 @@ export const CustosTab = ({ gravacaoId }: CustosTabProps) => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{t('costsTab.totalHours')}</CardTitle>
+            <CardTitle className="text-xs font-medium">{t('costsTab.totalHours')}</CardTitle>
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -109,7 +109,7 @@ export const CustosTab = ({ gravacaoId }: CustosTabProps) => {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{t('costsTab.totalCost')}</CardTitle>
+            <CardTitle className="text-xs font-medium">{t('costsTab.totalCost')}</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -122,7 +122,7 @@ export const CustosTab = ({ gravacaoId }: CustosTabProps) => {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{t('costsTab.costItems')}</CardTitle>
+            <CardTitle className="text-xs font-medium">{t('costsTab.costItems')}</CardTitle>
             <Calculator className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -211,8 +211,8 @@ export const CustosTab = ({ gravacaoId }: CustosTabProps) => {
                 <DollarSign className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">{t('costsTab.totalEstimatedCost')}</p>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-xs text-muted-foreground">{t('costsTab.totalEstimatedCost')}</p>
+                <p className="text-xs text-muted-foreground">
                   {totalGeral.horas.toFixed(1)} {t('costsTab.workHours')}
                 </p>
               </div>

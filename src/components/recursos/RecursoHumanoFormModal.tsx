@@ -97,7 +97,14 @@ const emptyForm = (): RecursoHumanoInput => ({
   escalas: [],
 });
 
-export function RecursoHumanoFormModal({ isOpen, onClose, onSave, data, readOnly = false, navigation }: Props) {
+export function RecursoHumanoFormModal({
+  isOpen,
+  onClose,
+  onSave,
+  data,
+  readOnly = false,
+  navigation,
+}: Props) {
   const { isVisible } = usePermissions();
   const fotoInputRef = useRef<HTMLInputElement>(null);
   const anexoInputRef = useRef<HTMLInputElement>(null);
@@ -582,7 +589,7 @@ export function RecursoHumanoFormModal({ isOpen, onClose, onSave, data, readOnly
                           formData.anexos.map((item) => (
                             <div
                               key={item.id}
-                              className="flex items-center justify-between text-sm bg-muted/30 rounded p-2"
+                              className="flex items-center justify-between text-xs bg-muted/30 rounded p-2"
                             >
                               <div className="flex items-center gap-2 min-w-0 flex-1">
                                 <FileText className="w-4 h-4 text-muted-foreground flex-shrink-0" />
@@ -610,7 +617,7 @@ export function RecursoHumanoFormModal({ isOpen, onClose, onSave, data, readOnly
                             </div>
                           ))
                         ) : (
-                          <div className="text-center text-sm text-muted-foreground border-dashed py-3">
+                          <div className="text-center text-xs text-muted-foreground border-dashed py-3">
                             Nenhum anexo adicionado
                           </div>
                         )}
@@ -642,7 +649,7 @@ export function RecursoHumanoFormModal({ isOpen, onClose, onSave, data, readOnly
           {isVisible('Recursos', 'Recursos Humanos', '-', 'Tabulador "Ausencias"') && (
             <TabsContent value="ausencias" className="mt-4 space-y-4">
               <div className="border rounded-lg p-4 bg-muted/20">
-                <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
+                <h4 className="text-xs font-medium mb-3 flex items-center gap-2">
                   <Plus className="w-4 h-4" />
                   Adicionar Periodo de Ausencia
                 </h4>
@@ -779,7 +786,7 @@ export function RecursoHumanoFormModal({ isOpen, onClose, onSave, data, readOnly
 
           <TabsContent value="escalas" className="mt-4 space-y-4">
             <div className="border rounded-lg p-4 bg-muted/20">
-              <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
+              <h4 className="text-xs font-medium mb-3 flex items-center gap-2">
                 <Plus className="w-4 h-4" />
                 Adicionar Escala de Trabalho
               </h4>
@@ -862,7 +869,7 @@ export function RecursoHumanoFormModal({ isOpen, onClose, onSave, data, readOnly
                         }
                         disabled={readOnly}
                       />
-                      <span className="text-sm">{dia.label}</span>
+                      <span className="text-xs">{dia.label}</span>
                     </label>
                   ))}
                 </div>

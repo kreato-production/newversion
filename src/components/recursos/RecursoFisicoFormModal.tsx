@@ -347,7 +347,7 @@ export const RecursoFisicoFormModal = ({
                   {faixas.length === 0 ? (
                     <div className="text-center py-6 border rounded-lg border-dashed bg-muted/20">
                       <Calendar className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-xs text-muted-foreground">
                         Nenhuma faixa de disponibilidade cadastrada.
                       </p>
                     </div>
@@ -356,7 +356,7 @@ export const RecursoFisicoFormModal = ({
                       {faixas.map((faixa, index) => (
                         <div key={faixa.id} className="border rounded-lg p-4 bg-muted/10 space-y-4">
                           <div className="flex items-center justify-between">
-                            <span className="font-medium text-sm">Faixa {index + 1}</span>
+                            <span className="font-medium text-xs">Faixa {index + 1}</span>
                             {!readOnly && (
                               <Button
                                 type="button"
@@ -438,7 +438,7 @@ export const RecursoFisicoFormModal = ({
                                   key={dia.value}
                                   className={`
                                     flex items-center gap-1.5 px-3 py-1.5 rounded-md border cursor-pointer
-                                    transition-colors text-sm
+                                    transition-colors text-xs
                                     ${
                                       faixa.diasSemana.includes(dia.value)
                                         ? 'bg-primary text-primary-foreground border-primary'
@@ -459,7 +459,7 @@ export const RecursoFisicoFormModal = ({
                           </div>
 
                           {verificarSobreposicao(faixa, faixas) && (
-                            <div className="flex items-center gap-2 text-destructive text-sm bg-destructive/10 p-2 rounded">
+                            <div className="flex items-center gap-2 text-destructive text-xs bg-destructive/10 p-2 rounded">
                               <AlertCircle className="w-4 h-4" />
                               <span>Esta faixa se sobrepoe a outra faixa existente.</span>
                             </div>

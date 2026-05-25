@@ -264,6 +264,21 @@ export class PrismaDepartamentosRepository implements DepartamentosRepository {
   private async ensureTables(): Promise<void> {
     if (!this.ready) {
       this.ready = (async () => {
+        // funcoes is owned by parametros module but FK-referenced by departamento_funcoes.
+        // Pre-create it here so initialization order doesn't matter.
+        await prisma.$executeRawUnsafe(`
+          CREATE TABLE IF NOT EXISTS funcoes (
+            id text PRIMARY KEY,
+            tenant_id text NULL,
+            codigo_externo text NULL,
+            nome text NOT NULL DEFAULT '',
+            descricao text NULL,
+            cor text NULL,
+            created_at timestamptz NULL DEFAULT NOW(),
+            created_by text NULL
+          )
+        `);
+
         await prisma.$executeRawUnsafe(`
           CREATE TABLE IF NOT EXISTS departamentos (
             id text PRIMARY KEY,
@@ -292,7 +307,10 @@ export class PrismaDepartamentosRepository implements DepartamentosRepository {
           CREATE UNIQUE INDEX IF NOT EXISTS departamento_funcoes_departamento_funcao_key
           ON departamento_funcoes (departamento_id, funcao_id)
         `);
-      })();
+      })().catch((err) => {
+        this.ready = null;
+        throw err;
+      });
     }
 
     await this.ready;

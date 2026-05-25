@@ -22,6 +22,7 @@ model Tenant {
   programas   Programa[]
   gravacoes   Gravacao[]
   licencas    TenantLicense[]
+  templates   Template[]
 }
 
 model User {
@@ -200,6 +201,7 @@ model Programa {
   codigoExterno    String?
   nome             String
   descricao        String?
+  cor              String?
   unidadeNegocioId String?
   createdById      String?
   createdAt        DateTime        @default(now())
@@ -257,4 +259,44 @@ enum UserStatus {
   ATIVO
   INATIVO
   BLOQUEADO
+}
+
+model Template {
+  id          String          @id @default(uuid())
+  tenantId    String
+  nome        String
+  descricao   String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  tenant      Tenant          @relation(fields: [tenantId], references: [id])
+  etapas      TemplateEtapa[]
+
+  @@index([tenantId])
+}
+
+model TemplateEtapa {
+  id         String              @id @default(uuid())
+  templateId String
+  nome       String
+  cor        String              @default("#6366f1")
+  ordem      Int                 @default(0)
+  template   Template            @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  atividades TemplateAtividade[]
+
+  @@index([templateId])
+}
+
+model TemplateAtividade {
+  id              String        @id @default(uuid())
+  etapaId         String
+  nome            String
+  horaInicio      String
+  horaFim         String
+  duracaoMinutos  Int           @default(0)
+  recursosHumanos String[]
+  equipamentos    String[]
+  ordem           Int           @default(0)
+  etapa           TemplateEtapa @relation(fields: [etapaId], references: [id], onDelete: Cascade)
+
+  @@index([etapaId])
 }

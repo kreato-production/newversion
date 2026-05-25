@@ -294,7 +294,7 @@ export const CentroLucroFormModal = ({
 
           <TabsContent value="unidades" className="mt-4">
             <div className="space-y-4">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <Building2 className="h-4 w-4" />
                 <span>Selecione as unidades de negocio associadas a este centro de custos:</span>
               </div>
@@ -322,7 +322,7 @@ export const CentroLucroFormModal = ({
                       />
                       <label
                         htmlFor={`unidade-${unidade.id}`}
-                        className="flex-1 cursor-pointer text-sm font-medium"
+                        className="flex-1 cursor-pointer text-xs font-medium"
                       >
                         {unidade.nome}
                       </label>
@@ -331,7 +331,7 @@ export const CentroLucroFormModal = ({
                 </div>
               )}
 
-              <div className="flex items-center justify-between pt-2 text-sm text-muted-foreground">
+              <div className="flex items-center justify-between pt-2 text-xs text-muted-foreground">
                 <span>{selectedUnidades.length} unidade(s) selecionada(s)</span>
                 {selectedUnidades.length > 0 && !readOnly && (
                   <Button
@@ -349,34 +349,34 @@ export const CentroLucroFormModal = ({
               <DialogFooter className={navigation ? 'sm:justify-between' : undefined}>
                 {navigation && <ModalNavigation {...navigation} />}
                 <div className="flex gap-2">
-                <Button type="button" variant="outline" onClick={onClose}>
-                  Fechar
-                </Button>
-                {!readOnly && (
-                  <Button
-                    type="button"
-                    className="gradient-primary hover:opacity-90"
-                    onClick={async () => {
-                      if (data?.id) {
-                        try {
-                          await saveUnidadeAssociations(data.id);
-                          toast({
-                            title: 'Sucesso',
-                            description: 'Unidades de negocio atualizadas!',
-                          });
-                        } catch {
-                          toast({
-                            title: 'Erro',
-                            description: 'Erro ao salvar as associacoes',
-                            variant: 'destructive',
-                          });
-                        }
-                      }
-                    }}
-                  >
-                    Salvar Unidades
+                  <Button type="button" variant="outline" onClick={onClose}>
+                    Fechar
                   </Button>
-                )}
+                  {!readOnly && (
+                    <Button
+                      type="button"
+                      className="gradient-primary hover:opacity-90"
+                      onClick={async () => {
+                        if (data?.id) {
+                          try {
+                            await saveUnidadeAssociations(data.id);
+                            toast({
+                              title: 'Sucesso',
+                              description: 'Unidades de negocio atualizadas!',
+                            });
+                          } catch {
+                            toast({
+                              title: 'Erro',
+                              description: 'Erro ao salvar as associacoes',
+                              variant: 'destructive',
+                            });
+                          }
+                        }
+                      }}
+                    >
+                      Salvar Unidades
+                    </Button>
+                  )}
                 </div>
               </DialogFooter>
             </div>

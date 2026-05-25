@@ -77,7 +77,7 @@ export const UsuarioEquipesTab = ({ usuarioId }: { usuarioId: string }) => {
     <div className="space-y-4 mt-4">
       <div className="flex items-end gap-2">
         <div className="flex-1 space-y-2">
-          <label className="text-sm text-muted-foreground">Selecionar Equipe</label>
+          <label className="text-xs text-muted-foreground">Selecionar Equipe</label>
           <Select value={selectedEquipeId} onValueChange={setSelectedEquipeId}>
             <SelectTrigger>
               <SelectValue placeholder="Selecione uma equipe..." />

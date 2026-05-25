@@ -4,6 +4,7 @@ export interface DashboardRecordingSummary {
   codigo: string;
   dataPrevista: string | null;
   status: string | null;
+  tipoConteudo: string | null;
 }
 
 export interface DashboardOverviewResponse {

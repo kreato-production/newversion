@@ -7,6 +7,7 @@ export type DashboardRecordingRecord = {
   codigo: string;
   dataPrevista: string | null;
   status: string | null;
+  tipoConteudo: string | null;
 };
 
 export type DashboardOverviewRecord = {
@@ -299,6 +300,7 @@ export class PrismaAnalyticsRepository implements AnalyticsRepository {
         codigo: true,
         dataPrevista: true,
         status: true,
+        tipoConteudo: true,
       },
       orderBy: [{ dataPrevista: 'asc' }, { createdAt: 'asc' }],
     });
@@ -309,6 +311,7 @@ export class PrismaAnalyticsRepository implements AnalyticsRepository {
       codigo: item.codigo,
       dataPrevista: item.dataPrevista ? item.dataPrevista.toISOString().slice(0, 10) : null,
       status: item.status ?? null,
+      tipoConteudo: item.tipoConteudo ?? null,
     }));
 
     const hoje = new Date();

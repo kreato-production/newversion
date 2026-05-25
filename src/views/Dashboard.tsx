@@ -36,17 +36,27 @@ import type {
   DashboardOverviewResponse,
   DashboardRecordingSummary,
 } from '@/modules/analytics/analytics.types';
+import {
+  ApiParametrosRepository,
+  type ParametroApiItem,
+} from '@/modules/parametros/parametros.api.repository';
 
-const chartConfig = {
-  custosGravacoes: {
-    label: 'Gravações',
-    color: 'hsl(var(--chart-2))',
-  },
-  custosConteudos: {
-    label: 'Conteúdos',
-    color: 'hsl(var(--chart-1))',
-  },
-} satisfies ChartConfig;
+const CHART_COLORS = [
+  'hsl(var(--chart-1))',
+  'hsl(var(--chart-2))',
+  'hsl(var(--chart-3))',
+  'hsl(var(--chart-4))',
+  'hsl(var(--chart-5))',
+];
+
+// Converte um nome de tipo em chave CSS-safe (sem espaços/acentos)
+const sanitizeCssKey = (s: string): string =>
+  s
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-zA-Z0-9]/g, '_')
+    .replace(/^(\d)/, 't$1')
+    .toLowerCase() || 'tipo';
 
 const StatCard = ({
   title,
@@ -62,15 +72,15 @@ const StatCard = ({
   gradient: string;
 }) => (
   <Card className="overflow-hidden">
-    <CardContent className="p-6">
-      <div className="flex items-start justify-between">
-        <div className="space-y-1">
-          <p className="text-sm font-medium text-muted-foreground">{title}</p>
-          <p className="text-3xl font-bold text-foreground">{value}</p>
-          <p className="text-xs text-muted-foreground">{description}</p>
+    <CardContent className="p-4">
+      <div className="flex items-center justify-between gap-3">
+        <div className="space-y-0.5 min-w-0">
+          <p className="text-xs font-medium text-muted-foreground truncate">{title}</p>
+          <p className="text-2xl font-bold text-foreground leading-tight">{value}</p>
+          <p className="text-xs text-muted-foreground truncate">{description}</p>
         </div>
-        <div className={`p-3 rounded-xl ${gradient}`}>
-          <Icon className="w-6 h-6 text-primary-foreground" />
+        <div className={`p-2.5 rounded-lg shrink-0 ${gradient}`}>
+          <Icon className="w-5 h-5 text-primary-foreground" />
         </div>
       </div>
     </CardContent>
@@ -90,6 +100,7 @@ interface DashboardStats {
 
 const Dashboard = () => {
   const analyticsRepository = useMemo(() => new ApiAnalyticsRepository(), []);
+  const parametrosRepository = useMemo(() => new ApiParametrosRepository(), []);
   const { user, session } = useAuth();
   const { t } = useLanguage();
   const [isLoading, setIsLoading] = useState(true);
@@ -106,6 +117,8 @@ const Dashboard = () => {
   });
   const [gravacoesSemana, setGravacoesSemana] = useState<DashboardRecordingSummary[]>([]);
   const [gravacoesParaCusto, setGravacoesParaCusto] = useState<DashboardRecordingSummary[]>([]);
+  // nome do tipo de gravação → cor cadastrada
+  const [tiposGravacaoCorMap, setTiposGravacaoCorMap] = useState<Map<string, string>>(new Map());
 
   useEffect(() => {
     let isActive = true;
@@ -123,7 +136,10 @@ const Dashboard = () => {
       }
 
       try {
-        const data: DashboardOverviewResponse = await analyticsRepository.getDashboardOverview();
+        const [data, tiposGravacao] = await Promise.all([
+          analyticsRepository.getDashboardOverview(),
+          parametrosRepository.list('kreato_tipos_gravacao').catch((): ParametroApiItem[] => []),
+        ]);
 
         if (!isActive) {
           return;
@@ -132,6 +148,12 @@ const Dashboard = () => {
         setStats(data.stats);
         setGravacoesSemana(data.gravacoesSemana);
         setGravacoesParaCusto(data.gravacoes);
+
+        const corMap = new Map<string, string>();
+        tiposGravacao.forEach((t) => {
+          if (t.cor) corMap.set(t.nome, t.cor);
+        });
+        setTiposGravacaoCorMap(corMap);
       } catch (err) {
         if (isActive) {
           console.error('Error fetching dashboard data:', err);
@@ -148,65 +170,88 @@ const Dashboard = () => {
     return () => {
       isActive = false;
     };
-  }, [analyticsRepository, session]);
+  }, [analyticsRepository, parametrosRepository, session]);
 
-  const custosAnuais = useMemo(() => {
+  const { chartData, tiposConteudo, tipoColors, chartConfig, anoExibicao } = useMemo(() => {
     const anoCorrente = new Date().getFullYear();
-    let anoExibicao = anoCorrente;
+    let ano = anoCorrente;
     const anosComDados = new Set<number>();
+    const tiposSet = new Set<string>();
 
     gravacoesParaCusto.forEach((g) => {
-      if (!g.dataPrevista) {
-        return;
-      }
-
+      if (!g.dataPrevista) return;
       try {
         const parsed = parseISO(g.dataPrevista);
-        if (!isNaN(parsed.getTime())) {
-          anosComDados.add(getYear(parsed));
-        }
+        if (!isNaN(parsed.getTime())) anosComDados.add(getYear(parsed));
       } catch {
-        // Ignora datas inválidas
+        /* ignora */
       }
+      if (g.tipoConteudo) tiposSet.add(g.tipoConteudo);
     });
 
     if (anosComDados.size > 0 && !anosComDados.has(anoCorrente)) {
-      anoExibicao = Math.max(...Array.from(anosComDados));
+      ano = Math.max(...Array.from(anosComDados));
     }
 
-    const meses = Array.from({ length: 12 }, (_, index) => ({
-      mes: format(new Date(anoExibicao, index, 1), 'MMM', { locale: ptBR }),
-      mesNumero: index,
-      custosGravacoes: 0,
-      custosConteudos: 0,
-      ano: anoExibicao,
-    }));
+    // Nomes reais dos tipos (para label e lookup de cor)
+    const tiposNomes = tiposSet.size > 0 ? Array.from(tiposSet).sort() : ['Sem tipo'];
 
-    gravacoesParaCusto.forEach((gravacao) => {
-      if (!gravacao.dataPrevista) {
-        return;
-      }
+    // Chave CSS-safe para cada tipo (evita espaços/acentos em CSS vars)
+    const keyDeNome = new Map<string, string>();
+    tiposNomes.forEach((nome) => keyDeNome.set(nome, sanitizeCssKey(nome)));
 
+    // Cor efetiva de cada tipo (cadastrada → fallback padrão)
+    const corDeTipo = (nome: string, i: number): string =>
+      tiposGravacaoCorMap.get(nome) || CHART_COLORS[i % CHART_COLORS.length];
+
+    const meses = Array.from({ length: 12 }, (_, index) => {
+      const base: Record<string, number | string> = {
+        mes: format(new Date(ano, index, 1), 'MMM', { locale: ptBR }),
+      };
+      tiposNomes.forEach((nome) => {
+        base[keyDeNome.get(nome)!] = 0;
+      });
+      return base;
+    });
+
+    gravacoesParaCusto.forEach((g) => {
+      if (!g.dataPrevista) return;
       try {
-        const data = parseISO(gravacao.dataPrevista);
-        if (isNaN(data.getTime()) || getYear(data) !== anoExibicao) {
-          return;
-        }
-
-        const mesIndex = getMonth(data);
-        meses[mesIndex].custosGravacoes += 1;
+        const d = parseISO(g.dataPrevista);
+        if (isNaN(d.getTime()) || getYear(d) !== ano) return;
+        const nome = g.tipoConteudo || 'Sem tipo';
+        const key = keyDeNome.get(nome);
+        if (key) (meses[getMonth(d)][key] as number) += 1;
       } catch {
-        // Ignora datas inválidas
+        /* ignora */
       }
     });
 
-    return meses;
-  }, [gravacoesParaCusto]);
+    const config: ChartConfig = {};
+    const colors: string[] = [];
+    tiposNomes.forEach((nome, i) => {
+      const key = keyDeNome.get(nome)!;
+      const cor = corDeTipo(nome, i);
+      config[key] = { label: nome, color: cor };
+      colors.push(cor);
+    });
+
+    // CSS-safe keys para uso nos Area elements
+    const tipoKeys = tiposNomes.map((nome) => keyDeNome.get(nome)!);
+
+    return {
+      chartData: meses,
+      tiposConteudo: tipoKeys,
+      tipoColors: colors,
+      chartConfig: config,
+      anoExibicao: ano,
+    };
+  }, [gravacoesParaCusto, tiposGravacaoCorMap]);
 
   const filteredCustos = useMemo(() => {
     const count = timeRange === '3m' ? 3 : timeRange === '6m' ? 6 : 12;
-    return custosAnuais.slice(-count);
-  }, [custosAnuais, timeRange]);
+    return chartData.slice(-count);
+  }, [chartData, timeRange]);
 
   if (isLoading) {
     return (
@@ -261,9 +306,11 @@ const Dashboard = () => {
           <div className="grid flex-1 gap-1">
             <CardTitle className="flex items-center gap-2">
               <DollarSign className="w-5 h-5 text-kreato-cyan" />
-              Gravações por Mês ({custosAnuais[0]?.ano || new Date().getFullYear()})
+              Gravações por Tipo de Conteúdo ({anoExibicao})
             </CardTitle>
-            <CardDescription>Distribuição de gravações ao longo do ano</CardDescription>
+            <CardDescription>
+              Quantidade de gravações por tipo de conteúdo ao longo do ano
+            </CardDescription>
           </div>
           <Select value={timeRange} onValueChange={setTimeRange}>
             <SelectTrigger
@@ -289,14 +336,12 @@ const Dashboard = () => {
           <ChartContainer config={chartConfig} className="aspect-auto h-[250px] w-full">
             <AreaChart data={filteredCustos}>
               <defs>
-                <linearGradient id="fillGravacoes" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="var(--color-custosGravacoes)" stopOpacity={0.6} />
-                  <stop offset="95%" stopColor="var(--color-custosGravacoes)" stopOpacity={0.05} />
-                </linearGradient>
-                <linearGradient id="fillConteudos" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="var(--color-custosConteudos)" stopOpacity={0.4} />
-                  <stop offset="95%" stopColor="var(--color-custosConteudos)" stopOpacity={0.05} />
-                </linearGradient>
+                {tiposConteudo.map((key, i) => (
+                  <linearGradient key={key} id={`fill-${i}`} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={tipoColors[i]} stopOpacity={0.5} />
+                    <stop offset="95%" stopColor={tipoColors[i]} stopOpacity={0.05} />
+                  </linearGradient>
+                ))}
               </defs>
               <CartesianGrid vertical={false} />
               <XAxis
@@ -306,24 +351,17 @@ const Dashboard = () => {
                 tickMargin={8}
                 minTickGap={32}
               />
-              <ChartTooltip
-                cursor={false}
-                content={<ChartTooltipContent indicator="dot" />}
-              />
-              <Area
-                dataKey="custosConteudos"
-                type="natural"
-                fill="url(#fillConteudos)"
-                stroke="var(--color-custosConteudos)"
-                stackId="a"
-              />
-              <Area
-                dataKey="custosGravacoes"
-                type="natural"
-                fill="url(#fillGravacoes)"
-                stroke="var(--color-custosGravacoes)"
-                stackId="a"
-              />
+              <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
+              {tiposConteudo.map((key, i) => (
+                <Area
+                  key={key}
+                  dataKey={key}
+                  type="natural"
+                  fill={`url(#fill-${i})`}
+                  stroke={tipoColors[i]}
+                  stackId="a"
+                />
+              ))}
               <ChartLegend content={<ChartLegendContent />} />
             </AreaChart>
           </ChartContainer>

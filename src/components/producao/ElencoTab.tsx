@@ -210,7 +210,7 @@ export const ElencoTab = ({ entityId, storagePrefix = 'gravacao' }: ElencoTabPro
                   />
                 </div>
                 {pessoasFiltradas.length === 0 ? (
-                  <div className="px-2 py-4 text-sm text-muted-foreground text-center">
+                  <div className="px-2 py-4 text-xs text-muted-foreground text-center">
                     Nenhuma pessoa encontrada
                   </div>
                 ) : (
@@ -274,7 +274,7 @@ export const ElencoTab = ({ entityId, storagePrefix = 'gravacao' }: ElencoTabPro
             </div>
             <ScrollArea className="h-32">
               {figurinosFiltrados.length === 0 ? (
-                <div className="text-sm text-muted-foreground text-center py-4">
+                <div className="text-xs text-muted-foreground text-center py-4">
                   Nenhum figurino encontrado
                 </div>
               ) : (
@@ -301,7 +301,7 @@ export const ElencoTab = ({ entityId, storagePrefix = 'gravacao' }: ElencoTabPro
                         </div>
                       )}
                       <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium truncate">
+                        <div className="text-xs font-medium truncate">
                           {figurino.codigoFigurino}
                         </div>
                         <div className="text-xs text-muted-foreground truncate">
@@ -395,7 +395,7 @@ export const ElencoTab = ({ entityId, storagePrefix = 'gravacao' }: ElencoTabPro
                         }
                       }}
                       placeholder="Personagem..."
-                      className="h-8 text-sm font-medium"
+                      className="h-8 text-xs font-medium"
                     />
                   </TableCell>
                   <TableCell>
@@ -416,7 +416,7 @@ export const ElencoTab = ({ entityId, storagePrefix = 'gravacao' }: ElencoTabPro
                         }
                       }}
                       placeholder="Descricao..."
-                      className="h-8 text-sm min-w-40"
+                      className="h-8 text-xs min-w-40"
                     />
                   </TableCell>
                   <TableCell>
@@ -471,7 +471,7 @@ export const ElencoTab = ({ entityId, storagePrefix = 'gravacao' }: ElencoTabPro
 
       {elenco.length > 0 && (
         <div className="flex justify-end gap-2">
-          <Badge variant="outline" className="text-sm">
+          <Badge variant="outline" className="text-xs">
             Total: {elenco.length} membro{elenco.length !== 1 ? 's' : ''} do elenco
           </Badge>
         </div>

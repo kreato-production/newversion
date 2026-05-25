@@ -151,6 +151,36 @@ export class GravacoesService {
     };
   }
 
+  async getById(actor: SessionUser, id: string) {
+    const tenantId = resolveTenantId(actor, actor.tenantId);
+    const [statusCores, item] = await Promise.all([
+      this.repository.listStatusCores(tenantId),
+      this.repository.findById(id),
+    ]);
+    if (!item || item.tenantId !== tenantId) return null;
+    const corByNome = new Map(statusCores.map((s) => [s.nome, s.cor ?? '']));
+    return {
+      id: item.id,
+      codigo: item.codigo,
+      codigoExterno: item.codigoExterno || '',
+      nome: item.nome,
+      unidadeNegocioId: item.unidadeNegocioId || '',
+      unidadeNegocio: item.unidadeNegocioNome || '',
+      centroLucro: item.centroLucro || '',
+      classificacao: item.classificacao || '',
+      tipoConteudo: item.tipoConteudo || '',
+      descricao: item.descricao || '',
+      status: item.status || '',
+      statusCor: item.status ? (corByNome.get(item.status) ?? '') : '',
+      dataPrevista: formatDate(item.dataPrevista),
+      dataCadastro: item.createdAt.toISOString(),
+      conteudoId: item.conteudoId || '',
+      orcamento: item.orcamento,
+      programaId: item.programaId || '',
+      programa: item.programaNome || '',
+    };
+  }
+
   async save(actor: SessionUser, input: SaveGravacaoDto) {
     const tenantId = resolveTenantId(actor, input.tenantId ?? actor.tenantId);
 
@@ -471,12 +501,7 @@ export class GravacoesService {
     if (!gravacao) throw new Error('Gravacao nao encontrada');
     ensureSameTenant(actor, gravacao.tenantId);
     const items = await this.repository.listEspacos(gravacao.tenantId, gravacaoId);
-    return items.map((item) => ({
-      id: item.id,
-      espacoId: item.espacoId || '',
-      espacoNome: item.espacoNome,
-      descricao: item.descricao || '',
-    }));
+    return items.map((item) => this.mapEspaco(item));
   }
 
   async addEspaco(actor: SessionUser, gravacaoId: string, input: z.infer<typeof saveGravacaoEspacoSchema>) {

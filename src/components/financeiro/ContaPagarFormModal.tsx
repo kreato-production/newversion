@@ -67,27 +67,29 @@ export const ContaPagarFormModal = ({
 
   const [statusList, setStatusList] = useState<{ id: string; titulo: string; cor: string }[]>([]);
   const [categoriaList, setCategoriaList] = useState<{ id: string; titulo: string }[]>([]);
-  const [formaPagamentoList, setFormaPagamentoList] = useState<{ id: string; titulo: string }[]>([]);
+  const [formaPagamentoList, setFormaPagamentoList] = useState<{ id: string; titulo: string }[]>(
+    [],
+  );
   const [tipoDocumentoList, setTipoDocumentoList] = useState<{ id: string; titulo: string }[]>([]);
   const [fornecedoresList, setFornecedoresList] = useState<{ id: string; nome: string }[]>([]);
 
   // Load lookup data once
   useEffect(() => {
-    void parametrizacoesRepo.listStatusContasPagar().then((r) =>
-      setStatusList(r.data.map((s) => ({ id: s.id, titulo: s.titulo, cor: s.cor }))),
-    );
-    void parametrizacoesRepo.listCategoriasDespesa().then((r) =>
-      setCategoriaList(r.data.map((s) => ({ id: s.id, titulo: s.titulo }))),
-    );
-    void parametrizacoesRepo.listFormasPagamento().then((r) =>
-      setFormaPagamentoList(r.data.map((s) => ({ id: s.id, titulo: s.titulo }))),
-    );
-    void parametrizacoesRepo.listTiposDocumentosFinanceiro().then((r) =>
-      setTipoDocumentoList(r.data.map((s) => ({ id: s.id, titulo: s.titulo }))),
-    );
-    void fornecedoresRepo.list().then((list) =>
-      setFornecedoresList(list.map((f) => ({ id: f.id, nome: f.nome }))),
-    );
+    void parametrizacoesRepo
+      .listStatusContasPagar()
+      .then((r) => setStatusList(r.data.map((s) => ({ id: s.id, titulo: s.titulo, cor: s.cor }))));
+    void parametrizacoesRepo
+      .listCategoriasDespesa()
+      .then((r) => setCategoriaList(r.data.map((s) => ({ id: s.id, titulo: s.titulo }))));
+    void parametrizacoesRepo
+      .listFormasPagamento()
+      .then((r) => setFormaPagamentoList(r.data.map((s) => ({ id: s.id, titulo: s.titulo }))));
+    void parametrizacoesRepo
+      .listTiposDocumentosFinanceiro()
+      .then((r) => setTipoDocumentoList(r.data.map((s) => ({ id: s.id, titulo: s.titulo }))));
+    void fornecedoresRepo
+      .list()
+      .then((list) => setFornecedoresList(list.map((f) => ({ id: f.id, nome: f.nome }))));
   }, []);
 
   useEffect(() => {
@@ -138,8 +140,6 @@ export const ContaPagarFormModal = ({
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>Preencha os dados da conta a pagar.</DialogDescription>
         </DialogHeader>
-
-        {navigation && <ModalNavigation {...navigation} />}
 
         <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
           {/* Row 1: Numero + Fornecedor */}
@@ -240,9 +240,7 @@ export const ContaPagarFormModal = ({
                 step="0.01"
                 min="0"
                 value={formData.valor ?? ''}
-                onChange={(e) =>
-                  set('valor', e.target.value ? parseFloat(e.target.value) : null)
-                }
+                onChange={(e) => set('valor', e.target.value ? parseFloat(e.target.value) : null)}
                 disabled={readOnly}
                 required
                 placeholder="0,00"
@@ -366,23 +364,26 @@ export const ContaPagarFormModal = ({
             />
           </div>
 
-          {!readOnly && (
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={onClose} disabled={isSaving}>
-                Cancelar
-              </Button>
-              <Button type="submit" disabled={isSaving}>
-                {isSaving ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Salvando...
-                  </>
-                ) : (
-                  'Salvar'
-                )}
-              </Button>
-            </DialogFooter>
-          )}
+          <DialogFooter className={navigation ? 'sm:justify-between' : undefined}>
+            {navigation && <ModalNavigation {...navigation} />}
+            {!readOnly && (
+              <div className="flex gap-2">
+                <Button type="button" variant="outline" onClick={onClose} disabled={isSaving}>
+                  Cancelar
+                </Button>
+                <Button type="submit" disabled={isSaving}>
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Salvando...
+                    </>
+                  ) : (
+                    'Salvar'
+                  )}
+                </Button>
+              </div>
+            )}
+          </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>

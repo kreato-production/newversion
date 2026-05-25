@@ -238,7 +238,7 @@ export const ConteudoRecursosTab = ({
 
   if (!tabelaPrecoId) {
     return (
-      <p className="text-sm text-muted-foreground text-center py-4">
+      <p className="text-xs text-muted-foreground text-center py-4">
         Selecione uma Tabela de PreÃ§o para visualizar os recursos.
       </p>
     );
@@ -277,7 +277,7 @@ export const ConteudoRecursosTab = ({
       {items.length === 0 ? (
         <div className="text-center py-8 text-muted-foreground border rounded-lg">
           <p>Nenhum {label.toLowerCase()} adicionado.</p>
-          <p className="text-sm mt-1">Selecione um recurso acima para adicionar à lista.</p>
+          <p className="text-xs mt-1">Selecione um recurso acima para adicionar à lista.</p>
         </div>
       ) : (
         <div className="border rounded-lg overflow-hidden">

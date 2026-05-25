@@ -1,6 +1,6 @@
 'use client';
 
-import { LayoutList, LayoutGrid, PanelRight, Kanban } from 'lucide-react';
+import { LayoutList, LayoutGrid, PanelRight, Kanban, CalendarDays } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -10,6 +10,7 @@ interface ViewSwitcherProps {
   mode: ViewMode;
   onModeChange: (mode: ViewMode) => void;
   showKanban?: boolean;
+  showCalendar?: boolean;
 }
 
 const BASE_MODES: { value: ViewMode; icon: React.ElementType; label: string }[] = [
@@ -19,9 +20,19 @@ const BASE_MODES: { value: ViewMode; icon: React.ElementType; label: string }[] 
 ];
 
 const KANBAN_MODE = { value: 'kanban' as ViewMode, icon: Kanban, label: 'Kanban' };
+const CALENDAR_MODE = { value: 'calendar' as ViewMode, icon: CalendarDays, label: 'Calendário' };
 
-export const ViewSwitcher = ({ mode, onModeChange, showKanban = false }: ViewSwitcherProps) => {
-  const modes = showKanban ? [...BASE_MODES, KANBAN_MODE] : BASE_MODES;
+export const ViewSwitcher = ({
+  mode,
+  onModeChange,
+  showKanban = false,
+  showCalendar = false,
+}: ViewSwitcherProps) => {
+  const modes = [
+    ...BASE_MODES,
+    ...(showKanban ? [KANBAN_MODE] : []),
+    ...(showCalendar ? [CALENDAR_MODE] : []),
+  ];
   return (
     <div className="flex items-center gap-0.5 rounded-md border bg-muted/40 p-0.5">
       {modes.map(({ value, icon: Icon, label }) => (

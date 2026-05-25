@@ -110,7 +110,7 @@ export const UnidadesNegocioTab = ({ usuarioId }: UnidadesNegocioTabProps) => {
     <div className="space-y-4 mt-4">
       <div className="flex gap-3 items-end">
         <div className="flex-1 space-y-1">
-          <label className="text-sm text-muted-foreground">Adicionar Unidade de Negocio</label>
+          <label className="text-xs text-muted-foreground">Adicionar Unidade de Negocio</label>
           <Select value={selectedUnidade} onValueChange={setSelectedUnidade}>
             <SelectTrigger>
               <SelectValue placeholder="Selecione uma unidade..." />
@@ -160,7 +160,7 @@ export const UnidadesNegocioTab = ({ usuarioId }: UnidadesNegocioTabProps) => {
       ) : (
         <div className="text-center py-8 text-muted-foreground">
           <p>Nenhuma unidade de negocio vinculada.</p>
-          <p className="text-sm">Adicione unidades acima.</p>
+          <p className="text-xs">Adicione unidades acima.</p>
         </div>
       )}
     </div>

@@ -80,10 +80,10 @@ const PermissoesTab = ({ perfilId, perfilNome }: PermissoesTabProps) => {
     const subModulo2Map = new Map<string, TreeNode>();
 
     // Filter permissions based on enabled tenant modules
-    const filteredPermissions = permissions.permissoes.filter(perm => {
+    const filteredPermissions = permissions.permissoes.filter((perm) => {
       // If Global admin module logic applies, we might want to hide Global from regular profiles
-      if (perm.modulo === 'Global') return false; 
-      
+      if (perm.modulo === 'Global') return false;
+
       // Filter by enabled modules
       return enabledModules.has(perm.modulo) || enabledModules.has('Global'); // Global enables everything
     });
@@ -142,7 +142,7 @@ const PermissoesTab = ({ perfilId, perfilNome }: PermissoesTabProps) => {
       if (perm.tipo === 'campo') {
         // Determina o pai correto
         let parentNode: TreeNode | undefined;
-        
+
         if (perm.subModulo2 !== '-') {
           parentNode = subModulo2Map.get(subModulo2Key);
         } else if (perm.subModulo1 !== '-') {
@@ -203,12 +203,12 @@ const PermissoesTab = ({ perfilId, perfilNome }: PermissoesTabProps) => {
   const updatePermission = (
     permissionId: string,
     field: keyof PermissionItem,
-    value: boolean | 'visible' | 'invisible'
+    value: boolean | 'visible' | 'invisible',
   ) => {
     if (!permissions) return;
 
     const updatedPermissions = permissions.permissoes.map((p) =>
-      p.id === permissionId ? { ...p, [field]: value } : p
+      p.id === permissionId ? { ...p, [field]: value } : p,
     );
 
     const newPerfilPermissions: PerfilPermissoes = {
@@ -233,14 +233,14 @@ const PermissoesTab = ({ perfilId, perfilNome }: PermissoesTabProps) => {
               updatePermission(
                 permission.id,
                 'acao',
-                permission.acao === 'visible' ? 'invisible' : 'visible'
+                permission.acao === 'visible' ? 'invisible' : 'visible',
               )
             }
             className={cn(
               'flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors',
               permission.acao === 'visible'
                 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
             )}
           >
             {permission.acao === 'visible' ? (
@@ -264,9 +264,7 @@ const PermissoesTab = ({ perfilId, perfilNome }: PermissoesTabProps) => {
               <Switch
                 id={`incluir_${permission.id}`}
                 checked={permission.incluir}
-                onCheckedChange={(checked) =>
-                  updatePermission(permission.id, 'incluir', checked)
-                }
+                onCheckedChange={(checked) => updatePermission(permission.id, 'incluir', checked)}
                 className="h-4 w-7"
               />
               <Label htmlFor={`incluir_${permission.id}`} className="text-xs text-muted-foreground">
@@ -278,9 +276,7 @@ const PermissoesTab = ({ perfilId, perfilNome }: PermissoesTabProps) => {
               <Switch
                 id={`alterar_${permission.id}`}
                 checked={permission.alterar}
-                onCheckedChange={(checked) =>
-                  updatePermission(permission.id, 'alterar', checked)
-                }
+                onCheckedChange={(checked) => updatePermission(permission.id, 'alterar', checked)}
                 className="h-4 w-7"
               />
               <Label htmlFor={`alterar_${permission.id}`} className="text-xs text-muted-foreground">
@@ -292,9 +288,7 @@ const PermissoesTab = ({ perfilId, perfilNome }: PermissoesTabProps) => {
               <Switch
                 id={`excluir_${permission.id}`}
                 checked={permission.excluir}
-                onCheckedChange={(checked) =>
-                  updatePermission(permission.id, 'excluir', checked)
-                }
+                onCheckedChange={(checked) => updatePermission(permission.id, 'excluir', checked)}
                 className="h-4 w-7"
               />
               <Label htmlFor={`excluir_${permission.id}`} className="text-xs text-muted-foreground">
@@ -316,7 +310,10 @@ const PermissoesTab = ({ perfilId, perfilNome }: PermissoesTabProps) => {
                 }
                 className="h-4 w-7"
               />
-              <Label htmlFor={`readonly_${permission.id}`} className="text-xs text-muted-foreground">
+              <Label
+                htmlFor={`readonly_${permission.id}`}
+                className="text-xs text-muted-foreground"
+              >
                 Só Leitura
               </Label>
             </div>
@@ -349,7 +346,7 @@ const PermissoesTab = ({ perfilId, perfilNome }: PermissoesTabProps) => {
         <div
           className={cn(
             'flex items-center py-2 px-3 hover:bg-muted/50 rounded-md transition-colors',
-            level === 0 && 'bg-muted/30'
+            level === 0 && 'bg-muted/30',
           )}
           style={{ paddingLeft: `${paddingLeft + 12}px` }}
         >
@@ -376,10 +373,10 @@ const PermissoesTab = ({ perfilId, perfilNome }: PermissoesTabProps) => {
             )}
             <span
               className={cn(
-                'text-sm truncate',
+                'text-xs truncate',
                 node.tipo === 'modulo' && 'font-semibold',
                 node.tipo === 'submodulo1' && 'font-medium',
-                node.tipo === 'campo' && 'text-muted-foreground'
+                node.tipo === 'campo' && 'text-muted-foreground',
               )}
             >
               {node.label}
@@ -405,7 +402,7 @@ const PermissoesTab = ({ perfilId, perfilNome }: PermissoesTabProps) => {
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-lg font-semibold">Matriz de Permissões</h3>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-xs text-muted-foreground">
             Configure as permissões de acesso para o perfil "{perfilNome}"
           </p>
         </div>
@@ -423,7 +420,9 @@ const PermissoesTab = ({ perfilId, perfilNome }: PermissoesTabProps) => {
             <div className="flex-1">Módulo / Sub-módulo / Campo</div>
             <div className="flex items-center gap-4 ml-auto">
               <span className="w-20 text-center">Ação</span>
-              <span className="text-center">Incluir / Alterar / Excluir (Módulos) · Só Leitura (Campos)</span>
+              <span className="text-center">
+                Incluir / Alterar / Excluir (Módulos) · Só Leitura (Campos)
+              </span>
             </div>
           </div>
         </div>

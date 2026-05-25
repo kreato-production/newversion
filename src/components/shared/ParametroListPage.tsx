@@ -34,6 +34,13 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { ApiParametrosRepository } from '@/modules/parametros/parametros.api.repository';
+import {
+  ListFilterPanel,
+  FilterSection,
+  SortChip,
+  SORT_OPTIONS_NOME_DATA,
+  sortSubtitle,
+} from '@/components/shared/ListFilter';
 
 interface Parametro {
   id: string;
@@ -209,6 +216,7 @@ const ParametroListPage = ({
   const [selectedItem, setSelectedItem] = useState<Parametro | null>(null);
   const [items, setItems] = useState<Parametro[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [filterSortBy, setFilterSortBy] = useState('');
 
   const columnConfig = buildColumnConfig(t);
   const {
@@ -407,11 +415,22 @@ const ParametroListPage = ({
 
   // ── Filter ─────────────────────────────────────────────────────────────────
 
-  const filteredItems = items.filter(
-    (item) =>
-      item.nome?.toLowerCase().includes(search.toLowerCase()) ||
-      (item.codigo_externo || '').toLowerCase().includes(search.toLowerCase()),
-  );
+  const filteredItems = (() => {
+    const result = items.filter(
+      (item) =>
+        item.nome?.toLowerCase().includes(search.toLowerCase()) ||
+        (item.codigo_externo || '').toLowerCase().includes(search.toLowerCase()),
+    );
+    if (filterSortBy === 'nome-asc')
+      return [...result].sort((a, b) => a.nome.localeCompare(b.nome));
+    if (filterSortBy === 'nome-desc')
+      return [...result].sort((a, b) => b.nome.localeCompare(a.nome));
+    if (filterSortBy === 'data-asc')
+      return [...result].sort((a, b) => (a.created_at ?? '').localeCompare(b.created_at ?? ''));
+    if (filterSortBy === 'data-desc')
+      return [...result].sort((a, b) => (b.created_at ?? '').localeCompare(a.created_at ?? ''));
+    return result;
+  })();
 
   // ── Table columns ──────────────────────────────────────────────────────────
 
@@ -525,6 +544,24 @@ const ParametroListPage = ({
         )}
         <div className="flex-1" />
         <SearchBar value={search} onChange={setSearch} placeholder={t('common.search')} />
+        <ListFilterPanel
+          activeCount={filterSortBy ? 1 : 0}
+          resultCount={filteredItems.length}
+          onClear={() => setFilterSortBy('')}
+          entityLabel="registros"
+        >
+          <FilterSection
+            title="Ordenar por"
+            subtitle={sortSubtitle(filterSortBy, SORT_OPTIONS_NOME_DATA)}
+            defaultOpen
+          >
+            <SortChip
+              value={filterSortBy}
+              onChange={setFilterSortBy}
+              options={[...SORT_OPTIONS_NOME_DATA]}
+            />
+          </FilterSection>
+        </ListFilterPanel>
         {mode === 'list' && (
           <ColumnSelector
             columns={optionalColumns}

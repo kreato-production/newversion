@@ -35,13 +35,15 @@ const emptyForm = {
   codigoExterno: '',
   nome: '',
   descricao: '',
+  cor: '',
   unidadeNegocioId: '',
 };
 
 // Default column spans when not configured (out of 4)
 const DEFAULT_COLS: Record<string, number> = {
   codigoExterno: 1,
-  nome: 3,
+  nome: 2,
+  cor: 1,
   unidadeNegocio: 4,
   descricao: 4,
 };
@@ -50,8 +52,9 @@ const DEFAULT_COLS: Record<string, number> = {
 const DEFAULT_ORDER: Record<string, number> = {
   codigoExterno: 1,
   nome: 2,
-  unidadeNegocio: 3,
-  descricao: 4,
+  cor: 3,
+  unidadeNegocio: 4,
+  descricao: 5,
 };
 
 export const ProgramaFormModal = ({
@@ -88,6 +91,7 @@ export const ProgramaFormModal = ({
               codigoExterno: data.codigoExterno,
               nome: data.nome,
               descricao: data.descricao,
+              cor: data.cor || '',
               unidadeNegocioId: data.unidadeNegocioId,
             }
           : emptyForm,
@@ -99,6 +103,7 @@ export const ProgramaFormModal = ({
   const FIELD_LABELS: Record<string, string> = {
     codigoExterno: 'Código Externo',
     nome: 'Nome',
+    cor: 'Cor',
     unidadeNegocio: 'Unidade de Negócio',
     descricao: 'Descrição',
   };
@@ -127,6 +132,7 @@ export const ProgramaFormModal = ({
         codigoExterno: formData.codigoExterno,
         nome: formData.nome,
         descricao: formData.descricao,
+        cor: formData.cor || null,
         unidadeNegocioId: formData.unidadeNegocioId,
       });
       onClose();
@@ -185,6 +191,33 @@ export const ProgramaFormModal = ({
                 required
                 disabled={readOnly || isSubmitting}
               />
+            </div>
+
+            {/* Cor */}
+            <div className={cn('space-y-2', colSpanClass('cor'))} style={{ order: order('cor') }}>
+              <Label>
+                Cor
+                <FieldAsterisk type={getAsterisk('cor')} />
+              </Label>
+              <div className="flex items-center gap-2 h-9">
+                <input
+                  type="color"
+                  value={formData.cor || '#6366f1'}
+                  onChange={(e) => setFormData({ ...formData, cor: e.target.value })}
+                  disabled={readOnly || isSubmitting}
+                  className="h-8 w-12 cursor-pointer rounded border border-input bg-transparent p-0.5 disabled:opacity-50"
+                />
+                {formData.cor && (
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, cor: '' })}
+                    disabled={readOnly || isSubmitting}
+                    className="text-xs text-muted-foreground hover:text-destructive disabled:opacity-50"
+                  >
+                    Limpar
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Unidade de Negócio */}

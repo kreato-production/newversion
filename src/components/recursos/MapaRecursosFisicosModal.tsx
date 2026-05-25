@@ -338,7 +338,7 @@ export const MapaRecursosFisicosModal = ({
 
         <div className="flex items-center gap-4 flex-wrap">
           <div className="flex items-center gap-2">
-            <Label className="text-sm">Visualização:</Label>
+            <Label className="text-xs">Visualização:</Label>
             <Select value={viewMode} onValueChange={(value) => setViewMode(value as ViewMode)}>
               <SelectTrigger className="w-32">
                 <SelectValue />
@@ -421,7 +421,7 @@ export const MapaRecursosFisicosModal = ({
         <ScrollArea className="h-[calc(90vh-200px)] border rounded-lg">
           <div className="min-w-max">
             <div className="flex sticky top-0 bg-background z-10 border-b">
-              <div className="w-56 min-w-56 px-3 py-2 font-medium text-sm border-r bg-muted/50 flex items-center">
+              <div className="w-56 min-w-56 px-3 py-2 font-medium text-xs border-r bg-muted/50 flex items-center">
                 Recurso Físico
               </div>
               {diasExibidos.map((dia) => {
@@ -449,7 +449,7 @@ export const MapaRecursosFisicosModal = ({
                           </div>
                           {weatherData && (
                             <div className="mt-0.5 flex flex-col items-center">
-                              <span className="text-sm leading-none">
+                              <span className="text-xs leading-none">
                                 {weatherData.weatherIcon}
                               </span>
                               <span className="text-[9px] text-muted-foreground font-medium">

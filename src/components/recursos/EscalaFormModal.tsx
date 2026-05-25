@@ -20,10 +20,12 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Sparkles, Play } from 'lucide-react';
+import { Loader2, Sparkles, Play, CalendarDays } from 'lucide-react';
+import { toast } from 'sonner';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { escalasRepository } from '@/modules/escalas/escalas.repository.provider';
 import { turnosRepository } from '@/modules/turnos/turnos.repository.provider';
+import { ApiRecursosHumanosRepository } from '@/modules/recursos-humanos/recursos-humanos.api.repository';
 import type {
   Escala,
   EscalaInput,
@@ -32,6 +34,9 @@ import type {
   FuncaoOption,
 } from '@/modules/escalas/escalas.types';
 import type { Turno } from '@/modules/turnos/turnos.types';
+import type { Escala as RhEscala } from '@/modules/recursos-humanos/recursos-humanos.types';
+
+const recursosHumanosRepository = new ApiRecursosHumanosRepository();
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -196,6 +201,11 @@ export function EscalaFormModal({ isOpen, onClose, onSave, data, readOnly }: Esc
   // ── Loading states
   const [saving, setSaving] = useState(false);
   const [loadingColabs, setLoadingColabs] = useState(false);
+  const [aplicando, setAplicando] = useState(false);
+
+  // ── "Aplicar Escala" dialog state
+  const [showAplicarDialog, setShowAplicarDialog] = useState(false);
+  const [dataFimAplicar, setDataFimAplicar] = useState('');
 
   // ── Reset on open
   useEffect(() => {
@@ -351,6 +361,63 @@ export function EscalaFormModal({ isOpen, onClose, onSave, data, readOnly }: Esc
     return Object.values(turnoCounts);
   }, [colaboradores, turnoMap, daysInMonth]);
 
+  // ── Aplicar Escala: propagate schedule to each collaborator's RH record
+  const handleAplicarEscala = useCallback(async () => {
+    if (!dataFimAplicar) return;
+    setAplicando(true);
+    try {
+      // 1. Persist colaboradores to the escala record (if it has an id)
+      if (data?.id) {
+        const colabInput: EscalaColaboradorInput[] = colaboradores.map((c) => ({
+          colaboradorId: c.colaboradorId,
+          turnoId: c.turnoId || null,
+          dias: c.dias,
+        }));
+        await escalasRepository.saveColaboradores(data.id, colabInput);
+      }
+
+      // 2. Load all RH to get their full current data
+      const allRh = await recursosHumanosRepository.list();
+      const rhById = new Map(allRh.map((rh) => [rh.id, rh]));
+
+      // 3. For each colaborador with a turno, append new escala to their RH record
+      const colabsComTurno = colaboradores.filter((c) => c.turnoId);
+      for (const colab of colabsComTurno) {
+        const turno = turnoMap[colab.turnoId];
+        if (!turno) continue;
+        const rh = rhById.get(colab.colaboradorId);
+        if (!rh) continue;
+
+        // Convert WeekdayFlags → number[] (0=Sun … 6=Sat)
+        const diasSemana = WEEKDAY_KEYS.map((k, i) => (turno.diasSemana[k] ? i : -1)).filter(
+          (v) => v >= 0,
+        );
+
+        const novaEscala: RhEscala = {
+          id: '',
+          dataInicio,
+          dataFim: dataFimAplicar,
+          horaInicio: turno.horaInicio,
+          horaFim: turno.horaFim,
+          diasSemana,
+        };
+
+        await recursosHumanosRepository.save({
+          ...rh,
+          escalas: [...rh.escalas, novaEscala],
+        });
+      }
+
+      toast.success(`Escala aplicada a ${colabsComTurno.length} colaborador(es) com sucesso.`);
+      setShowAplicarDialog(false);
+      setDataFimAplicar('');
+    } catch {
+      toast.error('Erro ao aplicar escala. Tente novamente.');
+    } finally {
+      setAplicando(false);
+    }
+  }, [colaboradores, data?.id, dataFimAplicar, dataInicio, turnoMap]);
+
   // ── Save
   const handleSave = async () => {
     setSaving(true);
@@ -380,329 +447,378 @@ export function EscalaFormModal({ isOpen, onClose, onSave, data, readOnly }: Esc
   // ─── Render ─────────────────────────────────────────────────────────────
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="w-[1100px] max-w-[95vw] max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{data ? t('scales.edit') : t('scales.new')}</DialogTitle>
-          <DialogDescription>
-            {data ? t('scales.editDescription') : t('scales.newDescription')}
-          </DialogDescription>
-        </DialogHeader>
+    <>
+      <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+        <DialogContent className="w-[1100px] max-w-[95vw] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{data ? t('scales.edit') : t('scales.new')}</DialogTitle>
+            <DialogDescription>
+              {data ? t('scales.editDescription') : t('scales.newDescription')}
+            </DialogDescription>
+          </DialogHeader>
 
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as Tab)} className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="dados">Dados</TabsTrigger>
-            <TabsTrigger value="escala">Escala</TabsTrigger>
-            <TabsTrigger value="validacao">Validação</TabsTrigger>
-          </TabsList>
+          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as Tab)} className="w-full">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="dados">Dados</TabsTrigger>
+              <TabsTrigger value="escala">Escala</TabsTrigger>
+              <TabsTrigger value="validacao">Validação</TabsTrigger>
+            </TabsList>
 
-          {/* ── Tab: Dados ─────────────────────────────────────────────── */}
-          <TabsContent value="dados" className="mt-4 space-y-4">
-            {/* Row 1: ID, Usuário, Data */}
-            {data && (
+            {/* ── Tab: Dados ─────────────────────────────────────────────── */}
+            <TabsContent value="dados" className="mt-4 space-y-4">
+              {/* Row 1: ID, Usuário, Data */}
+              {data && (
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-muted-foreground">ID</Label>
+                    <Input value={data.numerador ?? ''} readOnly className="bg-muted" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-muted-foreground">Usuário de Cadastro</Label>
+                    <Input value={data.usuarioCadastro ?? ''} readOnly className="bg-muted" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-muted-foreground">Data de Cadastro</Label>
+                    <Input
+                      value={data.dataCadastro ? formatDateBR(data.dataCadastro) : ''}
+                      readOnly
+                      className="bg-muted"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Row 2: Título + Código Externo */}
               <div className="grid grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label className="text-muted-foreground">ID</Label>
-                  <Input value={data.numerador ?? ''} readOnly className="bg-muted" />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-muted-foreground">Usuário de Cadastro</Label>
-                  <Input value={data.usuarioCadastro ?? ''} readOnly className="bg-muted" />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-muted-foreground">Data de Cadastro</Label>
+                <div className="col-span-2 space-y-2">
+                  <Label htmlFor="titulo">
+                    Título <span className="text-destructive">*</span>
+                  </Label>
                   <Input
-                    value={data.dataCadastro ? formatDateBR(data.dataCadastro) : ''}
-                    readOnly
-                    className="bg-muted"
+                    id="titulo"
+                    value={titulo}
+                    onChange={(e) => setTitulo(e.target.value)}
+                    disabled={readOnly}
+                    placeholder="Nome da escala"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="codigoExterno">Código Externo</Label>
+                  <Input
+                    id="codigoExterno"
+                    value={codigoExterno}
+                    onChange={(e) => setCodigoExterno(e.target.value.slice(0, 10))}
+                    disabled={readOnly}
+                    placeholder="Máx. 10 caracteres"
+                    maxLength={10}
                   />
                 </div>
               </div>
-            )}
 
-            {/* Row 2: Título + Código Externo */}
-            <div className="grid grid-cols-3 gap-4">
-              <div className="col-span-2 space-y-2">
-                <Label htmlFor="titulo">
-                  Título <span className="text-destructive">*</span>
-                </Label>
-                <Input
-                  id="titulo"
-                  value={titulo}
-                  onChange={(e) => setTitulo(e.target.value)}
-                  disabled={readOnly}
-                  placeholder="Nome da escala"
-                />
+              {/* Row 3: Data Início + Grupo de Função */}
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="dataInicio">Início</Label>
+                  <Input
+                    id="dataInicio"
+                    type="date"
+                    value={dataInicio}
+                    onChange={(e) => setDataInicio(e.target.value)}
+                    disabled={readOnly}
+                  />
+                </div>
+                <div className="col-span-2 space-y-2">
+                  <Label>Grupo de Função</Label>
+                  {readOnly ? (
+                    <Input value={data?.grupoFuncaoNome ?? ''} readOnly className="bg-muted" />
+                  ) : (
+                    <Select value={grupoFuncaoId} onValueChange={setGrupoFuncaoId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione uma função..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {funcoes.map((f) => (
+                          <SelectItem key={f.id} value={f.id}>
+                            {f.nome}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="codigoExterno">Código Externo</Label>
-                <Input
-                  id="codigoExterno"
-                  value={codigoExterno}
-                  onChange={(e) => setCodigoExterno(e.target.value.slice(0, 10))}
-                  disabled={readOnly}
-                  placeholder="Máx. 10 caracteres"
-                  maxLength={10}
-                />
-              </div>
-            </div>
+            </TabsContent>
 
-            {/* Row 3: Data Início + Grupo de Função */}
-            <div className="grid grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="dataInicio">Início</Label>
-                <Input
-                  id="dataInicio"
-                  type="date"
-                  value={dataInicio}
-                  onChange={(e) => setDataInicio(e.target.value)}
-                  disabled={readOnly}
-                />
-              </div>
-              <div className="col-span-2 space-y-2">
-                <Label>Grupo de Função</Label>
-                {readOnly ? (
-                  <Input value={data?.grupoFuncaoNome ?? ''} readOnly className="bg-muted" />
-                ) : (
-                  <Select value={grupoFuncaoId} onValueChange={setGrupoFuncaoId}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione uma função..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {funcoes.map((f) => (
-                        <SelectItem key={f.id} value={f.id}>
-                          {f.nome}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-              </div>
-            </div>
-          </TabsContent>
-
-          {/* ── Tab: Escala ─────────────────────────────────────────────── */}
-          <TabsContent value="escala" className="mt-4 space-y-3">
-            {!readOnly && (
-              <div className="flex gap-2">
-                <Button type="button" size="sm" onClick={handleGerar} className="gap-1.5">
-                  <Sparkles className="h-3.5 w-3.5" />
-                  Gerar
-                </Button>
-                {data?.id && (
+            {/* ── Tab: Escala ─────────────────────────────────────────────── */}
+            <TabsContent value="escala" className="mt-4 space-y-3">
+              {!readOnly && (
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={handleGerar}
+                    disabled={colaboradores.every((c) => !c.turnoId)}
+                    className="gap-1.5"
+                  >
+                    <Sparkles className="h-3.5 w-3.5" />
+                    Gerar
+                  </Button>
                   <Button
                     type="button"
                     size="sm"
                     variant="outline"
-                    onClick={async () => {
-                      if (!data?.id) return;
-                      setSaving(true);
-                      try {
-                        const colabInput: EscalaColaboradorInput[] = colaboradores.map((c) => ({
-                          colaboradorId: c.colaboradorId,
-                          turnoId: c.turnoId || null,
-                          dias: c.dias,
-                        }));
-                        await escalasRepository.saveColaboradores(data.id, colabInput);
-                      } finally {
-                        setSaving(false);
-                      }
+                    disabled={colaboradores.every((c) => !c.turnoId) || aplicando}
+                    onClick={() => {
+                      setDataFimAplicar('');
+                      setShowAplicarDialog(true);
                     }}
                     className="gap-1.5"
                   >
                     <Play className="h-3.5 w-3.5" />
                     Aplicar Escala
                   </Button>
-                )}
-              </div>
-            )}
+                </div>
+              )}
 
-            {loadingColabs ? (
-              <div className="flex items-center justify-center py-10">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-              </div>
-            ) : colaboradores.length === 0 ? (
-              <div className="text-sm text-muted-foreground text-center py-10">
-                {grupoFuncaoId
-                  ? 'Nenhum colaborador encontrado para esta função.'
-                  : 'Selecione um Grupo de Função na aba Dados para ver os colaboradores.'}
-              </div>
-            ) : (
-              <div className="overflow-x-auto rounded border">
-                <table className="text-xs min-w-max w-full">
-                  <thead>
-                    <tr className="bg-muted/50 border-b">
-                      <th className="text-left px-3 py-2 font-medium sticky left-0 bg-muted/50 min-w-[140px]">
-                        Nome
-                      </th>
-                      <th className="text-left px-3 py-2 font-medium min-w-[100px]">Função</th>
-                      <th className="text-left px-3 py-2 font-medium min-w-[160px]">Turno</th>
-                      {dayHeaders.map(({ day, dow, label }) => (
-                        <th
-                          key={day}
-                          className={`text-center px-1 py-1 font-medium min-w-[32px] ${dow === 0 || dow === 6 ? 'text-orange-500' : ''}`}
-                        >
-                          <div className="text-[10px] text-muted-foreground">{label}</div>
-                          <div>{String(day).padStart(2, '0')}</div>
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {colaboradores.map((colab) => (
-                      <tr key={colab.colaboradorId} className="border-b hover:bg-muted/20">
-                        <td className="px-3 py-1.5 font-medium sticky left-0 bg-background">
-                          {colab.colaboradorNome}
-                        </td>
-                        <td className="px-3 py-1.5 text-muted-foreground">
-                          {colab.colaboradorFuncao}
-                        </td>
-                        <td className="px-2 py-1">
-                          {readOnly ? (
-                            <span className="text-xs">{colab.turnoNome || '-'}</span>
-                          ) : (
-                            <Select
-                              value={colab.turnoId || ''}
-                              onValueChange={(v) => setColaboradorTurno(colab.colaboradorId, v)}
-                            >
-                              <SelectTrigger className="h-7 text-xs min-w-[140px]">
-                                <SelectValue placeholder="Selecionar..." />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {turnos.map((t) => (
-                                  <SelectItem key={t.id} value={t.id}>
-                                    <span className="flex items-center gap-1.5">
-                                      <span
-                                        className="inline-block w-2.5 h-2.5 rounded-full"
-                                        style={{ backgroundColor: t.cor }}
-                                      />
-                                      {t.sigla ? `${t.sigla} - ` : ''}
-                                      {t.nome}
-                                    </span>
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          )}
-                        </td>
-                        {dayHeaders.map(({ day }) => (
-                          <td key={day} className="px-1 py-1 text-center">
-                            {colab.turnoId ? (
-                              <DayCellBadge
-                                value={colab.dias[String(day)] ?? null}
-                                turnoSigla={colab.turnoSigla}
-                                turnoCor={colab.turnoCor}
-                                onClick={() => toggleDay(colab.colaboradorId, day)}
-                                readOnly={readOnly}
-                              />
-                            ) : (
-                              <span className="text-muted-foreground">-</span>
-                            )}
-                          </td>
-                        ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </TabsContent>
-
-          {/* ── Tab: Validação ─────────────────────────────────────────── */}
-          <TabsContent value="validacao" className="mt-4">
-            <div className="overflow-x-auto rounded border">
-              {validacaoData.length === 0 ? (
-                <div className="text-sm text-muted-foreground text-center py-10">
-                  Configure os turnos na aba Escala para visualizar a validação.
+              {loadingColabs ? (
+                <div className="flex items-center justify-center py-10">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : colaboradores.length === 0 ? (
+                <div className="text-xs text-muted-foreground text-center py-10">
+                  {grupoFuncaoId
+                    ? 'Nenhum colaborador encontrado para esta função.'
+                    : 'Selecione um Grupo de Função na aba Dados para ver os colaboradores.'}
                 </div>
               ) : (
-                <table className="text-xs min-w-max w-full">
-                  <thead>
-                    <tr className="bg-muted/50 border-b">
-                      <th className="text-left px-3 py-2 font-medium sticky left-0 bg-muted/50 min-w-[100px]">
-                        Turno/Dia
-                      </th>
-                      {dayHeaders.map(({ day, dow, label }) => (
-                        <th
-                          key={day}
-                          className={`text-center px-1 py-1 font-medium min-w-[32px] ${dow === 0 || dow === 6 ? 'text-orange-500' : ''}`}
-                        >
-                          <div className="text-[10px] text-muted-foreground">{label}</div>
-                          <div>{String(day).padStart(2, '0')}</div>
+                <div className="overflow-x-auto rounded border">
+                  <table className="text-xs min-w-max w-full">
+                    <thead>
+                      <tr className="bg-muted/50 border-b">
+                        <th className="text-left px-3 py-2 font-medium sticky left-0 bg-muted/50 min-w-[140px]">
+                          Nome
                         </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {validacaoData.map(({ turno, days }) => (
-                      <tr key={turno.id} className="border-b hover:bg-muted/20">
-                        <td className="px-3 py-2 sticky left-0 bg-background">
-                          <span className="flex items-center gap-1.5 font-medium">
-                            <span
-                              className="inline-block w-2.5 h-2.5 rounded-full"
-                              style={{ backgroundColor: turno.cor }}
-                            />
-                            {turno.sigla || turno.nome}
-                          </span>
-                        </td>
-                        {dayHeaders.map(({ day, dow }) => {
-                          const weekdayKey = WEEKDAY_KEYS[dow];
-                          const required = turno.pessoasPorDia[weekdayKey] ?? 0;
-                          const actual = days[String(day)] ?? 0;
-                          const delta = actual - required;
-                          const isWorkingDay = turno.diasSemana[weekdayKey];
-                          if (!isWorkingDay) {
-                            return (
-                              <td key={day} className="text-center px-1 py-1 text-muted-foreground">
-                                -
-                              </td>
-                            );
-                          }
-                          return (
-                            <td key={day} className="text-center px-1 py-1">
-                              {required > 0 ? (
-                                <span
-                                  className={`inline-flex items-center justify-center rounded text-[11px] font-bold px-1 py-0.5 min-w-[26px] ${
-                                    delta < 0
-                                      ? 'bg-destructive text-destructive-foreground'
-                                      : delta === 0
-                                        ? 'bg-muted text-muted-foreground'
-                                        : 'bg-green-100 text-green-700'
-                                  }`}
-                                >
-                                  {delta >= 0 ? `+${delta}` : delta}
-                                </span>
+                        <th className="text-left px-3 py-2 font-medium min-w-[100px]">Função</th>
+                        <th className="text-left px-3 py-2 font-medium min-w-[160px]">Turno</th>
+                        {dayHeaders.map(({ day, dow, label }) => (
+                          <th
+                            key={day}
+                            className={`text-center px-1 py-1 font-medium min-w-[32px] ${dow === 0 || dow === 6 ? 'text-orange-500' : ''}`}
+                          >
+                            <div className="text-[10px] text-muted-foreground">{label}</div>
+                            <div>{String(day).padStart(2, '0')}</div>
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {colaboradores.map((colab) => (
+                        <tr key={colab.colaboradorId} className="border-b hover:bg-muted/20">
+                          <td className="px-3 py-1.5 font-medium sticky left-0 bg-background">
+                            {colab.colaboradorNome}
+                          </td>
+                          <td className="px-3 py-1.5 text-muted-foreground">
+                            {colab.colaboradorFuncao}
+                          </td>
+                          <td className="px-2 py-1">
+                            {readOnly ? (
+                              <span className="text-xs">{colab.turnoNome || '-'}</span>
+                            ) : (
+                              <Select
+                                value={colab.turnoId || ''}
+                                onValueChange={(v) => setColaboradorTurno(colab.colaboradorId, v)}
+                              >
+                                <SelectTrigger className="h-7 text-xs min-w-[140px]">
+                                  <SelectValue placeholder="Selecionar..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {turnos.map((t) => (
+                                    <SelectItem key={t.id} value={t.id}>
+                                      <span className="flex items-center gap-1.5">
+                                        <span
+                                          className="inline-block w-2.5 h-2.5 rounded-full"
+                                          style={{ backgroundColor: t.cor }}
+                                        />
+                                        {t.sigla ? `${t.sigla} - ` : ''}
+                                        {t.nome}
+                                      </span>
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            )}
+                          </td>
+                          {dayHeaders.map(({ day }) => (
+                            <td key={day} className="px-1 py-1 text-center">
+                              {colab.turnoId ? (
+                                <DayCellBadge
+                                  value={colab.dias[String(day)] ?? null}
+                                  turnoSigla={colab.turnoSigla}
+                                  turnoCor={colab.turnoCor}
+                                  onClick={() => toggleDay(colab.colaboradorId, day)}
+                                  readOnly={readOnly}
+                                />
                               ) : (
                                 <span className="text-muted-foreground">-</span>
                               )}
                             </td>
-                          );
-                        })}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               )}
-            </div>
-          </TabsContent>
-        </Tabs>
+            </TabsContent>
 
-        <DialogFooter>
-          <Button type="button" variant="outline" onClick={onClose} disabled={saving}>
-            Cancelar
-          </Button>
-          {!readOnly && (
+            {/* ── Tab: Validação ─────────────────────────────────────────── */}
+            <TabsContent value="validacao" className="mt-4">
+              <div className="overflow-x-auto rounded border">
+                {validacaoData.length === 0 ? (
+                  <div className="text-xs text-muted-foreground text-center py-10">
+                    Configure os turnos na aba Escala para visualizar a validação.
+                  </div>
+                ) : (
+                  <table className="text-xs min-w-max w-full">
+                    <thead>
+                      <tr className="bg-muted/50 border-b">
+                        <th className="text-left px-3 py-2 font-medium sticky left-0 bg-muted/50 min-w-[100px]">
+                          Turno/Dia
+                        </th>
+                        {dayHeaders.map(({ day, dow, label }) => (
+                          <th
+                            key={day}
+                            className={`text-center px-1 py-1 font-medium min-w-[32px] ${dow === 0 || dow === 6 ? 'text-orange-500' : ''}`}
+                          >
+                            <div className="text-[10px] text-muted-foreground">{label}</div>
+                            <div>{String(day).padStart(2, '0')}</div>
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {validacaoData.map(({ turno, days }) => (
+                        <tr key={turno.id} className="border-b hover:bg-muted/20">
+                          <td className="px-3 py-2 sticky left-0 bg-background">
+                            <span className="flex items-center gap-1.5 font-medium">
+                              <span
+                                className="inline-block w-2.5 h-2.5 rounded-full"
+                                style={{ backgroundColor: turno.cor }}
+                              />
+                              {turno.sigla || turno.nome}
+                            </span>
+                          </td>
+                          {dayHeaders.map(({ day, dow }) => {
+                            const weekdayKey = WEEKDAY_KEYS[dow];
+                            const required = turno.pessoasPorDia[weekdayKey] ?? 0;
+                            const actual = days[String(day)] ?? 0;
+                            const delta = actual - required;
+                            const isWorkingDay = turno.diasSemana[weekdayKey];
+                            if (!isWorkingDay) {
+                              return (
+                                <td
+                                  key={day}
+                                  className="text-center px-1 py-1 text-muted-foreground"
+                                >
+                                  -
+                                </td>
+                              );
+                            }
+                            return (
+                              <td key={day} className="text-center px-1 py-1">
+                                {required > 0 ? (
+                                  <span
+                                    className={`inline-flex items-center justify-center rounded text-[11px] font-bold px-1 py-0.5 min-w-[26px] ${
+                                      delta < 0
+                                        ? 'bg-destructive text-destructive-foreground'
+                                        : delta === 0
+                                          ? 'bg-muted text-muted-foreground'
+                                          : 'bg-green-100 text-green-700'
+                                    }`}
+                                  >
+                                    {delta >= 0 ? `+${delta}` : delta}
+                                  </span>
+                                ) : (
+                                  <span className="text-muted-foreground">-</span>
+                                )}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </TabsContent>
+          </Tabs>
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose} disabled={saving}>
+              Cancelar
+            </Button>
+            {!readOnly && (
+              <Button
+                type="button"
+                onClick={handleSave}
+                disabled={saving || !titulo.trim() || !dataInicio}
+              >
+                {saving && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                Salvar
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Dialog: Aplicar Escala ─────────────────────────────────────── */}
+      <Dialog
+        open={showAplicarDialog}
+        onOpenChange={(open) => !open && setShowAplicarDialog(false)}
+      >
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Aplicar Escala</DialogTitle>
+            <DialogDescription>
+              Informe a data final para aplicação da escala no mapa.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2 py-2">
+            <Label htmlFor="dataFimAplicar">Aplicar até:</Label>
+            <div className="relative">
+              <Input
+                id="dataFimAplicar"
+                type="date"
+                value={dataFimAplicar}
+                min={dataInicio}
+                onChange={(e) => setDataFimAplicar(e.target.value)}
+                className="pl-9"
+              />
+              <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+            </div>
+          </div>
+
+          <DialogFooter>
             <Button
               type="button"
-              onClick={handleSave}
-              disabled={saving || !titulo.trim() || !dataInicio}
+              variant="outline"
+              onClick={() => setShowAplicarDialog(false)}
+              disabled={aplicando}
             >
-              {saving && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-              Salvar
+              Cancelar
             </Button>
-          )}
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+            <Button
+              type="button"
+              onClick={handleAplicarEscala}
+              disabled={!dataFimAplicar || aplicando}
+            >
+              {aplicando && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              Confirmar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

@@ -249,7 +249,7 @@ export const UsuarioFormModal = ({
 
           <TabsContent value="dados" className="mt-4">
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="rounded-lg border bg-muted/20 p-4 text-sm text-muted-foreground">
+              <div className="rounded-lg border bg-muted/20 p-4 text-xs text-muted-foreground">
                 O cadastro principal do usuario e os vinculos desta tela usam a API local.
               </div>
 

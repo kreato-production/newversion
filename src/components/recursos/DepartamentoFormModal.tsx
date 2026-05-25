@@ -241,7 +241,7 @@ export const DepartamentoFormModal = ({
       key: 'codigoExterno',
       label: 'Codigo',
       className: 'w-24',
-      render: (item) => <span className="font-mono text-sm">{item.codigoExterno}</span>,
+      render: (item) => <span className="font-mono text-xs">{item.codigoExterno}</span>,
     },
     {
       key: 'nome',
@@ -402,7 +402,7 @@ export const DepartamentoFormModal = ({
                     <div className="flex flex-col items-center justify-center py-8 text-center border rounded-lg bg-muted/20">
                       <Briefcase className="h-10 w-10 text-muted-foreground/50 mb-3" />
                       <p className="text-muted-foreground">Nenhuma funcao associada.</p>
-                      <p className="text-sm text-muted-foreground mt-1">
+                      <p className="text-xs text-muted-foreground mt-1">
                         Clique em "Associar Funcao" para adicionar.
                       </p>
                     </div>

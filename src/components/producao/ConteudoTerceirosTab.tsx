@@ -224,7 +224,7 @@ export const ConteudoTerceirosTab = ({
           <h3 className="text-lg font-semibold text-foreground mb-1">
             Nenhum serviÃ§o de terceiro adicionado
           </h3>
-          <p className="text-sm text-muted-foreground max-w-sm">
+          <p className="text-xs text-muted-foreground max-w-sm">
             Adicione serviÃ§os de terceiros com valor previsto para este conteÃºdo.
           </p>
         </div>
@@ -299,8 +299,8 @@ export const ConteudoTerceirosTab = ({
                   <DollarSign className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Total Previsto com Terceiros</p>
-                  <p className="text-sm text-muted-foreground">{terceiros.length} serviÃ§o(s)</p>
+                  <p className="text-xs text-muted-foreground">Total Previsto com Terceiros</p>
+                  <p className="text-xs text-muted-foreground">{terceiros.length} serviÃ§o(s)</p>
                 </div>
               </div>
               <div className="text-right">

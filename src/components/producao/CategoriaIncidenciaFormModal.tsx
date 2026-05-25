@@ -179,7 +179,7 @@ export const CategoriaIncidenciaFormModal = ({
       key: 'codigo_externo',
       label: t('common.externalCode'),
       className: 'w-24',
-      render: (item) => <span className="font-mono text-sm">{item.codigo_externo || '-'}</span>,
+      render: (item) => <span className="font-mono text-xs">{item.codigo_externo || '-'}</span>,
     },
     {
       key: 'titulo',
@@ -360,7 +360,7 @@ export const CategoriaIncidenciaFormModal = ({
                   <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                 </div>
               ) : classificacoes.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-8">
+                <p className="text-xs text-muted-foreground text-center py-8">
                   {t('incidentCategory.noClassifications')}
                 </p>
               ) : (

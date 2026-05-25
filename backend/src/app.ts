@@ -84,9 +84,22 @@ import { ApropriacoesCustoService } from './modules/apropriacoes-custo/apropriac
 import { PrismaContasPagarRepository } from './modules/contas-pagar/contas-pagar.repository.js';
 import { createContasPagarRoutes } from './modules/contas-pagar/routes/index.js';
 import { ContasPagarService } from './modules/contas-pagar/contas-pagar.service.js';
+import { PrismaOrcamentoRepository } from './modules/orcamento/orcamento.repository.js';
+import { createOrcamentoRoutes } from './modules/orcamento/routes/index.js';
+import { OrcamentoService } from './modules/orcamento/orcamento.service.js';
+import { PrismaMaestroRepository } from './modules/maestro/maestro.repository.js';
+import { createMaestroRoutes } from './modules/maestro/routes/index.js';
+import { MaestroService } from './modules/maestro/maestro.service.js';
+import { MaestroScheduler } from './modules/maestro/maestro.scheduler.js';
+import { PrismaGrelhaProgramacaoRepository } from './modules/grelha-programacao/grelha-programacao.repository.js';
+import { createGrelhaProgramacaoRoutes } from './modules/grelha-programacao/routes/index.js';
+import { GrelhaProgramacaoService } from './modules/grelha-programacao/grelha-programacao.service.js';
 import { PrismaTarefasRepository } from './modules/tarefas/tarefas.repository.js';
 import { createTarefasRoutes } from './modules/tarefas/routes/index.js';
 import { TarefasService } from './modules/tarefas/tarefas.service.js';
+import { PrismaTemplatesRepository } from './modules/templates/templates.repository.js';
+import { createTemplatesRoutes } from './modules/templates/routes/index.js';
+import { TemplatesService } from './modules/templates/templates.service.js';
 import { PrismaTabelasPrecoRepository } from './modules/tabelas-preco/tabelas-preco.repository.js';
 import { createTabelasPrecoRoutes } from './modules/tabelas-preco/routes/index.js';
 import { TabelasPrecoService } from './modules/tabelas-preco/tabelas-preco.service.js';
@@ -117,6 +130,9 @@ type BuildAppOptions = {
   authService?: AuthService;
   apropriacoesCustoService?: ApropriacoesCustoService;
   contasPagarService?: ContasPagarService;
+  orcamentoService?: OrcamentoService;
+  maestroService?: MaestroService;
+  grelhaProgramacaoService?: GrelhaProgramacaoService;
   conteudosService?: ConteudosService;
   departamentosService?: DepartamentosService;
   elencoService?: ElencoService;
@@ -136,6 +152,7 @@ type BuildAppOptions = {
   roteiroService?: RoteiroService;
   tabelasPrecoService?: TabelasPrecoService;
   tarefasService?: TarefasService;
+  templatesService?: TemplatesService;
   tenantsService?: TenantsService;
   turnosService?: TurnosService;
   escalasService?: EscalasService;
@@ -176,6 +193,10 @@ export async function buildApp(options: BuildAppOptions = {}) {
   const apropriacoesCustoService = options.apropriacoesCustoService ?? new ApropriacoesCustoService(new PrismaApropriacoesCustoRepository());
   const contasPagarRepository = new PrismaContasPagarRepository();
   const contasPagarService = options.contasPagarService ?? new ContasPagarService(contasPagarRepository);
+  const orcamentoService = options.orcamentoService ?? new OrcamentoService(new PrismaOrcamentoRepository());
+  const grelhaRepository = new PrismaGrelhaProgramacaoRepository();
+  const grelhaProgramacaoService = options.grelhaProgramacaoService ?? new GrelhaProgramacaoService(grelhaRepository);
+  const maestroService = options.maestroService ?? new MaestroService(new PrismaMaestroRepository(), grelhaProgramacaoService);
   const conteudosService = options.conteudosService ?? new ConteudosService(new PrismaConteudosRepository());
   const departamentosService = options.departamentosService ?? new DepartamentosService(new PrismaDepartamentosRepository());
   const elencoService = options.elencoService ?? new ElencoService(new PrismaElencoRepository());
@@ -195,6 +216,7 @@ export async function buildApp(options: BuildAppOptions = {}) {
   const roteiroService = options.roteiroService ?? new RoteiroService(new PrismaRoteiroRepository());
   const tabelasPrecoService = options.tabelasPrecoService ?? new TabelasPrecoService(new PrismaTabelasPrecoRepository());
   const tarefasService = options.tarefasService ?? new TarefasService(new PrismaTarefasRepository());
+  const templatesService = options.templatesService ?? new TemplatesService(new PrismaTemplatesRepository());
   const tenantsService = options.tenantsService ?? new TenantsService(new PrismaTenantsRepository(), new PrismaUsersRepository());
   const turnosService = options.turnosService ?? new TurnosService(new PrismaTurnosRepository());
   const escalasService = options.escalasService ?? new EscalasService(new PrismaEscalasRepository());
@@ -395,6 +417,9 @@ export async function buildApp(options: BuildAppOptions = {}) {
   await app.register(createAuthRoutes(authService));
   await app.register(createApropriacoesCustoRoutes(authService, apropriacoesCustoService));
   await app.register(createContasPagarRoutes(authService, contasPagarService));
+  await app.register(createOrcamentoRoutes(authService, orcamentoService));
+  await app.register(createMaestroRoutes(authService, maestroService));
+  await app.register(createGrelhaProgramacaoRoutes(authService, grelhaProgramacaoService));
   await app.register(createConteudosRoutes(authService, conteudosService));
   await app.register(createDepartamentosRoutes(authService, departamentosService));
   await app.register(createElencoRoutes(authService, elencoService));
@@ -414,12 +439,21 @@ export async function buildApp(options: BuildAppOptions = {}) {
   await app.register(createRoteiroRoutes(authService, roteiroService));
   await app.register(createTabelasPrecoRoutes(authService, tabelasPrecoService));
   await app.register(createTarefasRoutes(authService, tarefasService));
+  await app.register(createTemplatesRoutes(authService, templatesService));
   await app.register(createTenantsRoutes(authService, tenantsService));
   await app.register(createTurnosRoutes(authService, turnosService));
   await app.register(createEscalasRoutes(authService, escalasService));
   await app.register(createEspacosRoutes(authService, espacosService));
   await app.register(createUnidadesRoutes(authService, unidadesService));
   await app.register(createUsersRoutes(authService, usersService));
+
+  // ── Maestro Scheduler ───────────────────────────────────────────────────────
+  // Não inicia durante testes para evitar timers abertos e chamadas ao banco.
+  if (env.NODE_ENV !== 'test') {
+    const scheduler = new MaestroScheduler(maestroService);
+    app.addHook('onReady', async () => { scheduler.start(); });
+    app.addHook('onClose', async () => { scheduler.stop(); });
+  }
 
   return app;
 }

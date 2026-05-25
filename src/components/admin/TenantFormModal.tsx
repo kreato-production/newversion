@@ -266,7 +266,7 @@ export const TenantFormModal = ({
 
                   <Separator />
 
-                  <p className="text-sm font-medium text-muted-foreground">Usuário Administrador</p>
+                  <p className="text-xs font-medium text-muted-foreground">Usuário Administrador</p>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">

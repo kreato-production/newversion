@@ -231,13 +231,30 @@ export class PrismaRecursosTecnicosRepository implements RecursosTecnicosReposit
   private async ensureTables(): Promise<void> {
     if (!this.ready) {
       this.ready = (async () => {
+        // funcoes is LEFT-JOINed in listByTenant; create it here so the query
+        // never fails on a fresh DB regardless of module initialization order.
+        await prisma.$executeRawUnsafe(`
+          CREATE TABLE IF NOT EXISTS funcoes (
+            id text PRIMARY KEY,
+            tenant_id text NULL,
+            codigo_externo text NULL,
+            nome text NOT NULL DEFAULT '',
+            descricao text NULL,
+            cor text NULL,
+            created_at timestamptz NULL DEFAULT NOW(),
+            created_by text NULL
+          )
+        `);
+
+        // funcao_operador_id has no FK to funcoes to avoid a creation-order
+        // dependency on the parametros/departamentos module.
         await prisma.$executeRawUnsafe(`
           CREATE TABLE IF NOT EXISTS recursos_tecnicos (
             id text PRIMARY KEY,
             tenant_id text NOT NULL REFERENCES "Tenant"(id) ON DELETE CASCADE,
             codigo_externo text NULL,
             nome text NOT NULL,
-            funcao_operador_id text NULL REFERENCES funcoes(id) ON DELETE SET NULL,
+            funcao_operador_id text NULL,
             created_at timestamptz NULL DEFAULT NOW(),
             updated_at timestamptz NULL DEFAULT NOW(),
             created_by text NULL REFERENCES "User"(id) ON DELETE SET NULL
@@ -248,7 +265,10 @@ export class PrismaRecursosTecnicosRepository implements RecursosTecnicosReposit
           CREATE INDEX IF NOT EXISTS recursos_tecnicos_tenant_nome_idx
           ON recursos_tecnicos (tenant_id, nome)
         `);
-      })();
+      })().catch((err) => {
+        this.ready = null;
+        throw err;
+      });
     }
 
     await this.ready;

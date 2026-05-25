@@ -81,19 +81,22 @@ export function SortableTable<T>({
   defaultPageSize = 20,
   visibleColumnKeys,
 }: SortableTableProps<T>) {
-  // Load saved column order from localStorage
-  const [columns, setColumns] = useState<Column<T>[]>(() => {
-    const savedOrder = readStoredStringArray(storageKey, 'columns');
-    if (savedOrder) {
-      const reordered = savedOrder
-        .map((key) => initialColumns.find((col) => col.key === key))
-        .filter(Boolean) as Column<T>[];
-      const newColumns = initialColumns.filter((col) => !savedOrder.includes(col.key));
-      return [...reordered, ...newColumns];
-    }
+  // Store only the user-defined ORDER (keys); derive column objects from the prop.
+  // This ensures that when the parent changes which columns to pass (due to visibility
+  // toggling), the rendered set is always up-to-date without stale state.
+  const [columnOrder, setColumnOrder] = useState<string[] | null>(() =>
+    readStoredStringArray(storageKey, 'columns'),
+  );
 
-    return initialColumns;
-  });
+  // Derive ordered column objects from the current prop, respecting saved order.
+  const columns = useMemo(() => {
+    if (!columnOrder) return initialColumns;
+    const colMap = new Map(initialColumns.map((c) => [c.key, c]));
+    const ordered = columnOrder.filter((key) => colMap.has(key)).map((key) => colMap.get(key)!);
+    const newCols = initialColumns.filter((c) => !columnOrder.includes(c.key));
+    return [...ordered, ...newCols];
+  }, [initialColumns, columnOrder]);
+
   const [columnWidths, setColumnWidths] = useState<ColumnWidths>(() =>
     readStoredColumnWidths(storageKey),
   );
@@ -212,23 +215,20 @@ export function SortableTable<T>({
       return;
     }
 
-    const newColumns = [...columns];
-    const draggedIndex = newColumns.findIndex((col) => col.key === draggedColumn);
-    const targetIndex = newColumns.findIndex((col) => col.key === targetKey);
+    const currentKeys = columns.map((c) => c.key);
+    const draggedIndex = currentKeys.indexOf(draggedColumn);
+    const targetIndex = currentKeys.indexOf(targetKey);
 
-    const [removed] = newColumns.splice(draggedIndex, 1);
-    newColumns.splice(targetIndex, 0, removed);
+    const newOrder = [...currentKeys];
+    newOrder.splice(draggedIndex, 1);
+    newOrder.splice(targetIndex, 0, draggedColumn);
 
-    setColumns(newColumns);
+    setColumnOrder(newOrder);
     setDraggedColumn(null);
     setDragOverColumn(null);
 
-    // Save to localStorage
     if (storageKey) {
-      localStorage.setItem(
-        `${storageKey}_columns`,
-        JSON.stringify(newColumns.map((col) => col.key)),
-      );
+      localStorage.setItem(`${storageKey}_columns`, JSON.stringify(newOrder));
     }
   };
 
@@ -299,7 +299,9 @@ export function SortableTable<T>({
     return <ArrowDown className="w-3 h-3 ml-1 text-primary" />;
   };
 
-  // Filter to visible columns without altering stored order
+  // Filter to visible columns without altering stored order.
+  // Since initialColumns is already pre-filtered by the parent (via isColumnVisible),
+  // visibleColumnKeys is only used for secondary filtering in shared usage patterns.
   const renderedColumns = visibleColumnKeys
     ? columns.filter((c) => visibleColumnKeys.includes(c.key))
     : columns;
@@ -307,83 +309,87 @@ export function SortableTable<T>({
 
   return (
     <div>
-      <Table
-        className={hasManualWidths ? 'table-fixed' : undefined}
-        style={hasManualWidths ? { minWidth: '100%' } : undefined}
-      >
-        <colgroup>
-          {renderedColumns.map((column) => {
-            const width = columnWidths[column.key];
-            return (
-              <col
-                key={column.key}
-                style={
-                  width
-                    ? { width: `${width}px`, minWidth: `${width}px` }
-                    : column.minWidth
-                      ? { minWidth: `${column.minWidth}px` }
-                      : undefined
-                }
-              />
-            );
-          })}
-        </colgroup>
-        <TableHeader>
-          <TableRow className="h-9">
-            {renderedColumns.map((column) => (
-              <TableHead
-                key={column.key}
-                ref={(node) => {
-                  headerRefs.current[column.key] = node;
-                }}
-                className={cn(
-                  'relative cursor-pointer select-none transition-colors hover:bg-muted/50 py-2',
-                  column.className,
-                  dragOverColumn === column.key && 'bg-primary/10 border-l-2 border-primary',
-                  draggedColumn === column.key && 'opacity-50',
-                  resizingColumn === column.key && 'bg-primary/5',
-                )}
-                draggable
-                onDragStart={(e) => handleDragStart(e, column.key)}
-                onDragOver={(e) => handleDragOver(e, column.key)}
-                onDragLeave={handleDragLeave}
-                onDrop={(e) => handleDrop(e, column.key)}
-                onDragEnd={handleDragEnd}
-                onClick={() => column.sortable !== false && handleSort(column.key)}
-              >
-                <div className="flex items-center gap-1 pr-3">
-                  <GripVertical className="w-3 h-3 opacity-30 cursor-grab" />
-                  <span>{column.label}</span>
-                  {column.sortable !== false && getSortIcon(column.key)}
-                </div>
-                <div
-                  role="separator"
-                  aria-orientation="vertical"
-                  aria-label={`Redimensionar coluna ${column.label}`}
-                  className="absolute right-0 top-0 h-full w-2 cursor-col-resize select-none touch-none"
-                  onMouseDown={(event) => handleResizeStart(event, column)}
-                  onClick={(event) => event.stopPropagation()}
-                >
-                  <div className="mx-auto h-full w-px bg-border/80" />
-                </div>
-              </TableHead>
-            ))}
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {paginatedData.map((item) => (
-            <TableRow key={getRowKey(item)} className="h-10">
+      <div className="overflow-x-auto">
+        <Table
+          className={hasManualWidths ? 'table-fixed' : undefined}
+          style={
+            hasManualWidths ? { minWidth: '100%' } : { minWidth: 'max-content', width: '100%' }
+          }
+        >
+          <colgroup>
+            {renderedColumns.map((column) => {
+              const width = columnWidths[column.key];
+              return (
+                <col
+                  key={column.key}
+                  style={
+                    width
+                      ? { width: `${width}px`, minWidth: `${width}px` }
+                      : column.minWidth
+                        ? { minWidth: `${column.minWidth}px` }
+                        : undefined
+                  }
+                />
+              );
+            })}
+          </colgroup>
+          <TableHeader>
+            <TableRow className="h-9">
               {renderedColumns.map((column) => (
-                <TableCell key={column.key} className={cn('py-2', column.className)}>
-                  {column.render
-                    ? column.render(item)
-                    : ((item as Record<string, unknown>)[column.key] as React.ReactNode) || '-'}
-                </TableCell>
+                <TableHead
+                  key={column.key}
+                  ref={(node) => {
+                    headerRefs.current[column.key] = node;
+                  }}
+                  className={cn(
+                    'relative cursor-pointer select-none transition-colors hover:bg-muted/50 py-2',
+                    column.className,
+                    dragOverColumn === column.key && 'bg-primary/10 border-l-2 border-primary',
+                    draggedColumn === column.key && 'opacity-50',
+                    resizingColumn === column.key && 'bg-primary/5',
+                  )}
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, column.key)}
+                  onDragOver={(e) => handleDragOver(e, column.key)}
+                  onDragLeave={handleDragLeave}
+                  onDrop={(e) => handleDrop(e, column.key)}
+                  onDragEnd={handleDragEnd}
+                  onClick={() => column.sortable !== false && handleSort(column.key)}
+                >
+                  <div className="flex items-center gap-1 pr-3">
+                    <GripVertical className="w-3 h-3 opacity-30 cursor-grab" />
+                    <span>{column.label}</span>
+                    {column.sortable !== false && getSortIcon(column.key)}
+                  </div>
+                  <div
+                    role="separator"
+                    aria-orientation="vertical"
+                    aria-label={`Redimensionar coluna ${column.label}`}
+                    className="absolute right-0 top-0 h-full w-2 cursor-col-resize select-none touch-none"
+                    onMouseDown={(event) => handleResizeStart(event, column)}
+                    onClick={(event) => event.stopPropagation()}
+                  >
+                    <div className="mx-auto h-full w-px bg-border/80" />
+                  </div>
+                </TableHead>
               ))}
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {paginatedData.map((item) => (
+              <TableRow key={getRowKey(item)} className="h-10">
+                {renderedColumns.map((column) => (
+                  <TableCell key={column.key} className={cn('py-2', column.className)}>
+                    {column.render
+                      ? column.render(item)
+                      : ((item as Record<string, unknown>)[column.key] as React.ReactNode) || '-'}
+                  </TableCell>
+                ))}
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
 
       {paginated && data.length > 0 && (
         <TablePagination

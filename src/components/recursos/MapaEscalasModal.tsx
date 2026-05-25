@@ -225,7 +225,7 @@ export const MapaEscalasModal = ({
         {/* Controles */}
         <div className="flex items-center gap-4 flex-wrap">
           <div className="flex items-center gap-2">
-            <Label className="text-sm">Visualização:</Label>
+            <Label className="text-xs">Visualização:</Label>
             <Select value={viewMode} onValueChange={(v) => setViewMode(v as ViewMode)}>
               <SelectTrigger className="w-32">
                 <SelectValue />
@@ -299,7 +299,7 @@ export const MapaEscalasModal = ({
           <div className="min-w-max">
             {/* Cabeçalho com dias */}
             <div className="flex sticky top-0 bg-background z-10 border-b">
-              <div className="w-48 min-w-48 px-3 py-2 font-medium text-sm border-r bg-muted/50 flex items-center">
+              <div className="w-48 min-w-48 px-3 py-2 font-medium text-xs border-r bg-muted/50 flex items-center">
                 Colaborador
               </div>
               {diasExibidos.map((dia) => {

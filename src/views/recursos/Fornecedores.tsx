@@ -25,6 +25,16 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useAuth } from '@/contexts/AuthContext';
 import { fornecedoresRepository } from '@/modules/fornecedores/fornecedores.repository.provider';
+import {
+  ListFilterPanel,
+  FilterSection,
+  MultiChip,
+  SortChip,
+  SORT_OPTIONS_NOME_DATA,
+  uniqueChips,
+  chipsSubtitle,
+  sortSubtitle,
+} from '@/components/shared/ListFilter';
 import type { Fornecedor, FornecedorInput } from '@/modules/fornecedores/fornecedores.types';
 import {
   useListingView,
@@ -188,6 +198,9 @@ const Fornecedores = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [isImporting, setIsImporting] = useState(false);
+  const [filterSortBy, setFilterSortBy] = useState('');
+  const [filterCategoria, setFilterCategoria] = useState<string[]>([]);
+  const [filterPais, setFilterPais] = useState<string[]>([]);
   const importFileRef = useRef<HTMLInputElement>(null);
 
   const { mode, setMode, visibleColumnKeys, toggleColumn, resetColumns, optionalColumns } =
@@ -365,11 +378,28 @@ const Fornecedores = () => {
     }
   };
 
-  const filteredItems = items.filter(
-    (item) =>
-      item.nome.toLowerCase().includes(search.toLowerCase()) ||
-      item.email.toLowerCase().includes(search.toLowerCase()),
-  );
+  const categoriaOptions = uniqueChips(items, 'categoria');
+  const paisOptions = uniqueChips(items, 'pais');
+
+  const filteredItems = (() => {
+    let result = items.filter(
+      (item) =>
+        item.nome.toLowerCase().includes(search.toLowerCase()) ||
+        item.email.toLowerCase().includes(search.toLowerCase()),
+    );
+    if (filterCategoria.length)
+      result = result.filter((i) => i.categoria && filterCategoria.includes(i.categoria));
+    if (filterPais.length) result = result.filter((i) => i.pais && filterPais.includes(i.pais));
+    if (filterSortBy === 'nome-asc')
+      return [...result].sort((a, b) => a.nome.localeCompare(b.nome));
+    if (filterSortBy === 'nome-desc')
+      return [...result].sort((a, b) => b.nome.localeCompare(a.nome));
+    if (filterSortBy === 'data-asc')
+      return [...result].sort((a, b) => (a.dataCadastro ?? '').localeCompare(b.dataCadastro ?? ''));
+    if (filterSortBy === 'data-desc')
+      return [...result].sort((a, b) => (b.dataCadastro ?? '').localeCompare(a.dataCadastro ?? ''));
+    return result;
+  })();
 
   const columns: Column<Fornecedor>[] = [
     {
@@ -489,6 +519,44 @@ const Fornecedores = () => {
         </TooltipProvider>
         <div className="flex-1" />
         <SearchBar value={search} onChange={setSearch} />
+        <ListFilterPanel
+          activeCount={
+            (filterSortBy ? 1 : 0) + (filterCategoria.length ? 1 : 0) + (filterPais.length ? 1 : 0)
+          }
+          resultCount={filteredItems.length}
+          onClear={() => {
+            setFilterSortBy('');
+            setFilterCategoria([]);
+            setFilterPais([]);
+          }}
+          entityLabel="fornecedores"
+        >
+          <FilterSection
+            title="Ordenar por"
+            subtitle={sortSubtitle(filterSortBy, SORT_OPTIONS_NOME_DATA)}
+            defaultOpen
+          >
+            <SortChip
+              value={filterSortBy}
+              onChange={setFilterSortBy}
+              options={[...SORT_OPTIONS_NOME_DATA]}
+            />
+          </FilterSection>
+          {categoriaOptions.length > 0 && (
+            <FilterSection title="Categoria" subtitle={chipsSubtitle(filterCategoria)}>
+              <MultiChip
+                options={categoriaOptions}
+                selected={filterCategoria}
+                onChange={setFilterCategoria}
+              />
+            </FilterSection>
+          )}
+          {paisOptions.length > 0 && (
+            <FilterSection title="País" subtitle={chipsSubtitle(filterPais)}>
+              <MultiChip options={paisOptions} selected={filterPais} onChange={setFilterPais} />
+            </FilterSection>
+          )}
+        </ListFilterPanel>
         {mode === 'list' && (
           <ColumnSelector
             columns={optionalColumns}

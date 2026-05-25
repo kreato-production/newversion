@@ -336,7 +336,7 @@ export const EquipeFormModal = ({
                         <div className="flex flex-col items-center justify-center py-8 text-center border rounded-lg bg-muted/20">
                           <Users className="h-10 w-10 text-muted-foreground/50 mb-3" />
                           <p className="text-muted-foreground">{t('teams.noMembers')}</p>
-                          <p className="text-sm text-muted-foreground mt-1">
+                          <p className="text-xs text-muted-foreground mt-1">
                             {t('teams.addMemberHint')}
                           </p>
                         </div>

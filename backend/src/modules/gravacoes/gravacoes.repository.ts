@@ -1274,12 +1274,13 @@ export class PrismaGravacoesRepository implements GravacoesRepository {
           )
         `);
 
+        // pessoa_id has no FK to pessoas to avoid initialization-order failures.
         await prisma.$executeRawUnsafe(`
           CREATE TABLE IF NOT EXISTS gravacao_convidados (
             id text PRIMARY KEY,
             tenant_id text NOT NULL REFERENCES "Tenant"(id) ON DELETE CASCADE,
             gravacao_id text NOT NULL REFERENCES "Gravacao"(id) ON DELETE CASCADE,
-            pessoa_id text NOT NULL REFERENCES pessoas(id) ON DELETE CASCADE,
+            pessoa_id text NOT NULL,
             observacao text NULL,
             created_at timestamptz NULL DEFAULT NOW()
           )
@@ -1391,7 +1392,10 @@ export class PrismaGravacoesRepository implements GravacoesRepository {
         `);
 
         await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS gravacao_despesas_gravacao_idx ON gravacao_despesas (gravacao_id)`);
-      })();
+      })().catch((err) => {
+        this.ready = null;
+        throw err;
+      });
     }
 
     await this.ready;
@@ -1459,12 +1463,17 @@ export class PrismaGravacoesRepository implements GravacoesRepository {
         }
       }
 
-      // Override hora/descricao in-memory from conteudo (source of truth)
+      // Merge hora/descricao: gravacao values take precedence, conteudo is fallback
       return existing.map((ge) => {
         if (!ge.espacoId) return ge;
         const ce = conteudoEspacosMap.get(ge.espacoId);
         if (!ce) return ge;
-        return { ...ge, horaInicio: ce.horaInicio, horaFim: ce.horaFim, descricao: ce.descricao };
+        return {
+          ...ge,
+          horaInicio: ge.horaInicio ?? ce.horaInicio,
+          horaFim: ge.horaFim ?? ce.horaFim,
+          descricao: ge.descricao ?? ce.descricao,
+        };
       });
     }
 

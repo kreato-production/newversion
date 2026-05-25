@@ -11,6 +11,17 @@ export type StatusGravacaoApiItem = {
   usuarioCadastro: string;
 };
 
+export type StatusPlaneamentoApiItem = {
+  id: string;
+  codigoExterno: string;
+  nome: string;
+  descricao: string;
+  cor: string;
+  isInicial: boolean;
+  dataCadastro: string;
+  usuarioCadastro: string;
+};
+
 export type StatusTarefaApiItem = {
   id: string;
   codigo: string;
@@ -133,6 +144,31 @@ export class ApiParametrizacoesRepository {
 
   removeStatusGravacao(id: string): Promise<void> {
     return apiRequest(`/parametrizacoes/status-gravacao/${id}`, { method: 'DELETE' });
+  }
+
+  listStatusPlaneamento(): Promise<ListResponse<StatusPlaneamentoApiItem>> {
+    return apiRequest('/parametrizacoes/status-planeamento');
+  }
+
+  saveStatusPlaneamento(
+    input: Partial<StatusPlaneamentoApiItem> & { nome: string },
+  ): Promise<StatusPlaneamentoApiItem> {
+    const path = input.id
+      ? `/parametrizacoes/status-planeamento/${input.id}`
+      : '/parametrizacoes/status-planeamento';
+    const method = input.id ? 'PUT' : 'POST';
+    return apiRequest(path, { method, body: JSON.stringify(input) });
+  }
+
+  toggleStatusPlaneamentoInicial(id: string, value: boolean): Promise<StatusPlaneamentoApiItem> {
+    return apiRequest(`/parametrizacoes/status-planeamento/${id}/inicial`, {
+      method: 'PATCH',
+      body: JSON.stringify({ value }),
+    });
+  }
+
+  removeStatusPlaneamento(id: string): Promise<void> {
+    return apiRequest(`/parametrizacoes/status-planeamento/${id}`, { method: 'DELETE' });
   }
 
   listStatusTarefa(): Promise<ListResponse<StatusTarefaApiItem>> {

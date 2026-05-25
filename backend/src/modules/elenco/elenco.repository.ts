@@ -545,13 +545,85 @@ export class PrismaElencoRepository implements ElencoRepository {
   private async ensureTables(): Promise<void> {
     if (!this.ready) {
       this.ready = (async () => {
+        // Pre-create tables referenced in JOINs/FKs that are owned by other modules.
+        await prisma.$executeRawUnsafe(`
+          CREATE TABLE IF NOT EXISTS conteudos (
+            id text PRIMARY KEY,
+            tenant_id uuid NULL,
+            codigo_externo text NULL,
+            descricao text NOT NULL,
+            quantidade_episodios integer NULL,
+            centro_lucro_id text NULL,
+            unidade_negocio_id uuid NULL,
+            programa_id uuid NULL,
+            tipo_conteudo_id text NULL,
+            classificacao_id text NULL,
+            ano_producao text NULL,
+            sinopse text NULL,
+            orcamento numeric(12, 2) NULL DEFAULT 0,
+            tabela_preco_id text NULL,
+            frequencia_data_inicio date NULL,
+            frequencia_data_fim date NULL,
+            frequencia_dias_semana integer[] NULL,
+            created_by text NULL,
+            created_at timestamptz NULL DEFAULT now(),
+            updated_at timestamptz NULL DEFAULT now()
+          )
+        `);
+
+        await prisma.$executeRawUnsafe(`
+          CREATE TABLE IF NOT EXISTS pessoas (
+            id text PRIMARY KEY,
+            tenant_id text NOT NULL REFERENCES "Tenant"(id) ON DELETE CASCADE,
+            codigo_externo text NULL,
+            nome text NOT NULL,
+            sobrenome text NOT NULL DEFAULT '',
+            nome_trabalho text NULL,
+            foto_url text NULL,
+            data_nascimento date NULL,
+            sexo text NULL,
+            telefone text NULL,
+            email text NULL,
+            classificacao_id text NULL,
+            documento text NULL,
+            endereco text NULL,
+            cidade text NULL,
+            estado text NULL,
+            cep text NULL,
+            observacoes text NULL,
+            status text NOT NULL DEFAULT 'Ativo',
+            created_at timestamptz NULL DEFAULT NOW(),
+            updated_at timestamptz NULL DEFAULT NOW(),
+            created_by text NULL REFERENCES "User"(id) ON DELETE SET NULL
+          )
+        `);
+
+        await prisma.$executeRawUnsafe(`
+          CREATE TABLE IF NOT EXISTS figurinos (
+            id text PRIMARY KEY,
+            tenant_id text NOT NULL REFERENCES "Tenant"(id) ON DELETE CASCADE,
+            codigo_externo text NULL,
+            codigo_figurino text NOT NULL,
+            descricao text NOT NULL,
+            tipo_figurino_id text NULL,
+            material_id text NULL,
+            tamanho_peca text NULL,
+            cor_predominante text NULL,
+            cor_secundaria text NULL,
+            created_at timestamptz NULL DEFAULT NOW(),
+            updated_at timestamptz NULL DEFAULT NOW(),
+            created_by text NULL REFERENCES "User"(id) ON DELETE SET NULL
+          )
+        `);
+
+        // conteudo_id and pessoa_id have no FKs to avoid initialization-order failures.
         await prisma.$executeRawUnsafe(`
           CREATE TABLE IF NOT EXISTS gravacao_elenco (
             id text PRIMARY KEY,
             tenant_id text NOT NULL REFERENCES "Tenant"(id) ON DELETE CASCADE,
             gravacao_id text NULL REFERENCES "Gravacao"(id) ON DELETE CASCADE,
-            conteudo_id text NULL REFERENCES conteudos(id) ON DELETE CASCADE,
-            pessoa_id text NOT NULL REFERENCES pessoas(id) ON DELETE CASCADE,
+            conteudo_id text NULL,
+            pessoa_id text NOT NULL,
             personagem text NULL,
             descricao_personagem text NULL,
             created_at timestamptz NULL DEFAULT NOW()
@@ -563,12 +635,13 @@ export class PrismaElencoRepository implements ElencoRepository {
           ADD COLUMN IF NOT EXISTS descricao_personagem text NULL
         `);
 
+        // figurino_id has no FK to figurinos to avoid initialization-order failures.
         await prisma.$executeRawUnsafe(`
           CREATE TABLE IF NOT EXISTS gravacao_elenco_figurinos (
             id text PRIMARY KEY,
             tenant_id text NOT NULL REFERENCES "Tenant"(id) ON DELETE CASCADE,
             elenco_id text NOT NULL REFERENCES gravacao_elenco(id) ON DELETE CASCADE,
-            figurino_id text NOT NULL REFERENCES figurinos(id) ON DELETE CASCADE,
+            figurino_id text NOT NULL,
             created_at timestamptz NULL DEFAULT NOW()
           )
         `);
@@ -582,7 +655,10 @@ export class PrismaElencoRepository implements ElencoRepository {
           CREATE INDEX IF NOT EXISTS gravacao_elenco_figurinos_elenco_idx
           ON gravacao_elenco_figurinos (elenco_id, figurino_id)
         `);
-      })();
+      })().catch((err) => {
+        this.ready = null;
+        throw err;
+      });
     }
 
     await this.ready;

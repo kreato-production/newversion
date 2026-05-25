@@ -14,6 +14,16 @@ import { usePermissions } from '@/hooks/usePermissions';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { conteudosRepository } from '@/modules/conteudos/conteudos.repository.provider';
+import {
+  ListFilterPanel,
+  FilterSection,
+  MultiChip,
+  SortChip,
+  SORT_OPTIONS_NOME_DATA,
+  uniqueChips,
+  chipsSubtitle,
+  sortSubtitle,
+} from '@/components/shared/ListFilter';
 import type { Conteudo as ConteudoItem, ConteudoInput } from '@/modules/conteudos/conteudos.types';
 import {
   AlertDialog,
@@ -200,6 +210,9 @@ const Conteudo = () => {
   const [selectedItem, setSelectedItem] = useState<ConteudoItem | null>(null);
   const [items, setItems] = useState<ConteudoItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [filterSortBy, setFilterSortBy] = useState('');
+  const [filterCentroLucro, setFilterCentroLucro] = useState<string[]>([]);
+  const [filterAnoProducao, setFilterAnoProducao] = useState<string[]>([]);
 
   const { mode, setMode, visibleColumnKeys, toggleColumn, resetColumns, optionalColumns } =
     useListingView({ storageKey: STORAGE_KEY, columns: COLUMN_CONFIG });
@@ -277,11 +290,33 @@ const Conteudo = () => {
     }
   };
 
-  const filteredItems = items.filter(
-    (item) =>
-      item.descricao?.toLowerCase().includes(search.toLowerCase()) ||
-      item.codigoExterno?.toLowerCase().includes(search.toLowerCase()),
-  );
+  const centroLucroOptions = uniqueChips(items, 'centroLucro');
+  const anoProducaoOptions = uniqueChips(items, 'anoProducao');
+
+  const filteredItems = (() => {
+    let result = items.filter(
+      (item) =>
+        item.descricao?.toLowerCase().includes(search.toLowerCase()) ||
+        item.codigoExterno?.toLowerCase().includes(search.toLowerCase()),
+    );
+    if (filterCentroLucro.length)
+      result = result.filter(
+        (i) => i.centroLucro && filterCentroLucro.includes(String(i.centroLucro)),
+      );
+    if (filterAnoProducao.length)
+      result = result.filter(
+        (i) => i.anoProducao && filterAnoProducao.includes(String(i.anoProducao)),
+      );
+    if (filterSortBy === 'nome-asc')
+      return [...result].sort((a, b) => (a.descricao ?? '').localeCompare(b.descricao ?? ''));
+    if (filterSortBy === 'nome-desc')
+      return [...result].sort((a, b) => (b.descricao ?? '').localeCompare(a.descricao ?? ''));
+    if (filterSortBy === 'data-asc')
+      return [...result].sort((a, b) => (a.dataCadastro ?? '').localeCompare(b.dataCadastro ?? ''));
+    if (filterSortBy === 'data-desc')
+      return [...result].sort((a, b) => (b.dataCadastro ?? '').localeCompare(a.dataCadastro ?? ''));
+    return result;
+  })();
 
   const columns: Column<ConteudoItem>[] = [
     {
@@ -371,6 +406,50 @@ const Conteudo = () => {
         )}
         <div className="flex-1" />
         <SearchBar value={search} onChange={setSearch} />
+        <ListFilterPanel
+          activeCount={
+            (filterSortBy ? 1 : 0) +
+            (filterCentroLucro.length ? 1 : 0) +
+            (filterAnoProducao.length ? 1 : 0)
+          }
+          resultCount={filteredItems.length}
+          onClear={() => {
+            setFilterSortBy('');
+            setFilterCentroLucro([]);
+            setFilterAnoProducao([]);
+          }}
+          entityLabel="conteúdos"
+        >
+          <FilterSection
+            title="Ordenar por"
+            subtitle={sortSubtitle(filterSortBy, SORT_OPTIONS_NOME_DATA)}
+            defaultOpen
+          >
+            <SortChip
+              value={filterSortBy}
+              onChange={setFilterSortBy}
+              options={[...SORT_OPTIONS_NOME_DATA]}
+            />
+          </FilterSection>
+          {centroLucroOptions.length > 0 && (
+            <FilterSection title="Centro de Lucro" subtitle={chipsSubtitle(filterCentroLucro)}>
+              <MultiChip
+                options={centroLucroOptions}
+                selected={filterCentroLucro}
+                onChange={setFilterCentroLucro}
+              />
+            </FilterSection>
+          )}
+          {anoProducaoOptions.length > 0 && (
+            <FilterSection title="Ano de Produção" subtitle={chipsSubtitle(filterAnoProducao)}>
+              <MultiChip
+                options={anoProducaoOptions}
+                selected={filterAnoProducao}
+                onChange={setFilterAnoProducao}
+              />
+            </FilterSection>
+          )}
+        </ListFilterPanel>
         {mode === 'list' && (
           <ColumnSelector
             columns={optionalColumns}

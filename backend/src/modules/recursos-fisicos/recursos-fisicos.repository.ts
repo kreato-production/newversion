@@ -489,7 +489,10 @@ export class PrismaRecursosFisicosRepository implements RecursosFisicosRepositor
           CREATE INDEX IF NOT EXISTS recursos_fisicos_tenant_nome_idx
           ON recursos_fisicos (tenant_id, nome)
         `);
-      })();
+      })().catch((err) => {
+        this.ready = null;
+        throw err;
+      });
     }
 
     await this.ready;

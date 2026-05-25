@@ -180,11 +180,11 @@ export const EstoqueTab = ({ itens, onItensChange, readOnly = false }: EstoqueTa
       {itens.length === 0 ? (
         <div className="text-center py-6 border rounded-lg border-dashed bg-muted/20">
           <Package className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
-          <p className="text-sm text-muted-foreground">Nenhum item de estoque cadastrado.</p>
+          <p className="text-xs text-muted-foreground">Nenhum item de estoque cadastrado.</p>
         </div>
       ) : (
         <div className="border rounded-lg overflow-hidden">
-          <table className="w-full text-sm">
+          <table className="w-full text-xs">
             <thead className="bg-muted/50">
               <tr>
                 <th className="text-left px-3 py-2 w-16">#</th>
@@ -201,7 +201,7 @@ export const EstoqueTab = ({ itens, onItensChange, readOnly = false }: EstoqueTa
                       {item.numerador}
                     </span>
                   </td>
-                  <td className="px-3 py-2 font-mono text-sm">{item.codigo || '-'}</td>
+                  <td className="px-3 py-2 font-mono text-xs">{item.codigo || '-'}</td>
                   <td className="px-3 py-2">
                     <div className="flex items-center gap-2">
                       {item.imagemUrl && (
@@ -324,12 +324,12 @@ export const EstoqueTab = ({ itens, onItensChange, readOnly = false }: EstoqueTa
                       {isUploading ? (
                         <>
                           <Loader2 className="w-4 h-4 animate-spin" />
-                          <span className="text-sm">Carregando...</span>
+                          <span className="text-xs">Carregando...</span>
                         </>
                       ) : (
                         <>
                           <Upload className="w-4 h-4" />
-                          <span className="text-sm">Selecionar imagem</span>
+                          <span className="text-xs">Selecionar imagem</span>
                         </>
                       )}
                     </div>

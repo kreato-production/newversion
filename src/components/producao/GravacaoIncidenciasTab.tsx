@@ -139,7 +139,7 @@ export const GravacaoIncidenciasTab = ({ gravacaoId }: GravacaoIncidenciasTabPro
           <TableBody>
             {items.map((item) => (
               <TableRow key={item.id}>
-                <TableCell className="font-mono text-sm">{item.codigo_externo || '-'}</TableCell>
+                <TableCell className="font-mono text-xs">{item.codigo_externo || '-'}</TableCell>
                 <TableCell>{item.titulo}</TableCell>
                 <TableCell>
                   {item.severidade_titulo ? (

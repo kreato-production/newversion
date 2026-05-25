@@ -31,12 +31,16 @@ export class ApiGravacoesRepository implements GravacoesRepository {
     return response.data;
   }
 
-  async save(input: GravacaoInput, _userId?: string): Promise<void> {
+  async getById(id: string): Promise<Gravacao | null> {
+    return apiRequest<Gravacao>(`/gravacoes/${id}`).catch((): null => null);
+  }
+
+  async save(input: GravacaoInput, _userId?: string): Promise<Gravacao> {
     const path = input.id ? `/gravacoes/${input.id}` : '/gravacoes';
     const method = input.id ? 'PUT' : 'POST';
     const payload = sanitizeInput(input);
 
-    await apiRequest(path, {
+    return apiRequest<Gravacao>(path, {
       method,
       body: JSON.stringify(payload),
     });

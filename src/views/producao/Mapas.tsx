@@ -77,10 +77,13 @@ import { formatCurrency as formatCurrencyUtil } from '@/lib/currencies';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { ApiGravacoesRepository } from '@/modules/gravacoes/gravacoes.api.repository';
+import { gravacoesRelacionamentosApi } from '@/modules/gravacoes/gravacoes-relacionamentos.api';
 import { ApiParametrizacoesRepository } from '@/modules/parametrizacoes/parametrizacoes.api.repository';
 import { ApiRecursosFisicosRepository } from '@/modules/recursos-fisicos/recursos-fisicos.api.repository';
 import { ApiRecursosHumanosRepository } from '@/modules/recursos-humanos/recursos-humanos.api.repository';
 import { ApiUnidadesRepository } from '@/modules/unidades/unidades.api.repository';
+import { ApiEspacosRepository } from '@/modules/espacos/espacos.api.repository';
+import { ApiProgramasRepository } from '@/modules/programas/programas.api.repository';
 
 const alocacoesRepository = new ApiAlocacoesRepository();
 const gravacoesRepository = new ApiGravacoesRepository();
@@ -88,6 +91,8 @@ const parametrizacoesRepository = new ApiParametrizacoesRepository();
 const recursosFisicosRepository = new ApiRecursosFisicosRepository();
 const recursosHumanosRepository = new ApiRecursosHumanosRepository();
 const unidadesRepository = new ApiUnidadesRepository();
+const espacosRepository = new ApiEspacosRepository();
+const programasRepository = new ApiProgramasRepository();
 
 interface RecursoHumanoAlocado {
   id: string;
@@ -122,6 +127,7 @@ interface Gravacao {
   centroLucro?: string;
   unidadeNegocio?: string;
   dataPrevista?: string;
+  programaId?: string;
 }
 
 interface RecursoFisico {
@@ -145,6 +151,16 @@ interface OcupacaoItem {
   duracaoMinutos?: number;
   recursoHumanoId?: string;
   statusCor?: string;
+}
+
+interface AlocacaoEspacoData {
+  espacoId: string;
+  espacoNome: string;
+  gravacaoId: string;
+  gravacaoNome: string;
+  horaInicio: string | null;
+  horaFim: string | null;
+  programaCor: string | null;
 }
 
 interface CentroLucro {
@@ -184,7 +200,17 @@ const Mapas = () => {
   const [filtroGravacao, setFiltroGravacao] = useState('Todas');
   const [showFilters, setShowFilters] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
-  const [activeTab, setActiveTab] = useState('fisicos');
+  const [activeTab, setActiveTab] = useState('requisicoes');
+
+  // Estado para a aba Alocações
+  const [alocacaoDate, setAlocacaoDate] = useState(() => format(new Date(), 'yyyy-MM-dd'));
+  const [alocacaoIntervalo, setAlocacaoIntervalo] = useState<60 | 30 | 15>(60);
+  const [alocacaoEspacosData, setAlocacaoEspacosData] = useState<AlocacaoEspacoData[]>([]);
+  const [allEspacos, setAllEspacos] = useState<{ id: string; nome: string }[]>([]);
+  const [programasCorMap, setProgramasCorMap] = useState<Map<string, string | null>>(new Map());
+  const [alocacaoLoading, setAlocacaoLoading] = useState(false);
+  const [alocacaoEspacosFiltro, setAlocacaoEspacosFiltro] = useState<string[]>([]);
+  const [showEspacosFiltroDropdown, setShowEspacosFiltroDropdown] = useState(false);
 
   // Weather forecast hook
   const { getWeatherForDate, loading: weatherLoading } = useWeatherForecast(16);
@@ -209,6 +235,7 @@ const Mapas = () => {
   // Refs para exportaÃ§Ã£o PDF
   const fisicosRef = useRef<HTMLDivElement>(null);
   const humanosRef = useRef<HTMLDivElement>(null);
+  const espacosFiltroRef = useRef<HTMLDivElement>(null);
 
   // Carregar dados do localStorage
   const [gravacoes, setGravacoes] = useState<Gravacao[]>([]);
@@ -260,12 +287,13 @@ const Mapas = () => {
           centroLucro: g.centroLucro || '',
           unidadeNegocio: g.unidadeNegocioId || '',
           dataPrevista: g.dataPrevista || '',
+          programaId: g.programaId || undefined,
         }));
       setGravacoes(gravacoesList);
 
       setRecursosFisicos(fisicosData.map((rf) => ({ id: rf.id, nome: rf.nome })));
       setRecursosFisicosCadastro(
-        fisicosData.map((rf) => ({ id: rf.id, nome: rf.nome, custoHora: rf.custoHora, tipo: '' })),
+        fisicosData.map((rf) => ({ id: rf.id, nome: rf.nome, custoHora: rf.custoHora })),
       );
 
       setRecursosHumanos(
@@ -415,6 +443,82 @@ const Mapas = () => {
     return () => window.removeEventListener('focus', handleFocus);
   }, [recarregarDados]);
 
+  // Carregar todos os espaços cadastrados (uma vez, para o filtro e as colunas)
+  useEffect(() => {
+    espacosRepository
+      .list()
+      .then((list) => {
+        setAllEspacos(list.map((e) => ({ id: e.id, nome: e.titulo })));
+      })
+      .catch(() => {});
+  }, []);
+
+  // Carregar cores dos programas para o tabulador Alocações
+  useEffect(() => {
+    programasRepository
+      .list()
+      .then((list) => {
+        const map = new Map<string, string | null>();
+        for (const p of list) map.set(p.id, p.cor ?? null);
+        setProgramasCorMap(map);
+      })
+      .catch(() => {});
+  }, []);
+
+  // Carregar dados de espaços alocados para a aba Alocações
+  useEffect(() => {
+    if (activeTab !== 'alocacoes') return;
+
+    const gravacoesNoDia = gravacoes.filter((g) => g.dataPrevista === alocacaoDate);
+    if (gravacoesNoDia.length === 0) {
+      setAlocacaoEspacosData([]);
+      return;
+    }
+
+    let cancelled = false;
+    setAlocacaoLoading(true);
+    Promise.all(
+      gravacoesNoDia.map(async (g) => {
+        const espacos = await gravacoesRelacionamentosApi.listEspacos(g.id);
+        const programaCor = g.programaId ? (programasCorMap.get(g.programaId) ?? null) : null;
+        return espacos.map((e) => ({
+          espacoId: e.espacoId,
+          espacoNome: e.espacoNome,
+          gravacaoId: g.id,
+          gravacaoNome: g.nome,
+          horaInicio: e.horaInicio,
+          horaFim: e.horaFim,
+          programaCor,
+        }));
+      }),
+    )
+      .then((results) => {
+        if (!cancelled) setAlocacaoEspacosData(results.flat());
+      })
+      .catch(() => {
+        if (!cancelled) setAlocacaoEspacosData([]);
+      })
+      .finally(() => {
+        if (!cancelled) setAlocacaoLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab, alocacaoDate, gravacoes, programasCorMap]);
+
+  // Fechar dropdown de espaços ao clicar fora
+  useEffect(() => {
+    if (!showEspacosFiltroDropdown) return;
+    const handleClick = (e: MouseEvent) => {
+      if (espacosFiltroRef.current && !espacosFiltroRef.current.contains(e.target as Node)) {
+        setShowEspacosFiltroDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [showEspacosFiltroDropdown]);
+
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(currentWeekStart, i));
 
   // Dias do mÃªs
@@ -426,6 +530,16 @@ const Mapas = () => {
 
   // Dias a exibir baseado no modo de visualizaÃ§Ã£o
   const displayDays = viewMode === 'week' ? weekDays : monthDays;
+
+  // Sincronizar alocacaoDate com o período exibido quando o usuário navega semana/mês
+  useEffect(() => {
+    const datesInPeriod = displayDays.map((d) => format(d, 'yyyy-MM-dd'));
+    if (datesInPeriod.length > 0 && !datesInPeriod.includes(alocacaoDate)) {
+      const today = format(new Date(), 'yyyy-MM-dd');
+      setAlocacaoDate(datesInPeriod.includes(today) ? today : datesInPeriod[0]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [displayDays]);
 
   const handlePrevWeek = () => setCurrentWeekStart(subWeeks(currentWeekStart, 1));
   const handleNextWeek = () => setCurrentWeekStart(addWeeks(currentWeekStart, 1));
@@ -708,11 +822,11 @@ const Mapas = () => {
   const tiposRecursoFisico = useMemo(() => {
     const tipos = new Set<string>();
     tipos.add('Todos');
-    recursosFisicos.forEach((r) => {
+    recursosFisicosCadastro.forEach((r) => {
       if (r.tipo) tipos.add(r.tipo);
     });
     return Array.from(tipos);
-  }, [recursosFisicos]);
+  }, [recursosFisicosCadastro]);
 
   // Obter funÃ§Ãµes Ãºnicas de recursos humanos
   const funcoesRecursoHumano = useMemo(() => {
@@ -1111,33 +1225,14 @@ const Mapas = () => {
     return items;
   };
 
-  // Filter physical resources: only show those with allocations in the selected period
+  // Todos os recursos físicos, filtrados por tipo/nome (sem exigir alocação no período)
   const filteredRecursosFisicos = useMemo(() => {
-    // Get date strings for the current display period
-    const periodoDatas = displayDays.map((d) => format(d, 'yyyy-MM-dd'));
-
-    // Get resource IDs that have allocations in this period
-    const recursosComAlocacao = new Set<string>();
-    Object.keys(ocupacoesFisicas).forEach((recursoId) => {
-      const ocupacoesPorDia = ocupacoesFisicas[recursoId];
-      // Check if any day in the period has allocations
-      const temAlocacaoNoPeriodo = periodoDatas.some(
-        (data) => ocupacoesPorDia[data] && ocupacoesPorDia[data].length > 0,
-      );
-      if (temAlocacaoNoPeriodo) {
-        recursosComAlocacao.add(recursoId);
-      }
-    });
-
-    return recursosFisicos.filter((r) => {
-      // Must have allocation in the period
-      if (!recursosComAlocacao.has(r.id)) return false;
-
+    return recursosFisicosCadastro.filter((r) => {
       const matchTipo = filtroTipoFisico === 'Todos' || r.tipo === filtroTipoFisico;
       const matchNome = r.nome.toLowerCase().includes(filtroNomeFisico.toLowerCase());
       return matchTipo && matchNome;
     });
-  }, [recursosFisicos, ocupacoesFisicas, displayDays, filtroTipoFisico, filtroNomeFisico]);
+  }, [recursosFisicosCadastro, filtroTipoFisico, filtroNomeFisico]);
 
   // Filter human resources: only show those with allocations in the selected period
   const filteredRecursosHumanos = useMemo(() => {
@@ -2149,29 +2244,402 @@ const Mapas = () => {
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList>
-          <TabsTrigger value="fisicos" className="gap-2">
-            <MapPin className="h-4 w-4" />
-            {t('maps.physicalResources')}
+          <TabsTrigger value="requisicoes" className="gap-2">
+            <ClipboardList className="h-4 w-4" />
+            Requisições
+          </TabsTrigger>
+          <TabsTrigger value="alocacoes" className="gap-2">
+            <CalendarDays className="h-4 w-4" />
+            Alocações
           </TabsTrigger>
           <TabsTrigger value="humanos" className="gap-2">
             <Users className="h-4 w-4" />
-            {t('maps.humanResources')}
+            Recursos Humanos
           </TabsTrigger>
-          <TabsTrigger value="custos" className="gap-2">
-            <DollarSign className="h-4 w-4" />
-            {t('maps.costAppropriation')}
+          <TabsTrigger value="equipamentos" className="gap-2">
+            <MapPin className="h-4 w-4" />
+            Equipamentos
           </TabsTrigger>
-          <TabsTrigger value="requisicoes" className="gap-2">
-            <ClipboardList className="h-4 w-4" />
-            {t('maps.requisitions')}
+          <TabsTrigger value="espacos" className="gap-2">
+            <Building2 className="h-4 w-4" />
+            Espaços
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="fisicos" className="space-y-4">
+        <TabsContent value="requisicoes" className="space-y-4">
+          <RequisicoesTab
+            dateStart={format(displayDays[0], 'yyyy-MM-dd')}
+            dateEnd={format(displayDays[displayDays.length - 1], 'yyyy-MM-dd')}
+            onSaveComplete={recarregarDados}
+          />
+        </TabsContent>
+
+        <TabsContent value="alocacoes">
+          {(() => {
+            const toMinutes = (time: string) => {
+              const [h, m] = time.split(':').map(Number);
+              return h * 60 + m;
+            };
+
+            const hexToRgba = (hex: string, alpha: number) => {
+              const r = parseInt(hex.slice(1, 3), 16);
+              const g = parseInt(hex.slice(3, 5), 16);
+              const b = parseInt(hex.slice(5, 7), 16);
+              return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+            };
+
+            // Build a map: espacoId → list of events on the selected day
+            const espacoEventos = new Map<
+              string,
+              {
+                gravacaoNome: string;
+                horaInicio: string | null;
+                horaFim: string | null;
+                programaCor: string | null;
+              }[]
+            >();
+            for (const d of alocacaoEspacosData) {
+              const list = espacoEventos.get(d.espacoId) ?? [];
+              list.push({
+                gravacaoNome: d.gravacaoNome,
+                horaInicio: d.horaInicio,
+                horaFim: d.horaFim,
+                programaCor: d.programaCor,
+              });
+              espacoEventos.set(d.espacoId, list);
+            }
+
+            // Columns = all registered spaces; filter applied on top
+            const colunasVisiveis =
+              alocacaoEspacosFiltro.length > 0
+                ? allEspacos.filter((e) => alocacaoEspacosFiltro.includes(e.id))
+                : allEspacos;
+
+            const totalEspacos = allEspacos.length;
+            const visiveisCount = colunasVisiveis.length;
+
+            const slots: string[] = [];
+            for (let h = 5; h <= 23; h++) {
+              for (let m = 0; m < 60; m += alocacaoIntervalo) {
+                if (h === 23 && m > 0) break;
+                slots.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
+              }
+            }
+
+            const dateLabel = format(parseISO(alocacaoDate), 'EEEE, dd/MM/yyyy', { locale: ptBR });
+
+            type SlotState =
+              | {
+                  type: 'event';
+                  gravacaoNome: string;
+                  horaInicio: string | null;
+                  horaFim: string | null;
+                  programaCor: string | null;
+                  span: number;
+                  noTime: boolean;
+                }
+              | { type: 'absorbed' }
+              | { type: 'empty' };
+
+            // Pre-compute slot states per column — supports multiple events per space
+            const slotGrid: SlotState[][] = colunasVisiveis.map((col) => {
+              const states: SlotState[] = slots.map(() => ({ type: 'empty' as const }));
+              const events = espacoEventos.get(col.id) ?? [];
+
+              for (const event of events) {
+                let startIdx: number, endIdx: number, noTime: boolean;
+                if (!event.horaInicio || !event.horaFim) {
+                  startIdx = 0;
+                  endIdx = slots.length;
+                  noTime = true;
+                } else {
+                  const startMin = toMinutes(event.horaInicio.substring(0, 5));
+                  const endMin = toMinutes(event.horaFim.substring(0, 5));
+                  const si = slots.findIndex((s) => toMinutes(s) >= startMin);
+                  if (si === -1) {
+                    startIdx = 0;
+                    endIdx = slots.length;
+                    noTime = true;
+                  } else {
+                    startIdx = si;
+                    const ei = slots.findIndex((s) => toMinutes(s) >= endMin);
+                    endIdx = ei === -1 ? slots.length : ei;
+                    noTime = false;
+                  }
+                }
+                const span = Math.max(1, endIdx - startIdx);
+                if (states[startIdx].type === 'empty') {
+                  states[startIdx] = {
+                    type: 'event',
+                    gravacaoNome: event.gravacaoNome,
+                    horaInicio: event.horaInicio,
+                    horaFim: event.horaFim,
+                    programaCor: event.programaCor,
+                    span,
+                    noTime,
+                  };
+                  for (let i = startIdx + 1; i < Math.min(startIdx + span, slots.length); i++) {
+                    if (states[i].type === 'empty') states[i] = { type: 'absorbed' };
+                  }
+                }
+              }
+              return states;
+            });
+
+            return (
+              <div className="space-y-0">
+                {/* Toolbar */}
+                <div className="flex flex-wrap items-center gap-3 px-3 py-3 border rounded-t-md bg-background">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <Select value={alocacaoDate} onValueChange={setAlocacaoDate}>
+                      <SelectTrigger className="h-8 w-56 capitalize">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {displayDays.map((day) => {
+                          const dateStr = format(day, 'yyyy-MM-dd');
+                          const label = format(day, 'EEEE, dd/MM/yyyy', { locale: ptBR });
+                          return (
+                            <SelectItem key={dateStr} value={dateStr} className="capitalize">
+                              {label}
+                            </SelectItem>
+                          );
+                        })}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">Intervalo:</span>
+                    <Select
+                      value={String(alocacaoIntervalo)}
+                      onValueChange={(v) => setAlocacaoIntervalo(Number(v) as 60 | 30 | 15)}
+                    >
+                      <SelectTrigger className="h-8 w-28">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="60">1 hora</SelectItem>
+                        <SelectItem value="30">30 min</SelectItem>
+                        <SelectItem value="15">15 min</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="relative" ref={espacosFiltroRef}>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 gap-2"
+                      onClick={() => setShowEspacosFiltroDropdown((v) => !v)}
+                    >
+                      <Filter className="h-3.5 w-3.5" />
+                      Espaços ({visiveisCount}/{totalEspacos})
+                    </Button>
+                    {showEspacosFiltroDropdown && (
+                      <div className="absolute top-full left-0 mt-1 z-50 bg-background border rounded-md shadow-lg min-w-56">
+                        <div className="flex items-center justify-between px-3 py-2 border-b">
+                          <span className="text-xs font-medium text-muted-foreground">
+                            Selecionar Espaços
+                          </span>
+                          <div className="flex gap-3">
+                            <button
+                              className="text-xs text-primary hover:underline"
+                              onClick={() => setAlocacaoEspacosFiltro([])}
+                            >
+                              Todos
+                            </button>
+                            <button
+                              className="text-xs text-primary hover:underline"
+                              onClick={() => setAlocacaoEspacosFiltro(allEspacos.map((e) => e.id))}
+                            >
+                              Nenhum
+                            </button>
+                          </div>
+                        </div>
+                        <div className="max-h-56 overflow-y-auto py-1">
+                          {allEspacos.length === 0 ? (
+                            <p className="px-3 py-2 text-xs text-muted-foreground">
+                              Nenhum espaço cadastrado.
+                            </p>
+                          ) : (
+                            allEspacos.map((e) => {
+                              const checked =
+                                alocacaoEspacosFiltro.length === 0 ||
+                                alocacaoEspacosFiltro.includes(e.id);
+                              const temEvento = espacoEventos.has(e.id);
+                              return (
+                                <label
+                                  key={e.id}
+                                  className="flex items-center gap-2 px-3 py-1.5 hover:bg-muted cursor-pointer"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    className="accent-primary"
+                                    checked={checked}
+                                    onChange={(ev) => {
+                                      if (ev.target.checked) {
+                                        if (alocacaoEspacosFiltro.length === 0) {
+                                          setAlocacaoEspacosFiltro(
+                                            allEspacos
+                                              .filter((u) => u.id !== e.id)
+                                              .map((u) => u.id),
+                                          );
+                                        } else {
+                                          setAlocacaoEspacosFiltro((prev) =>
+                                            prev.includes(e.id) ? prev : [...prev, e.id],
+                                          );
+                                        }
+                                      } else {
+                                        const next = alocacaoEspacosFiltro.filter(
+                                          (id) => id !== e.id,
+                                        );
+                                        setAlocacaoEspacosFiltro(
+                                          next.length === 0
+                                            ? allEspacos
+                                                .filter((u) => u.id !== e.id)
+                                                .map((u) => u.id)
+                                            : next,
+                                        );
+                                      }
+                                    }}
+                                  />
+                                  <span className="text-sm flex-1">{e.nome}</span>
+                                  {temEvento && (
+                                    <span className="text-[10px] text-primary font-medium bg-primary/10 px-1 rounded">
+                                      {espacoEventos.get(e.id)!.length}
+                                    </span>
+                                  )}
+                                </label>
+                              );
+                            })
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Grid */}
+                {alocacaoLoading ? (
+                  <div className="flex items-center justify-center py-16 border border-t-0 rounded-b-md">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto border border-t-0 rounded-b-md">
+                    <table className="w-full text-sm border-collapse">
+                      <thead>
+                        <tr className="bg-muted/30">
+                          <th className="sticky left-0 bg-muted/30 z-10 border-r border-b px-3 py-2 text-left text-xs font-medium text-muted-foreground w-20 min-w-20">
+                            Hora
+                          </th>
+                          {colunasVisiveis.length === 0 ? (
+                            <th className="border-b px-3 py-2 text-xs text-muted-foreground text-center">
+                              —
+                            </th>
+                          ) : (
+                            colunasVisiveis.map((col) => (
+                              <th
+                                key={col.id}
+                                className="border-l border-b px-3 py-2 text-center min-w-36"
+                              >
+                                <div className="text-sm font-semibold">{col.nome}</div>
+                              </th>
+                            ))
+                          )}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {slots.map((slot, si) => (
+                          <tr key={slot}>
+                            <td className="sticky left-0 bg-background z-10 border-r border-b px-3 py-0 text-xs text-muted-foreground font-mono h-10 align-middle">
+                              {slot}
+                            </td>
+                            {colunasVisiveis.length === 0 ? (
+                              <td className="border-b h-10" />
+                            ) : (
+                              colunasVisiveis.map((col, ci) => {
+                                const state = slotGrid[ci][si];
+                                if (state.type === 'absorbed') return null;
+
+                                if (state.type === 'event') {
+                                  // Each row is h-10 (2.5rem). py-1 adds 0.5rem total vertical padding.
+                                  // h-full doesn't work reliably in rowSpan cells, so we set minHeight explicitly.
+                                  const cardMinH = `${state.span * 2.5 - 0.5}rem`;
+                                  return (
+                                    <td
+                                      key={col.id}
+                                      rowSpan={state.span}
+                                      className="border-l border-b border-t-0 px-1.5 py-1 align-top"
+                                    >
+                                      {state.noTime ? (
+                                        <div
+                                          className="rounded-md bg-muted/50 border border-dashed border-muted-foreground/30 px-2 py-1.5 flex flex-col gap-0.5"
+                                          style={{ minHeight: cardMinH }}
+                                        >
+                                          <span className="text-xs font-semibold text-gray-800 dark:text-gray-200 leading-tight line-clamp-2">
+                                            {state.gravacaoNome}
+                                          </span>
+                                          <span className="text-[10px] text-gray-500 dark:text-gray-400 font-mono">
+                                            Dia todo · sem horário
+                                          </span>
+                                        </div>
+                                      ) : (
+                                        <div
+                                          className="rounded-md border px-2 py-1.5 flex flex-col gap-0.5"
+                                          style={{
+                                            minHeight: cardMinH,
+                                            backgroundColor: state.programaCor
+                                              ? hexToRgba(state.programaCor, 0.18)
+                                              : 'hsl(var(--primary) / 0.15)',
+                                            borderColor: state.programaCor
+                                              ? hexToRgba(state.programaCor, 0.45)
+                                              : 'hsl(var(--primary) / 0.4)',
+                                          }}
+                                        >
+                                          <span className="text-xs font-semibold text-gray-900 dark:text-gray-100 leading-tight line-clamp-2">
+                                            {state.gravacaoNome}
+                                          </span>
+                                          <span className="text-[10px] text-gray-600 dark:text-gray-300 font-mono whitespace-nowrap">
+                                            {state.horaInicio?.substring(0, 5)} –{' '}
+                                            {state.horaFim?.substring(0, 5)}
+                                          </span>
+                                        </div>
+                                      )}
+                                    </td>
+                                  );
+                                }
+
+                                return <td key={col.id} className="border-l border-b h-10" />;
+                              })
+                            )}
+                          </tr>
+                        ))}
+                        {colunasVisiveis.length === 0 && (
+                          <tr>
+                            <td
+                              colSpan={2}
+                              className="text-center py-12 text-muted-foreground text-sm"
+                            >
+                              Nenhum espaço cadastrado.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+        </TabsContent>
+
+        <TabsContent value="equipamentos" className="space-y-4">
           {showFilters && (
             <Card>
               <CardHeader className="py-3">
-                <CardTitle className="text-sm">Filtros - Recursos Físicos</CardTitle>
+                <CardTitle className="text-sm">Filtros - Equipamentos</CardTitle>
               </CardHeader>
               <CardContent className="pb-3">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -2579,11 +3047,21 @@ const Mapas = () => {
             </CardContent>
           </Card>
         </TabsContent>
-        <TabsContent value="requisicoes" className="space-y-4">
-          <RequisicoesTab
-            dateStart={format(displayDays[0], 'yyyy-MM-dd')}
-            dateEnd={format(displayDays[displayDays.length - 1], 'yyyy-MM-dd')}
-          />
+        <TabsContent value="espacos" className="space-y-4">
+          <Card>
+            <CardHeader className="py-3">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Building2 className="h-4 w-4" />
+                Ocupação de Espaços
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center py-12 text-muted-foreground text-sm">
+                Selecione a aba <strong>Alocações</strong> para visualizar a ocupação dos espaços
+                por horário.
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>

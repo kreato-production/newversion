@@ -92,7 +92,9 @@ export const CategoriaDespesaFormModal = ({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="w-[900px] max-w-[900px] max-h-[80vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{data ? 'Editar Categoria de Despesa' : 'Nova Categoria de Despesa'}</DialogTitle>
+          <DialogTitle>
+            {data ? 'Editar Categoria de Despesa' : 'Nova Categoria de Despesa'}
+          </DialogTitle>
           <DialogDescription>
             Preencha os campos abaixo para {data ? 'editar' : 'cadastrar'} a categoria de despesa.
           </DialogDescription>
@@ -166,7 +168,7 @@ export const CategoriaDespesaFormModal = ({
                     setFormData((current) => ({ ...current, cor: event.target.value }))
                   }
                   placeholder="#000000"
-                  className="w-28 font-mono text-sm"
+                  className="w-28 font-mono text-xs"
                   disabled={readOnly}
                 />
                 <Badge style={{ backgroundColor: formData.cor }} className="text-white ml-auto">

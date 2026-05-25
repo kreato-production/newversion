@@ -21,6 +21,16 @@ import { useToast } from '@/hooks/use-toast';
 import { SortableTable, type Column } from '@/components/shared/SortableTable';
 import { ApiTenantsRepository } from '@/modules/tenants/tenants.api.repository';
 import { TenantFormModal } from '@/components/admin/TenantFormModal';
+import {
+  ListFilterPanel,
+  FilterSection,
+  MultiChip,
+  SortChip,
+  SORT_OPTIONS_NOME_DATA,
+  uniqueChips,
+  chipsSubtitle,
+  sortSubtitle,
+} from '@/components/shared/ListFilter';
 import { format } from 'date-fns';
 import {
   useListingView,
@@ -195,6 +205,9 @@ const Tenants = () => {
   const [selectedItem, setSelectedItem] = useState<Tenant | null>(null);
   const [items, setItems] = useState<Tenant[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [filterSortBy, setFilterSortBy] = useState('');
+  const [filterStatus, setFilterStatus] = useState<string[]>([]);
+  const [filterPlano, setFilterPlano] = useState<string[]>([]);
 
   const { mode, setMode, visibleColumnKeys, toggleColumn, resetColumns, optionalColumns } =
     useListingView({ storageKey: STORAGE_KEY, columns: COLUMN_CONFIG });
@@ -252,9 +265,23 @@ const Tenants = () => {
     }
   };
 
-  const filteredItems = items.filter((item) =>
-    item.nome.toLowerCase().includes(search.toLowerCase()),
-  );
+  const statusOptions = uniqueChips(items, 'status');
+  const planoOptions = uniqueChips(items, 'plano');
+
+  const filteredItems = (() => {
+    let result = items.filter((item) => item.nome.toLowerCase().includes(search.toLowerCase()));
+    if (filterStatus.length) result = result.filter((i) => filterStatus.includes(i.status));
+    if (filterPlano.length) result = result.filter((i) => filterPlano.includes(i.plano));
+    if (filterSortBy === 'nome-asc')
+      return [...result].sort((a, b) => a.nome.localeCompare(b.nome));
+    if (filterSortBy === 'nome-desc')
+      return [...result].sort((a, b) => b.nome.localeCompare(a.nome));
+    if (filterSortBy === 'data-asc')
+      return [...result].sort((a, b) => (a.createdAt ?? '').localeCompare(b.createdAt ?? ''));
+    if (filterSortBy === 'data-desc')
+      return [...result].sort((a, b) => (b.createdAt ?? '').localeCompare(a.createdAt ?? ''));
+    return result;
+  })();
 
   const columns: Column<Tenant>[] = [
     {
@@ -332,6 +359,44 @@ const Tenants = () => {
         />
         <div className="flex-1" />
         <SearchBar value={search} onChange={setSearch} />
+        <ListFilterPanel
+          activeCount={
+            (filterSortBy ? 1 : 0) + (filterStatus.length ? 1 : 0) + (filterPlano.length ? 1 : 0)
+          }
+          resultCount={filteredItems.length}
+          onClear={() => {
+            setFilterSortBy('');
+            setFilterStatus([]);
+            setFilterPlano([]);
+          }}
+          entityLabel="tenants"
+        >
+          <FilterSection
+            title="Ordenar por"
+            subtitle={sortSubtitle(filterSortBy, SORT_OPTIONS_NOME_DATA)}
+            defaultOpen
+          >
+            <SortChip
+              value={filterSortBy}
+              onChange={setFilterSortBy}
+              options={[...SORT_OPTIONS_NOME_DATA]}
+            />
+          </FilterSection>
+          {statusOptions.length > 0 && (
+            <FilterSection title="Status" subtitle={chipsSubtitle(filterStatus)}>
+              <MultiChip
+                options={statusOptions}
+                selected={filterStatus}
+                onChange={setFilterStatus}
+              />
+            </FilterSection>
+          )}
+          {planoOptions.length > 0 && (
+            <FilterSection title="Plano" subtitle={chipsSubtitle(filterPlano)}>
+              <MultiChip options={planoOptions} selected={filterPlano} onChange={setFilterPlano} />
+            </FilterSection>
+          )}
+        </ListFilterPanel>
         {mode === 'list' && (
           <ColumnSelector
             columns={optionalColumns}

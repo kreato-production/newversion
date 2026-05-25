@@ -14,6 +14,16 @@ import { usePermissions } from '@/hooks/usePermissions';
 import { useAuth } from '@/contexts/AuthContext';
 import { ProgramaFormModal } from '@/components/producao/ProgramaFormModal';
 import { programasRepository } from '@/modules/programas/programas.repository.provider';
+import {
+  ListFilterPanel,
+  FilterSection,
+  MultiChip,
+  SortChip,
+  SORT_OPTIONS_NOME_DATA,
+  uniqueChips,
+  chipsSubtitle,
+  sortSubtitle,
+} from '@/components/shared/ListFilter';
 import type { Programa, ProgramaInput } from '@/modules/programas/programas.types';
 import {
   AlertDialog,
@@ -37,12 +47,12 @@ import {
 // ─── Column configuration ─────────────────────────────────────────────────────
 
 const COLUMN_CONFIG: ColumnConfig[] = [
-  { key: 'codigoExterno',   label: 'Código',            required: true },
-  { key: 'nome',            label: 'Nome',              required: true },
-  { key: 'unidadeNegocio',  label: 'Unidade de Negócio', defaultVisible: true },
-  { key: 'descricao',       label: 'Descrição',         defaultVisible: true },
-  { key: 'dataCadastro',    label: 'Data Cadastro',     defaultVisible: true },
-  { key: 'acoes',           label: 'Ações',             required: true },
+  { key: 'codigoExterno', label: 'Código', required: true },
+  { key: 'nome', label: 'Nome', required: true },
+  { key: 'unidadeNegocio', label: 'Unidade de Negócio', defaultVisible: true },
+  { key: 'descricao', label: 'Descrição', defaultVisible: true },
+  { key: 'dataCadastro', label: 'Data Cadastro', defaultVisible: true },
+  { key: 'acoes', label: 'Ações', required: true },
 ];
 
 const STORAGE_KEY = 'kreato_programas_table';
@@ -78,9 +88,7 @@ function ProgramaCard({
             <span className="truncate">{item.unidadeNegocio}</span>
           </div>
         )}
-        {item.descricao && (
-          <p className="line-clamp-2 text-muted-foreground">{item.descricao}</p>
-        )}
+        {item.descricao && <p className="line-clamp-2 text-muted-foreground">{item.descricao}</p>}
       </CardContent>
 
       <CardFooter className="px-4 py-2 border-t flex justify-end gap-1">
@@ -195,6 +203,8 @@ const Programas = () => {
   const [selectedItem, setSelectedItem] = useState<Programa | null>(null);
   const [items, setItems] = useState<Programa[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [filterSortBy, setFilterSortBy] = useState('');
+  const [filterUnidade, setFilterUnidade] = useState<string[]>([]);
 
   const { mode, setMode, visibleColumnKeys, toggleColumn, resetColumns, optionalColumns } =
     useListingView({ storageKey: STORAGE_KEY, columns: COLUMN_CONFIG });
@@ -268,11 +278,28 @@ const Programas = () => {
     }
   };
 
-  const filteredItems = items.filter(
-    (item) =>
-      item.nome.toLowerCase().includes(search.toLowerCase()) ||
-      item.codigoExterno.toLowerCase().includes(search.toLowerCase()),
-  );
+  const unidadeOptions = uniqueChips(items, 'unidadeNegocio');
+
+  const filteredItems = (() => {
+    let result = items.filter(
+      (item) =>
+        item.nome.toLowerCase().includes(search.toLowerCase()) ||
+        item.codigoExterno.toLowerCase().includes(search.toLowerCase()),
+    );
+    if (filterUnidade.length)
+      result = result.filter(
+        (i) => i.unidadeNegocio && filterUnidade.includes(String(i.unidadeNegocio)),
+      );
+    if (filterSortBy === 'nome-asc')
+      return [...result].sort((a, b) => a.nome.localeCompare(b.nome));
+    if (filterSortBy === 'nome-desc')
+      return [...result].sort((a, b) => b.nome.localeCompare(a.nome));
+    if (filterSortBy === 'data-asc')
+      return [...result].sort((a, b) => (a.dataCadastro ?? '').localeCompare(b.dataCadastro ?? ''));
+    if (filterSortBy === 'data-desc')
+      return [...result].sort((a, b) => (b.dataCadastro ?? '').localeCompare(a.dataCadastro ?? ''));
+    return result;
+  })();
 
   const columns: Column<Programa>[] = [
     {
@@ -359,6 +386,36 @@ const Programas = () => {
         )}
         <div className="flex-1" />
         <SearchBar value={search} onChange={setSearch} placeholder={t('common.search')} />
+        <ListFilterPanel
+          activeCount={(filterSortBy ? 1 : 0) + (filterUnidade.length ? 1 : 0)}
+          resultCount={filteredItems.length}
+          onClear={() => {
+            setFilterSortBy('');
+            setFilterUnidade([]);
+          }}
+          entityLabel="programas"
+        >
+          <FilterSection
+            title="Ordenar por"
+            subtitle={sortSubtitle(filterSortBy, SORT_OPTIONS_NOME_DATA)}
+            defaultOpen
+          >
+            <SortChip
+              value={filterSortBy}
+              onChange={setFilterSortBy}
+              options={[...SORT_OPTIONS_NOME_DATA]}
+            />
+          </FilterSection>
+          {unidadeOptions.length > 0 && (
+            <FilterSection title="Unidade de Negócio" subtitle={chipsSubtitle(filterUnidade)}>
+              <MultiChip
+                options={unidadeOptions}
+                selected={filterUnidade}
+                onChange={setFilterUnidade}
+              />
+            </FilterSection>
+          )}
+        </ListFilterPanel>
         {mode === 'list' && (
           <ColumnSelector
             columns={optionalColumns}
@@ -426,9 +483,7 @@ const Programas = () => {
                 <p className={`text-sm font-medium truncate ${isSelected ? 'text-primary' : ''}`}>
                   {item.nome}
                 </p>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {item.codigoExterno || '-'}
-                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">{item.codigoExterno || '-'}</p>
               </div>
             )}
             renderDetail={(item) => (

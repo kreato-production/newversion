@@ -373,7 +373,10 @@ export class PrismaFigurinosRepository implements FigurinosRepository {
           CREATE INDEX IF NOT EXISTS figurinos_tenant_codigo_idx
           ON figurinos (tenant_id, codigo_figurino)
         `);
-      })();
+      })().catch((err) => {
+        this.ready = null;
+        throw err;
+      });
     }
 
     await this.ready;

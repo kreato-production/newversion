@@ -489,21 +489,118 @@ export class PrismaAlocacoesRepository implements AlocacoesRepository {
   private async ensureTables(): Promise<void> {
     if (!this.ready) {
       this.ready = (async () => {
+        // Create tables that are LEFT-JOINed in queries but owned by other modules,
+        // so those JOINs don't fail on a fresh database before those modules run.
+        // All use IF NOT EXISTS — no conflict when the owning module also creates them.
+        await prisma.$executeRawUnsafe(`
+          CREATE TABLE IF NOT EXISTS funcoes (
+            id text PRIMARY KEY,
+            tenant_id text NULL,
+            codigo_externo text NULL,
+            nome text NOT NULL DEFAULT '',
+            descricao text NULL,
+            cor text NULL,
+            created_at timestamptz NULL DEFAULT NOW(),
+            created_by text NULL
+          )
+        `);
+
+        await prisma.$executeRawUnsafe(`
+          CREATE TABLE IF NOT EXISTS rf_estoque_itens (
+            id text PRIMARY KEY,
+            tenant_id text NOT NULL,
+            recurso_fisico_id text NOT NULL,
+            numerador integer NOT NULL DEFAULT 1,
+            codigo text NULL,
+            nome text NOT NULL DEFAULT '',
+            descricao text NULL,
+            imagem_url text NULL,
+            created_at timestamptz NULL DEFAULT NOW(),
+            updated_at timestamptz NULL DEFAULT NOW(),
+            created_by text NULL
+          )
+        `);
+
+        // Full schemas for tables LEFT-JOINed in queries but owned by other modules.
+        // Uses the same schema as the owning module so subsequent INSERTs succeed
+        // regardless of which module's ensureTables() runs first.
+        // These are pre-created stubs for LEFT-JOIN targets. No FKs here so table
+        // creation always succeeds regardless of module initialization order or DB state.
+        // The owning modules enforce proper FK constraints when they run ensureTables().
+        await prisma.$executeRawUnsafe(`
+          CREATE TABLE IF NOT EXISTS recursos_tecnicos (
+            id text PRIMARY KEY,
+            tenant_id text NULL,
+            codigo_externo text NULL,
+            nome text NOT NULL DEFAULT '',
+            funcao_operador_id text NULL,
+            created_at timestamptz NULL DEFAULT NOW(),
+            updated_at timestamptz NULL DEFAULT NOW(),
+            created_by text NULL
+          )
+        `);
+
+        await prisma.$executeRawUnsafe(`
+          CREATE TABLE IF NOT EXISTS recursos_fisicos (
+            id text PRIMARY KEY,
+            tenant_id text NULL,
+            codigo_externo text NULL,
+            nome text NOT NULL DEFAULT '',
+            custo_hora numeric(12, 2) NOT NULL DEFAULT 0,
+            created_at timestamptz NULL DEFAULT NOW(),
+            updated_at timestamptz NULL DEFAULT NOW(),
+            created_by text NULL
+          )
+        `);
+
+        await prisma.$executeRawUnsafe(`
+          CREATE TABLE IF NOT EXISTS recursos_humanos (
+            id text PRIMARY KEY,
+            tenant_id text NULL,
+            codigo_externo text NULL,
+            nome text NOT NULL DEFAULT '',
+            sobrenome text NOT NULL DEFAULT '',
+            foto_url text NULL,
+            data_nascimento date NULL,
+            sexo text NULL,
+            telefone text NULL,
+            email text NULL,
+            departamento_id text NULL,
+            funcao_id text NULL,
+            custo_hora numeric(12, 2) NOT NULL DEFAULT 0,
+            data_contratacao date NULL,
+            status text NOT NULL DEFAULT 'Ativo',
+            created_at timestamptz NULL DEFAULT NOW(),
+            updated_at timestamptz NULL DEFAULT NOW(),
+            created_by text NULL
+          )
+        `);
+
+        // No FKs so creation succeeds regardless of whether Prisma tables exist yet.
         await prisma.$executeRawUnsafe(`
           CREATE TABLE IF NOT EXISTS gravacao_recursos (
             id text PRIMARY KEY,
-            tenant_id text NOT NULL REFERENCES "Tenant"(id) ON DELETE CASCADE,
-            gravacao_id text NOT NULL REFERENCES "Gravacao"(id) ON DELETE CASCADE,
-            recurso_tecnico_id text NULL REFERENCES recursos_tecnicos(id) ON DELETE CASCADE,
-            recurso_fisico_id text NULL REFERENCES recursos_fisicos(id) ON DELETE CASCADE,
-            recurso_humano_id text NULL REFERENCES recursos_humanos(id) ON DELETE CASCADE,
-            estoque_item_id text NULL REFERENCES rf_estoque_itens(id) ON DELETE SET NULL,
-            parent_recurso_id text NULL REFERENCES gravacao_recursos(id) ON DELETE CASCADE,
+            tenant_id text NULL,
+            gravacao_id text NULL,
+            recurso_tecnico_id text NULL,
+            recurso_fisico_id text NULL,
+            recurso_humano_id text NULL,
+            estoque_item_id text NULL,
+            parent_recurso_id text NULL,
             hora_inicio text NULL,
             hora_fim text NULL,
             created_at timestamptz NULL DEFAULT NOW()
           )
         `);
+
+        // Backfill all columns that may be missing from older versions of these tables.
+        // Each ALTER is idempotent (IF NOT EXISTS) so safe to run on every startup.
+        await prisma.$executeRawUnsafe(`ALTER TABLE gravacao_recursos ADD COLUMN IF NOT EXISTS estoque_item_id text NULL`);
+        await prisma.$executeRawUnsafe(`ALTER TABLE gravacao_recursos ADD COLUMN IF NOT EXISTS parent_recurso_id text NULL`);
+        await prisma.$executeRawUnsafe(`ALTER TABLE gravacao_recursos ADD COLUMN IF NOT EXISTS hora_inicio text NULL`);
+        await prisma.$executeRawUnsafe(`ALTER TABLE gravacao_recursos ADD COLUMN IF NOT EXISTS hora_fim text NULL`);
+        await prisma.$executeRawUnsafe(`ALTER TABLE gravacao_recursos ADD COLUMN IF NOT EXISTS created_at timestamptz NULL DEFAULT NOW()`);
+        await prisma.$executeRawUnsafe(`ALTER TABLE recursos_tecnicos ADD COLUMN IF NOT EXISTS funcao_operador_id text NULL`);
 
         await prisma.$executeRawUnsafe(`
           CREATE INDEX IF NOT EXISTS gravacao_recursos_gravacao_idx
@@ -514,7 +611,10 @@ export class PrismaAlocacoesRepository implements AlocacoesRepository {
           CREATE INDEX IF NOT EXISTS gravacao_recursos_parent_idx
           ON gravacao_recursos (parent_recurso_id)
         `);
-      })();
+      })().catch((err) => {
+        this.ready = null; // reset so next request can retry
+        throw err;
+      });
     }
 
     await this.ready;

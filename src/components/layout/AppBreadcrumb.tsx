@@ -52,7 +52,7 @@ const SUB_LABELS: Record<string, string> = {
   // Recursos — principais
   humanos: 'Rec. Humanos',
   tecnicos: 'Rec. Técnicos',
-  fisicos: 'Rec. Físicos',
+  fisicos: 'Equipamentos',
   fornecedores: 'Fornecedores',
   pessoas: 'Pessoas',
   figurinos: 'Figurinos',

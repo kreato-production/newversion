@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   AlertDialog,
@@ -35,16 +35,26 @@ import {
   MasterDetail,
   type ColumnConfig,
 } from '@/components/listing';
+import {
+  ListFilterPanel,
+  FilterSection,
+  MultiChip,
+  SortChip,
+  SORT_OPTIONS_NOME_DATA,
+  uniqueChips,
+  chipsSubtitle,
+  sortSubtitle,
+} from '@/components/shared/ListFilter';
 
 const STORAGE_KEY = 'kreato_recursos_tecnicos_table';
 
 const COLUMN_CONFIG: ColumnConfig[] = [
-  { key: 'codigoExterno',   label: 'Código',           defaultVisible: true },
-  { key: 'nome',            label: 'Nome',             required: true },
-  { key: 'funcaoOperador',  label: 'Função Operador',  defaultVisible: true },
-  { key: 'dataCadastro',    label: 'Data Cadastro',    defaultVisible: false },
-  { key: 'usuarioCadastro', label: 'Usuário',          defaultVisible: false },
-  { key: 'acoes',           label: 'Ações',            required: true },
+  { key: 'codigoExterno', label: 'Código', defaultVisible: true },
+  { key: 'nome', label: 'Nome', required: true },
+  { key: 'funcaoOperador', label: 'Função Operador', defaultVisible: true },
+  { key: 'dataCadastro', label: 'Data Cadastro', defaultVisible: false },
+  { key: 'usuarioCadastro', label: 'Usuário', defaultVisible: false },
+  { key: 'acoes', label: 'Ações', required: true },
 ];
 
 // ─── Card renderer ────────────────────────────────────────────────────────────
@@ -184,6 +194,8 @@ const RecursosTecnicos = () => {
   const [selectedItem, setSelectedItem] = useState<RecursoTecnico | null>(null);
   const [items, setItems] = useState<RecursoTecnico[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [filterSortBy, setFilterSortBy] = useState('');
+  const [filterFuncaoOperador, setFilterFuncaoOperador] = useState<string[]>([]);
 
   const { mode, setMode, visibleColumnKeys, toggleColumn, resetColumns, optionalColumns } =
     useListingView({ storageKey: STORAGE_KEY, columns: COLUMN_CONFIG });
@@ -255,11 +267,28 @@ const RecursosTecnicos = () => {
     }
   };
 
-  const filteredItems = items.filter(
-    (item) =>
-      item.nome.toLowerCase().includes(search.toLowerCase()) ||
-      item.codigoExterno.toLowerCase().includes(search.toLowerCase()),
-  );
+  const funcaoOperadorOptions = useMemo(() => uniqueChips(items, 'funcaoOperador'), [items]);
+
+  const filteredItems = (() => {
+    let result = items.filter(
+      (item) =>
+        item.nome.toLowerCase().includes(search.toLowerCase()) ||
+        item.codigoExterno.toLowerCase().includes(search.toLowerCase()),
+    );
+    if (filterFuncaoOperador.length)
+      result = result.filter(
+        (i) => i.funcaoOperador && filterFuncaoOperador.includes(i.funcaoOperador),
+      );
+    if (filterSortBy === 'nome-asc')
+      return [...result].sort((a, b) => a.nome.localeCompare(b.nome));
+    if (filterSortBy === 'nome-desc')
+      return [...result].sort((a, b) => b.nome.localeCompare(a.nome));
+    if (filterSortBy === 'data-asc')
+      return [...result].sort((a, b) => (a.dataCadastro ?? '').localeCompare(b.dataCadastro ?? ''));
+    if (filterSortBy === 'data-desc')
+      return [...result].sort((a, b) => (b.dataCadastro ?? '').localeCompare(a.dataCadastro ?? ''));
+    return result;
+  })();
 
   const columns: Column<RecursoTecnico>[] = [
     {
@@ -344,6 +373,39 @@ const RecursosTecnicos = () => {
         )}
         <div className="flex-1" />
         <SearchBar value={search} onChange={setSearch} />
+        <ListFilterPanel
+          activeCount={(filterSortBy ? 1 : 0) + (filterFuncaoOperador.length ? 1 : 0)}
+          resultCount={filteredItems.length}
+          onClear={() => {
+            setFilterSortBy('');
+            setFilterFuncaoOperador([]);
+          }}
+          entityLabel="recursos"
+        >
+          <FilterSection
+            title="Ordenar por"
+            subtitle={sortSubtitle(filterSortBy, SORT_OPTIONS_NOME_DATA)}
+            defaultOpen
+          >
+            <SortChip
+              value={filterSortBy}
+              onChange={setFilterSortBy}
+              options={[...SORT_OPTIONS_NOME_DATA]}
+            />
+          </FilterSection>
+          {funcaoOperadorOptions.length > 0 && (
+            <FilterSection
+              title="Função do Operador"
+              subtitle={chipsSubtitle(filterFuncaoOperador)}
+            >
+              <MultiChip
+                options={funcaoOperadorOptions}
+                selected={filterFuncaoOperador}
+                onChange={setFilterFuncaoOperador}
+              />
+            </FilterSection>
+          )}
+        </ListFilterPanel>
         {mode === 'list' && (
           <ColumnSelector
             columns={optionalColumns}

@@ -477,16 +477,19 @@ export class PrismaTarefasRepository implements TarefasRepository {
   private async ensureTables() {
     if (!this.ready) {
       this.ready = (async () => {
+        // recurso_humano_id, recurso_tecnico_id and status_id have no FKs to their
+        // respective tables to avoid initialization-order failures when this repository
+        // runs before those modules. Integrity is enforced at the application level.
         await prisma.$executeRawUnsafe(`
           CREATE TABLE IF NOT EXISTS tarefas (
             id text PRIMARY KEY,
             tenant_id text NOT NULL REFERENCES "Tenant"(id) ON DELETE CASCADE,
             gravacao_id text NULL REFERENCES "Gravacao"(id) ON DELETE SET NULL,
-            recurso_humano_id text NULL REFERENCES recursos_humanos(id) ON DELETE SET NULL,
-            recurso_tecnico_id text NULL REFERENCES recursos_tecnicos(id) ON DELETE SET NULL,
+            recurso_humano_id text NULL,
+            recurso_tecnico_id text NULL,
             titulo text NOT NULL,
             descricao text NULL,
-            status_id text NULL REFERENCES status_tarefa(id) ON DELETE SET NULL,
+            status_id text NULL,
             prioridade text NOT NULL DEFAULT 'media',
             data_inicio date NULL,
             data_fim date NULL,
@@ -507,7 +510,10 @@ export class PrismaTarefasRepository implements TarefasRepository {
           CREATE INDEX IF NOT EXISTS tarefas_tenant_responsavel_idx
           ON tarefas (tenant_id, recurso_humano_id)
         `);
-      })();
+      })().catch((err) => {
+        this.ready = null;
+        throw err;
+      });
     }
 
     await this.ready;

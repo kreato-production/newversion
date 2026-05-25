@@ -214,7 +214,7 @@ export const GravacaoDespesasTab = ({ gravacaoId, gravacaoNome }: GravacaoDespes
     <div className="space-y-4">
       {/* Cabeçalho */}
       <div className="flex items-center justify-between">
-        <div className="text-sm text-muted-foreground">
+        <div className="text-xs text-muted-foreground">
           {items.length} despesa(s) — Total:{' '}
           <span className="font-semibold text-foreground">{formatCurrency(totalValor, moeda)}</span>
         </div>
@@ -230,7 +230,7 @@ export const GravacaoDespesasTab = ({ gravacaoId, gravacaoNome }: GravacaoDespes
       {showForm && (
         <div className="border rounded-lg p-4 space-y-4 bg-muted/30">
           <div className="flex items-center justify-between">
-            <p className="text-sm font-semibold">{editingId ? 'Editar Despesa' : 'Nova Despesa'}</p>
+            <p className="text-xs font-semibold">{editingId ? 'Editar Despesa' : 'Nova Despesa'}</p>
             <Button
               size="icon"
               variant="ghost"
@@ -320,7 +320,7 @@ export const GravacaoDespesasTab = ({ gravacaoId, gravacaoNome }: GravacaoDespes
             <div className="space-y-2">
               <Label>Valor ({moeda})</Label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
                   {moeda === 'BRL' ? 'R$' : moeda}
                 </span>
                 <Input
@@ -385,7 +385,7 @@ export const GravacaoDespesasTab = ({ gravacaoId, gravacaoNome }: GravacaoDespes
       ) : items.length === 0 && !showForm ? (
         <div className="flex flex-col items-center justify-center py-10 text-center text-muted-foreground">
           <Receipt className="h-10 w-10 mb-3 opacity-40" />
-          <p className="text-sm font-medium">Nenhuma despesa registrada</p>
+          <p className="text-xs font-medium">Nenhuma despesa registrada</p>
           <p className="text-xs mt-1">Clique em "Nova Despesa" para adicionar.</p>
         </div>
       ) : items.length > 0 ? (

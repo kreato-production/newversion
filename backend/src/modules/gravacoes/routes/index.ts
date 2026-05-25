@@ -40,6 +40,14 @@ export function createGravacoesRoutes(authService: AuthService, gravacoesService
       return reply.status(200).send(await gravacoesService.save(user, body));
     });
 
+    app.get('/gravacoes/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      const params = request.params as { id: string };
+      const item = await gravacoesService.getById(user, params.id);
+      if (!item) return reply.status(404).send({ error: 'Não encontrado' });
+      return reply.status(200).send(item);
+    });
+
     app.put('/gravacoes/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const params = request.params as { id: string };

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-export type ViewMode = 'list' | 'cards' | 'detail' | 'kanban';
+export type ViewMode = 'list' | 'cards' | 'detail' | 'kanban' | 'calendar';
 
 export interface ColumnConfig {
   key: string;
@@ -45,7 +45,13 @@ export function useListingView({
   const [mode, setModeState] = useState<ViewMode>(() => {
     try {
       const stored = localStorage.getItem(modeKey);
-      if (stored === 'list' || stored === 'cards' || stored === 'detail' || stored === 'kanban')
+      if (
+        stored === 'list' ||
+        stored === 'cards' ||
+        stored === 'detail' ||
+        stored === 'kanban' ||
+        stored === 'calendar'
+      )
         return stored;
     } catch (_e) {
       /* localStorage unavailable */

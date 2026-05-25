@@ -233,7 +233,7 @@ export const TerceirosTab = ({ gravacaoId }: TerceirosTabProps) => {
             <Building2 className="w-8 h-8 text-muted-foreground" />
           </div>
           <h3 className="text-lg font-semibold text-foreground mb-1">Nenhum terceiro adicionado</h3>
-          <p className="text-sm text-muted-foreground max-w-sm">
+          <p className="text-xs text-muted-foreground max-w-sm">
             Adicione fornecedores e servicos terceirizados para esta gravacao.
           </p>
         </div>
@@ -299,8 +299,8 @@ export const TerceirosTab = ({ gravacaoId }: TerceirosTabProps) => {
                   <DollarSign className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Custo Total com Terceiros</p>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-xs text-muted-foreground">Custo Total com Terceiros</p>
+                  <p className="text-xs text-muted-foreground">
                     {terceiros.length} servico(s) contratado(s)
                   </p>
                 </div>

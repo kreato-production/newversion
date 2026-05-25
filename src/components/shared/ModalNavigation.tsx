@@ -1,5 +1,4 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 
 export interface ModalNavigationProps {
   /** 0-based index of the current record in the list */
@@ -9,11 +8,6 @@ export interface ModalNavigationProps {
   onNext: () => void;
 }
 
-/**
- * Renders ← N / T → navigation controls for modal footers.
- * Returns null when total ≤ 1 (no navigation needed).
- * Place on the left side of the DialogFooter.
- */
 export const ModalNavigation = ({
   currentIndex,
   total,
@@ -22,33 +16,34 @@ export const ModalNavigation = ({
 }: ModalNavigationProps) => {
   if (total <= 1) return null;
 
+  const atFirst = currentIndex <= 0;
+  const atLast = currentIndex >= total - 1;
+
   return (
-    <div className="flex items-center gap-1">
-      <Button
+    <div className="inline-flex items-center rounded-md border border-input divide-x divide-input overflow-hidden">
+      <button
         type="button"
-        variant="outline"
-        size="icon"
-        className="h-8 w-8"
         onClick={onPrevious}
-        disabled={currentIndex <= 0}
+        disabled={atFirst}
         title="Registro anterior"
+        className="flex items-center justify-center h-8 w-8 text-muted-foreground hover:bg-muted transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
       >
         <ChevronLeft className="h-4 w-4" />
-      </Button>
-      <span className="text-sm text-muted-foreground tabular-nums min-w-[3.5rem] text-center select-none">
+      </button>
+
+      <span className="px-3 h-8 flex items-center text-sm tabular-nums select-none text-foreground">
         {currentIndex + 1} / {total}
       </span>
-      <Button
+
+      <button
         type="button"
-        variant="outline"
-        size="icon"
-        className="h-8 w-8"
         onClick={onNext}
-        disabled={currentIndex >= total - 1}
+        disabled={atLast}
         title="Próximo registro"
+        className="flex items-center justify-center h-8 w-8 text-muted-foreground hover:bg-muted transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
       >
         <ChevronRight className="h-4 w-4" />
-      </Button>
+      </button>
     </div>
   );
 };

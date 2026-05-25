@@ -417,7 +417,10 @@ export class PrismaEscalasRepository implements EscalasRepository {
           CREATE UNIQUE INDEX IF NOT EXISTS escalas_tenant_titulo_key
           ON escalas (tenant_id, LOWER(titulo))
         `);
-      })();
+      })().catch((err) => {
+        this.ready = null;
+        throw err;
+      });
     }
 
     await this.ready;

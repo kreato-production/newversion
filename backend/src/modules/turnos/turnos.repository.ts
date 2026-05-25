@@ -410,7 +410,10 @@ export class PrismaTurnosRepository implements TurnosRepository {
           ALTER COLUMN hora_fim TYPE time
           USING hora_fim::time
         `);
-      })();
+      })().catch((err) => {
+        this.ready = null;
+        throw err;
+      });
     }
 
     await this.ready;

@@ -54,6 +54,12 @@ import {
   type TarefaRecursoHumano,
   type TarefaStatus,
 } from '@/modules/tarefas/tarefas.api';
+import {
+  ListFilterPanel,
+  FilterSection,
+  MultiChip,
+  chipsSubtitle,
+} from '@/components/shared/ListFilter';
 
 const tarefasRepository = new ApiTarefasRepository();
 
@@ -70,8 +76,8 @@ const Tarefas = () => {
   const [gravacoes, setGravacoes] = useState<TarefaGravacao[]>([]);
   const [recursosHumanos, setRecursosHumanos] = useState<TarefaRecursoHumano[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState<string>('all');
-  const [filterGravacao, setFilterGravacao] = useState<string>('all');
+  const [filterStatus, setFilterStatus] = useState<string[]>([]);
+  const [filterGravacao, setFilterGravacao] = useState<string[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTarefa, setEditingTarefa] = useState<Tarefa | null>(null);
   const [selectedTarefa, setSelectedTarefa] = useState<Tarefa | null>(null);
@@ -171,8 +177,12 @@ const Tarefas = () => {
       tarefa.descricao?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       tarefa.recursoHumanoNome?.toLowerCase().includes(searchTerm.toLowerCase());
 
-    const matchesStatus = filterStatus === 'all' || tarefa.statusId === filterStatus;
-    const matchesGravacao = filterGravacao === 'all' || tarefa.gravacaoId === filterGravacao;
+    const matchesStatus =
+      filterStatus.length === 0 ||
+      (tarefa.statusId != null && filterStatus.includes(tarefa.statusId));
+    const matchesGravacao =
+      filterGravacao.length === 0 ||
+      (tarefa.gravacaoId != null && filterGravacao.includes(tarefa.gravacaoId));
 
     return matchesSearch && matchesStatus && matchesGravacao;
   });
@@ -317,32 +327,45 @@ const Tarefas = () => {
               className="pl-10"
             />
           </div>
-          <Select value={filterStatus} onValueChange={setFilterStatus}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder={t('tasks.filterByStatus')} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{t('common.all')}</SelectItem>
-              {statusList.map((status) => (
-                <SelectItem key={status.id} value={status.id}>
-                  {status.nome}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={filterGravacao} onValueChange={setFilterGravacao}>
-            <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder={t('tasks.filterByRecording')} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{t('common.all')}</SelectItem>
-              {gravacoes.map((gravacao) => (
-                <SelectItem key={gravacao.id} value={gravacao.id}>
-                  {gravacao.nome}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <ListFilterPanel
+            activeCount={(filterStatus.length ? 1 : 0) + (filterGravacao.length ? 1 : 0)}
+            resultCount={filteredTarefas.length}
+            onClear={() => {
+              setFilterStatus([]);
+              setFilterGravacao([]);
+            }}
+            entityLabel="tarefas"
+          >
+            {statusList.length > 0 && (
+              <FilterSection
+                title={t('tasks.filterByStatus')}
+                subtitle={chipsSubtitle(
+                  filterStatus.map((id) => statusList.find((s) => s.id === id)?.nome ?? id),
+                )}
+                defaultOpen
+              >
+                <MultiChip
+                  options={statusList.map((s) => ({ value: s.id, label: s.nome }))}
+                  selected={filterStatus}
+                  onChange={setFilterStatus}
+                />
+              </FilterSection>
+            )}
+            {gravacoes.length > 0 && (
+              <FilterSection
+                title={t('tasks.filterByRecording')}
+                subtitle={chipsSubtitle(
+                  filterGravacao.map((id) => gravacoes.find((g) => g.id === id)?.nome ?? id),
+                )}
+              >
+                <MultiChip
+                  options={gravacoes.map((g) => ({ value: g.id, label: g.nome }))}
+                  selected={filterGravacao}
+                  onChange={setFilterGravacao}
+                />
+              </FilterSection>
+            )}
+          </ListFilterPanel>
           <ViewSwitcher mode={mode} onModeChange={setMode} showKanban />
         </ListActionBar>
 

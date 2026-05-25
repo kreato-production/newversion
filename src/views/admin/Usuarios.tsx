@@ -32,6 +32,16 @@ import {
   type ColumnConfig,
 } from '@/components/listing';
 import { isPasswordPolicyValid, PASSWORD_POLICY_MESSAGE } from '@/lib/password-policy';
+import {
+  ListFilterPanel,
+  FilterSection,
+  MultiChip,
+  SortChip,
+  SORT_OPTIONS_NOME_DATA,
+  uniqueChips,
+  chipsSubtitle,
+  sortSubtitle,
+} from '@/components/shared/ListFilter';
 
 export interface Usuario {
   id: string;
@@ -214,6 +224,9 @@ const Usuarios = () => {
   const [selectedItem, setSelectedItem] = useState<Usuario | null>(null);
   const [items, setItems] = useState<Usuario[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [filterSortBy, setFilterSortBy] = useState('');
+  const [filterStatus, setFilterStatus] = useState<string[]>([]);
+  const [filterPerfil, setFilterPerfil] = useState<string[]>([]);
 
   const { mode, setMode, visibleColumnKeys, toggleColumn, resetColumns, optionalColumns } =
     useListingView({ storageKey: STORAGE_KEY, columns: COLUMN_CONFIG });
@@ -359,12 +372,30 @@ const Usuarios = () => {
     }
   };
 
-  const filteredItems = items.filter(
-    (item) =>
-      item.nome.toLowerCase().includes(search.toLowerCase()) ||
-      item.usuario.toLowerCase().includes(search.toLowerCase()) ||
-      item.email.toLowerCase().includes(search.toLowerCase()),
-  );
+  const statusOptions = uniqueChips(items, 'status');
+  const perfilOptions = uniqueChips(items, 'perfil');
+
+  const filteredItems = (() => {
+    let result = items.filter(
+      (item) =>
+        item.nome.toLowerCase().includes(search.toLowerCase()) ||
+        item.usuario.toLowerCase().includes(search.toLowerCase()) ||
+        item.email.toLowerCase().includes(search.toLowerCase()),
+    );
+    if (filterStatus.length)
+      result = result.filter((i) => i.status && filterStatus.includes(i.status));
+    if (filterPerfil.length)
+      result = result.filter((i) => i.perfil && filterPerfil.includes(i.perfil));
+    if (filterSortBy === 'nome-asc')
+      return [...result].sort((a, b) => a.nome.localeCompare(b.nome));
+    if (filterSortBy === 'nome-desc')
+      return [...result].sort((a, b) => b.nome.localeCompare(a.nome));
+    if (filterSortBy === 'data-asc')
+      return [...result].sort((a, b) => (a.dataCadastro ?? '').localeCompare(b.dataCadastro ?? ''));
+    if (filterSortBy === 'data-desc')
+      return [...result].sort((a, b) => (b.dataCadastro ?? '').localeCompare(a.dataCadastro ?? ''));
+    return result;
+  })();
 
   const columns: Column<Usuario>[] = [
     {
@@ -460,6 +491,48 @@ const Usuarios = () => {
         />
         <div className="flex-1" />
         <SearchBar value={search} onChange={setSearch} />
+        <ListFilterPanel
+          activeCount={
+            (filterSortBy ? 1 : 0) + (filterStatus.length ? 1 : 0) + (filterPerfil.length ? 1 : 0)
+          }
+          resultCount={filteredItems.length}
+          onClear={() => {
+            setFilterSortBy('');
+            setFilterStatus([]);
+            setFilterPerfil([]);
+          }}
+          entityLabel="usuários"
+        >
+          <FilterSection
+            title="Ordenar por"
+            subtitle={sortSubtitle(filterSortBy, SORT_OPTIONS_NOME_DATA)}
+            defaultOpen
+          >
+            <SortChip
+              value={filterSortBy}
+              onChange={setFilterSortBy}
+              options={[...SORT_OPTIONS_NOME_DATA]}
+            />
+          </FilterSection>
+          {statusOptions.length > 0 && (
+            <FilterSection title="Status" subtitle={chipsSubtitle(filterStatus)}>
+              <MultiChip
+                options={statusOptions}
+                selected={filterStatus}
+                onChange={setFilterStatus}
+              />
+            </FilterSection>
+          )}
+          {perfilOptions.length > 0 && (
+            <FilterSection title="Perfil" subtitle={chipsSubtitle(filterPerfil)}>
+              <MultiChip
+                options={perfilOptions}
+                selected={filterPerfil}
+                onChange={setFilterPerfil}
+              />
+            </FilterSection>
+          )}
+        </ListFilterPanel>
         {mode === 'list' && (
           <ColumnSelector
             columns={optionalColumns}

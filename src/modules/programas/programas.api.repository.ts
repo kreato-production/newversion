@@ -1,14 +1,16 @@
 import { apiRequest } from '@/lib/api/http';
 import type { Programa, ProgramaInput } from './programas.types';
 
-export function normalizeProgramaInput(input: ProgramaInput): ProgramaInput {
-  return {
+export function normalizeProgramaInput(input: ProgramaInput): Omit<ProgramaInput, 'tenantId'> {
+  const normalized: ProgramaInput = {
     ...input,
     codigoExterno: input.codigoExterno?.trim() || '',
     descricao: input.descricao?.trim() || '',
+    cor: input.cor || null,
     unidadeNegocioId: input.unidadeNegocioId?.trim() || null,
-    tenantId: input.tenantId ?? null,
   };
+  delete normalized.tenantId;
+  return normalized;
 }
 
 export class ApiProgramasRepository {

@@ -670,6 +670,34 @@ export class PrismaRecursosHumanosRepository implements RecursosHumanosRepositor
   private async ensureTables(): Promise<void> {
     if (!this.ready) {
       this.ready = (async () => {
+        // Create tables LEFT-JOINed in queries but owned by other modules.
+        await prisma.$executeRawUnsafe(`
+          CREATE TABLE IF NOT EXISTS departamentos (
+            id text PRIMARY KEY,
+            tenant_id text NULL,
+            codigo_externo text NULL,
+            nome text NOT NULL DEFAULT '',
+            descricao text NULL,
+            cor text NULL,
+            created_at timestamptz NULL DEFAULT NOW(),
+            updated_at timestamptz NULL DEFAULT NOW(),
+            created_by text NULL
+          )
+        `);
+
+        await prisma.$executeRawUnsafe(`
+          CREATE TABLE IF NOT EXISTS funcoes (
+            id text PRIMARY KEY,
+            tenant_id text NULL,
+            codigo_externo text NULL,
+            nome text NOT NULL DEFAULT '',
+            descricao text NULL,
+            cor text NULL,
+            created_at timestamptz NULL DEFAULT NOW(),
+            created_by text NULL
+          )
+        `);
+
         await prisma.$executeRawUnsafe(`
           CREATE TABLE IF NOT EXISTS recursos_humanos (
             id text PRIMARY KEY,
@@ -682,8 +710,8 @@ export class PrismaRecursosHumanosRepository implements RecursosHumanosRepositor
             sexo text NULL,
             telefone text NULL,
             email text NULL,
-            departamento_id text NULL REFERENCES departamentos(id) ON DELETE SET NULL,
-            funcao_id text NULL REFERENCES funcoes(id) ON DELETE SET NULL,
+            departamento_id text NULL,
+            funcao_id text NULL,
             custo_hora numeric(12, 2) NOT NULL DEFAULT 0,
             data_contratacao date NULL,
             status text NOT NULL DEFAULT 'Ativo',
@@ -740,7 +768,10 @@ export class PrismaRecursosHumanosRepository implements RecursosHumanosRepositor
           CREATE INDEX IF NOT EXISTS recursos_humanos_tenant_nome_idx
           ON recursos_humanos (tenant_id, nome, sobrenome)
         `);
-      })();
+      })().catch((err) => {
+        this.ready = null;
+        throw err;
+      });
     }
 
     await this.ready;

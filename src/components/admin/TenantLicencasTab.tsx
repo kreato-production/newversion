@@ -107,7 +107,7 @@ export const TenantLicencasTab = ({ tenantId }: { tenantId: string }) => {
     <div className="space-y-6">
       <div className="flex gap-4 items-end bg-card p-4 rounded-lg border">
         <div className="flex-1 space-y-2">
-          <span className="text-sm font-medium">Data Inicio</span>
+          <span className="text-xs font-medium">Data Inicio</span>
           <Input
             type="date"
             value={newLicenca.data_inicio}
@@ -117,7 +117,7 @@ export const TenantLicencasTab = ({ tenantId }: { tenantId: string }) => {
           />
         </div>
         <div className="flex-1 space-y-2">
-          <span className="text-sm font-medium">Data Fim</span>
+          <span className="text-xs font-medium">Data Fim</span>
           <Input
             type="date"
             value={newLicenca.data_fim}

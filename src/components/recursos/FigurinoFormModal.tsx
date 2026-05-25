@@ -341,7 +341,7 @@ const FigurinoFormModal = ({
           </div>
 
           {data && (
-            <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground bg-muted p-3 rounded-lg">
+            <div className="grid grid-cols-2 gap-4 text-xs text-muted-foreground bg-muted p-3 rounded-lg">
               <div>
                 <span className="font-medium">Data de Cadastro:</span>{' '}
                 {data.dataCadastro ? new Date(data.dataCadastro).toLocaleDateString('pt-BR') : '-'}

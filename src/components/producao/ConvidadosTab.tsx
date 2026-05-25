@@ -154,7 +154,7 @@ export const ConvidadosTab = ({ gravacaoId }: ConvidadosTabProps) => {
                   />
                 </div>
                 {pessoasFiltradas.length === 0 ? (
-                  <div className="px-2 py-4 text-sm text-muted-foreground text-center">
+                  <div className="px-2 py-4 text-xs text-muted-foreground text-center">
                     Nenhuma pessoa encontrada
                   </div>
                 ) : (
@@ -236,7 +236,7 @@ export const ConvidadosTab = ({ gravacaoId }: ConvidadosTabProps) => {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <div className="text-sm">
+                    <div className="text-xs">
                       {convidado.telefone && <div>{convidado.telefone}</div>}
                       {convidado.email && (
                         <div className="text-muted-foreground text-xs truncate max-w-32">
@@ -246,7 +246,7 @@ export const ConvidadosTab = ({ gravacaoId }: ConvidadosTabProps) => {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <span className="text-sm text-muted-foreground">
+                    <span className="text-xs text-muted-foreground">
                       {convidado.observacoes || '-'}
                     </span>
                   </TableCell>
@@ -270,7 +270,7 @@ export const ConvidadosTab = ({ gravacaoId }: ConvidadosTabProps) => {
 
       {convidados.length > 0 && (
         <div className="flex justify-end">
-          <Badge variant="outline" className="text-sm">
+          <Badge variant="outline" className="text-xs">
             Total: {convidados.length} convidado{convidados.length !== 1 ? 's' : ''}
           </Badge>
         </div>

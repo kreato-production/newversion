@@ -13,6 +13,16 @@ export const saveStatusGravacaoSchema = z.object({
   isInicial: z.boolean().optional(),
 });
 
+export const saveStatusPlaneamentoSchema = z.object({
+  id: z.string().min(1).optional(),
+  tenantId: z.string().min(1).optional(),
+  codigoExterno: z.string().optional().nullable(),
+  nome: z.string().min(1),
+  descricao: z.string().optional().nullable(),
+  cor: z.string().optional().nullable(),
+  isInicial: z.boolean().optional(),
+});
+
 export const saveStatusTarefaSchema = z.object({
   id: z.string().min(1).optional(),
   tenantId: z.string().min(1).optional(),
@@ -76,6 +86,21 @@ export const saveCentroLucroUnidadesSchema = z.object({
 });
 
 function mapStatusGravacao(row: Awaited<ReturnType<PrismaParametrizacoesRepository['findStatusGravacao']>>) {
+  if (!row) return null;
+
+  return {
+    id: row.id,
+    codigoExterno: row.codigo_externo || '',
+    nome: row.nome,
+    descricao: row.descricao || '',
+    cor: row.cor || '#888888',
+    isInicial: row.is_inicial || false,
+    dataCadastro: row.created_at?.toISOString() ?? '',
+    usuarioCadastro: row.created_by || '',
+  };
+}
+
+function mapStatusPlaneamento(row: Awaited<ReturnType<PrismaParametrizacoesRepository['findStatusPlaneamento']>>) {
   if (!row) return null;
 
   return {
@@ -206,6 +231,44 @@ export class ParametrizacoesService {
     if (!existing) throw new Error('Status de gravacao nao encontrado');
     ensureSameTenant(actor, existing.tenant_id);
     await this.repository.removeStatusGravacao(id);
+  }
+
+  async listStatusPlaneamento(actor: SessionUser) {
+    const tenantId = resolveTenantId(actor, actor.tenantId);
+    const rows = await this.repository.listStatusPlaneamento(tenantId);
+    return { data: rows.map((row) => mapStatusPlaneamento(row)!) };
+  }
+
+  async saveStatusPlaneamento(actor: SessionUser, input: z.infer<typeof saveStatusPlaneamentoSchema>) {
+    const tenantId = resolveTenantId(actor, input.tenantId ?? actor.tenantId);
+    if (input.id) {
+      const existing = await this.repository.findStatusPlaneamento(input.id);
+      if (!existing) throw new Error('Status de planeamento nao encontrado');
+      ensureSameTenant(actor, existing.tenant_id);
+    }
+
+    const row = await this.repository.saveStatusPlaneamento({
+      ...input,
+      tenantId,
+      createdBy: actor.nome,
+    });
+
+    return mapStatusPlaneamento(row)!;
+  }
+
+  async toggleStatusPlaneamentoInicial(actor: SessionUser, id: string, value: boolean) {
+    const existing = await this.repository.findStatusPlaneamento(id);
+    if (!existing) throw new Error('Status de planeamento nao encontrado');
+    ensureSameTenant(actor, existing.tenant_id);
+    const row = await this.repository.setStatusPlaneamentoInicial(existing.tenant_id, id, value);
+    return mapStatusPlaneamento(row)!;
+  }
+
+  async removeStatusPlaneamento(actor: SessionUser, id: string) {
+    const existing = await this.repository.findStatusPlaneamento(id);
+    if (!existing) throw new Error('Status de planeamento nao encontrado');
+    ensureSameTenant(actor, existing.tenant_id);
+    await this.repository.removeStatusPlaneamento(id);
   }
 
   async listStatusTarefa(actor: SessionUser) {

@@ -29,6 +29,16 @@ import { usePermissions } from '@/hooks/usePermissions';
 import { parseISO, isWithinInterval, startOfDay } from 'date-fns';
 import { Edit, Trash2, Users, UserX, Calendar, Loader2, Clock } from 'lucide-react';
 import { recursosHumanosRepository } from '@/modules/recursos-humanos/recursos-humanos.repository.provider';
+import {
+  ListFilterPanel,
+  FilterSection,
+  MultiChip,
+  SortChip,
+  SORT_OPTIONS_NOME_DATA,
+  uniqueChips,
+  chipsSubtitle,
+  sortSubtitle,
+} from '@/components/shared/ListFilter';
 import type {
   Ausencia,
   RecursoHumano,
@@ -46,14 +56,14 @@ import {
 const STORAGE_KEY = 'kreato_recursos_humanos_table';
 
 const COLUMN_CONFIG: ColumnConfig[] = [
-  { key: 'foto',        label: 'Foto',          defaultVisible: true },
-  { key: 'nome',        label: 'Nome',           required: true },
-  { key: 'email',       label: 'E-mail',         defaultVisible: true },
-  { key: 'departamento',label: 'Departamento',   defaultVisible: true },
-  { key: 'funcao',      label: 'Função',         defaultVisible: true },
-  { key: 'custoHora',   label: 'Custo/h',        defaultVisible: false },
-  { key: 'status',      label: 'Status',         defaultVisible: true },
-  { key: 'acoes',       label: 'Ações',          required: true },
+  { key: 'foto', label: 'Foto', defaultVisible: true },
+  { key: 'nome', label: 'Nome', required: true },
+  { key: 'email', label: 'E-mail', defaultVisible: true },
+  { key: 'departamento', label: 'Departamento', defaultVisible: true },
+  { key: 'funcao', label: 'Função', defaultVisible: true },
+  { key: 'custoHora', label: 'Custo/h', defaultVisible: false },
+  { key: 'status', label: 'Status', defaultVisible: true },
+  { key: 'acoes', label: 'Ações', required: true },
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -75,7 +85,9 @@ function getAusenciaHoje(item: RecursoHumano): Ausencia | null {
 }
 
 const formatCustoHora = (value: number) =>
-  new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
+  new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(
+    value,
+  );
 
 // ─── Card renderer ────────────────────────────────────────────────────────────
 
@@ -102,7 +114,8 @@ function RecursoHumanoCard({
             <Avatar className="w-10 h-10">
               <AvatarImage src={item.foto} />
               <AvatarFallback className="text-xs gradient-brand text-primary-foreground">
-                {item.nome.charAt(0)}{item.sobrenome.charAt(0)}
+                {item.nome.charAt(0)}
+                {item.sobrenome.charAt(0)}
               </AvatarFallback>
             </Avatar>
             {ausenciaHoje && (
@@ -112,7 +125,9 @@ function RecursoHumanoCard({
             )}
           </div>
           <div className="min-w-0">
-            <p className="font-medium text-sm leading-snug truncate">{item.nome} {item.sobrenome}</p>
+            <p className="font-medium text-sm leading-snug truncate">
+              {item.nome} {item.sobrenome}
+            </p>
             <p className="text-xs text-muted-foreground truncate">{item.funcao || '-'}</p>
           </div>
         </div>
@@ -121,17 +136,29 @@ function RecursoHumanoCard({
       <CardContent className="px-4 pb-3 flex-1 space-y-1.5 text-xs text-muted-foreground">
         {item.departamento && <div>{item.departamento}</div>}
         {ausenciaHoje && (
-          <Badge variant="outline" className="text-xs bg-amber-500/10 text-amber-600 border-amber-500/30">
+          <Badge
+            variant="outline"
+            className="text-xs bg-amber-500/10 text-amber-600 border-amber-500/30"
+          >
             {ausenciaHoje.motivo}
           </Badge>
         )}
-        <Badge variant={item.status === 'Ativo' ? 'default' : 'secondary'} className="text-[10px] h-4 px-1.5">
+        <Badge
+          variant={item.status === 'Ativo' ? 'default' : 'secondary'}
+          className="text-[10px] h-4 px-1.5"
+        >
           {item.status}
         </Badge>
       </CardContent>
 
       <CardFooter className="px-4 py-2 border-t flex justify-end gap-1">
-        <Button size="icon" variant="ghost" className="h-7 w-7" disabled={!podeAlterar} onClick={onEdit}>
+        <Button
+          size="icon"
+          variant="ghost"
+          className="h-7 w-7"
+          disabled={!podeAlterar}
+          onClick={onEdit}
+        >
           <Edit className="h-3.5 w-3.5" />
         </Button>
         {podeExcluir && (
@@ -180,7 +207,8 @@ function RecursoHumanoDetailPanel({
           <Avatar className="w-12 h-12">
             <AvatarImage src={item.foto} />
             <AvatarFallback className="text-sm gradient-brand text-primary-foreground">
-              {item.nome.charAt(0)}{item.sobrenome.charAt(0)}
+              {item.nome.charAt(0)}
+              {item.sobrenome.charAt(0)}
             </AvatarFallback>
           </Avatar>
           {ausenciaHoje && (
@@ -190,13 +218,21 @@ function RecursoHumanoDetailPanel({
           )}
         </div>
         <div>
-          <h3 className="font-semibold text-base leading-snug">{item.nome} {item.sobrenome}</h3>
+          <h3 className="font-semibold text-base leading-snug">
+            {item.nome} {item.sobrenome}
+          </h3>
           <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-            <Badge variant={item.status === 'Ativo' ? 'default' : 'secondary'} className="text-[10px] h-4 px-1.5">
+            <Badge
+              variant={item.status === 'Ativo' ? 'default' : 'secondary'}
+              className="text-[10px] h-4 px-1.5"
+            >
               {item.status}
             </Badge>
             {ausenciaHoje && (
-              <Badge variant="outline" className="text-xs bg-amber-500/10 text-amber-600 border-amber-500/30">
+              <Badge
+                variant="outline"
+                className="text-xs bg-amber-500/10 text-amber-600 border-amber-500/30"
+              >
                 {ausenciaHoje.motivo}
               </Badge>
             )}
@@ -255,6 +291,9 @@ const RecursosHumanos = () => {
   const [selectedItem, setSelectedItem] = useState<RecursoHumano | null>(null);
   const [items, setItems] = useState<RecursoHumano[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [filterSortBy, setFilterSortBy] = useState('');
+  const [filterDepartamento, setFilterDepartamento] = useState<string[]>([]);
+  const [filterFuncao, setFilterFuncao] = useState<string[]>([]);
 
   const { mode, setMode, visibleColumnKeys, toggleColumn, resetColumns, optionalColumns } =
     useListingView({ storageKey: STORAGE_KEY, columns: COLUMN_CONFIG });
@@ -326,17 +365,31 @@ const RecursosHumanos = () => {
     }
   };
 
-  const filteredItems = useMemo(
-    () =>
-      items.filter(
-        (item) =>
-          `${item.nome} ${item.sobrenome}`.toLowerCase().includes(search.toLowerCase()) ||
-          item.email.toLowerCase().includes(search.toLowerCase()) ||
-          item.departamento.toLowerCase().includes(search.toLowerCase()) ||
-          item.funcao.toLowerCase().includes(search.toLowerCase()),
-      ),
-    [items, search],
-  );
+  const departamentoOptions = useMemo(() => uniqueChips(items, 'departamento'), [items]);
+  const funcaoOptions = useMemo(() => uniqueChips(items, 'funcao'), [items]);
+
+  const filteredItems = useMemo(() => {
+    let result = items.filter(
+      (item) =>
+        `${item.nome} ${item.sobrenome}`.toLowerCase().includes(search.toLowerCase()) ||
+        item.email.toLowerCase().includes(search.toLowerCase()) ||
+        item.departamento.toLowerCase().includes(search.toLowerCase()) ||
+        item.funcao.toLowerCase().includes(search.toLowerCase()),
+    );
+    if (filterDepartamento.length)
+      result = result.filter((i) => i.departamento && filterDepartamento.includes(i.departamento));
+    if (filterFuncao.length)
+      result = result.filter((i) => i.funcao && filterFuncao.includes(i.funcao));
+    if (filterSortBy === 'nome-asc')
+      return [...result].sort((a, b) => a.nome.localeCompare(b.nome));
+    if (filterSortBy === 'nome-desc')
+      return [...result].sort((a, b) => b.nome.localeCompare(a.nome));
+    if (filterSortBy === 'data-asc')
+      return [...result].sort((a, b) => (a.dataCadastro ?? '').localeCompare(b.dataCadastro ?? ''));
+    if (filterSortBy === 'data-desc')
+      return [...result].sort((a, b) => (b.dataCadastro ?? '').localeCompare(a.dataCadastro ?? ''));
+    return result;
+  }, [items, search, filterDepartamento, filterFuncao, filterSortBy]);
 
   const columns: Column<RecursoHumano>[] = [
     {
@@ -475,6 +528,50 @@ const RecursosHumanos = () => {
         )}
         <div className="flex-1" />
         <SearchBar value={search} onChange={setSearch} />
+        <ListFilterPanel
+          activeCount={
+            (filterSortBy ? 1 : 0) +
+            (filterDepartamento.length ? 1 : 0) +
+            (filterFuncao.length ? 1 : 0)
+          }
+          resultCount={filteredItems.length}
+          onClear={() => {
+            setFilterSortBy('');
+            setFilterDepartamento([]);
+            setFilterFuncao([]);
+          }}
+          entityLabel="colaboradores"
+        >
+          <FilterSection
+            title="Ordenar por"
+            subtitle={sortSubtitle(filterSortBy, SORT_OPTIONS_NOME_DATA)}
+            defaultOpen
+          >
+            <SortChip
+              value={filterSortBy}
+              onChange={setFilterSortBy}
+              options={[...SORT_OPTIONS_NOME_DATA]}
+            />
+          </FilterSection>
+          {departamentoOptions.length > 0 && (
+            <FilterSection title="Departamento" subtitle={chipsSubtitle(filterDepartamento)}>
+              <MultiChip
+                options={departamentoOptions}
+                selected={filterDepartamento}
+                onChange={setFilterDepartamento}
+              />
+            </FilterSection>
+          )}
+          {funcaoOptions.length > 0 && (
+            <FilterSection title="Função" subtitle={chipsSubtitle(filterFuncao)}>
+              <MultiChip
+                options={funcaoOptions}
+                selected={filterFuncao}
+                onChange={setFilterFuncao}
+              />
+            </FilterSection>
+          )}
+        </ListFilterPanel>
         {mode === 'list' && (
           <ColumnSelector
             columns={optionalColumns}
@@ -565,7 +662,8 @@ const RecursosHumanos = () => {
                     <Avatar className="w-7 h-7">
                       <AvatarImage src={item.foto} />
                       <AvatarFallback className="text-xs gradient-brand text-primary-foreground">
-                        {item.nome.charAt(0)}{item.sobrenome.charAt(0)}
+                        {item.nome.charAt(0)}
+                        {item.sobrenome.charAt(0)}
                       </AvatarFallback>
                     </Avatar>
                     {ausenciaHoje && (
@@ -575,7 +673,9 @@ const RecursosHumanos = () => {
                     )}
                   </div>
                   <div>
-                    <p className={`text-sm font-medium truncate ${isSelected ? 'text-primary' : ''}`}>
+                    <p
+                      className={`text-sm font-medium truncate ${isSelected ? 'text-primary' : ''}`}
+                    >
                       {item.nome} {item.sobrenome}
                     </p>
                     <p className="text-xs text-muted-foreground truncate">{item.funcao}</p>

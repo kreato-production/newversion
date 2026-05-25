@@ -827,7 +827,7 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
 
     return (
       <div className="mb-4">
-        <h4 className="text-sm font-medium mb-2 flex items-center gap-2">
+        <h4 className="text-xs font-medium mb-2 flex items-center gap-2">
           <span className="text-muted-foreground">{tipoIcon}</span>
           {tipoLabel}
           <span className="text-xs text-muted-foreground">({recursosLista.length})</span>
@@ -1046,7 +1046,7 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
 
     return (
       <div className="mb-4">
-        <h4 className="text-sm font-medium mb-2 flex items-center gap-2">
+        <h4 className="text-xs font-medium mb-2 flex items-center gap-2">
           <span className="text-muted-foreground">{icon}</span>
           {label}
           <span className="text-xs text-muted-foreground">({items.length})</span>
@@ -1119,7 +1119,7 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
     <div className="space-y-4 mt-4">
       <div className="flex flex-wrap gap-3 items-end">
         <div className="space-y-1">
-          <label className="text-sm text-muted-foreground">Mês/Ano</label>
+          <label className="text-xs text-muted-foreground">Mês/Ano</label>
           <Select value={mesAno} onValueChange={setMesAno}>
             <SelectTrigger className="w-48">
               <SelectValue />
@@ -1135,7 +1135,7 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
         </div>
 
         <div className="space-y-1">
-          <label className="text-sm text-muted-foreground">Tipo</label>
+          <label className="text-xs text-muted-foreground">Tipo</label>
           <Select
             value={selectedTipo}
             onValueChange={(v) => setSelectedTipo(v as 'tecnico' | 'fisico')}
@@ -1151,7 +1151,7 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
         </div>
 
         <div className="space-y-1 flex-1 min-w-48">
-          <label className="text-sm text-muted-foreground">Recurso</label>
+          <label className="text-xs text-muted-foreground">Recurso</label>
           <Select value={selectedRecurso} onValueChange={setSelectedRecurso}>
             <SelectTrigger>
               <SelectValue placeholder="Selecione um recurso..." />
@@ -1168,7 +1168,7 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
 
         {selectedTipo === 'fisico' && selectedRecurso && estoqueItens.length > 0 && (
           <div className="space-y-1 flex-1 min-w-48">
-            <label className="text-sm text-muted-foreground">Item de Estoque (opcional)</label>
+            <label className="text-xs text-muted-foreground">Item de Estoque (opcional)</label>
             <Select
               value={selectedEstoqueItem || '__none__'}
               onValueChange={(v) => setSelectedEstoqueItem(v === '__none__' ? '' : v)}
@@ -1204,7 +1204,7 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
       {recursos.length === 0 && (
         <div className="text-center py-8 text-muted-foreground">
           <p>Nenhum recurso adicionado ainda.</p>
-          <p className="text-sm">Adicione recursos técnicos ou físicos acima.</p>
+          <p className="text-xs">Adicione recursos técnicos ou físicos acima.</p>
         </div>
       )}
 
@@ -1212,7 +1212,7 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
         recursosTecnicosNoMes.length === 0 &&
         recursosFisicosNoMes.length === 0 && (
           <div className="text-center py-6 text-muted-foreground">
-            <p className="text-sm">Nenhum recurso utilizado no mês selecionado.</p>
+            <p className="text-xs">Nenhum recurso utilizado no mês selecionado.</p>
           </div>
         )}
 
@@ -1221,7 +1221,7 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
         (espacoRecursosTecnicos.length > 0 || espacoRecursosFisicos.length > 0) && (
           <div className="border-t pt-4 space-y-4">
             <div className="flex items-center gap-2">
-              <h3 className="text-sm font-semibold">Recursos dos Espaços</h3>
+              <h3 className="text-xs font-semibold">Recursos dos Espaços</h3>
               <Badge variant="secondary" className="text-[10px]">
                 somente leitura
               </Badge>
@@ -1243,7 +1243,7 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
               <Users className="w-5 h-5" />
               Recursos Humanos - {rhModalRecurso?.recursoNome}
             </DialogTitle>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-xs text-muted-foreground">
               Data:{' '}
               {rhModalDia ? new Date(rhModalDia + 'T12:00:00').toLocaleDateString('pt-BR') : ''}
             </p>
@@ -1272,7 +1272,7 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
             )}
 
             <div className="border rounded-lg p-3 space-y-3 bg-muted/30">
-              <Label className="text-sm font-medium">Adicionar Colaborador</Label>
+              <Label className="text-xs font-medium">Adicionar Colaborador</Label>
               {rhModalRecurso?.funcaoOperador && (
                 <p className="text-xs text-muted-foreground">
                   Exibindo colaboradores com função:{' '}
@@ -1288,7 +1288,7 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
                     </SelectTrigger>
                     <SelectContent>
                       {recursosHumanosFiltrados.length === 0 ? (
-                        <div className="px-2 py-4 text-sm text-muted-foreground text-center">
+                        <div className="px-2 py-4 text-xs text-muted-foreground text-center">
                           {colaboradoresAusentes.length > 0
                             ? 'Todos os colaboradores estão ausentes nesta data'
                             : `Nenhum colaborador encontrado${rhModalRecurso?.funcaoOperador ? ` com função "${rhModalRecurso.funcaoOperador}"` : ''}`}
@@ -1330,7 +1330,7 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
 
             {rhAlocadosNoDia.length > 0 && (
               <div className="space-y-2">
-                <Label className="text-sm font-medium">Colaboradores Alocados</Label>
+                <Label className="text-xs font-medium">Colaboradores Alocados</Label>
                 <div className="space-y-2 max-h-48 overflow-y-auto">
                   {rhAlocadosNoDia.map((rh) => (
                     <div
@@ -1338,7 +1338,7 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
                       className="flex items-center justify-between p-2 border rounded-lg bg-background"
                     >
                       <div>
-                        <p className="font-medium text-sm">{rh.nome}</p>
+                        <p className="font-medium text-xs">{rh.nome}</p>
                         <p className="text-xs text-muted-foreground">
                           {rh.horaInicio} - {rh.horaFim}
                         </p>
@@ -1358,7 +1358,7 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
             )}
 
             {rhAlocadosNoDia.length === 0 && (
-              <p className="text-center text-sm text-muted-foreground py-4">
+              <p className="text-center text-xs text-muted-foreground py-4">
                 Nenhum colaborador alocado para este dia.
               </p>
             )}
@@ -1380,7 +1380,7 @@ export const RecursosTab = ({ gravacaoId }: RecursosTabProps) => {
               <Clock className="w-5 h-5" />
               Horário de Ocupação - {horarioModalRecurso?.recursoNome}
             </DialogTitle>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-xs text-muted-foreground">
               Data:{' '}
               {horarioModalDia
                 ? new Date(horarioModalDia + 'T12:00:00').toLocaleDateString('pt-BR')

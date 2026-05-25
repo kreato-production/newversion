@@ -24,6 +24,13 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { recursosFisicosRepository } from '@/modules/recursos-fisicos/recursos-fisicos.repository.provider';
+import {
+  ListFilterPanel,
+  FilterSection,
+  SortChip,
+  SORT_OPTIONS_NOME_DATA,
+  sortSubtitle,
+} from '@/components/shared/ListFilter';
 import type {
   RecursoFisico,
   RecursoFisicoInput,
@@ -40,17 +47,19 @@ import {
 const STORAGE_KEY = 'kreato_recursos_fisicos_table';
 
 const COLUMN_CONFIG: ColumnConfig[] = [
-  { key: 'codigoExterno',   label: 'Código',          defaultVisible: true },
-  { key: 'nome',            label: 'Nome',             required: true },
-  { key: 'custoHora',       label: 'Custo/h',          defaultVisible: true },
-  { key: 'estoqueCount',    label: 'Estoque',          defaultVisible: true },
-  { key: 'dataCadastro',    label: 'Cadastro',         defaultVisible: false },
-  { key: 'usuarioCadastro', label: 'Usuário',          defaultVisible: false },
-  { key: 'acoes',           label: 'Ações',            required: true },
+  { key: 'codigoExterno', label: 'Código', defaultVisible: true },
+  { key: 'nome', label: 'Nome', required: true },
+  { key: 'custoHora', label: 'Custo/h', defaultVisible: true },
+  { key: 'estoqueCount', label: 'Estoque', defaultVisible: true },
+  { key: 'dataCadastro', label: 'Cadastro', defaultVisible: false },
+  { key: 'usuarioCadastro', label: 'Usuário', defaultVisible: false },
+  { key: 'acoes', label: 'Ações', required: true },
 ];
 
 const formatCustoHora = (value: number) =>
-  new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
+  new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(
+    value,
+  );
 
 // ─── Card renderer ────────────────────────────────────────────────────────────
 
@@ -91,7 +100,13 @@ function RecursoFisicoCard({
       </CardContent>
 
       <CardFooter className="px-4 py-2 border-t flex justify-end gap-1">
-        <Button size="icon" variant="ghost" className="h-7 w-7" disabled={!podeAlterar} onClick={onEdit}>
+        <Button
+          size="icon"
+          variant="ghost"
+          className="h-7 w-7"
+          disabled={!podeAlterar}
+          onClick={onEdit}
+        >
           <Edit className="h-3.5 w-3.5" />
         </Button>
         {podeExcluir && (
@@ -198,6 +213,7 @@ const RecursosFisicos = () => {
   const [selectedItem, setSelectedItem] = useState<RecursoFisico | null>(null);
   const [items, setItems] = useState<RecursoFisico[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [filterSortBy, setFilterSortBy] = useState('');
 
   const { mode, setMode, visibleColumnKeys, toggleColumn, resetColumns, optionalColumns } =
     useListingView({ storageKey: STORAGE_KEY, columns: COLUMN_CONFIG });
@@ -269,11 +285,22 @@ const RecursosFisicos = () => {
     }
   };
 
-  const filteredItems = items.filter(
-    (item) =>
-      item.nome.toLowerCase().includes(search.toLowerCase()) ||
-      item.codigoExterno.toLowerCase().includes(search.toLowerCase()),
-  );
+  const filteredItems = (() => {
+    const result = items.filter(
+      (item) =>
+        item.nome.toLowerCase().includes(search.toLowerCase()) ||
+        item.codigoExterno.toLowerCase().includes(search.toLowerCase()),
+    );
+    if (filterSortBy === 'nome-asc')
+      return [...result].sort((a, b) => a.nome.localeCompare(b.nome));
+    if (filterSortBy === 'nome-desc')
+      return [...result].sort((a, b) => b.nome.localeCompare(a.nome));
+    if (filterSortBy === 'data-asc')
+      return [...result].sort((a, b) => (a.dataCadastro ?? '').localeCompare(b.dataCadastro ?? ''));
+    if (filterSortBy === 'data-desc')
+      return [...result].sort((a, b) => (b.dataCadastro ?? '').localeCompare(a.dataCadastro ?? ''));
+    return result;
+  })();
 
   const columns: Column<RecursoFisico>[] = [
     {
@@ -377,6 +404,24 @@ const RecursosFisicos = () => {
         )}
         <div className="flex-1" />
         <SearchBar value={search} onChange={setSearch} />
+        <ListFilterPanel
+          activeCount={filterSortBy ? 1 : 0}
+          resultCount={filteredItems.length}
+          onClear={() => setFilterSortBy('')}
+          entityLabel="recursos"
+        >
+          <FilterSection
+            title="Ordenar por"
+            subtitle={sortSubtitle(filterSortBy, SORT_OPTIONS_NOME_DATA)}
+            defaultOpen
+          >
+            <SortChip
+              value={filterSortBy}
+              onChange={setFilterSortBy}
+              options={[...SORT_OPTIONS_NOME_DATA]}
+            />
+          </FilterSection>
+        </ListFilterPanel>
         {mode === 'list' && (
           <ColumnSelector
             columns={optionalColumns}

@@ -237,7 +237,10 @@ export class PrismaFeriadosRepository implements FeriadosRepository {
           CREATE UNIQUE INDEX IF NOT EXISTS feriados_tenant_data_key
           ON feriados (tenant_id, data)
         `);
-      })();
+      })().catch((err) => {
+        this.ready = null;
+        throw err;
+      });
     }
 
     await this.ready;

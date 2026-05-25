@@ -153,7 +153,7 @@ export const StatusGravacaoFormModal = ({
                   value={formData.cor}
                   onChange={(e) => setFormData({ ...formData, cor: e.target.value })}
                   placeholder="#000000"
-                  className="w-28 font-mono text-sm"
+                  className="w-28 font-mono text-xs"
                 />
                 <Badge style={{ backgroundColor: formData.cor }} className="text-white ml-auto">
                   {formData.nome || 'Preview'}

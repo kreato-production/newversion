@@ -111,6 +111,11 @@ const getNavItems = (isGlobalAdmin: boolean, t: (k: string) => string): NavItem[
         permission: { modulo: 'Produção', subModulo1: 'Conteúdo' },
       },
       {
+        label: 'Templates',
+        path: '/producao/templates',
+        permission: { modulo: 'Produção', subModulo1: 'Templates' },
+      },
+      {
         label: t('menu.recordings'),
         path: '/producao/gravacao',
         permission: { modulo: 'Produção', subModulo1: 'Gravação' },
@@ -129,6 +134,11 @@ const getNavItems = (isGlobalAdmin: boolean, t: (k: string) => string): NavItem[
         label: t('menu.maps'),
         path: '/producao/mapas',
         permission: { modulo: 'Produção', subModulo1: 'Mapas' },
+      },
+      {
+        label: t('menu.programGrid'),
+        path: '/producao/grelha-programacao',
+        permission: { modulo: 'Produção', subModulo1: 'Grelha de Programação' },
       },
       {
         label: t('menu.parameters'),
@@ -168,6 +178,15 @@ const getNavItems = (isGlobalAdmin: boolean, t: (k: string) => string): NavItem[
               modulo: 'Produção',
               subModulo1: 'Parametrizações',
               subModulo2: 'Status da Tarefa',
+            },
+          },
+          {
+            label: t('menu.planningStatus'),
+            path: '/producao/status-planeamento',
+            permission: {
+              modulo: 'Produção',
+              subModulo1: 'Parametrizações',
+              subModulo2: 'Status de Planeamento',
             },
           },
           {
@@ -368,6 +387,11 @@ const getNavItems = (isGlobalAdmin: boolean, t: (k: string) => string): NavItem[
         permission: { modulo: 'Financeiro', subModulo1: 'Apropriação de Custos' },
       },
       {
+        label: t('menu.orcamento'),
+        path: '/financeiro/orcamento',
+        permission: { modulo: 'Financeiro', subModulo1: 'Orçamento' },
+      },
+      {
         label: t('menu.parameters'),
         isGroup: true,
         children: [
@@ -425,6 +449,11 @@ const getNavItems = (isGlobalAdmin: boolean, t: (k: string) => string): NavItem[
         label: t('menu.forms'),
         path: '/admin/formularios',
         permission: { modulo: 'Administração', subModulo1: 'Formulários' },
+      },
+      {
+        label: t('menu.maestro'),
+        path: '/admin/maestro',
+        permission: { modulo: 'Administração', subModulo1: 'Maestro' },
       },
     ],
   },
@@ -491,19 +520,20 @@ const AppSidebar = () => {
               className="hover:bg-transparent active:bg-transparent"
             >
               <Link href="/dashboard">
-                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary shrink-0">
+                {/* Collapsed icon mode: K icon */}
+                <div className="hidden group-data-[collapsible=icon]:flex aspect-square size-8 items-center justify-center rounded-lg shrink-0">
                   <img
                     src={logoSrc}
                     alt="Kreato"
-                    className="h-5 w-5 object-contain dark:brightness-0 dark:invert"
+                    className="h-8 w-8 object-contain dark:invert dark:hue-rotate-180"
                   />
                 </div>
-                <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-semibold text-sidebar-foreground">
-                    {tenantLabel}
-                  </span>
-                  <span className="truncate text-xs text-sidebar-foreground/60">Produção</span>
-                </div>
+                {/* Expanded mode: show the full Kreato logo */}
+                <img
+                  src={logoSrc}
+                  alt="Kreato"
+                  className="h-9 w-auto object-contain object-left group-data-[collapsible=icon]:hidden dark:invert dark:hue-rotate-180"
+                />
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>

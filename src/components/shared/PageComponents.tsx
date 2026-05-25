@@ -19,11 +19,11 @@ export const PageHeader = ({
   addLabel = 'Adicionar',
   children,
 }: PageHeaderProps) => (
-  <div className="-mx-6 -mt-6 px-6 py-3 mb-4 bg-gradient-to-r from-kreato-cyan via-primary to-kreato-orange text-white rounded-b-lg">
-    <div className="flex flex-col md:flex-row md:items-center justify-between gap-2">
+  <div className="-mx-6 -mt-6 px-6 py-2 mb-4 bg-gradient-to-r from-kreato-cyan via-primary to-kreato-orange text-white rounded-b-lg">
+    <div className="flex flex-col md:flex-row md:items-center justify-between gap-1.5">
       <div>
-        <h1 className="text-xl font-semibold leading-none tracking-tight text-white">{title}</h1>
-        {description && <p className="text-sm text-white/80 mt-1">{description}</p>}
+        <h1 className="text-base font-semibold leading-none tracking-tight text-white">{title}</h1>
+        {description && <p className="text-xs text-white/80 mt-0.5">{description}</p>}
       </div>
       <div className="flex items-center gap-2">
         {children}

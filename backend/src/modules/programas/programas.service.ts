@@ -9,6 +9,7 @@ export const saveProgramaSchema = z.object({
   codigoExterno: z.string().optional().nullable(),
   nome: z.string().min(1),
   descricao: z.string().optional().nullable(),
+  cor: z.string().optional().nullable(),
   unidadeNegocioId: z.string().uuid().optional().nullable(),
 });
 
@@ -27,6 +28,7 @@ export class ProgramasService {
         codigoExterno: item.codigoExterno || '',
         nome: item.nome,
         descricao: item.descricao || '',
+        cor: item.cor || null,
         unidadeNegocioId: item.unidadeNegocioId || '',
         unidadeNegocio: item.unidadeNegocioNome || '',
         dataCadastro: item.createdAt.toISOString(),
@@ -51,6 +53,7 @@ export class ProgramasService {
       codigoExterno: input.codigoExterno,
       nome: input.nome,
       descricao: input.descricao,
+      cor: input.cor,
       unidadeNegocioId: input.unidadeNegocioId,
       createdById: actor.id,
     });
@@ -60,6 +63,7 @@ export class ProgramasService {
       codigoExterno: item.codigoExterno || '',
       nome: item.nome,
       descricao: item.descricao || '',
+      cor: item.cor || null,
       unidadeNegocioId: item.unidadeNegocioId || '',
       unidadeNegocio: item.unidadeNegocioNome || '',
       dataCadastro: item.createdAt.toISOString(),

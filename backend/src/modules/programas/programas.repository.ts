@@ -6,6 +6,7 @@ export type ProgramaRecord = {
   codigoExterno: string | null;
   nome: string;
   descricao: string | null;
+  cor: string | null;
   unidadeNegocioId: string | null;
   unidadeNegocioNome: string | null;
   createdAt: Date;
@@ -17,6 +18,7 @@ export type SaveProgramaInput = {
   codigoExterno?: string | null;
   nome: string;
   descricao?: string | null;
+  cor?: string | null;
   unidadeNegocioId?: string | null;
   createdById?: string | null;
 };
@@ -37,6 +39,7 @@ function mapPrograma(item: {
   codigoExterno: string | null;
   nome: string;
   descricao: string | null;
+  cor?: string | null;
   unidadeNegocioId: string | null;
   createdAt: Date;
   unidadeNegocio?: { nome: string } | null;
@@ -47,6 +50,7 @@ function mapPrograma(item: {
     codigoExterno: item.codigoExterno,
     nome: item.nome,
     descricao: item.descricao,
+    cor: item.cor ?? null,
     unidadeNegocioId: item.unidadeNegocioId,
     unidadeNegocioNome: item.unidadeNegocio?.nome ?? null,
     createdAt: item.createdAt,
@@ -90,6 +94,7 @@ export class PrismaProgramasRepository implements ProgramasRepository {
             codigoExterno: input.codigoExterno ?? null,
             nome: input.nome,
             descricao: input.descricao ?? null,
+            cor: input.cor ?? null,
             unidadeNegocioId: input.unidadeNegocioId ?? null,
             createdById: input.createdById ?? null,
           },
@@ -99,6 +104,7 @@ export class PrismaProgramasRepository implements ProgramasRepository {
             codigoExterno: input.codigoExterno ?? null,
             nome: input.nome,
             descricao: input.descricao ?? null,
+            cor: input.cor ?? null,
             unidadeNegocioId: input.unidadeNegocioId ?? null,
             createdById: input.createdById ?? null,
           },
@@ -110,6 +116,7 @@ export class PrismaProgramasRepository implements ProgramasRepository {
             codigoExterno: input.codigoExterno ?? null,
             nome: input.nome,
             descricao: input.descricao ?? null,
+            cor: input.cor ?? null,
             unidadeNegocioId: input.unidadeNegocioId ?? null,
             createdById: input.createdById ?? null,
           },

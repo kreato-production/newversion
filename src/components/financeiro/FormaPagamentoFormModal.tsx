@@ -96,7 +96,9 @@ export const FormaPagamentoFormModal = ({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="w-[900px] max-w-[900px] max-h-[80vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{data ? 'Editar Forma de Pagamento' : 'Nova Forma de Pagamento'}</DialogTitle>
+          <DialogTitle>
+            {data ? 'Editar Forma de Pagamento' : 'Nova Forma de Pagamento'}
+          </DialogTitle>
           <DialogDescription>
             Preencha os campos abaixo para {data ? 'editar' : 'cadastrar'} a forma de pagamento.
           </DialogDescription>
@@ -170,7 +172,7 @@ export const FormaPagamentoFormModal = ({
                     setFormData((current) => ({ ...current, cor: event.target.value }))
                   }
                   placeholder="#000000"
-                  className="w-28 font-mono text-sm"
+                  className="w-28 font-mono text-xs"
                   disabled={readOnly}
                 />
                 <Badge style={{ backgroundColor: formData.cor }} className="text-white ml-auto">

@@ -305,17 +305,17 @@ function ResourceTab({ conteudoId, espacoItemId, tipo, label, moeda = 'BRL' }: R
       {/* Add row */}
       <div className="flex gap-2">
         <Select value={selectedRecursoId} onValueChange={setSelectedRecursoId}>
-          <SelectTrigger className="flex-1 h-8 text-sm">
+          <SelectTrigger className="flex-1 h-8 text-xs">
             <SelectValue placeholder={`Selecione um ${label.toLowerCase()} para adicionar...`} />
           </SelectTrigger>
           <SelectContent>
             {available.length === 0 ? (
-              <div className="px-3 py-3 text-sm text-muted-foreground text-center">
+              <div className="px-3 py-3 text-xs text-muted-foreground text-center">
                 Nenhum {label.toLowerCase()} disponível.
               </div>
             ) : (
               available.map((r) => (
-                <SelectItem key={r.recursoId} value={r.recursoId} className="text-sm">
+                <SelectItem key={r.recursoId} value={r.recursoId} className="text-xs">
                   {r.recursoNome}
                 </SelectItem>
               ))
@@ -583,7 +583,7 @@ function EspacoModal({
                 Espaço <span className="text-destructive">*</span>
               </Label>
               {loadingOptions ? (
-                <div className="flex items-center gap-2 h-9 text-sm text-muted-foreground">
+                <div className="flex items-center gap-2 h-9 text-xs text-muted-foreground">
                   <Loader2 className="h-4 w-4 animate-spin" />
                   Carregando...
                 </div>
@@ -598,7 +598,7 @@ function EspacoModal({
                   </SelectTrigger>
                   <SelectContent>
                     {espacoOptions.length === 0 ? (
-                      <div className="px-3 py-4 text-sm text-muted-foreground text-center">
+                      <div className="px-3 py-4 text-xs text-muted-foreground text-center">
                         Nenhum espaço cadastrado em Recursos → Espaços.
                       </div>
                     ) : (
@@ -656,7 +656,7 @@ function EspacoModal({
           </div>
 
           {horaInvalida && (
-            <div className="flex items-center gap-2 text-sm text-destructive">
+            <div className="flex items-center gap-2 text-xs text-destructive">
               <AlertCircle className="h-4 w-4 shrink-0" />
               <span>A hora de início deve ser anterior à hora de fim.</span>
             </div>
@@ -670,7 +670,7 @@ function EspacoModal({
                 <button
                   type="button"
                   onClick={() => setActiveTab('equipamentos')}
-                  className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                  className={`px-4 py-2 text-xs font-medium border-b-2 transition-colors ${
                     activeTab === 'equipamentos'
                       ? 'border-primary text-primary bg-primary/10'
                       : 'border-transparent text-muted-foreground hover:text-foreground'
@@ -681,7 +681,7 @@ function EspacoModal({
                 <button
                   type="button"
                   onClick={() => setActiveTab('tecnicos')}
-                  className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                  className={`px-4 py-2 text-xs font-medium border-b-2 transition-colors ${
                     activeTab === 'tecnicos'
                       ? 'border-primary text-primary bg-primary/10'
                       : 'border-transparent text-muted-foreground hover:text-foreground'
@@ -713,7 +713,7 @@ function EspacoModal({
               )}
             </div>
           ) : (
-            <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground text-center">
+            <div className="rounded-md border border-dashed p-4 text-xs text-muted-foreground text-center">
               Salve o espaço para configurar equipamentos e recursos técnicos.
             </div>
           )}

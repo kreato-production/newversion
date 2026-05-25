@@ -3,6 +3,7 @@ export interface Programa {
   codigoExterno: string;
   nome: string;
   descricao: string;
+  cor?: string | null;
   unidadeNegocioId: string;
   unidadeNegocio: string;
   dataCadastro: string;
@@ -14,5 +15,6 @@ export interface ProgramaInput {
   codigoExterno: string;
   nome: string;
   descricao: string;
+  cor?: string | null;
   unidadeNegocioId?: string | null;
 }

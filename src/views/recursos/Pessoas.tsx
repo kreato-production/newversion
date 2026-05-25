@@ -24,6 +24,16 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useToast } from '@/hooks/use-toast';
 import { pessoasRepository } from '@/modules/pessoas/pessoas.repository.provider';
+import {
+  ListFilterPanel,
+  FilterSection,
+  MultiChip,
+  SortChip,
+  SORT_OPTIONS_NOME_DATA,
+  uniqueChips,
+  chipsSubtitle,
+  sortSubtitle,
+} from '@/components/shared/ListFilter';
 import type { Pessoa, PessoaInput } from '@/modules/pessoas/pessoas.types';
 import { Edit, Loader2, Trash2, Users } from 'lucide-react';
 import {
@@ -38,14 +48,14 @@ import {
 const STORAGE_KEY = 'kreato_pessoas_table';
 
 const COLUMN_CONFIG: ColumnConfig[] = [
-  { key: 'foto',          label: 'Foto',           defaultVisible: true },
-  { key: 'nome',          label: 'Nome',           required: true },
-  { key: 'email',         label: 'E-mail',         defaultVisible: true },
-  { key: 'telefone',      label: 'Telefone',       defaultVisible: false },
-  { key: 'classificacao', label: 'Classificação',  defaultVisible: true },
-  { key: 'cidade',        label: 'Cidade/UF',      defaultVisible: false },
-  { key: 'status',        label: 'Status',         defaultVisible: true },
-  { key: 'acoes',         label: 'Ações',          required: true },
+  { key: 'foto', label: 'Foto', defaultVisible: true },
+  { key: 'nome', label: 'Nome', required: true },
+  { key: 'email', label: 'E-mail', defaultVisible: true },
+  { key: 'telefone', label: 'Telefone', defaultVisible: false },
+  { key: 'classificacao', label: 'Classificação', defaultVisible: true },
+  { key: 'cidade', label: 'Cidade/UF', defaultVisible: false },
+  { key: 'status', label: 'Status', defaultVisible: true },
+  { key: 'acoes', label: 'Ações', required: true },
 ];
 
 // ─── Card renderer ────────────────────────────────────────────────────────────
@@ -70,7 +80,8 @@ function PessoaCard({
           <Avatar className="w-10 h-10 shrink-0">
             <AvatarImage src={item.foto} />
             <AvatarFallback className="text-xs gradient-brand text-primary-foreground">
-              {item.nome.charAt(0)}{item.sobrenome.charAt(0)}
+              {item.nome.charAt(0)}
+              {item.sobrenome.charAt(0)}
             </AvatarFallback>
           </Avatar>
           <div className="min-w-0">
@@ -84,7 +95,10 @@ function PessoaCard({
 
       <CardContent className="px-4 pb-3 flex-1 space-y-1 text-xs text-muted-foreground">
         {item.classificacao && <div>{item.classificacao}</div>}
-        <Badge variant={item.status === 'Ativo' ? 'default' : 'secondary'} className="text-[10px] h-4 px-1.5">
+        <Badge
+          variant={item.status === 'Ativo' ? 'default' : 'secondary'}
+          className="text-[10px] h-4 px-1.5"
+        >
           {item.status}
         </Badge>
       </CardContent>
@@ -139,12 +153,18 @@ function PessoaDetailPanel({
         <Avatar className="w-12 h-12">
           <AvatarImage src={item.foto} />
           <AvatarFallback className="text-sm gradient-brand text-primary-foreground">
-            {item.nome.charAt(0)}{item.sobrenome.charAt(0)}
+            {item.nome.charAt(0)}
+            {item.sobrenome.charAt(0)}
           </AvatarFallback>
         </Avatar>
         <div>
-          <h3 className="font-semibold text-base leading-snug">{item.nome} {item.sobrenome}</h3>
-          <Badge variant={item.status === 'Ativo' ? 'default' : 'secondary'} className="text-[10px] h-4 px-1.5 mt-1">
+          <h3 className="font-semibold text-base leading-snug">
+            {item.nome} {item.sobrenome}
+          </h3>
+          <Badge
+            variant={item.status === 'Ativo' ? 'default' : 'secondary'}
+            className="text-[10px] h-4 px-1.5 mt-1"
+          >
             {item.status}
           </Badge>
         </div>
@@ -201,6 +221,8 @@ const Pessoas = () => {
   const [selectedItem, setSelectedItem] = useState<Pessoa | null>(null);
   const [items, setItems] = useState<Pessoa[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [filterSortBy, setFilterSortBy] = useState('');
+  const [filterClassificacao, setFilterClassificacao] = useState<string[]>([]);
 
   const { mode, setMode, visibleColumnKeys, toggleColumn, resetColumns, optionalColumns } =
     useListingView({ storageKey: STORAGE_KEY, columns: COLUMN_CONFIG });
@@ -272,13 +294,30 @@ const Pessoas = () => {
     }
   };
 
-  const filteredItems = items.filter(
-    (item) =>
-      item.nome.toLowerCase().includes(search.toLowerCase()) ||
-      item.sobrenome.toLowerCase().includes(search.toLowerCase()) ||
-      item.email.toLowerCase().includes(search.toLowerCase()) ||
-      item.classificacao.toLowerCase().includes(search.toLowerCase()),
-  );
+  const classificacaoOptions = uniqueChips(items, 'classificacao');
+
+  const filteredItems = (() => {
+    let result = items.filter(
+      (item) =>
+        item.nome.toLowerCase().includes(search.toLowerCase()) ||
+        item.sobrenome.toLowerCase().includes(search.toLowerCase()) ||
+        item.email.toLowerCase().includes(search.toLowerCase()) ||
+        item.classificacao.toLowerCase().includes(search.toLowerCase()),
+    );
+    if (filterClassificacao.length)
+      result = result.filter(
+        (i) => i.classificacao && filterClassificacao.includes(i.classificacao),
+      );
+    if (filterSortBy === 'nome-asc')
+      return [...result].sort((a, b) => a.nome.localeCompare(b.nome));
+    if (filterSortBy === 'nome-desc')
+      return [...result].sort((a, b) => b.nome.localeCompare(a.nome));
+    if (filterSortBy === 'data-asc')
+      return [...result].sort((a, b) => (a.dataCadastro ?? '').localeCompare(b.dataCadastro ?? ''));
+    if (filterSortBy === 'data-desc')
+      return [...result].sort((a, b) => (b.dataCadastro ?? '').localeCompare(a.dataCadastro ?? ''));
+    return result;
+  })();
 
   const columns: Column<Pessoa>[] = [
     {
@@ -385,6 +424,36 @@ const Pessoas = () => {
         )}
         <div className="flex-1" />
         <SearchBar value={search} onChange={setSearch} />
+        <ListFilterPanel
+          activeCount={(filterSortBy ? 1 : 0) + (filterClassificacao.length ? 1 : 0)}
+          resultCount={filteredItems.length}
+          onClear={() => {
+            setFilterSortBy('');
+            setFilterClassificacao([]);
+          }}
+          entityLabel="pessoas"
+        >
+          <FilterSection
+            title="Ordenar por"
+            subtitle={sortSubtitle(filterSortBy, SORT_OPTIONS_NOME_DATA)}
+            defaultOpen
+          >
+            <SortChip
+              value={filterSortBy}
+              onChange={setFilterSortBy}
+              options={[...SORT_OPTIONS_NOME_DATA]}
+            />
+          </FilterSection>
+          {classificacaoOptions.length > 0 && (
+            <FilterSection title="Classificação" subtitle={chipsSubtitle(filterClassificacao)}>
+              <MultiChip
+                options={classificacaoOptions}
+                selected={filterClassificacao}
+                onChange={setFilterClassificacao}
+              />
+            </FilterSection>
+          )}
+        </ListFilterPanel>
         {mode === 'list' && (
           <ColumnSelector
             columns={optionalColumns}
@@ -454,7 +523,8 @@ const Pessoas = () => {
                 <Avatar className="w-7 h-7 shrink-0">
                   <AvatarImage src={item.foto} />
                   <AvatarFallback className="text-xs gradient-brand text-primary-foreground">
-                    {item.nome.charAt(0)}{item.sobrenome.charAt(0)}
+                    {item.nome.charAt(0)}
+                    {item.sobrenome.charAt(0)}
                   </AvatarFallback>
                 </Avatar>
                 <div>

@@ -160,13 +160,13 @@ export const TabelaPrecoRecursosFisicosTab = ({
       )}
 
       {!readOnly && recursos.length === 0 && (
-        <p className="text-sm text-muted-foreground">
+        <p className="text-xs text-muted-foreground">
           Nenhum recurso físico cadastrado localmente para vincular.
         </p>
       )}
 
       {items.length === 0 ? (
-        <p className="text-sm text-muted-foreground text-center py-4">
+        <p className="text-xs text-muted-foreground text-center py-4">
           Nenhum recurso físico adicionado.
         </p>
       ) : (

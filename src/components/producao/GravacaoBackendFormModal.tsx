@@ -39,6 +39,7 @@ interface GravacaoBackendFormModalProps {
   data?: Gravacao | null;
   readOnly?: boolean;
   navigation?: ModalNavigationProps;
+  initialValues?: Partial<GravacaoInput>;
 }
 
 const parametrizacoesRepository = new ApiParametrizacoesRepository();
@@ -73,6 +74,7 @@ export const GravacaoBackendFormModal = ({
   data,
   readOnly = false,
   navigation,
+  initialValues,
 }: GravacaoBackendFormModalProps) => {
   const { t } = useLanguage();
   const { isVisible } = usePermissions();
@@ -160,17 +162,18 @@ export const GravacaoBackendFormModal = ({
     setFormData({
       codigo: generateCodigoGravacao(),
       codigoExterno: '',
-      nome: '',
+      nome: initialValues?.nome ?? '',
       unidadeNegocioId: '',
       centroLucro: '',
       classificacao: '',
       tipoConteudo: '',
-      descricao: '',
-      status: statusOptions.find((s) => s.nome === 'Planejada')?.nome ?? '',
-      dataPrevista: '',
+      descricao: initialValues?.descricao ?? '',
+      status:
+        initialValues?.status ?? statusOptions.find((s) => s.nome === 'Planejada')?.nome ?? '',
+      dataPrevista: initialValues?.dataPrevista ?? '',
       conteudoId: '',
       orcamento: 0,
-      programaId: '',
+      programaId: initialValues?.programaId ?? '',
     });
   }, [data, isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 

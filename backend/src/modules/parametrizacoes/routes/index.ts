@@ -10,6 +10,7 @@ import {
   saveFormaPagamentoSchema,
   saveStatusContaPagarSchema,
   saveStatusGravacaoSchema,
+  saveStatusPlaneamentoSchema,
   saveStatusTarefaSchema,
   saveTituloSchema,
   toggleInicialSchema,
@@ -48,6 +49,36 @@ export function createParametrizacoesRoutes(authService: AuthService, parametriz
       const { user } = request as AuthenticatedRequest;
       const params = request.params as { id: string };
       await parametrizacoesService.removeStatusGravacao(user, params.id);
+      return reply.status(204).send();
+    });
+
+    app.get('/parametrizacoes/status-planeamento', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      return reply.status(200).send(await parametrizacoesService.listStatusPlaneamento(user));
+    });
+
+    app.post('/parametrizacoes/status-planeamento', { preHandler: [authenticate, requireTenantAccess, requireAdminRole] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      return reply.status(200).send(await parametrizacoesService.saveStatusPlaneamento(user, saveStatusPlaneamentoSchema.parse(request.body)));
+    });
+
+    app.put('/parametrizacoes/status-planeamento/:id', { preHandler: [authenticate, requireTenantAccess, requireAdminRole] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      const params = request.params as { id: string };
+      return reply.status(200).send(await parametrizacoesService.saveStatusPlaneamento(user, saveStatusPlaneamentoSchema.parse({ ...(request.body as object), id: params.id })));
+    });
+
+    app.patch('/parametrizacoes/status-planeamento/:id/inicial', { preHandler: [authenticate, requireTenantAccess, requireAdminRole] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      const params = request.params as { id: string };
+      const body = toggleInicialSchema.parse(request.body);
+      return reply.status(200).send(await parametrizacoesService.toggleStatusPlaneamentoInicial(user, params.id, body.value));
+    });
+
+    app.delete('/parametrizacoes/status-planeamento/:id', { preHandler: [authenticate, requireTenantAccess, requireAdminRole] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      const params = request.params as { id: string };
+      await parametrizacoesService.removeStatusPlaneamento(user, params.id);
       return reply.status(204).send();
     });
 

@@ -28,7 +28,7 @@ class InMemoryProgramasRepository implements ProgramasRepository {
   items = new Map<string, ProgramaRecord>();
   async listByTenant(tenantId: string) { const data = [...this.items.values()].filter((item) => item.tenantId === tenantId); return { data, total: data.length }; }
   async findById(id: string) { return this.items.get(id) ?? null; }
-  async save(input: SaveProgramaInput) { const item: ProgramaRecord = { id: input.id ?? crypto.randomUUID(), tenantId: input.tenantId, codigoExterno: input.codigoExterno ?? null, nome: input.nome, descricao: input.descricao ?? null, unidadeNegocioId: input.unidadeNegocioId ?? null, unidadeNegocioNome: input.unidadeNegocioId ? 'Unidade A' : null, createdAt: new Date('2026-03-25T12:00:00.000Z') }; this.items.set(item.id, item); return item; }
+  async save(input: SaveProgramaInput) { const item: ProgramaRecord = { id: input.id ?? crypto.randomUUID(), tenantId: input.tenantId, codigoExterno: input.codigoExterno ?? null, nome: input.nome, descricao: input.descricao ?? null, cor: input.cor ?? null, unidadeNegocioId: input.unidadeNegocioId ?? null, unidadeNegocioNome: input.unidadeNegocioId ? 'Unidade A' : null, createdAt: new Date('2026-03-25T12:00:00.000Z') }; this.items.set(item.id, item); return item; }
   async remove(id: string) { this.items.delete(id); }
 }
 

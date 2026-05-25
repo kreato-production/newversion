@@ -304,7 +304,10 @@ export class PrismaEspacosRepository implements EspacosRepository {
         await prisma.$executeRawUnsafe(`
           CREATE INDEX IF NOT EXISTS espacos_tenant_titulo_idx ON espacos (tenant_id, titulo)
         `);
-      })();
+      })().catch((err) => {
+        this.ready = null;
+        throw err;
+      });
     }
 
     await this.ready;

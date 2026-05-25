@@ -359,7 +359,10 @@ export class PrismaIncidenciasGravacaoRepository implements IncidenciasGravacaoR
           CREATE INDEX IF NOT EXISTS incidencia_anexos_incidencia_idx
           ON incidencia_anexos (incidencia_id, created_at ASC)
         `);
-      })();
+      })().catch((err) => {
+        this.ready = null;
+        throw err;
+      });
     }
 
     await this.ready;

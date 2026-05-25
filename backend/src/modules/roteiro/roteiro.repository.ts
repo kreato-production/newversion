@@ -393,7 +393,10 @@ export class PrismaRoteiroRepository implements RoteiroRepository {
           CREATE INDEX IF NOT EXISTS gravacao_cenas_gravacao_ordem_idx
           ON gravacao_cenas (gravacao_id, ordem)
         `);
-      })();
+      })().catch((err) => {
+        this.ready = null;
+        throw err;
+      });
     }
 
     await this.ready;

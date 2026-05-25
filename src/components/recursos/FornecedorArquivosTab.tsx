@@ -172,7 +172,7 @@ export const FornecedorArquivosTab = ({
         <div className="text-center py-8 text-muted-foreground">
           <FileIcon className="w-12 h-12 mx-auto mb-2 opacity-50" />
           <p>Nenhum arquivo cadastrado</p>
-          <p className="text-sm">Clique em "Adicionar Arquivo" para enviar</p>
+          <p className="text-xs">Clique em "Adicionar Arquivo" para enviar</p>
         </div>
       ) : (
         <Table>

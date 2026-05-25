@@ -519,7 +519,7 @@ export const RoteiroTab = ({ gravacaoId, conteudoId }: RoteiroTabProps) => {
       <div className="flex justify-between items-center">
         <div>
           <h3 className="text-lg font-medium">{t('script.title')}</h3>
-          <p className="text-sm text-muted-foreground">{t('script.description')}</p>
+          <p className="text-xs text-muted-foreground">{t('script.description')}</p>
         </div>
         <div className="flex gap-2">
           {cenas.length > 0 && (
@@ -772,7 +772,7 @@ export const RoteiroTab = ({ gravacaoId, conteudoId }: RoteiroTabProps) => {
                           </PopoverContent>
                         </Popover>
                       ) : (
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-xs text-muted-foreground">
                           {t('script.noCharactersAvailable')}
                         </p>
                       )}
@@ -852,7 +852,7 @@ export const RoteiroTab = ({ gravacaoId, conteudoId }: RoteiroTabProps) => {
                           </PopoverContent>
                         </Popover>
                       ) : (
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-xs text-muted-foreground">
                           {t('script.noExtrasAvailable')}
                         </p>
                       )}

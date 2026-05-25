@@ -332,6 +332,21 @@ async function ensureTables() {
         CREATE UNIQUE INDEX IF NOT EXISTS centro_lucro_unidades_unique
         ON centro_lucro_unidades (centro_lucro_id, unidade_negocio_id)
       `);
+
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS status_planeamento (
+          id text PRIMARY KEY,
+          tenant_id text NOT NULL REFERENCES "Tenant"(id) ON DELETE CASCADE,
+          codigo_externo text NULL,
+          nome text NOT NULL,
+          descricao text NULL,
+          cor text NULL DEFAULT '#888888',
+          is_inicial boolean NOT NULL DEFAULT false,
+          created_at timestamptz NOT NULL DEFAULT NOW(),
+          updated_at timestamptz NOT NULL DEFAULT NOW(),
+          created_by text NULL
+        )
+      `);
     })();
   }
 
@@ -395,6 +410,17 @@ export type SaveTituloInput = {
 
 export type SaveClassificacaoInput = SaveTituloInput & {
   categoriaIncidenciaId: string;
+};
+
+export type SaveStatusPlaneamentoInput = {
+  id?: string;
+  tenantId: string;
+  codigoExterno?: string | null;
+  nome: string;
+  descricao?: string | null;
+  cor?: string | null;
+  isInicial?: boolean;
+  createdBy?: string | null;
 };
 
 export type SaveCentroLucroInput = {
@@ -521,6 +547,113 @@ export class PrismaParametrizacoesRepository {
       tenantId,
     );
 
+    return rows[0] ?? null;
+  }
+
+  async listStatusPlaneamento(tenantId: string) {
+    await ensureTables();
+    return prisma.$queryRawUnsafe<StatusRow[]>(
+      `
+        SELECT id, tenant_id, codigo_externo, NULL::text AS codigo, nome, descricao, cor, is_inicial, created_at, created_by
+        FROM status_planeamento
+        WHERE tenant_id = $1
+        ORDER BY nome ASC
+      `,
+      tenantId,
+    );
+  }
+
+  async findStatusPlaneamento(id: string) {
+    await ensureTables();
+    const rows = await prisma.$queryRawUnsafe<StatusRow[]>(
+      `
+        SELECT id, tenant_id, codigo_externo, NULL::text AS codigo, nome, descricao, cor, is_inicial, created_at, created_by
+        FROM status_planeamento
+        WHERE id = $1
+        LIMIT 1
+      `,
+      id,
+    );
+    return rows[0] ?? null;
+  }
+
+  async saveStatusPlaneamento(input: SaveStatusPlaneamentoInput) {
+    await ensureTables();
+
+    if (input.isInicial) {
+      await prisma.$executeRawUnsafe(
+        `UPDATE status_planeamento SET is_inicial = false, updated_at = NOW() WHERE tenant_id = $1`,
+        input.tenantId,
+      );
+    }
+
+    if (input.id) {
+      const rows = await prisma.$queryRawUnsafe<StatusRow[]>(
+        `
+          UPDATE status_planeamento
+          SET
+            codigo_externo = $1,
+            nome = $2,
+            descricao = $3,
+            cor = $4,
+            is_inicial = $5,
+            updated_at = NOW()
+          WHERE id = $6 AND tenant_id = $7
+          RETURNING id, tenant_id, codigo_externo, NULL::text AS codigo, nome, descricao, cor, is_inicial, created_at, created_by
+        `,
+        input.codigoExterno ?? null,
+        input.nome,
+        input.descricao ?? null,
+        input.cor ?? '#888888',
+        input.isInicial ?? false,
+        input.id,
+        input.tenantId,
+      );
+      if (rows[0]) return rows[0];
+    }
+
+    const id = input.id ?? randomUUID();
+    const rows = await prisma.$queryRawUnsafe<StatusRow[]>(
+      `
+        INSERT INTO status_planeamento (
+          id, tenant_id, codigo_externo, nome, descricao, cor, is_inicial, created_at, updated_at, created_by
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW(), $8)
+        RETURNING id, tenant_id, codigo_externo, NULL::text AS codigo, nome, descricao, cor, is_inicial, created_at, created_by
+      `,
+      id,
+      input.tenantId,
+      input.codigoExterno ?? null,
+      input.nome,
+      input.descricao ?? null,
+      input.cor ?? '#888888',
+      input.isInicial ?? false,
+      input.createdBy ?? null,
+    );
+    return rows[0];
+  }
+
+  async removeStatusPlaneamento(id: string) {
+    await ensureTables();
+    await prisma.$executeRawUnsafe(`DELETE FROM status_planeamento WHERE id = $1`, id);
+  }
+
+  async setStatusPlaneamentoInicial(tenantId: string, id: string, value: boolean) {
+    await ensureTables();
+    if (value) {
+      await prisma.$executeRawUnsafe(`UPDATE status_planeamento SET is_inicial = false, updated_at = NOW() WHERE tenant_id = $1`, tenantId);
+    }
+    const rows = await prisma.$queryRawUnsafe<StatusRow[]>(
+      `
+        UPDATE status_planeamento
+        SET is_inicial = $1, updated_at = NOW()
+        WHERE id = $2 AND tenant_id = $3
+        RETURNING id, tenant_id, codigo_externo, NULL::text AS codigo, nome, descricao, cor, is_inicial, created_at, created_by
+      `,
+      value,
+      id,
+      tenantId,
+    );
     return rows[0] ?? null;
   }
 

@@ -24,6 +24,18 @@ import { TabelaPrecoFormModal } from '@/components/producao/TabelaPrecoFormModal
 import type { TabelaPrecoItem } from '@/modules/tabelas-preco/tabelas-preco.types';
 import { ApiTabelasPrecoRepository } from '@/modules/tabelas-preco/tabelas-preco.api.repository';
 import {
+  ListFilterPanel,
+  FilterSection,
+  MultiChip,
+  SortChip,
+  DateRangeFilter,
+  SORT_OPTIONS_NOME_DATA,
+  uniqueChips,
+  chipsSubtitle,
+  sortSubtitle,
+  dateRangeSubtitle,
+} from '@/components/shared/ListFilter';
+import {
   useListingView,
   ViewSwitcher,
   ColumnSelector,
@@ -37,15 +49,15 @@ const tabelasPrecoRepository = new ApiTabelasPrecoRepository();
 // ─── Column configuration ──────────────────────────────────────────────────────
 
 const COLUMN_CONFIG: ColumnConfig[] = [
-  { key: 'codigoExterno',     label: 'Código',            required: false, defaultVisible: true },
-  { key: 'nome',              label: 'Nome',              required: true },
-  { key: 'unidadeNegocioNome',label: 'Unidade de Negócio',defaultVisible: true },
-  { key: 'status',            label: 'Status',            defaultVisible: true },
-  { key: 'vigenciaInicio',    label: 'Vigência De',       defaultVisible: true },
-  { key: 'vigenciaFim',       label: 'Vigência Até',      defaultVisible: true },
-  { key: 'descricao',         label: 'Descrição',         defaultVisible: false },
-  { key: 'dataCadastro',      label: 'Data Cadastro',     defaultVisible: false },
-  { key: 'actions',           label: 'Ações',             required: true },
+  { key: 'codigoExterno', label: 'Código', required: false, defaultVisible: true },
+  { key: 'nome', label: 'Nome', required: true },
+  { key: 'unidadeNegocioNome', label: 'Unidade de Negócio', defaultVisible: true },
+  { key: 'status', label: 'Status', defaultVisible: true },
+  { key: 'vigenciaInicio', label: 'Vigência De', defaultVisible: true },
+  { key: 'vigenciaFim', label: 'Vigência Até', defaultVisible: true },
+  { key: 'descricao', label: 'Descrição', defaultVisible: false },
+  { key: 'dataCadastro', label: 'Data Cadastro', defaultVisible: false },
+  { key: 'actions', label: 'Ações', required: true },
 ];
 
 const STORAGE_KEY = 'kreato_tabelas_preco_table';
@@ -91,9 +103,7 @@ function TabelaPrecoCard({
             </span>
           </div>
         )}
-        {item.descricao && (
-          <div className="truncate">{item.descricao}</div>
-        )}
+        {item.descricao && <div className="truncate">{item.descricao}</div>}
       </CardContent>
       <CardFooter className="px-4 py-2 border-t flex justify-end gap-1">
         <Button size="icon" variant="ghost" className="h-7 w-7" onClick={onEdit}>
@@ -195,6 +205,11 @@ const TabelasPreco = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<TabelaPrecoItem | null>(null);
+  const [filterSortBy, setFilterSortBy] = useState('');
+  const [filterStatus, setFilterStatus] = useState<string[]>([]);
+  const [filterUnidade, setFilterUnidade] = useState<string[]>([]);
+  const [filterVigenciaFrom, setFilterVigenciaFrom] = useState('');
+  const [filterVigenciaTo, setFilterVigenciaTo] = useState('');
 
   const { mode, setMode, visibleColumnKeys, toggleColumn, resetColumns, optionalColumns } =
     useListingView({ storageKey: STORAGE_KEY, columns: COLUMN_CONFIG });
@@ -243,11 +258,39 @@ const TabelasPreco = () => {
     }
   };
 
-  const filteredItems = items.filter(
-    (item) =>
-      item.nome?.toLowerCase().includes(search.toLowerCase()) ||
-      item.codigoExterno?.toLowerCase().includes(search.toLowerCase()),
-  );
+  const statusOptions = uniqueChips(items, 'status');
+  const unidadeOptions = uniqueChips(items, 'unidadeNegocioNome');
+
+  const filteredItems = (() => {
+    let result = items.filter(
+      (item) =>
+        item.nome?.toLowerCase().includes(search.toLowerCase()) ||
+        item.codigoExterno?.toLowerCase().includes(search.toLowerCase()),
+    );
+    if (filterStatus.length)
+      result = result.filter((i) => i.status && filterStatus.includes(i.status));
+    if (filterUnidade.length)
+      result = result.filter(
+        (i) => i.unidadeNegocioNome && filterUnidade.includes(i.unidadeNegocioNome),
+      );
+    if (filterVigenciaFrom)
+      result = result.filter((i) => i.vigenciaInicio && i.vigenciaInicio >= filterVigenciaFrom);
+    if (filterVigenciaTo)
+      result = result.filter((i) => i.vigenciaFim && i.vigenciaFim <= filterVigenciaTo);
+    if (filterSortBy === 'nome-asc')
+      return [...result].sort((a, b) => (a.nome ?? '').localeCompare(b.nome ?? ''));
+    if (filterSortBy === 'nome-desc')
+      return [...result].sort((a, b) => (b.nome ?? '').localeCompare(a.nome ?? ''));
+    if (filterSortBy === 'data-asc')
+      return [...result].sort((a, b) =>
+        (a.vigenciaInicio ?? '').localeCompare(b.vigenciaInicio ?? ''),
+      );
+    if (filterSortBy === 'data-desc')
+      return [...result].sort((a, b) =>
+        (b.vigenciaInicio ?? '').localeCompare(a.vigenciaInicio ?? ''),
+      );
+    return result;
+  })();
 
   const columns: Column<TabelaPrecoItem & { actions?: never }>[] = [
     {
@@ -340,6 +383,64 @@ const TabelasPreco = () => {
         />
         <div className="flex-1" />
         <SearchBar value={search} onChange={setSearch} />
+        <ListFilterPanel
+          activeCount={
+            (filterSortBy ? 1 : 0) +
+            (filterStatus.length ? 1 : 0) +
+            (filterUnidade.length ? 1 : 0) +
+            (filterVigenciaFrom || filterVigenciaTo ? 1 : 0)
+          }
+          resultCount={filteredItems.length}
+          onClear={() => {
+            setFilterSortBy('');
+            setFilterStatus([]);
+            setFilterUnidade([]);
+            setFilterVigenciaFrom('');
+            setFilterVigenciaTo('');
+          }}
+          entityLabel="tabelas"
+        >
+          <FilterSection
+            title="Ordenar por"
+            subtitle={sortSubtitle(filterSortBy, SORT_OPTIONS_NOME_DATA)}
+            defaultOpen
+          >
+            <SortChip
+              value={filterSortBy}
+              onChange={setFilterSortBy}
+              options={[...SORT_OPTIONS_NOME_DATA]}
+            />
+          </FilterSection>
+          {statusOptions.length > 0 && (
+            <FilterSection title="Status" subtitle={chipsSubtitle(filterStatus)}>
+              <MultiChip
+                options={statusOptions}
+                selected={filterStatus}
+                onChange={setFilterStatus}
+              />
+            </FilterSection>
+          )}
+          {unidadeOptions.length > 0 && (
+            <FilterSection title="Unidade de Negócio" subtitle={chipsSubtitle(filterUnidade)}>
+              <MultiChip
+                options={unidadeOptions}
+                selected={filterUnidade}
+                onChange={setFilterUnidade}
+              />
+            </FilterSection>
+          )}
+          <FilterSection
+            title="Vigência"
+            subtitle={dateRangeSubtitle(filterVigenciaFrom, filterVigenciaTo)}
+          >
+            <DateRangeFilter
+              from={filterVigenciaFrom}
+              to={filterVigenciaTo}
+              onFromChange={setFilterVigenciaFrom}
+              onToChange={setFilterVigenciaTo}
+            />
+          </FilterSection>
+        </ListFilterPanel>
         {mode === 'list' && (
           <ColumnSelector
             columns={optionalColumns}
@@ -408,9 +509,14 @@ const TabelasPreco = () => {
                 </p>
                 <div className="flex items-center gap-2 mt-0.5">
                   {item.codigoExterno && (
-                    <span className="text-xs font-mono text-muted-foreground">{item.codigoExterno}</span>
+                    <span className="text-xs font-mono text-muted-foreground">
+                      {item.codigoExterno}
+                    </span>
                   )}
-                  <Badge variant={item.status === 'Ativo' ? 'default' : 'secondary'} className="text-[10px] h-4 px-1.5">
+                  <Badge
+                    variant={item.status === 'Ativo' ? 'default' : 'secondary'}
+                    className="text-[10px] h-4 px-1.5"
+                  >
                     {item.status}
                   </Badge>
                 </div>

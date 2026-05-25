@@ -463,7 +463,7 @@ export const ConteudoCustosBackendTab = ({
           <TableBody>
             {rtRows.length === 0 && rfRows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={14} className="text-center text-muted-foreground py-10 text-sm">
+                <TableCell colSpan={14} className="text-center text-muted-foreground py-10 text-xs">
                   Nenhum dado disponível. Associe espaços e alocações às gravações deste conteúdo.
                 </TableCell>
               </TableRow>

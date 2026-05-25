@@ -587,7 +587,7 @@ export const IncidenciaGravacaoFormModal = ({
               )}
 
               {anexos.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-8">
+                <p className="text-xs text-muted-foreground text-center py-8">
                   {t('incident.noAttachments')}
                 </p>
               ) : (
@@ -598,7 +598,7 @@ export const IncidenciaGravacaoFormModal = ({
                       className="flex items-center justify-between p-3 border rounded-lg"
                     >
                       <div className="flex items-center gap-3 min-w-0">
-                        <span className="text-sm font-medium truncate">{anexo.nome}</span>
+                        <span className="text-xs font-medium truncate">{anexo.nome}</span>
                         {anexo.tamanho && (
                           <span className="text-xs text-muted-foreground shrink-0">
                             {(anexo.tamanho / 1024).toFixed(0)} KB

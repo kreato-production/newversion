@@ -28,7 +28,23 @@ import {
   type ColumnConfig,
 } from '@/components/listing';
 import { ContaPagarFormModal } from '@/components/financeiro/ContaPagarFormModal';
-import { ApiContasPagarRepository, type ContaPagar, type SaveContaPagarInput } from '@/modules/financeiro/contas-pagar.api';
+import {
+  ApiContasPagarRepository,
+  type ContaPagar,
+  type SaveContaPagarInput,
+} from '@/modules/financeiro/contas-pagar.api';
+import {
+  ListFilterPanel,
+  FilterSection,
+  MultiChip,
+  SortChip,
+  DateRangeFilter,
+  SORT_OPTIONS_NOME_DATA,
+  uniqueChips,
+  chipsSubtitle,
+  sortSubtitle,
+  dateRangeSubtitle,
+} from '@/components/shared/ListFilter';
 
 const repository = new ApiContasPagarRepository();
 
@@ -92,16 +108,22 @@ function ContaPagarCard({
             )}
           </div>
           {item.numeroDocumento && (
-            <span className="text-xs font-mono text-muted-foreground shrink-0">{item.numeroDocumento}</span>
+            <span className="text-xs font-mono text-muted-foreground shrink-0">
+              {item.numeroDocumento}
+            </span>
           )}
         </div>
       </CardHeader>
       <CardContent className="px-4 pb-3 space-y-2 text-xs text-muted-foreground flex-1">
         <div className="flex items-center justify-between">
-          <span className="font-semibold text-foreground text-base">{formatCurrency(item.valor)}</span>
+          <span className="font-semibold text-foreground text-base">
+            {formatCurrency(item.valor)}
+          </span>
           {item.statusNome && (
             <Badge
-              style={item.statusCor ? { backgroundColor: item.statusCor, color: '#fff' } : undefined}
+              style={
+                item.statusCor ? { backgroundColor: item.statusCor, color: '#fff' } : undefined
+              }
               variant="secondary"
             >
               {item.statusNome}
@@ -164,7 +186,9 @@ function ContaPagarDetailPanel({
     <div className="space-y-4">
       <div>
         <h3 className="font-semibold text-base">{item.descricao}</h3>
-        {item.fornecedorNome && <p className="text-sm text-muted-foreground">{item.fornecedorNome}</p>}
+        {item.fornecedorNome && (
+          <p className="text-sm text-muted-foreground">{item.fornecedorNome}</p>
+        )}
       </div>
 
       <div className="flex items-center gap-3">
@@ -241,6 +265,11 @@ const ContasPagar = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<ContaPagar | null>(null);
+  const [filterSortBy, setFilterSortBy] = useState('');
+  const [filterStatus, setFilterStatus] = useState<string[]>([]);
+  const [filterCategoria, setFilterCategoria] = useState<string[]>([]);
+  const [filterVencimentoFrom, setFilterVencimentoFrom] = useState('');
+  const [filterVencimentoTo, setFilterVencimentoTo] = useState('');
 
   const { mode, setMode, visibleColumnKeys, toggleColumn, resetColumns, optionalColumns } =
     useListingView({ storageKey: STORAGE_KEY, columns: COLUMN_CONFIG });
@@ -252,7 +281,11 @@ const ContasPagar = () => {
       setItems(response.data);
     } catch (error) {
       console.error('Error fetching contas a pagar:', error);
-      toast({ title: 'Erro', description: 'Erro ao carregar contas a pagar', variant: 'destructive' });
+      toast({
+        title: 'Erro',
+        description: 'Erro ao carregar contas a pagar',
+        variant: 'destructive',
+      });
     } finally {
       setIsLoading(false);
     }
@@ -265,7 +298,10 @@ const ContasPagar = () => {
   const handleSave = async (input: SaveContaPagarInput) => {
     try {
       await repository.save(input);
-      toast({ title: 'Sucesso', description: `Conta ${editingItem ? 'atualizada' : 'criada'} com sucesso` });
+      toast({
+        title: 'Sucesso',
+        description: `Conta ${editingItem ? 'atualizada' : 'criada'} com sucesso`,
+      });
       setIsModalOpen(false);
       setEditingItem(null);
       await fetchItems();
@@ -284,21 +320,51 @@ const ContasPagar = () => {
       await fetchItems();
     } catch (error) {
       console.error('Error deleting conta a pagar:', error);
-      toast({ title: 'Erro', description: 'Erro ao remover conta a pagar', variant: 'destructive' });
+      toast({
+        title: 'Erro',
+        description: 'Erro ao remover conta a pagar',
+        variant: 'destructive',
+      });
     } finally {
       setDeletingId(null);
     }
   };
 
-  const filteredItems = items.filter((item) => {
-    const term = search.toLowerCase();
-    return (
-      item.descricao.toLowerCase().includes(term) ||
-      (item.fornecedorNome?.toLowerCase().includes(term) ?? false) ||
-      (item.numeroDocumento?.toLowerCase().includes(term) ?? false) ||
-      (item.statusNome?.toLowerCase().includes(term) ?? false)
-    );
-  });
+  const statusOptions = uniqueChips(items, 'statusNome');
+  const categoriaOptions = uniqueChips(items, 'categoriaNome');
+
+  const filteredItems = (() => {
+    let result = items.filter((item) => {
+      const term = search.toLowerCase();
+      return (
+        item.descricao.toLowerCase().includes(term) ||
+        (item.fornecedorNome?.toLowerCase().includes(term) ?? false) ||
+        (item.numeroDocumento?.toLowerCase().includes(term) ?? false) ||
+        (item.statusNome?.toLowerCase().includes(term) ?? false)
+      );
+    });
+    if (filterStatus.length)
+      result = result.filter((i) => i.statusNome && filterStatus.includes(i.statusNome));
+    if (filterCategoria.length)
+      result = result.filter((i) => i.categoriaNome && filterCategoria.includes(i.categoriaNome));
+    if (filterVencimentoFrom)
+      result = result.filter((i) => i.dataVencimento && i.dataVencimento >= filterVencimentoFrom);
+    if (filterVencimentoTo)
+      result = result.filter((i) => i.dataVencimento && i.dataVencimento <= filterVencimentoTo);
+    if (filterSortBy === 'nome-asc')
+      return [...result].sort((a, b) => a.descricao.localeCompare(b.descricao));
+    if (filterSortBy === 'nome-desc')
+      return [...result].sort((a, b) => b.descricao.localeCompare(a.descricao));
+    if (filterSortBy === 'data-asc')
+      return [...result].sort((a, b) =>
+        (a.dataVencimento ?? '').localeCompare(b.dataVencimento ?? ''),
+      );
+    if (filterSortBy === 'data-desc')
+      return [...result].sort((a, b) =>
+        (b.dataVencimento ?? '').localeCompare(a.dataVencimento ?? ''),
+      );
+    return result;
+  })();
 
   const columns: Column<ContaPagar & { actions?: never }>[] = [
     {
@@ -334,7 +400,9 @@ const ContasPagar = () => {
       key: 'valor',
       label: 'Valor',
       className: 'w-36 text-right',
-      render: (item) => <span className="font-semibold tabular-nums">{formatCurrency(item.valor)}</span>,
+      render: (item) => (
+        <span className="font-semibold tabular-nums">{formatCurrency(item.valor)}</span>
+      ),
     },
     {
       key: 'statusNome',
@@ -364,13 +432,17 @@ const ContasPagar = () => {
       label: 'Valor Pago',
       className: 'w-36 text-right',
       render: (item) => (
-        <span className="tabular-nums">{item.valorPago != null ? formatCurrency(item.valorPago) : '-'}</span>
+        <span className="tabular-nums">
+          {item.valorPago != null ? formatCurrency(item.valorPago) : '-'}
+        </span>
       ),
     },
     {
       key: 'categoriaNome',
       label: 'Categoria',
-      render: (item) => <span className="text-muted-foreground text-xs">{item.categoriaNome || '-'}</span>,
+      render: (item) => (
+        <span className="text-muted-foreground text-xs">{item.categoriaNome || '-'}</span>
+      ),
     },
     {
       key: 'actions',
@@ -430,6 +502,64 @@ const ContasPagar = () => {
         />
         <div className="flex-1" />
         <SearchBar value={search} onChange={setSearch} placeholder="Buscar contas..." />
+        <ListFilterPanel
+          activeCount={
+            (filterSortBy ? 1 : 0) +
+            (filterStatus.length ? 1 : 0) +
+            (filterCategoria.length ? 1 : 0) +
+            (filterVencimentoFrom || filterVencimentoTo ? 1 : 0)
+          }
+          resultCount={filteredItems.length}
+          onClear={() => {
+            setFilterSortBy('');
+            setFilterStatus([]);
+            setFilterCategoria([]);
+            setFilterVencimentoFrom('');
+            setFilterVencimentoTo('');
+          }}
+          entityLabel="contas"
+        >
+          <FilterSection
+            title="Ordenar por"
+            subtitle={sortSubtitle(filterSortBy, SORT_OPTIONS_NOME_DATA)}
+            defaultOpen
+          >
+            <SortChip
+              value={filterSortBy}
+              onChange={setFilterSortBy}
+              options={[...SORT_OPTIONS_NOME_DATA]}
+            />
+          </FilterSection>
+          {statusOptions.length > 0 && (
+            <FilterSection title="Status" subtitle={chipsSubtitle(filterStatus)}>
+              <MultiChip
+                options={statusOptions}
+                selected={filterStatus}
+                onChange={setFilterStatus}
+              />
+            </FilterSection>
+          )}
+          {categoriaOptions.length > 0 && (
+            <FilterSection title="Categoria" subtitle={chipsSubtitle(filterCategoria)}>
+              <MultiChip
+                options={categoriaOptions}
+                selected={filterCategoria}
+                onChange={setFilterCategoria}
+              />
+            </FilterSection>
+          )}
+          <FilterSection
+            title="Vencimento"
+            subtitle={dateRangeSubtitle(filterVencimentoFrom, filterVencimentoTo)}
+          >
+            <DateRangeFilter
+              from={filterVencimentoFrom}
+              to={filterVencimentoTo}
+              onFromChange={setFilterVencimentoFrom}
+              onToChange={setFilterVencimentoTo}
+            />
+          </FilterSection>
+        </ListFilterPanel>
         {mode === 'list' && (
           <ColumnSelector
             columns={optionalColumns}
@@ -492,7 +622,9 @@ const ContasPagar = () => {
               <div>
                 <p
                   className={
-                    isSelected ? 'text-sm font-medium truncate text-primary' : 'text-sm font-medium truncate'
+                    isSelected
+                      ? 'text-sm font-medium truncate text-primary'
+                      : 'text-sm font-medium truncate'
                   }
                 >
                   {item.descricao}
@@ -500,7 +632,9 @@ const ContasPagar = () => {
                 <div className="flex gap-2 mt-0.5 text-xs text-muted-foreground">
                   {item.fornecedorNome && <span className="truncate">{item.fornecedorNome}</span>}
                   <span className="shrink-0">{formatDate(item.dataVencimento)}</span>
-                  <span className="shrink-0 font-medium tabular-nums">{formatCurrency(item.valor)}</span>
+                  <span className="shrink-0 font-medium tabular-nums">
+                    {formatCurrency(item.valor)}
+                  </span>
                 </div>
               </div>
             )}

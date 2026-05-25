@@ -244,7 +244,7 @@ export const ServicosTab = ({ fornecedorId, readOnly = false }: ServicosTabProps
       ) : (
         <div className="text-center py-8 text-muted-foreground">
           <p>Nenhum serviço selecionado.</p>
-          <p className="text-sm">Adicione os serviços oferecidos por este fornecedor.</p>
+          <p className="text-xs">Adicione os serviços oferecidos por este fornecedor.</p>
         </div>
       )}
     </div>

@@ -58,7 +58,12 @@ export function createAlocacoesRoutes(authService: AuthService, alocacoesService
 
     app.get('/alocacoes/overview', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
-      return reply.status(200).send(await alocacoesService.listOverview(user));
+      try {
+        return reply.status(200).send(await alocacoesService.listOverview(user));
+      } catch (err) {
+        request.log.error({ err, msg: (err instanceof Error ? err.message : String(err)) }, 'alocacoes_overview_error');
+        throw err;
+      }
     });
   };
 }

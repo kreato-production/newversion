@@ -22,6 +22,7 @@ class InMemoryProgramasRepository implements ProgramasRepository {
       codigoExterno: input.codigoExterno ?? null,
       nome: input.nome,
       descricao: input.descricao ?? null,
+      cor: input.cor ?? null,
       unidadeNegocioId: input.unidadeNegocioId ?? null,
       unidadeNegocioNome: input.unidadeNegocioId ? 'Unidade A' : null,
       createdAt: new Date('2026-03-25T12:00:00.000Z'),
