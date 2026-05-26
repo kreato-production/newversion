@@ -1621,7 +1621,7 @@ export class PrismaGravacoesRepository implements GravacoesRepository {
       left join public.espacos e on e.id = ge.espaco_id
       left join "Gravacao" g on g.id = ge.gravacao_id
       where ge.tenant_id = ${tenantId}
-        and ge.data = ${data}
+        and COALESCE(ge.data, to_char(g."dataPrevista", 'YYYY-MM-DD')) = ${data}
       order by ge.hora_inicio asc
     `;
     return rows;
@@ -2230,7 +2230,7 @@ export class PrismaGravacoesRepository implements GravacoesRepository {
           gert.recurso_tecnico_id AS "recursoId",
           COALESCE(rt.nome, '') AS "recursoNome",
           rt.funcao_operador_id AS "funcaoOperadorId",
-          COALESCE(gert.data, ge.data) AS "data",
+          COALESCE(gert.data, ge.data, to_char(g."dataPrevista", 'YYYY-MM-DD')) AS "data",
           gert.hora_inicio AS "horaInicio",
           gert.hora_fim AS "horaFim"
         FROM gravacao_espaco_recursos_tecnicos gert
@@ -2239,9 +2239,9 @@ export class PrismaGravacoesRepository implements GravacoesRepository {
         JOIN recursos_tecnicos rt ON rt.id = gert.recurso_tecnico_id
         LEFT JOIN public.espacos e ON e.id = ge.espaco_id
         WHERE gert.tenant_id = ${tenantId}
-          AND COALESCE(gert.data, ge.data) >= ${dateStart}
-          AND COALESCE(gert.data, ge.data) <= ${dateEnd}
-        ORDER BY COALESCE(gert.data, ge.data), rt.nome
+          AND COALESCE(gert.data, ge.data, to_char(g."dataPrevista", 'YYYY-MM-DD')) >= ${dateStart}
+          AND COALESCE(gert.data, ge.data, to_char(g."dataPrevista", 'YYYY-MM-DD')) <= ${dateEnd}
+        ORDER BY COALESCE(gert.data, ge.data, to_char(g."dataPrevista", 'YYYY-MM-DD')), rt.nome
       `);
       for (const r of rows) tecnicos.push(r);
     }
@@ -2273,7 +2273,7 @@ export class PrismaGravacoesRepository implements GravacoesRepository {
           gerf.recurso_fisico_id AS "recursoId",
           COALESCE(rf.nome, '') AS "recursoNome",
           NULL::text AS "funcaoOperadorId",
-          COALESCE(gerf.data, ge.data) AS "data",
+          COALESCE(gerf.data, ge.data, to_char(g."dataPrevista", 'YYYY-MM-DD')) AS "data",
           gerf.hora_inicio AS "horaInicio",
           gerf.hora_fim AS "horaFim"
         FROM gravacao_espaco_recursos_fisicos gerf
@@ -2282,9 +2282,9 @@ export class PrismaGravacoesRepository implements GravacoesRepository {
         JOIN recursos_fisicos rf ON rf.id = gerf.recurso_fisico_id
         LEFT JOIN public.espacos e ON e.id = ge.espaco_id
         WHERE gerf.tenant_id = ${tenantId}
-          AND COALESCE(gerf.data, ge.data) >= ${dateStart}
-          AND COALESCE(gerf.data, ge.data) <= ${dateEnd}
-        ORDER BY COALESCE(gerf.data, ge.data), rf.nome
+          AND COALESCE(gerf.data, ge.data, to_char(g."dataPrevista", 'YYYY-MM-DD')) >= ${dateStart}
+          AND COALESCE(gerf.data, ge.data, to_char(g."dataPrevista", 'YYYY-MM-DD')) <= ${dateEnd}
+        ORDER BY COALESCE(gerf.data, ge.data, to_char(g."dataPrevista", 'YYYY-MM-DD')), rf.nome
       `);
       for (const r of rows) fisicos.push(r);
     }
