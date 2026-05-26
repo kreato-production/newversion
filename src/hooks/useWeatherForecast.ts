@@ -31,7 +31,7 @@ const getWeatherInfo = (code: number): { icon: string; description: string } => 
   if (code >= 85 && code <= 86) return { icon: '🌨️', description: 'Neve' };
   // Thunderstorm
   if (code >= 95 && code <= 99) return { icon: '⛈️', description: 'Tempestade' };
-  
+
   return { icon: '❓', description: 'Desconhecido' };
 };
 
@@ -44,26 +44,19 @@ export const useWeatherForecast = (days: number = 16) => {
     const fetchWeather = async () => {
       try {
         setLoading(true);
-        
-        // Using Open-Meteo API (free, no API key required)
-        // Location: Lisbon, Portugal
-        const lat = 38.7223;
-        const lon = -9.1393;
-        
-        const response = await fetch(
-          `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=temperature_2m_max,weather_code&timezone=America/Sao_Paulo&forecast_days=${days}`
-        );
-        
+
+        const response = await fetch(`/api/weather?days=${days}`);
+
         if (!response.ok) {
           throw new Error('Failed to fetch weather data');
         }
-        
+
         const data = await response.json();
-        
+
         const weatherData: WeatherData[] = data.daily.time.map((date: string, index: number) => {
           const weatherCode = data.daily.weather_code[index];
           const weatherInfo = getWeatherInfo(weatherCode);
-          
+
           return {
             date,
             temperature: Math.round(data.daily.temperature_2m_max[index]),
@@ -72,17 +65,17 @@ export const useWeatherForecast = (days: number = 16) => {
             weatherDescription: weatherInfo.description,
           };
         });
-        
+
         setWeather(weatherData);
         setError(null);
       } catch (err) {
         console.error('Error fetching weather:', err);
         setError('Não foi possível carregar a previsão do tempo');
-        
+
         // Generate fallback data for demo purposes
         const fallbackData: WeatherData[] = [];
         const today = startOfDay(new Date());
-        
+
         for (let i = 0; i < days; i++) {
           const date = addDays(today, i);
           fallbackData.push({
@@ -93,7 +86,7 @@ export const useWeatherForecast = (days: number = 16) => {
             weatherDescription: 'Dados de exemplo',
           });
         }
-        
+
         setWeather(fallbackData);
       } finally {
         setLoading(false);
@@ -105,7 +98,7 @@ export const useWeatherForecast = (days: number = 16) => {
 
   const getWeatherForDate = (date: Date | string): WeatherData | undefined => {
     const dateStr = typeof date === 'string' ? date : format(date, 'yyyy-MM-dd');
-    return weather.find(w => w.date === dateStr);
+    return weather.find((w) => w.date === dateStr);
   };
 
   return { weather, loading, error, getWeatherForDate };
