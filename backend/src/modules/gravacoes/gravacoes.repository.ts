@@ -1615,7 +1615,7 @@ export class PrismaGravacoesRepository implements GravacoesRepository {
         ge.data,
         g.nome as "gravacaoNome",
         g.codigo as "gravacaoCodigo",
-        g.programa_id as "programaId",
+        g."programaId" as "programaId",
         NULL::text as "programaCor"
       from gravacao_espacos ge
       left join public.espacos e on e.id = ge.espaco_id

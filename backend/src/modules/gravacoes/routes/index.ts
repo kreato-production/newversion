@@ -140,7 +140,12 @@ export function createGravacoesRoutes(authService: AuthService, gravacoesService
       const { user } = request as AuthenticatedRequest;
       const query = request.query as { data?: string };
       if (!query.data) return reply.status(400).send({ message: 'Parâmetro data obrigatório' });
-      return reply.status(200).send(await gravacoesService.listEspacosByData(user, query.data));
+      try {
+        return reply.status(200).send(await gravacoesService.listEspacosByData(user, query.data));
+      } catch (err) {
+        request.log.error({ err, data: query.data }, 'listEspacosByData_error');
+        return reply.status(200).send([]);
+      }
     });
 
     app.get('/gravacoes/espacos/recursos-por-periodo', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
