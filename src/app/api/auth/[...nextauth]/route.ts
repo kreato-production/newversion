@@ -15,11 +15,11 @@
 // Sem isso, o Next.js 16 pode servir uma resposta HTML em cache no lugar de JSON.
 export const dynamic = 'force-dynamic';
 
-import { handlers } from '@/auth-handlers';
+import { GET as authGET, POST as authPOST } from '@/auth-handlers';
 
 export async function GET(request: Request) {
   try {
-    return await handlers.GET(request);
+    return await authGET(request);
   } catch (err) {
     console.error('[auth] GET handler error:', err);
     return Response.json({ error: 'auth_error' }, { status: 500 });
@@ -28,7 +28,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    return await handlers.POST(request);
+    return await authPOST(request);
   } catch (err) {
     console.error('[auth] POST handler error:', err);
     return Response.json({ error: 'auth_error' }, { status: 500 });
