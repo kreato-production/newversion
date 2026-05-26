@@ -2351,7 +2351,6 @@ const Mapas = () => {
             const slots: string[] = [];
             for (let h = 5; h <= 23; h++) {
               for (let m = 0; m < 60; m += alocacaoIntervalo) {
-                if (h === 23 && m > 0) break;
                 slots.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
               }
             }
@@ -2389,9 +2388,10 @@ const Mapas = () => {
                   const endMin = toMinutes(event.horaFim.substring(0, 5));
                   const si = slots.findIndex((s) => toMinutes(s) >= startMin);
                   if (si === -1) {
-                    startIdx = 0;
+                    // Event starts after all visible slots — anchor at last slot
+                    startIdx = slots.length - 1;
                     endIdx = slots.length;
-                    noTime = true;
+                    noTime = false;
                   } else {
                     startIdx = si;
                     const ei = slots.findIndex((s) => toMinutes(s) >= endMin);
