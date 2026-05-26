@@ -11,9 +11,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { Badge } from '@/components/ui/badge';
 import { ModalNavigation, type ModalNavigationProps } from '@/components/shared/ModalNavigation';
+import { TraducaoTab, type Traducoes } from '@/components/shared/TraducaoTab';
 import { type StatusGravacaoItem } from '@/views/producao/StatusGravacao';
 
 interface StatusGravacaoFormModalProps {
@@ -26,16 +28,16 @@ interface StatusGravacaoFormModalProps {
 }
 
 const PRESET_COLORS = [
-  '#3b82f6', // blue
-  '#22c55e', // green
-  '#f97316', // orange
-  '#ef4444', // red
-  '#8b5cf6', // violet
-  '#ec4899', // pink
-  '#06b6d4', // cyan
-  '#eab308', // yellow
-  '#6b7280', // gray
-  '#000000', // black
+  '#3b82f6',
+  '#22c55e',
+  '#f97316',
+  '#ef4444',
+  '#8b5cf6',
+  '#ec4899',
+  '#06b6d4',
+  '#eab308',
+  '#6b7280',
+  '#000000',
 ];
 
 export const StatusGravacaoFormModal = ({
@@ -53,6 +55,7 @@ export const StatusGravacaoFormModal = ({
     descricao: '',
     cor: '#3b82f6',
   });
+  const [traducoes, setTraducoes] = useState<Traducoes>({});
 
   useEffect(() => {
     if (isOpen) {
@@ -63,13 +66,10 @@ export const StatusGravacaoFormModal = ({
           descricao: data.descricao || '',
           cor: data.cor || '#3b82f6',
         });
+        setTraducoes((data.traducoes as Traducoes) ?? {});
       } else {
-        setFormData({
-          codigoExterno: '',
-          nome: '',
-          descricao: '',
-          cor: '#3b82f6',
-        });
+        setFormData({ codigoExterno: '', nome: '', descricao: '', cor: '#3b82f6' });
+        setTraducoes({});
       }
     }
   }, [data, isOpen]);
@@ -80,6 +80,7 @@ export const StatusGravacaoFormModal = ({
       id: data?.id || crypto.randomUUID(),
       ...formData,
       isInicial: data?.isInicial || false,
+      traducoes,
       dataCadastro: data?.dataCadastro || new Date().toLocaleDateString('pt-BR'),
       usuarioCadastro: data?.usuarioCadastro || user?.nome || 'Admin',
     });
@@ -95,85 +96,112 @@ export const StatusGravacaoFormModal = ({
             Preencha os campos abaixo para {data ? 'editar' : 'cadastrar'} o status.
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="codigoExterno">Código Externo</Label>
-              <Input
-                id="codigoExterno"
-                value={formData.codigoExterno}
-                onChange={(e) => setFormData({ ...formData, codigoExterno: e.target.value })}
-                maxLength={10}
-                placeholder="Máx. 10 caracteres"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="nome">
-                Nome <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="nome"
-                value={formData.nome}
-                onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
-                maxLength={100}
-                required
-              />
-            </div>
-          </div>
+        <form onSubmit={(e) => void handleSubmit(e)}>
+          <Tabs defaultValue="dados">
+            <TabsList className="w-full">
+              <TabsTrigger value="dados" className="flex-1">
+                Dados Gerais
+              </TabsTrigger>
+              <TabsTrigger value="traducao" className="flex-1">
+                Tradução
+              </TabsTrigger>
+            </TabsList>
 
-          <div className="space-y-2">
-            <Label>Cor</Label>
-            <div className="space-y-3">
-              <div className="flex items-center gap-3">
-                <div className="flex gap-2 flex-wrap">
-                  {PRESET_COLORS.map((color) => (
-                    <button
-                      key={color}
-                      type="button"
-                      className={`w-8 h-8 rounded-full border-2 transition-all ${
-                        formData.cor === color
-                          ? 'border-primary ring-2 ring-primary/50 scale-110'
-                          : 'border-border hover:scale-105'
-                      }`}
-                      style={{ backgroundColor: color }}
-                      onClick={() => setFormData({ ...formData, cor: color })}
-                    />
-                  ))}
+            <TabsContent value="dados" className="space-y-4 mt-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="codigoExterno">Código Externo</Label>
+                  <Input
+                    id="codigoExterno"
+                    value={formData.codigoExterno}
+                    onChange={(e) => setFormData({ ...formData, codigoExterno: e.target.value })}
+                    maxLength={10}
+                    placeholder="Máx. 10 caracteres"
+                    disabled={readOnly}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="nome">
+                    Nome <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="nome"
+                    value={formData.nome}
+                    onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
+                    maxLength={100}
+                    required
+                    disabled={readOnly}
+                  />
                 </div>
               </div>
-              <div className="flex items-center gap-3">
-                <Input
-                  type="color"
-                  value={formData.cor}
-                  onChange={(e) => setFormData({ ...formData, cor: e.target.value })}
-                  className="w-14 h-10 p-1 cursor-pointer"
-                />
-                <Input
-                  type="text"
-                  value={formData.cor}
-                  onChange={(e) => setFormData({ ...formData, cor: e.target.value })}
-                  placeholder="#000000"
-                  className="w-28 font-mono text-xs"
-                />
-                <Badge style={{ backgroundColor: formData.cor }} className="text-white ml-auto">
-                  {formData.nome || 'Preview'}
-                </Badge>
+
+              <div className="space-y-2">
+                <Label>Cor</Label>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className="flex gap-2 flex-wrap">
+                      {PRESET_COLORS.map((color) => (
+                        <button
+                          key={color}
+                          type="button"
+                          className={`w-8 h-8 rounded-full border-2 transition-all ${
+                            formData.cor === color
+                              ? 'border-primary ring-2 ring-primary/50 scale-110'
+                              : 'border-border hover:scale-105'
+                          }`}
+                          style={{ backgroundColor: color }}
+                          onClick={() => setFormData({ ...formData, cor: color })}
+                          disabled={readOnly}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Input
+                      type="color"
+                      value={formData.cor}
+                      onChange={(e) => setFormData({ ...formData, cor: e.target.value })}
+                      className="w-14 h-10 p-1 cursor-pointer"
+                      disabled={readOnly}
+                    />
+                    <Input
+                      type="text"
+                      value={formData.cor}
+                      onChange={(e) => setFormData({ ...formData, cor: e.target.value })}
+                      placeholder="#000000"
+                      className="w-28 font-mono text-xs"
+                      disabled={readOnly}
+                    />
+                    <Badge style={{ backgroundColor: formData.cor }} className="text-white ml-auto">
+                      {formData.nome || 'Preview'}
+                    </Badge>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="descricao">Descrição</Label>
-            <Textarea
-              id="descricao"
-              value={formData.descricao}
-              onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
-              rows={3}
-              placeholder="Descrição do status..."
-            />
-          </div>
+              <div className="space-y-2">
+                <Label htmlFor="descricao">Descrição</Label>
+                <Textarea
+                  id="descricao"
+                  value={formData.descricao}
+                  onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
+                  rows={3}
+                  placeholder="Descrição do status..."
+                  disabled={readOnly}
+                />
+              </div>
+            </TabsContent>
 
-          <DialogFooter className={navigation ? 'sm:justify-between' : undefined}>
+            <TabsContent value="traducao">
+              <TraducaoTab
+                traducoes={traducoes}
+                onChange={(lang, value) => setTraducoes({ ...traducoes, [lang]: value })}
+                readOnly={readOnly}
+              />
+            </TabsContent>
+          </Tabs>
+
+          <DialogFooter className={`mt-4 ${navigation ? 'sm:justify-between' : ''}`}>
             {navigation && <ModalNavigation {...navigation} />}
             <div className="flex gap-2">
               <Button type="button" variant="outline" onClick={onClose}>

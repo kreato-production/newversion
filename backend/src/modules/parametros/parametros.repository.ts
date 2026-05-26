@@ -24,6 +24,7 @@ export type ParametroRecord = {
   nome: string;
   descricao: string | null;
   cor: string | null;
+  traducoes: Record<string, string> | null;
   createdAt: Date | null;
   createdBy: string | null;
 };
@@ -35,6 +36,7 @@ export type SaveParametroInput = {
   nome: string;
   descricao?: string | null;
   cor?: string | null;
+  traducoes?: Record<string, string> | null;
   createdBy?: string | null;
 };
 
@@ -65,6 +67,7 @@ type ParametroRow = {
   nome: string;
   descricao: string | null;
   cor: string | null;
+  traducoes: Record<string, string> | null;
   created_at: Date | null;
   created_by: string | null;
 };
@@ -88,6 +91,7 @@ function mapRow(row: ParametroRow): ParametroRecord {
     nome: row.nome,
     descricao: row.descricao,
     cor: row.cor ?? null,
+    traducoes: row.traducoes ?? null,
     createdAt: row.created_at,
     createdBy: row.created_by,
   };
@@ -102,9 +106,25 @@ export interface ParametrosRepository {
 
 export class PrismaParametrosRepository implements ParametrosRepository {
   private readonly columnTypeCache = new Map<string, CachedColumnType>();
+  private readonly traducoesMigrated = new Set<string>();
+
+  private async ensureTraducoes(tableName: string): Promise<void> {
+    if (this.traducoesMigrated.has(tableName)) return;
+    this.traducoesMigrated.add(tableName);
+    try {
+      await prisma.$executeRawUnsafe(
+        `ALTER TABLE ${tableName} ADD COLUMN IF NOT EXISTS traducoes jsonb NULL DEFAULT '{}'::jsonb`,
+      );
+      // Warm up the hasColumn cache so subsequent calls don't re-query
+      this.columnTypeCache.set(`${tableName}.traducoes.exists`, 'text');
+    } catch {
+      // Table might not exist yet — silently ignore
+    }
+  }
 
   async listByTenant(storageKey: string, tenantId: string, opts?: ListOptions): Promise<PaginatedResult<ParametroRecord>> {
     const tableName = resolveTableName(storageKey);
+    await this.ensureTraducoes(tableName);
     const take = Math.min(opts?.limit ?? 200, 200);
     const skip = opts?.offset ?? 0;
 
@@ -112,7 +132,7 @@ export class PrismaParametrosRepository implements ParametrosRepository {
     const corSelect = hasCor ? ', cor' : ', NULL::text AS cor';
     const rows = await prisma.$queryRawUnsafe<ParametroRow[]>(
       `
-        SELECT id, tenant_id, codigo_externo, nome, descricao${corSelect}, created_at, created_by
+        SELECT id, tenant_id, codigo_externo, nome, descricao${corSelect}, traducoes, created_at, created_by
         FROM ${tableName}
         WHERE tenant_id::text = $1
         ORDER BY nome ASC
@@ -140,11 +160,12 @@ export class PrismaParametrosRepository implements ParametrosRepository {
 
   async findById(storageKey: string, id: string): Promise<ParametroRecord | null> {
     const tableName = resolveTableName(storageKey);
+    await this.ensureTraducoes(tableName);
     const hasCor = await this.hasColumn(tableName, 'cor');
     const corSelect = hasCor ? ', cor' : ', NULL::text AS cor';
     const rows = await prisma.$queryRawUnsafe<ParametroRow[]>(
       `
-        SELECT id, tenant_id, codigo_externo, nome, descricao${corSelect}, created_at, created_by
+        SELECT id, tenant_id, codigo_externo, nome, descricao${corSelect}, traducoes, created_at, created_by
         FROM ${tableName}
         WHERE id::text = $1
         LIMIT 1
@@ -157,20 +178,23 @@ export class PrismaParametrosRepository implements ParametrosRepository {
 
   async save(storageKey: string, input: SaveParametroInput): Promise<ParametroRecord> {
     const tableName = resolveTableName(storageKey);
+    await this.ensureTraducoes(tableName);
     const hasCor = await this.hasColumn(tableName, 'cor');
     const hasUpdatedAt = await this.hasColumn(tableName, 'updated_at');
     const corSelect = hasCor ? ', cor' : ', NULL::text AS cor';
     const idInsertExpr = await this.buildColumnValueExpression(tableName, 'id', 1);
     const tenantInsertExpr = await this.buildColumnValueExpression(tableName, 'tenant_id', 2);
     const createdByInsertExpr = await this.buildColumnValueExpression(tableName, 'created_by', 6);
+    const traducoes = input.traducoes ? JSON.stringify(input.traducoes) : '{}';
 
     if (input.id) {
-      const corUpdateClause = hasCor ? ', cor = $6' : '';
+      const corUpdateClause = hasCor ? ', cor = $7' : '';
       const updatedAtClause = hasUpdatedAt ? ', updated_at = NOW()' : '';
       const updateArgs: unknown[] = [
         input.codigoExterno ?? null,
         input.nome,
         input.descricao ?? null,
+        traducoes,
         input.id,
         input.tenantId,
       ];
@@ -182,9 +206,10 @@ export class PrismaParametrosRepository implements ParametrosRepository {
           SET
             codigo_externo = $1,
             nome = $2,
-            descricao = $3${updatedAtClause}${corUpdateClause}
-          WHERE id::text = $4 AND tenant_id::text = $5
-          RETURNING id, tenant_id, codigo_externo, nome, descricao${corSelect}, created_at, created_by
+            descricao = $3,
+            traducoes = $4::jsonb${updatedAtClause}${corUpdateClause}
+          WHERE id::text = $5 AND tenant_id::text = $6
+          RETURNING id, tenant_id, codigo_externo, nome, descricao${corSelect}, traducoes, created_at, created_by
         `,
         ...updateArgs,
       );
@@ -202,10 +227,10 @@ export class PrismaParametrosRepository implements ParametrosRepository {
       const rows = await prisma.$queryRawUnsafe<ParametroRow[]>(
         `
           INSERT INTO ${tableName} (
-            id, tenant_id, codigo_externo, nome, descricao, cor, created_at${updatedAtInsertCol}, created_by
+            id, tenant_id, codigo_externo, nome, descricao, cor, created_at${updatedAtInsertCol}, created_by, traducoes
           )
-          VALUES (${idInsertExpr}, ${tenantInsertExpr}, $3, $4, $5, $7, NOW()${updatedAtInsertVal}, ${createdByInsertExpr})
-          RETURNING id, tenant_id, codigo_externo, nome, descricao, cor, created_at, created_by
+          VALUES (${idInsertExpr}, ${tenantInsertExpr}, $3, $4, $5, $7, NOW()${updatedAtInsertVal}, ${createdByInsertExpr}, $8::jsonb)
+          RETURNING id, tenant_id, codigo_externo, nome, descricao, cor, created_at, created_by, traducoes
         `,
         createdId,
         input.tenantId,
@@ -214,6 +239,7 @@ export class PrismaParametrosRepository implements ParametrosRepository {
         input.descricao ?? null,
         input.createdBy ?? null,
         input.cor ?? null,
+        traducoes,
       );
       return mapRow(rows[0]);
     }
@@ -221,10 +247,10 @@ export class PrismaParametrosRepository implements ParametrosRepository {
     const rows = await prisma.$queryRawUnsafe<ParametroRow[]>(
       `
         INSERT INTO ${tableName} (
-          id, tenant_id, codigo_externo, nome, descricao, created_at${updatedAtInsertCol}, created_by
+          id, tenant_id, codigo_externo, nome, descricao, created_at${updatedAtInsertCol}, created_by, traducoes
         )
-        VALUES (${idInsertExpr}, ${tenantInsertExpr}, $3, $4, $5, NOW()${updatedAtInsertVal}, ${createdByInsertExpr})
-        RETURNING id, tenant_id, codigo_externo, nome, descricao, NULL::text AS cor, created_at, created_by
+        VALUES (${idInsertExpr}, ${tenantInsertExpr}, $3, $4, $5, NOW()${updatedAtInsertVal}, ${createdByInsertExpr}, $7::jsonb)
+        RETURNING id, tenant_id, codigo_externo, nome, descricao, NULL::text AS cor, created_at, created_by, traducoes
       `,
       createdId,
       input.tenantId,
@@ -232,6 +258,7 @@ export class PrismaParametrosRepository implements ParametrosRepository {
       input.nome,
       input.descricao ?? null,
       input.createdBy ?? null,
+      traducoes,
     );
 
     return mapRow(rows[0]);

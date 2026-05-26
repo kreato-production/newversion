@@ -7,6 +7,7 @@ export type StatusGravacaoApiItem = {
   descricao: string;
   cor: string;
   isInicial: boolean;
+  traducoes?: Record<string, string> | null;
   dataCadastro: string;
   usuarioCadastro: string;
 };
@@ -18,6 +19,7 @@ export type StatusPlaneamentoApiItem = {
   descricao: string;
   cor: string;
   isInicial: boolean;
+  traducoes?: Record<string, string> | null;
   dataCadastro: string;
   usuarioCadastro: string;
 };
@@ -29,6 +31,7 @@ export type StatusTarefaApiItem = {
   descricao: string;
   cor: string;
   isInicial: boolean;
+  traducoes?: Record<string, string> | null;
   dataCadastro: string;
   usuarioCadastro: string;
 };
@@ -41,6 +44,7 @@ export type StatusContaPagarApiItem = {
   cor: string;
   isInicial: boolean;
   isBaixa: boolean;
+  traducoes?: Record<string, string> | null;
   dataCadastro: string;
   usuarioCadastro: string;
 };
@@ -52,6 +56,7 @@ export type FormaPagamentoApiItem = {
   descricao: string;
   cor: string;
   isPadrao: boolean;
+  traducoes?: Record<string, string> | null;
   dataCadastro: string;
   usuarioCadastro: string;
 };
@@ -62,6 +67,7 @@ export type TipoDocumentoFinanceiroApiItem = {
   titulo: string;
   descricao: string;
   cor: string | null;
+  traducoes?: Record<string, string> | null;
   created_at: string;
   created_by: string;
 };
@@ -72,6 +78,7 @@ export type TipoPagamentoApiItem = {
   titulo: string;
   descricao: string;
   cor: string | null;
+  traducoes?: Record<string, string> | null;
   created_at: string;
   created_by: string;
 };
@@ -82,6 +89,7 @@ export type CategoriaDespesaApiItem = {
   titulo: string;
   descricao: string;
   cor: string | null;
+  traducoes?: Record<string, string> | null;
   created_at: string;
   created_by: string;
 };
@@ -92,6 +100,7 @@ export type IncidenciaParametroApiItem = {
   titulo: string;
   descricao: string;
   cor?: string | null;
+  traducoes?: Record<string, string> | null;
   created_at: string;
   created_by: string;
 };
@@ -103,6 +112,7 @@ export type CentroLucroApiItem = {
   descricao: string;
   status: 'Ativo' | 'Inativo';
   parentId: string | null;
+  traducoes?: Record<string, string> | null;
   dataCadastro: string;
   usuarioCadastro: string;
 };
@@ -222,6 +232,7 @@ export class ApiParametrizacoesRepository {
         cor: input.cor,
         isInicial: input.isInicial,
         isBaixa: input.isBaixa,
+        traducoes: input.traducoes,
       }),
     });
   }
@@ -258,6 +269,7 @@ export class ApiParametrizacoesRepository {
         descricao: input.descricao,
         cor: input.cor,
         isPadrao: input.isPadrao,
+        traducoes: input.traducoes,
       }),
     });
   }
@@ -293,6 +305,7 @@ export class ApiParametrizacoesRepository {
         titulo: input.titulo,
         descricao: input.descricao,
         cor: input.cor,
+        traducoes: input.traducoes,
       }),
     });
   }
@@ -321,6 +334,7 @@ export class ApiParametrizacoesRepository {
         titulo: input.titulo,
         descricao: input.descricao,
         cor: input.cor,
+        traducoes: input.traducoes,
       }),
     });
   }
@@ -349,6 +363,7 @@ export class ApiParametrizacoesRepository {
         titulo: input.titulo,
         descricao: input.descricao,
         cor: input.cor,
+        traducoes: input.traducoes,
       }),
     });
   }
@@ -376,6 +391,7 @@ export class ApiParametrizacoesRepository {
         codigoExterno: input.codigo_externo,
         titulo: input.titulo,
         descricao: input.descricao,
+        traducoes: input.traducoes,
       }),
     });
   }
@@ -406,6 +422,7 @@ export class ApiParametrizacoesRepository {
         codigoExterno: input.codigo_externo,
         titulo: input.titulo,
         descricao: input.descricao,
+        traducoes: input.traducoes,
       }),
     });
   }
@@ -437,6 +454,7 @@ export class ApiParametrizacoesRepository {
         titulo: input.titulo,
         descricao: input.descricao,
         cor: input.cor,
+        traducoes: input.traducoes,
       }),
     });
   }
@@ -464,6 +482,7 @@ export class ApiParametrizacoesRepository {
         codigoExterno: input.codigo_externo,
         titulo: input.titulo,
         descricao: input.descricao,
+        traducoes: input.traducoes,
       }),
     });
   }
@@ -493,6 +512,7 @@ export class ApiParametrizacoesRepository {
         descricao: input.descricao,
         status: input.status,
         parentId: input.parentId,
+        traducoes: input.traducoes,
       }),
     });
   }

@@ -10,6 +10,7 @@ type StatusRow = {
   descricao: string | null;
   cor: string | null;
   is_inicial: boolean | null;
+  traducoes: Record<string, string> | null;
   created_at: Date | null;
   created_by: string | null;
 };
@@ -23,6 +24,7 @@ type StatusContaPagarRow = {
   cor: string | null;
   is_inicial: boolean | null;
   is_baixa: boolean | null;
+  traducoes: Record<string, string> | null;
   created_at: Date | null;
   created_by: string | null;
 };
@@ -35,6 +37,7 @@ type FormaPagamentoRow = {
   descricao: string | null;
   cor: string | null;
   is_padrao: boolean | null;
+  traducoes: Record<string, string> | null;
   created_at: Date | null;
   created_by: string | null;
 };
@@ -46,6 +49,7 @@ type TituloRow = {
   titulo: string;
   descricao: string | null;
   cor?: string | null;
+  traducoes: Record<string, string> | null;
   created_at: Date | null;
   created_by: string | null;
 };
@@ -58,6 +62,7 @@ type CentroLucroRow = {
   descricao: string | null;
   status: string | null;
   parent_id: string | null;
+  traducoes: Record<string, string> | null;
   created_at: Date | null;
   created_by: string | null;
 };
@@ -347,6 +352,20 @@ async function ensureTables() {
           created_by text NULL
         )
       `);
+
+      // Migrate traducoes column to all parametrizacao tables
+      const tablesWithTraducoes = [
+        'status_gravacao', 'status_tarefa', 'status_planeamento',
+        'status_conta_pagar', 'formas_pagamento',
+        'tipos_documento_financeiro', 'tipos_pagamento', 'categorias_despesa',
+        'centros_lucro',
+        'categorias_incidencia', 'classificacoes_incidencia', 'severidades_incidencia', 'impactos_incidencia',
+      ];
+      for (const table of tablesWithTraducoes) {
+        await prisma.$executeRawUnsafe(
+          `ALTER TABLE ${table} ADD COLUMN IF NOT EXISTS traducoes jsonb NULL DEFAULT '{}'::jsonb`,
+        );
+      }
     })();
   }
 
@@ -361,6 +380,7 @@ export type SaveStatusGravacaoInput = {
   descricao?: string | null;
   cor?: string | null;
   isInicial?: boolean;
+  traducoes?: Record<string, string> | null;
   createdBy?: string | null;
 };
 
@@ -372,6 +392,7 @@ export type SaveStatusTarefaInput = {
   descricao?: string | null;
   cor?: string | null;
   isInicial?: boolean;
+  traducoes?: Record<string, string> | null;
   createdBy?: string | null;
 };
 
@@ -384,6 +405,7 @@ export type SaveStatusContaPagarInput = {
   cor?: string | null;
   isInicial?: boolean;
   isBaixa?: boolean;
+  traducoes?: Record<string, string> | null;
   createdBy?: string | null;
 };
 
@@ -395,6 +417,7 @@ export type SaveFormaPagamentoInput = {
   descricao?: string | null;
   cor?: string | null;
   isPadrao?: boolean;
+  traducoes?: Record<string, string> | null;
   createdBy?: string | null;
 };
 
@@ -405,6 +428,7 @@ export type SaveTituloInput = {
   titulo: string;
   descricao?: string | null;
   cor?: string | null;
+  traducoes?: Record<string, string> | null;
   createdBy?: string | null;
 };
 
@@ -420,6 +444,7 @@ export type SaveStatusPlaneamentoInput = {
   descricao?: string | null;
   cor?: string | null;
   isInicial?: boolean;
+  traducoes?: Record<string, string> | null;
   createdBy?: string | null;
 };
 
@@ -431,6 +456,7 @@ export type SaveCentroLucroInput = {
   descricao?: string | null;
   status?: string | null;
   parentId?: string | null;
+  traducoes?: Record<string, string> | null;
   createdBy?: string | null;
 };
 
@@ -439,7 +465,7 @@ export class PrismaParametrizacoesRepository {
     await ensureTables();
     return prisma.$queryRawUnsafe<StatusRow[]>(
       `
-        SELECT id, tenant_id, codigo_externo, codigo, nome, descricao, cor, is_inicial, created_at, created_by
+        SELECT id, tenant_id, codigo_externo, codigo, nome, descricao, cor, is_inicial, traducoes, created_at, created_by
         FROM status_gravacao
         WHERE tenant_id = $1
         ORDER BY nome ASC
@@ -452,7 +478,7 @@ export class PrismaParametrizacoesRepository {
     await ensureTables();
     const rows = await prisma.$queryRawUnsafe<StatusRow[]>(
       `
-        SELECT id, tenant_id, codigo_externo, codigo, nome, descricao, cor, is_inicial, created_at, created_by
+        SELECT id, tenant_id, codigo_externo, codigo, nome, descricao, cor, is_inicial, traducoes, created_at, created_by
         FROM status_gravacao
         WHERE id = $1
         LIMIT 1
@@ -465,6 +491,7 @@ export class PrismaParametrizacoesRepository {
 
   async saveStatusGravacao(input: SaveStatusGravacaoInput) {
     await ensureTables();
+    const traducoes = JSON.stringify(input.traducoes ?? {});
 
     if (input.isInicial) {
       await prisma.$executeRawUnsafe(
@@ -483,9 +510,10 @@ export class PrismaParametrizacoesRepository {
             descricao = $3,
             cor = $4,
             is_inicial = $5,
+            traducoes = $8::jsonb,
             updated_at = NOW()
           WHERE id = $6 AND tenant_id = $7
-          RETURNING id, tenant_id, codigo_externo, codigo, nome, descricao, cor, is_inicial, created_at, created_by
+          RETURNING id, tenant_id, codigo_externo, codigo, nome, descricao, cor, is_inicial, traducoes, created_at, created_by
         `,
         input.codigoExterno ?? null,
         input.nome,
@@ -494,6 +522,7 @@ export class PrismaParametrizacoesRepository {
         input.isInicial ?? false,
         input.id,
         input.tenantId,
+        traducoes,
       );
 
       if (rows[0]) {
@@ -505,10 +534,10 @@ export class PrismaParametrizacoesRepository {
     const rows = await prisma.$queryRawUnsafe<StatusRow[]>(
       `
         INSERT INTO status_gravacao (
-          id, tenant_id, codigo_externo, codigo, nome, descricao, cor, is_inicial, created_at, updated_at, created_by
+          id, tenant_id, codigo_externo, codigo, nome, descricao, cor, is_inicial, traducoes, created_at, updated_at, created_by
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW(), $9)
-        RETURNING id, tenant_id, codigo_externo, codigo, nome, descricao, cor, is_inicial, created_at, created_by
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $10::jsonb, NOW(), NOW(), $9)
+        RETURNING id, tenant_id, codigo_externo, codigo, nome, descricao, cor, is_inicial, traducoes, created_at, created_by
       `,
       id,
       input.tenantId,
@@ -519,6 +548,7 @@ export class PrismaParametrizacoesRepository {
       input.cor ?? '#888888',
       input.isInicial ?? false,
       input.createdBy ?? null,
+      traducoes,
     );
 
     return rows[0];
@@ -540,7 +570,7 @@ export class PrismaParametrizacoesRepository {
         UPDATE status_gravacao
         SET is_inicial = $1, updated_at = NOW()
         WHERE id = $2 AND tenant_id = $3
-        RETURNING id, tenant_id, codigo_externo, codigo, nome, descricao, cor, is_inicial, created_at, created_by
+        RETURNING id, tenant_id, codigo_externo, codigo, nome, descricao, cor, is_inicial, traducoes, created_at, created_by
       `,
       value,
       id,
@@ -554,7 +584,7 @@ export class PrismaParametrizacoesRepository {
     await ensureTables();
     return prisma.$queryRawUnsafe<StatusRow[]>(
       `
-        SELECT id, tenant_id, codigo_externo, NULL::text AS codigo, nome, descricao, cor, is_inicial, created_at, created_by
+        SELECT id, tenant_id, codigo_externo, NULL::text AS codigo, nome, descricao, cor, is_inicial, traducoes, created_at, created_by
         FROM status_planeamento
         WHERE tenant_id = $1
         ORDER BY nome ASC
@@ -567,7 +597,7 @@ export class PrismaParametrizacoesRepository {
     await ensureTables();
     const rows = await prisma.$queryRawUnsafe<StatusRow[]>(
       `
-        SELECT id, tenant_id, codigo_externo, NULL::text AS codigo, nome, descricao, cor, is_inicial, created_at, created_by
+        SELECT id, tenant_id, codigo_externo, NULL::text AS codigo, nome, descricao, cor, is_inicial, traducoes, created_at, created_by
         FROM status_planeamento
         WHERE id = $1
         LIMIT 1
@@ -579,6 +609,7 @@ export class PrismaParametrizacoesRepository {
 
   async saveStatusPlaneamento(input: SaveStatusPlaneamentoInput) {
     await ensureTables();
+    const traducoes = JSON.stringify(input.traducoes ?? {});
 
     if (input.isInicial) {
       await prisma.$executeRawUnsafe(
@@ -597,9 +628,10 @@ export class PrismaParametrizacoesRepository {
             descricao = $3,
             cor = $4,
             is_inicial = $5,
+            traducoes = $8::jsonb,
             updated_at = NOW()
           WHERE id = $6 AND tenant_id = $7
-          RETURNING id, tenant_id, codigo_externo, NULL::text AS codigo, nome, descricao, cor, is_inicial, created_at, created_by
+          RETURNING id, tenant_id, codigo_externo, NULL::text AS codigo, nome, descricao, cor, is_inicial, traducoes, created_at, created_by
         `,
         input.codigoExterno ?? null,
         input.nome,
@@ -608,6 +640,7 @@ export class PrismaParametrizacoesRepository {
         input.isInicial ?? false,
         input.id,
         input.tenantId,
+        traducoes,
       );
       if (rows[0]) return rows[0];
     }
@@ -616,10 +649,10 @@ export class PrismaParametrizacoesRepository {
     const rows = await prisma.$queryRawUnsafe<StatusRow[]>(
       `
         INSERT INTO status_planeamento (
-          id, tenant_id, codigo_externo, nome, descricao, cor, is_inicial, created_at, updated_at, created_by
+          id, tenant_id, codigo_externo, nome, descricao, cor, is_inicial, traducoes, created_at, updated_at, created_by
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW(), $8)
-        RETURNING id, tenant_id, codigo_externo, NULL::text AS codigo, nome, descricao, cor, is_inicial, created_at, created_by
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $9::jsonb, NOW(), NOW(), $8)
+        RETURNING id, tenant_id, codigo_externo, NULL::text AS codigo, nome, descricao, cor, is_inicial, traducoes, created_at, created_by
       `,
       id,
       input.tenantId,
@@ -629,6 +662,7 @@ export class PrismaParametrizacoesRepository {
       input.cor ?? '#888888',
       input.isInicial ?? false,
       input.createdBy ?? null,
+      traducoes,
     );
     return rows[0];
   }
@@ -648,7 +682,7 @@ export class PrismaParametrizacoesRepository {
         UPDATE status_planeamento
         SET is_inicial = $1, updated_at = NOW()
         WHERE id = $2 AND tenant_id = $3
-        RETURNING id, tenant_id, codigo_externo, NULL::text AS codigo, nome, descricao, cor, is_inicial, created_at, created_by
+        RETURNING id, tenant_id, codigo_externo, NULL::text AS codigo, nome, descricao, cor, is_inicial, traducoes, created_at, created_by
       `,
       value,
       id,
@@ -661,7 +695,7 @@ export class PrismaParametrizacoesRepository {
     await ensureTables();
     return prisma.$queryRawUnsafe<StatusRow[]>(
       `
-        SELECT id, tenant_id, codigo_externo, codigo, nome, descricao, cor, is_inicial, created_at, created_by
+        SELECT id, tenant_id, codigo_externo, codigo, nome, descricao, cor, is_inicial, traducoes, created_at, created_by
         FROM status_tarefa
         WHERE tenant_id = $1
         ORDER BY nome ASC
@@ -674,7 +708,7 @@ export class PrismaParametrizacoesRepository {
     await ensureTables();
     const rows = await prisma.$queryRawUnsafe<StatusRow[]>(
       `
-        SELECT id, tenant_id, codigo_externo, codigo, nome, descricao, cor, is_inicial, created_at, created_by
+        SELECT id, tenant_id, codigo_externo, codigo, nome, descricao, cor, is_inicial, traducoes, created_at, created_by
         FROM status_tarefa
         WHERE id = $1
         LIMIT 1
@@ -687,6 +721,7 @@ export class PrismaParametrizacoesRepository {
 
   async saveStatusTarefa(input: SaveStatusTarefaInput) {
     await ensureTables();
+    const traducoes = JSON.stringify(input.traducoes ?? {});
 
     if (input.isInicial) {
       await prisma.$executeRawUnsafe(
@@ -706,9 +741,10 @@ export class PrismaParametrizacoesRepository {
             descricao = $4,
             cor = $5,
             is_inicial = $6,
+            traducoes = $9::jsonb,
             updated_at = NOW()
           WHERE id = $7 AND tenant_id = $8
-          RETURNING id, tenant_id, codigo_externo, codigo, nome, descricao, cor, is_inicial, created_at, created_by
+          RETURNING id, tenant_id, codigo_externo, codigo, nome, descricao, cor, is_inicial, traducoes, created_at, created_by
         `,
         input.codigo ?? null,
         input.codigo ?? null,
@@ -718,6 +754,7 @@ export class PrismaParametrizacoesRepository {
         input.isInicial ?? false,
         input.id,
         input.tenantId,
+        traducoes,
       );
 
       if (rows[0]) {
@@ -729,10 +766,10 @@ export class PrismaParametrizacoesRepository {
     const rows = await prisma.$queryRawUnsafe<StatusRow[]>(
       `
         INSERT INTO status_tarefa (
-          id, tenant_id, codigo_externo, codigo, nome, descricao, cor, is_inicial, created_at, updated_at, created_by
+          id, tenant_id, codigo_externo, codigo, nome, descricao, cor, is_inicial, traducoes, created_at, updated_at, created_by
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW(), $9)
-        RETURNING id, tenant_id, codigo_externo, codigo, nome, descricao, cor, is_inicial, created_at, created_by
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $10::jsonb, NOW(), NOW(), $9)
+        RETURNING id, tenant_id, codigo_externo, codigo, nome, descricao, cor, is_inicial, traducoes, created_at, created_by
       `,
       id,
       input.tenantId,
@@ -743,6 +780,7 @@ export class PrismaParametrizacoesRepository {
       input.cor ?? '#888888',
       input.isInicial ?? false,
       input.createdBy ?? null,
+      traducoes,
     );
 
     return rows[0];
@@ -764,7 +802,7 @@ export class PrismaParametrizacoesRepository {
         UPDATE status_tarefa
         SET is_inicial = $1, updated_at = NOW()
         WHERE id = $2 AND tenant_id = $3
-        RETURNING id, tenant_id, codigo_externo, codigo, nome, descricao, cor, is_inicial, created_at, created_by
+        RETURNING id, tenant_id, codigo_externo, codigo, nome, descricao, cor, is_inicial, traducoes, created_at, created_by
       `,
       value,
       id,
@@ -778,7 +816,7 @@ export class PrismaParametrizacoesRepository {
     await ensureTables();
     return prisma.$queryRawUnsafe<StatusContaPagarRow[]>(
       `
-        SELECT id, tenant_id, codigo_externo, titulo, descricao, cor, is_inicial, is_baixa, created_at, created_by
+        SELECT id, tenant_id, codigo_externo, titulo, descricao, cor, is_inicial, is_baixa, traducoes, created_at, created_by
         FROM status_conta_pagar
         WHERE tenant_id = $1
         ORDER BY titulo ASC
@@ -791,7 +829,7 @@ export class PrismaParametrizacoesRepository {
     await ensureTables();
     const rows = await prisma.$queryRawUnsafe<StatusContaPagarRow[]>(
       `
-        SELECT id, tenant_id, codigo_externo, titulo, descricao, cor, is_inicial, is_baixa, created_at, created_by
+        SELECT id, tenant_id, codigo_externo, titulo, descricao, cor, is_inicial, is_baixa, traducoes, created_at, created_by
         FROM status_conta_pagar
         WHERE id = $1
         LIMIT 1
@@ -804,6 +842,7 @@ export class PrismaParametrizacoesRepository {
 
   async saveStatusContaPagar(input: SaveStatusContaPagarInput) {
     await ensureTables();
+    const traducoes = JSON.stringify(input.traducoes ?? {});
 
     if (input.isInicial) {
       await prisma.$executeRawUnsafe(
@@ -823,9 +862,10 @@ export class PrismaParametrizacoesRepository {
             cor = $4,
             is_inicial = $5,
             is_baixa = $6,
+            traducoes = $9::jsonb,
             updated_at = NOW()
           WHERE id = $7 AND tenant_id = $8
-          RETURNING id, tenant_id, codigo_externo, titulo, descricao, cor, is_inicial, is_baixa, created_at, created_by
+          RETURNING id, tenant_id, codigo_externo, titulo, descricao, cor, is_inicial, is_baixa, traducoes, created_at, created_by
         `,
         input.codigoExterno ?? null,
         input.titulo,
@@ -835,6 +875,7 @@ export class PrismaParametrizacoesRepository {
         input.isBaixa ?? false,
         input.id,
         input.tenantId,
+        traducoes,
       );
 
       if (rows[0]) {
@@ -846,10 +887,10 @@ export class PrismaParametrizacoesRepository {
     const rows = await prisma.$queryRawUnsafe<StatusContaPagarRow[]>(
       `
         INSERT INTO status_conta_pagar (
-          id, tenant_id, codigo_externo, titulo, descricao, cor, is_inicial, is_baixa, created_at, updated_at, created_by
+          id, tenant_id, codigo_externo, titulo, descricao, cor, is_inicial, is_baixa, traducoes, created_at, updated_at, created_by
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW(), $9)
-        RETURNING id, tenant_id, codigo_externo, titulo, descricao, cor, is_inicial, is_baixa, created_at, created_by
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $10::jsonb, NOW(), NOW(), $9)
+        RETURNING id, tenant_id, codigo_externo, titulo, descricao, cor, is_inicial, is_baixa, traducoes, created_at, created_by
       `,
       id,
       input.tenantId,
@@ -860,6 +901,7 @@ export class PrismaParametrizacoesRepository {
       input.isInicial ?? false,
       input.isBaixa ?? false,
       input.createdBy ?? null,
+      traducoes,
     );
 
     return rows[0];
@@ -874,7 +916,7 @@ export class PrismaParametrizacoesRepository {
     await ensureTables();
     return prisma.$queryRawUnsafe<FormaPagamentoRow[]>(
       `
-        SELECT id, tenant_id, codigo_externo, titulo, descricao, cor, is_padrao, created_at, created_by
+        SELECT id, tenant_id, codigo_externo, titulo, descricao, cor, is_padrao, traducoes, created_at, created_by
         FROM formas_pagamento
         WHERE tenant_id = $1
         ORDER BY titulo ASC
@@ -887,7 +929,7 @@ export class PrismaParametrizacoesRepository {
     await ensureTables();
     const rows = await prisma.$queryRawUnsafe<FormaPagamentoRow[]>(
       `
-        SELECT id, tenant_id, codigo_externo, titulo, descricao, cor, is_padrao, created_at, created_by
+        SELECT id, tenant_id, codigo_externo, titulo, descricao, cor, is_padrao, traducoes, created_at, created_by
         FROM formas_pagamento
         WHERE id = $1
         LIMIT 1
@@ -900,6 +942,7 @@ export class PrismaParametrizacoesRepository {
 
   async saveFormaPagamento(input: SaveFormaPagamentoInput) {
     await ensureTables();
+    const traducoes = JSON.stringify(input.traducoes ?? {});
 
     if (input.isPadrao) {
       await prisma.$executeRawUnsafe(
@@ -918,9 +961,10 @@ export class PrismaParametrizacoesRepository {
             descricao = $3,
             cor = $4,
             is_padrao = $5,
+            traducoes = $8::jsonb,
             updated_at = NOW()
           WHERE id = $6 AND tenant_id = $7
-          RETURNING id, tenant_id, codigo_externo, titulo, descricao, cor, is_padrao, created_at, created_by
+          RETURNING id, tenant_id, codigo_externo, titulo, descricao, cor, is_padrao, traducoes, created_at, created_by
         `,
         input.codigoExterno ?? null,
         input.titulo,
@@ -929,6 +973,7 @@ export class PrismaParametrizacoesRepository {
         input.isPadrao ?? false,
         input.id,
         input.tenantId,
+        traducoes,
       );
 
       if (rows[0]) {
@@ -940,10 +985,10 @@ export class PrismaParametrizacoesRepository {
     const rows = await prisma.$queryRawUnsafe<FormaPagamentoRow[]>(
       `
         INSERT INTO formas_pagamento (
-          id, tenant_id, codigo_externo, titulo, descricao, cor, is_padrao, created_at, updated_at, created_by
+          id, tenant_id, codigo_externo, titulo, descricao, cor, is_padrao, traducoes, created_at, updated_at, created_by
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW(), $8)
-        RETURNING id, tenant_id, codigo_externo, titulo, descricao, cor, is_padrao, created_at, created_by
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $9::jsonb, NOW(), NOW(), $8)
+        RETURNING id, tenant_id, codigo_externo, titulo, descricao, cor, is_padrao, traducoes, created_at, created_by
       `,
       id,
       input.tenantId,
@@ -953,6 +998,7 @@ export class PrismaParametrizacoesRepository {
       input.cor ?? '#888888',
       input.isPadrao ?? false,
       input.createdBy ?? null,
+      traducoes,
     );
 
     return rows[0];
@@ -977,7 +1023,7 @@ export class PrismaParametrizacoesRepository {
         UPDATE formas_pagamento
         SET is_padrao = $1, updated_at = NOW()
         WHERE id = $2 AND tenant_id = $3
-        RETURNING id, tenant_id, codigo_externo, titulo, descricao, cor, is_padrao, created_at, created_by
+        RETURNING id, tenant_id, codigo_externo, titulo, descricao, cor, is_padrao, traducoes, created_at, created_by
       `,
       value,
       id,
@@ -991,7 +1037,7 @@ export class PrismaParametrizacoesRepository {
     await ensureTables();
     return prisma.$queryRawUnsafe<TituloRow[]>(
       `
-        SELECT id, tenant_id, codigo_externo, titulo, descricao, cor, created_at, created_by
+        SELECT id, tenant_id, codigo_externo, titulo, descricao, cor, traducoes, created_at, created_by
         FROM tipos_documento_financeiro
         WHERE tenant_id = $1
         ORDER BY titulo ASC
@@ -1004,7 +1050,7 @@ export class PrismaParametrizacoesRepository {
     await ensureTables();
     const rows = await prisma.$queryRawUnsafe<TituloRow[]>(
       `
-        SELECT id, tenant_id, codigo_externo, titulo, descricao, cor, created_at, created_by
+        SELECT id, tenant_id, codigo_externo, titulo, descricao, cor, traducoes, created_at, created_by
         FROM tipos_documento_financeiro
         WHERE id = $1
         LIMIT 1
@@ -1017,13 +1063,14 @@ export class PrismaParametrizacoesRepository {
 
   async saveTipoDocumentoFinanceiro(input: SaveTituloInput) {
     await ensureTables();
+    const traducoes = JSON.stringify(input.traducoes ?? {});
     if (input.id) {
       const rows = await prisma.$queryRawUnsafe<TituloRow[]>(
         `
           UPDATE tipos_documento_financeiro
-          SET codigo_externo = $1, titulo = $2, descricao = $3, cor = $4, updated_at = NOW()
+          SET codigo_externo = $1, titulo = $2, descricao = $3, cor = $4, traducoes = $7::jsonb, updated_at = NOW()
           WHERE id = $5 AND tenant_id = $6
-          RETURNING id, tenant_id, codigo_externo, titulo, descricao, cor, created_at, created_by
+          RETURNING id, tenant_id, codigo_externo, titulo, descricao, cor, traducoes, created_at, created_by
         `,
         input.codigoExterno ?? null,
         input.titulo,
@@ -1031,15 +1078,16 @@ export class PrismaParametrizacoesRepository {
         input.cor ?? '#888888',
         input.id,
         input.tenantId,
+        traducoes,
       );
       if (rows[0]) return rows[0];
     }
 
     const rows = await prisma.$queryRawUnsafe<TituloRow[]>(
       `
-        INSERT INTO tipos_documento_financeiro (id, tenant_id, codigo_externo, titulo, descricao, cor, created_by, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
-        RETURNING id, tenant_id, codigo_externo, titulo, descricao, cor, created_at, created_by
+        INSERT INTO tipos_documento_financeiro (id, tenant_id, codigo_externo, titulo, descricao, cor, traducoes, created_by, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $8::jsonb, $7, NOW(), NOW())
+        RETURNING id, tenant_id, codigo_externo, titulo, descricao, cor, traducoes, created_at, created_by
       `,
       input.id ?? randomUUID(),
       input.tenantId,
@@ -1048,6 +1096,7 @@ export class PrismaParametrizacoesRepository {
       input.descricao ?? null,
       input.cor ?? '#888888',
       input.createdBy ?? null,
+      traducoes,
     );
 
     return rows[0];
@@ -1062,7 +1111,7 @@ export class PrismaParametrizacoesRepository {
     await ensureTables();
     return prisma.$queryRawUnsafe<TituloRow[]>(
       `
-        SELECT id, tenant_id, codigo_externo, titulo, descricao, cor, created_at, created_by
+        SELECT id, tenant_id, codigo_externo, titulo, descricao, cor, traducoes, created_at, created_by
         FROM tipos_pagamento
         WHERE tenant_id = $1
         ORDER BY titulo ASC
@@ -1075,7 +1124,7 @@ export class PrismaParametrizacoesRepository {
     await ensureTables();
     const rows = await prisma.$queryRawUnsafe<TituloRow[]>(
       `
-        SELECT id, tenant_id, codigo_externo, titulo, descricao, cor, created_at, created_by
+        SELECT id, tenant_id, codigo_externo, titulo, descricao, cor, traducoes, created_at, created_by
         FROM tipos_pagamento
         WHERE id = $1
         LIMIT 1
@@ -1088,13 +1137,14 @@ export class PrismaParametrizacoesRepository {
 
   async saveTipoPagamento(input: SaveTituloInput) {
     await ensureTables();
+    const traducoes = JSON.stringify(input.traducoes ?? {});
     if (input.id) {
       const rows = await prisma.$queryRawUnsafe<TituloRow[]>(
         `
           UPDATE tipos_pagamento
-          SET codigo_externo = $1, titulo = $2, descricao = $3, cor = $4, updated_at = NOW()
+          SET codigo_externo = $1, titulo = $2, descricao = $3, cor = $4, traducoes = $7::jsonb, updated_at = NOW()
           WHERE id = $5 AND tenant_id = $6
-          RETURNING id, tenant_id, codigo_externo, titulo, descricao, cor, created_at, created_by
+          RETURNING id, tenant_id, codigo_externo, titulo, descricao, cor, traducoes, created_at, created_by
         `,
         input.codigoExterno ?? null,
         input.titulo,
@@ -1102,15 +1152,16 @@ export class PrismaParametrizacoesRepository {
         input.cor ?? '#888888',
         input.id,
         input.tenantId,
+        traducoes,
       );
       if (rows[0]) return rows[0];
     }
 
     const rows = await prisma.$queryRawUnsafe<TituloRow[]>(
       `
-        INSERT INTO tipos_pagamento (id, tenant_id, codigo_externo, titulo, descricao, cor, created_by, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
-        RETURNING id, tenant_id, codigo_externo, titulo, descricao, cor, created_at, created_by
+        INSERT INTO tipos_pagamento (id, tenant_id, codigo_externo, titulo, descricao, cor, traducoes, created_by, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $8::jsonb, $7, NOW(), NOW())
+        RETURNING id, tenant_id, codigo_externo, titulo, descricao, cor, traducoes, created_at, created_by
       `,
       input.id ?? randomUUID(),
       input.tenantId,
@@ -1119,6 +1170,7 @@ export class PrismaParametrizacoesRepository {
       input.descricao ?? null,
       input.cor ?? '#888888',
       input.createdBy ?? null,
+      traducoes,
     );
 
     return rows[0];
@@ -1133,7 +1185,7 @@ export class PrismaParametrizacoesRepository {
     await ensureTables();
     return prisma.$queryRawUnsafe<TituloRow[]>(
       `
-        SELECT id, tenant_id, codigo_externo, titulo, descricao, cor, created_at, created_by
+        SELECT id, tenant_id, codigo_externo, titulo, descricao, cor, traducoes, created_at, created_by
         FROM categorias_despesa
         WHERE tenant_id = $1
         ORDER BY titulo ASC
@@ -1146,7 +1198,7 @@ export class PrismaParametrizacoesRepository {
     await ensureTables();
     const rows = await prisma.$queryRawUnsafe<TituloRow[]>(
       `
-        SELECT id, tenant_id, codigo_externo, titulo, descricao, cor, created_at, created_by
+        SELECT id, tenant_id, codigo_externo, titulo, descricao, cor, traducoes, created_at, created_by
         FROM categorias_despesa
         WHERE id = $1
         LIMIT 1
@@ -1159,13 +1211,14 @@ export class PrismaParametrizacoesRepository {
 
   async saveCategoriaDespesa(input: SaveTituloInput) {
     await ensureTables();
+    const traducoes = JSON.stringify(input.traducoes ?? {});
     if (input.id) {
       const rows = await prisma.$queryRawUnsafe<TituloRow[]>(
         `
           UPDATE categorias_despesa
-          SET codigo_externo = $1, titulo = $2, descricao = $3, cor = $4, updated_at = NOW()
+          SET codigo_externo = $1, titulo = $2, descricao = $3, cor = $4, traducoes = $7::jsonb, updated_at = NOW()
           WHERE id = $5 AND tenant_id = $6
-          RETURNING id, tenant_id, codigo_externo, titulo, descricao, cor, created_at, created_by
+          RETURNING id, tenant_id, codigo_externo, titulo, descricao, cor, traducoes, created_at, created_by
         `,
         input.codigoExterno ?? null,
         input.titulo,
@@ -1173,15 +1226,16 @@ export class PrismaParametrizacoesRepository {
         input.cor ?? '#888888',
         input.id,
         input.tenantId,
+        traducoes,
       );
       if (rows[0]) return rows[0];
     }
 
     const rows = await prisma.$queryRawUnsafe<TituloRow[]>(
       `
-        INSERT INTO categorias_despesa (id, tenant_id, codigo_externo, titulo, descricao, cor, created_by, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
-        RETURNING id, tenant_id, codigo_externo, titulo, descricao, cor, created_at, created_by
+        INSERT INTO categorias_despesa (id, tenant_id, codigo_externo, titulo, descricao, cor, traducoes, created_by, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $8::jsonb, $7, NOW(), NOW())
+        RETURNING id, tenant_id, codigo_externo, titulo, descricao, cor, traducoes, created_at, created_by
       `,
       input.id ?? randomUUID(),
       input.tenantId,
@@ -1190,6 +1244,7 @@ export class PrismaParametrizacoesRepository {
       input.descricao ?? null,
       input.cor ?? '#888888',
       input.createdBy ?? null,
+      traducoes,
     );
 
     return rows[0];
@@ -1214,7 +1269,7 @@ export class PrismaParametrizacoesRepository {
         UPDATE status_conta_pagar
         SET is_inicial = $1, updated_at = NOW()
         WHERE id = $2 AND tenant_id = $3
-        RETURNING id, tenant_id, codigo_externo, titulo, descricao, cor, is_inicial, is_baixa, created_at, created_by
+        RETURNING id, tenant_id, codigo_externo, titulo, descricao, cor, is_inicial, is_baixa, traducoes, created_at, created_by
       `,
       value,
       id,
@@ -1228,7 +1283,7 @@ export class PrismaParametrizacoesRepository {
     await ensureTables();
     return prisma.$queryRawUnsafe<TituloRow[]>(
       `
-        SELECT id, tenant_id, codigo_externo, titulo, descricao, created_at, created_by
+        SELECT id, tenant_id, codigo_externo, titulo, descricao, traducoes, created_at, created_by
         FROM categorias_incidencia
         WHERE tenant_id = $1
         ORDER BY titulo ASC
@@ -1241,7 +1296,7 @@ export class PrismaParametrizacoesRepository {
     await ensureTables();
     const rows = await prisma.$queryRawUnsafe<TituloRow[]>(
       `
-        SELECT id, tenant_id, codigo_externo, titulo, descricao, created_at, created_by
+        SELECT id, tenant_id, codigo_externo, titulo, descricao, traducoes, created_at, created_by
         FROM categorias_incidencia
         WHERE id = $1
         LIMIT 1
@@ -1254,28 +1309,30 @@ export class PrismaParametrizacoesRepository {
 
   async saveCategoriaIncidencia(input: SaveTituloInput) {
     await ensureTables();
+    const traducoes = JSON.stringify(input.traducoes ?? {});
     if (input.id) {
       const rows = await prisma.$queryRawUnsafe<TituloRow[]>(
         `
           UPDATE categorias_incidencia
-          SET codigo_externo = $1, titulo = $2, descricao = $3, updated_at = NOW()
+          SET codigo_externo = $1, titulo = $2, descricao = $3, traducoes = $6::jsonb, updated_at = NOW()
           WHERE id = $4 AND tenant_id = $5
-          RETURNING id, tenant_id, codigo_externo, titulo, descricao, created_at, created_by
+          RETURNING id, tenant_id, codigo_externo, titulo, descricao, traducoes, created_at, created_by
         `,
         input.codigoExterno ?? null,
         input.titulo,
         input.descricao ?? null,
         input.id,
         input.tenantId,
+        traducoes,
       );
       if (rows[0]) return rows[0];
     }
 
     const rows = await prisma.$queryRawUnsafe<TituloRow[]>(
       `
-        INSERT INTO categorias_incidencia (id, tenant_id, codigo_externo, titulo, descricao, created_by, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
-        RETURNING id, tenant_id, codigo_externo, titulo, descricao, created_at, created_by
+        INSERT INTO categorias_incidencia (id, tenant_id, codigo_externo, titulo, descricao, traducoes, created_by, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $7::jsonb, $6, NOW(), NOW())
+        RETURNING id, tenant_id, codigo_externo, titulo, descricao, traducoes, created_at, created_by
       `,
       input.id ?? randomUUID(),
       input.tenantId,
@@ -1283,6 +1340,7 @@ export class PrismaParametrizacoesRepository {
       input.titulo,
       input.descricao ?? null,
       input.createdBy ?? null,
+      traducoes,
     );
 
     return rows[0];
@@ -1297,7 +1355,7 @@ export class PrismaParametrizacoesRepository {
     await ensureTables();
     return prisma.$queryRawUnsafe<TituloRow[]>(
       `
-        SELECT id, tenant_id, codigo_externo, titulo, descricao, created_at, created_by
+        SELECT id, tenant_id, codigo_externo, titulo, descricao, traducoes, created_at, created_by
         FROM classificacoes_incidencia
         WHERE categoria_incidencia_id = $1
         ORDER BY titulo ASC
@@ -1310,7 +1368,7 @@ export class PrismaParametrizacoesRepository {
     await ensureTables();
     const rows = await prisma.$queryRawUnsafe<Array<TituloRow & { categoria_incidencia_id: string }>>(
       `
-        SELECT id, tenant_id, categoria_incidencia_id, codigo_externo, titulo, descricao, created_at, created_by
+        SELECT id, tenant_id, categoria_incidencia_id, codigo_externo, titulo, descricao, traducoes, created_at, created_by
         FROM classificacoes_incidencia
         WHERE id = $1
         LIMIT 1
@@ -1322,19 +1380,21 @@ export class PrismaParametrizacoesRepository {
 
   async saveClassificacaoIncidencia(input: SaveClassificacaoInput) {
     await ensureTables();
+    const traducoes = JSON.stringify(input.traducoes ?? {});
     if (input.id) {
       const rows = await prisma.$queryRawUnsafe<TituloRow[]>(
         `
           UPDATE classificacoes_incidencia
-          SET codigo_externo = $1, titulo = $2, descricao = $3, updated_at = NOW()
+          SET codigo_externo = $1, titulo = $2, descricao = $3, traducoes = $6::jsonb, updated_at = NOW()
           WHERE id = $4 AND tenant_id = $5
-          RETURNING id, tenant_id, codigo_externo, titulo, descricao, created_at, created_by
+          RETURNING id, tenant_id, codigo_externo, titulo, descricao, traducoes, created_at, created_by
         `,
         input.codigoExterno ?? null,
         input.titulo,
         input.descricao ?? null,
         input.id,
         input.tenantId,
+        traducoes,
       );
       if (rows[0]) return rows[0];
     }
@@ -1342,10 +1402,10 @@ export class PrismaParametrizacoesRepository {
     const rows = await prisma.$queryRawUnsafe<TituloRow[]>(
       `
         INSERT INTO classificacoes_incidencia (
-          id, tenant_id, categoria_incidencia_id, codigo_externo, titulo, descricao, created_by, created_at, updated_at
+          id, tenant_id, categoria_incidencia_id, codigo_externo, titulo, descricao, traducoes, created_by, created_at, updated_at
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
-        RETURNING id, tenant_id, codigo_externo, titulo, descricao, created_at, created_by
+        VALUES ($1, $2, $3, $4, $5, $6, $8::jsonb, $7, NOW(), NOW())
+        RETURNING id, tenant_id, codigo_externo, titulo, descricao, traducoes, created_at, created_by
       `,
       input.id ?? randomUUID(),
       input.tenantId,
@@ -1354,6 +1414,7 @@ export class PrismaParametrizacoesRepository {
       input.titulo,
       input.descricao ?? null,
       input.createdBy ?? null,
+      traducoes,
     );
 
     return rows[0];
@@ -1368,7 +1429,7 @@ export class PrismaParametrizacoesRepository {
     await ensureTables();
     return prisma.$queryRawUnsafe<TituloRow[]>(
       `
-        SELECT id, tenant_id, codigo_externo, titulo, descricao, cor, created_at, created_by
+        SELECT id, tenant_id, codigo_externo, titulo, descricao, cor, traducoes, created_at, created_by
         FROM severidades_incidencia
         WHERE tenant_id = $1
         ORDER BY titulo ASC
@@ -1381,7 +1442,7 @@ export class PrismaParametrizacoesRepository {
     await ensureTables();
     const rows = await prisma.$queryRawUnsafe<TituloRow[]>(
       `
-        SELECT id, tenant_id, codigo_externo, titulo, descricao, cor, created_at, created_by
+        SELECT id, tenant_id, codigo_externo, titulo, descricao, cor, traducoes, created_at, created_by
         FROM severidades_incidencia
         WHERE id = $1
         LIMIT 1
@@ -1393,13 +1454,14 @@ export class PrismaParametrizacoesRepository {
 
   async saveSeveridadeIncidencia(input: SaveTituloInput) {
     await ensureTables();
+    const traducoes = JSON.stringify(input.traducoes ?? {});
     if (input.id) {
       const rows = await prisma.$queryRawUnsafe<TituloRow[]>(
         `
           UPDATE severidades_incidencia
-          SET codigo_externo = $1, titulo = $2, descricao = $3, cor = $4, updated_at = NOW()
+          SET codigo_externo = $1, titulo = $2, descricao = $3, cor = $4, traducoes = $7::jsonb, updated_at = NOW()
           WHERE id = $5 AND tenant_id = $6
-          RETURNING id, tenant_id, codigo_externo, titulo, descricao, cor, created_at, created_by
+          RETURNING id, tenant_id, codigo_externo, titulo, descricao, cor, traducoes, created_at, created_by
         `,
         input.codigoExterno ?? null,
         input.titulo,
@@ -1407,15 +1469,16 @@ export class PrismaParametrizacoesRepository {
         input.cor ?? '#888888',
         input.id,
         input.tenantId,
+        traducoes,
       );
       if (rows[0]) return rows[0];
     }
 
     const rows = await prisma.$queryRawUnsafe<TituloRow[]>(
       `
-        INSERT INTO severidades_incidencia (id, tenant_id, codigo_externo, titulo, descricao, cor, created_by, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
-        RETURNING id, tenant_id, codigo_externo, titulo, descricao, cor, created_at, created_by
+        INSERT INTO severidades_incidencia (id, tenant_id, codigo_externo, titulo, descricao, cor, traducoes, created_by, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $8::jsonb, $7, NOW(), NOW())
+        RETURNING id, tenant_id, codigo_externo, titulo, descricao, cor, traducoes, created_at, created_by
       `,
       input.id ?? randomUUID(),
       input.tenantId,
@@ -1424,6 +1487,7 @@ export class PrismaParametrizacoesRepository {
       input.descricao ?? null,
       input.cor ?? '#888888',
       input.createdBy ?? null,
+      traducoes,
     );
 
     return rows[0];
@@ -1438,7 +1502,7 @@ export class PrismaParametrizacoesRepository {
     await ensureTables();
     return prisma.$queryRawUnsafe<TituloRow[]>(
       `
-        SELECT id, tenant_id, codigo_externo, titulo, descricao, created_at, created_by
+        SELECT id, tenant_id, codigo_externo, titulo, descricao, traducoes, created_at, created_by
         FROM impactos_incidencia
         WHERE tenant_id = $1
         ORDER BY titulo ASC
@@ -1451,7 +1515,7 @@ export class PrismaParametrizacoesRepository {
     await ensureTables();
     const rows = await prisma.$queryRawUnsafe<TituloRow[]>(
       `
-        SELECT id, tenant_id, codigo_externo, titulo, descricao, created_at, created_by
+        SELECT id, tenant_id, codigo_externo, titulo, descricao, traducoes, created_at, created_by
         FROM impactos_incidencia
         WHERE id = $1
         LIMIT 1
@@ -1463,28 +1527,30 @@ export class PrismaParametrizacoesRepository {
 
   async saveImpactoIncidencia(input: SaveTituloInput) {
     await ensureTables();
+    const traducoes = JSON.stringify(input.traducoes ?? {});
     if (input.id) {
       const rows = await prisma.$queryRawUnsafe<TituloRow[]>(
         `
           UPDATE impactos_incidencia
-          SET codigo_externo = $1, titulo = $2, descricao = $3, updated_at = NOW()
+          SET codigo_externo = $1, titulo = $2, descricao = $3, traducoes = $6::jsonb, updated_at = NOW()
           WHERE id = $4 AND tenant_id = $5
-          RETURNING id, tenant_id, codigo_externo, titulo, descricao, created_at, created_by
+          RETURNING id, tenant_id, codigo_externo, titulo, descricao, traducoes, created_at, created_by
         `,
         input.codigoExterno ?? null,
         input.titulo,
         input.descricao ?? null,
         input.id,
         input.tenantId,
+        traducoes,
       );
       if (rows[0]) return rows[0];
     }
 
     const rows = await prisma.$queryRawUnsafe<TituloRow[]>(
       `
-        INSERT INTO impactos_incidencia (id, tenant_id, codigo_externo, titulo, descricao, created_by, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
-        RETURNING id, tenant_id, codigo_externo, titulo, descricao, created_at, created_by
+        INSERT INTO impactos_incidencia (id, tenant_id, codigo_externo, titulo, descricao, traducoes, created_by, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $7::jsonb, $6, NOW(), NOW())
+        RETURNING id, tenant_id, codigo_externo, titulo, descricao, traducoes, created_at, created_by
       `,
       input.id ?? randomUUID(),
       input.tenantId,
@@ -1492,6 +1558,7 @@ export class PrismaParametrizacoesRepository {
       input.titulo,
       input.descricao ?? null,
       input.createdBy ?? null,
+      traducoes,
     );
 
     return rows[0];
@@ -1506,7 +1573,7 @@ export class PrismaParametrizacoesRepository {
     await ensureTables();
     return prisma.$queryRawUnsafe<CentroLucroRow[]>(
       `
-        SELECT id, tenant_id, codigo_externo, nome, descricao, status, parent_id, created_at, created_by
+        SELECT id, tenant_id, codigo_externo, nome, descricao, status, parent_id, traducoes, created_at, created_by
         FROM centros_lucro
         WHERE tenant_id = $1
         ORDER BY nome ASC
@@ -1519,7 +1586,7 @@ export class PrismaParametrizacoesRepository {
     await ensureTables();
     const rows = await prisma.$queryRawUnsafe<CentroLucroRow[]>(
       `
-        SELECT id, tenant_id, codigo_externo, nome, descricao, status, parent_id, created_at, created_by
+        SELECT id, tenant_id, codigo_externo, nome, descricao, status, parent_id, traducoes, created_at, created_by
         FROM centros_lucro
         WHERE id = $1
         LIMIT 1
@@ -1531,6 +1598,7 @@ export class PrismaParametrizacoesRepository {
 
   async saveCentroLucro(input: SaveCentroLucroInput) {
     await ensureTables();
+    const traducoes = JSON.stringify(input.traducoes ?? {});
     if (input.id) {
       const rows = await prisma.$queryRawUnsafe<CentroLucroRow[]>(
         `
@@ -1541,9 +1609,10 @@ export class PrismaParametrizacoesRepository {
             descricao = $3,
             status = $4,
             parent_id = $5,
+            traducoes = $8::jsonb,
             updated_at = NOW()
           WHERE id = $6 AND tenant_id = $7
-          RETURNING id, tenant_id, codigo_externo, nome, descricao, status, parent_id, created_at, created_by
+          RETURNING id, tenant_id, codigo_externo, nome, descricao, status, parent_id, traducoes, created_at, created_by
         `,
         input.codigoExterno ?? null,
         input.nome,
@@ -1552,15 +1621,16 @@ export class PrismaParametrizacoesRepository {
         input.parentId ?? null,
         input.id,
         input.tenantId,
+        traducoes,
       );
       if (rows[0]) return rows[0];
     }
 
     const rows = await prisma.$queryRawUnsafe<CentroLucroRow[]>(
       `
-        INSERT INTO centros_lucro (id, tenant_id, codigo_externo, nome, descricao, status, parent_id, created_by, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
-        RETURNING id, tenant_id, codigo_externo, nome, descricao, status, parent_id, created_at, created_by
+        INSERT INTO centros_lucro (id, tenant_id, codigo_externo, nome, descricao, status, parent_id, traducoes, created_by, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $9::jsonb, $8, NOW(), NOW())
+        RETURNING id, tenant_id, codigo_externo, nome, descricao, status, parent_id, traducoes, created_at, created_by
       `,
       input.id ?? randomUUID(),
       input.tenantId,
@@ -1570,6 +1640,7 @@ export class PrismaParametrizacoesRepository {
       input.status ?? 'Ativo',
       input.parentId ?? null,
       input.createdBy ?? null,
+      traducoes,
     );
 
     return rows[0];

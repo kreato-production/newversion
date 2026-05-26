@@ -6,6 +6,7 @@ export type ParametroApiItem = {
   nome: string;
   descricao: string;
   cor?: string | null;
+  traducoes?: Record<string, string> | null;
   created_at: string;
   created_by: string;
 };
@@ -16,6 +17,7 @@ export type ParametroApiInput = {
   nome: string;
   descricao?: string;
   cor?: string | null;
+  traducoes?: Record<string, string> | null;
 };
 
 type PaginatedParametrosResponse = {

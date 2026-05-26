@@ -10,6 +10,7 @@ export const saveParametroSchema = z.object({
   nome: z.string().min(1),
   descricao: z.string().optional().nullable(),
   cor: z.string().optional().nullable(),
+  traducoes: z.record(z.string()).optional().nullable(),
 });
 
 export type SaveParametroDto = z.infer<typeof saveParametroSchema>;
@@ -29,6 +30,7 @@ export class ParametrosService {
         nome: item.nome,
         descricao: item.descricao || '',
         cor: item.cor ?? null,
+        traducoes: item.traducoes ?? null,
         created_at: item.createdAt?.toISOString() ?? '',
         created_by: item.createdBy || '',
       })),
@@ -53,6 +55,7 @@ export class ParametrosService {
       nome: input.nome,
       descricao: input.descricao,
       cor: input.cor,
+      traducoes: input.traducoes,
       createdBy: actor.id,
     });
 
@@ -62,6 +65,7 @@ export class ParametrosService {
       nome: item.nome,
       descricao: item.descricao || '',
       cor: item.cor ?? null,
+      traducoes: item.traducoes ?? null,
       created_at: item.createdAt?.toISOString() ?? '',
       created_by: item.createdBy || '',
     };

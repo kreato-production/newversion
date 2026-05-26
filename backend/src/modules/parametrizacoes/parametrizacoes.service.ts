@@ -3,6 +3,8 @@ import type { SessionUser } from '../auth/auth.types.js';
 import { ensureSameTenant, resolveTenantId } from '../common/access.js';
 import { PrismaParametrizacoesRepository } from './parametrizacoes.repository.js';
 
+const traducoesDef = z.record(z.string()).optional().nullable();
+
 export const saveStatusGravacaoSchema = z.object({
   id: z.string().min(1).optional(),
   tenantId: z.string().min(1).optional(),
@@ -11,6 +13,7 @@ export const saveStatusGravacaoSchema = z.object({
   descricao: z.string().optional().nullable(),
   cor: z.string().optional().nullable(),
   isInicial: z.boolean().optional(),
+  traducoes: traducoesDef,
 });
 
 export const saveStatusPlaneamentoSchema = z.object({
@@ -21,6 +24,7 @@ export const saveStatusPlaneamentoSchema = z.object({
   descricao: z.string().optional().nullable(),
   cor: z.string().optional().nullable(),
   isInicial: z.boolean().optional(),
+  traducoes: traducoesDef,
 });
 
 export const saveStatusTarefaSchema = z.object({
@@ -31,6 +35,7 @@ export const saveStatusTarefaSchema = z.object({
   descricao: z.string().optional().nullable(),
   cor: z.string().optional().nullable(),
   isInicial: z.boolean().optional(),
+  traducoes: traducoesDef,
 });
 
 export const saveStatusContaPagarSchema = z.object({
@@ -42,6 +47,7 @@ export const saveStatusContaPagarSchema = z.object({
   cor: z.string().optional().nullable(),
   isInicial: z.boolean().optional(),
   isBaixa: z.boolean().optional(),
+  traducoes: traducoesDef,
 });
 
 export const saveFormaPagamentoSchema = z.object({
@@ -52,6 +58,7 @@ export const saveFormaPagamentoSchema = z.object({
   descricao: z.string().optional().nullable(),
   cor: z.string().optional().nullable(),
   isPadrao: z.boolean().optional(),
+  traducoes: traducoesDef,
 });
 
 export const saveTituloSchema = z.object({
@@ -61,6 +68,7 @@ export const saveTituloSchema = z.object({
   titulo: z.string().min(1),
   descricao: z.string().optional().nullable(),
   cor: z.string().optional().nullable(),
+  traducoes: traducoesDef,
 });
 
 export const saveClassificacaoSchema = saveTituloSchema.extend({
@@ -75,6 +83,7 @@ export const saveCentroLucroSchema = z.object({
   descricao: z.string().optional().nullable(),
   status: z.enum(['Ativo', 'Inativo']).optional(),
   parentId: z.string().optional().nullable(),
+  traducoes: traducoesDef,
 });
 
 export const toggleInicialSchema = z.object({
@@ -95,6 +104,7 @@ function mapStatusGravacao(row: Awaited<ReturnType<PrismaParametrizacoesReposito
     descricao: row.descricao || '',
     cor: row.cor || '#888888',
     isInicial: row.is_inicial || false,
+    traducoes: row.traducoes ?? null,
     dataCadastro: row.created_at?.toISOString() ?? '',
     usuarioCadastro: row.created_by || '',
   };
@@ -110,6 +120,7 @@ function mapStatusPlaneamento(row: Awaited<ReturnType<PrismaParametrizacoesRepos
     descricao: row.descricao || '',
     cor: row.cor || '#888888',
     isInicial: row.is_inicial || false,
+    traducoes: row.traducoes ?? null,
     dataCadastro: row.created_at?.toISOString() ?? '',
     usuarioCadastro: row.created_by || '',
   };
@@ -125,6 +136,7 @@ function mapStatusTarefa(row: Awaited<ReturnType<PrismaParametrizacoesRepository
     descricao: row.descricao || '',
     cor: row.cor || '#888888',
     isInicial: row.is_inicial || false,
+    traducoes: row.traducoes ?? null,
     dataCadastro: row.created_at?.toISOString() ?? '',
     usuarioCadastro: row.created_by || '',
   };
@@ -143,6 +155,7 @@ function mapStatusContaPagar(
     cor: row.cor || '#888888',
     isInicial: row.is_inicial || false,
     isBaixa: row.is_baixa || false,
+    traducoes: row.traducoes ?? null,
     dataCadastro: row.created_at?.toISOString() ?? '',
     usuarioCadastro: row.created_by || '',
   };
@@ -160,18 +173,20 @@ function mapFormaPagamento(
     descricao: row.descricao || '',
     cor: row.cor || '#888888',
     isPadrao: row.is_padrao || false,
+    traducoes: row.traducoes ?? null,
     dataCadastro: row.created_at?.toISOString() ?? '',
     usuarioCadastro: row.created_by || '',
   };
 }
 
-function mapTitulo(row: { id: string; codigo_externo: string | null; titulo: string; descricao: string | null; created_at: Date | null; created_by: string | null; cor?: string | null; }) {
+function mapTitulo(row: { id: string; codigo_externo: string | null; titulo: string; descricao: string | null; created_at: Date | null; created_by: string | null; cor?: string | null; traducoes?: Record<string, string> | null; }) {
   return {
     id: row.id,
     codigo_externo: row.codigo_externo || '',
     titulo: row.titulo,
     descricao: row.descricao || '',
     cor: row.cor || null,
+    traducoes: row.traducoes ?? null,
     created_at: row.created_at?.toISOString() ?? '',
     created_by: row.created_by || '',
   };
@@ -187,6 +202,7 @@ function mapCentro(row: Awaited<ReturnType<PrismaParametrizacoesRepository['find
     descricao: row.descricao || '',
     status: (row.status as 'Ativo' | 'Inativo') || 'Ativo',
     parentId: row.parent_id || null,
+    traducoes: row.traducoes ?? null,
     dataCadastro: row.created_at?.toISOString() ?? '',
     usuarioCadastro: row.created_by || '',
   };

@@ -35,6 +35,7 @@ export interface StatusPlaneamentoItem {
   descricao: string;
   cor: string;
   isInicial: boolean;
+  traducoes?: Record<string, string> | null;
   dataCadastro: string;
   usuarioCadastro: string;
 }

@@ -48,6 +48,7 @@ interface Parametro {
   nome: string;
   descricao: string;
   cor?: string | null;
+  traducoes?: Record<string, string> | null;
   created_at: string;
   created_by: string;
 }
@@ -58,6 +59,7 @@ interface ParametroLegacy {
   nome: string;
   descricao: string;
   cor?: string | null;
+  traducoes?: Record<string, string> | null;
   dataCadastro: string;
   usuarioCadastro: string;
 }
@@ -261,6 +263,7 @@ const ParametroListPage = ({
     nome: data.nome,
     descricao: data.descricao || '',
     cor: data.cor ?? null,
+    traducoes: data.traducoes ?? null,
     dataCadastro: data.created_at ? new Date(data.created_at).toLocaleDateString('pt-BR') : '',
     usuarioCadastro: user?.nome || '',
   });
@@ -279,6 +282,7 @@ const ParametroListPage = ({
       nome: data.nome,
       descricao: data.descricao,
       cor: data.cor ?? null,
+      traducoes: data.traducoes ?? null,
     });
     toast({
       title: t('common.success'),

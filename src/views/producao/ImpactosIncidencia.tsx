@@ -46,11 +46,11 @@ const repository = new ApiParametrizacoesRepository();
 const STORAGE_KEY = 'kreato_impactos_incidencia';
 
 const COLUMN_CONFIG: ColumnConfig[] = [
-  { key: 'codigo_externo', label: 'Código',    defaultVisible: true },
-  { key: 'titulo',         label: 'Título',    required: true },
-  { key: 'descricao',      label: 'Descrição', defaultVisible: true },
-  { key: 'created_at',     label: 'Cadastro',  defaultVisible: false },
-  { key: 'actions',        label: 'Ações',     required: true },
+  { key: 'codigo_externo', label: 'Código', defaultVisible: true },
+  { key: 'titulo', label: 'Título', required: true },
+  { key: 'descricao', label: 'Descrição', defaultVisible: true },
+  { key: 'created_at', label: 'Cadastro', defaultVisible: false },
+  { key: 'actions', label: 'Ações', required: true },
 ];
 
 // ─── Card renderer ────────────────────────────────────────────────────────────
@@ -245,6 +245,7 @@ const ImpactosIncidencia = () => {
     titulo: string;
     descricao?: string;
     codigo_externo?: string;
+    traducoes?: Record<string, string>;
   }) => {
     try {
       await repository.saveImpactoIncidencia({
@@ -252,6 +253,7 @@ const ImpactosIncidencia = () => {
         titulo: data.titulo,
         descricao: data.descricao || '',
         codigo_externo: data.codigo_externo || '',
+        traducoes: data.traducoes,
       });
       toast({
         title: t('common.success'),

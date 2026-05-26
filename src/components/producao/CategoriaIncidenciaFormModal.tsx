@@ -20,6 +20,7 @@ import { useToast } from '@/hooks/use-toast';
 import type { CategoriaIncidencia } from '@/views/producao/CategoriasIncidencia';
 import { ApiParametrizacoesRepository } from '@/modules/parametrizacoes/parametrizacoes.api.repository';
 import { ModalNavigation, type ModalNavigationProps } from '@/components/shared/ModalNavigation';
+import { TraducaoTab, type Traducoes } from '@/components/shared/TraducaoTab';
 
 interface ClassificacaoIncidencia {
   id: string;
@@ -55,6 +56,7 @@ export const CategoriaIncidenciaFormModal = ({
   const { toast } = useToast();
 
   const [formData, setFormData] = useState({ codigo_externo: '', titulo: '', descricao: '' });
+  const [traducoes, setTraducoes] = useState<Traducoes>({});
   const [classificacoes, setClassificacoes] = useState<ClassificacaoIncidencia[]>([]);
   const [loadingClassif, setLoadingClassif] = useState(false);
 
@@ -70,8 +72,12 @@ export const CategoriaIncidenciaFormModal = ({
         titulo: data.titulo || '',
         descricao: data.descricao || '',
       });
+      setTraducoes(
+        ((data as { traducoes?: Record<string, string> | null }).traducoes as Traducoes) ?? {},
+      );
     } else {
       setFormData({ codigo_externo: '', titulo: '', descricao: '' });
+      setTraducoes({});
     }
     setShowClassifForm(false);
     setEditingClassif(null);
@@ -116,7 +122,7 @@ export const CategoriaIncidenciaFormModal = ({
       });
       return;
     }
-    await onSave(formData);
+    await onSave({ ...formData, traducoes });
     onClose();
   };
 
@@ -251,6 +257,9 @@ export const CategoriaIncidenciaFormModal = ({
                 {t('incidentCategory.tabClassifications')}
               </TabsTrigger>
             )}
+            <TabsTrigger value="traducao" className="flex-1">
+              Tradução
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="dados" className="space-y-4 mt-4">
@@ -373,6 +382,14 @@ export const CategoriaIncidenciaFormModal = ({
               )}
             </TabsContent>
           )}
+
+          <TabsContent value="traducao">
+            <TraducaoTab
+              traducoes={traducoes}
+              onChange={(lang, value) => setTraducoes({ ...traducoes, [lang]: value })}
+              readOnly={readOnly}
+            />
+          </TabsContent>
         </Tabs>
 
         <DialogFooter className={navigation ? 'sm:justify-between' : undefined}>

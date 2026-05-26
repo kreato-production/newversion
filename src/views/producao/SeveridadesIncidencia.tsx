@@ -47,11 +47,11 @@ const repository = new ApiParametrizacoesRepository();
 const STORAGE_KEY = 'kreato_severidades_incidencia';
 
 const COLUMN_CONFIG: ColumnConfig[] = [
-  { key: 'codigo_externo', label: 'Código',    defaultVisible: true },
-  { key: 'titulo',         label: 'Título',    required: true },
-  { key: 'descricao',      label: 'Descrição', defaultVisible: true },
-  { key: 'created_at',     label: 'Cadastro',  defaultVisible: false },
-  { key: 'actions',        label: 'Ações',     required: true },
+  { key: 'codigo_externo', label: 'Código', defaultVisible: true },
+  { key: 'titulo', label: 'Título', required: true },
+  { key: 'descricao', label: 'Descrição', defaultVisible: true },
+  { key: 'created_at', label: 'Cadastro', defaultVisible: false },
+  { key: 'actions', label: 'Ações', required: true },
 ];
 
 // ─── Card renderer ────────────────────────────────────────────────────────────
@@ -256,6 +256,7 @@ const SeveridadesIncidencia = () => {
     descricao?: string;
     codigo_externo?: string;
     cor?: string;
+    traducoes?: Record<string, string>;
   }) => {
     try {
       await repository.saveSeveridadeIncidencia({
@@ -264,6 +265,7 @@ const SeveridadesIncidencia = () => {
         descricao: data.descricao || '',
         codigo_externo: data.codigo_externo || '',
         cor: data.cor || '#888888',
+        traducoes: data.traducoes,
       });
       toast({
         title: t('common.success'),
