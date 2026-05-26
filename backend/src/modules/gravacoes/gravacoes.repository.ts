@@ -419,6 +419,7 @@ export interface GravacoesRepository {
   findConvidadoById(id: string): Promise<GravacaoRelationRecord | null>;
   removeConvidado(id: string): Promise<void>;
   listEspacos(tenantId: string, gravacaoId: string): Promise<GravacaoEspacoRecord[]>;
+  listEspacosByData(tenantId: string, data: string): Promise<(GravacaoEspacoRecord & { gravacaoNome: string; gravacaoCodigo: string; programaId: string | null; programaCor: string | null })[]>;
   findEspacoById(id: string): Promise<GravacaoEspacoRecord | null>;
   addEspaco(input: SaveGravacaoEspacoInput): Promise<GravacaoEspacoRecord>;
   updateEspaco(input: UpdateGravacaoEspacoInput): Promise<GravacaoEspacoRecord | null>;
@@ -434,6 +435,7 @@ export interface GravacoesRepository {
   listStatusCores(tenantId: string): Promise<Array<{ nome: string; cor: string | null }>>;
   getCustos(tenantId: string, gravacaoId: string): Promise<GravacaoCustosResult>;
   listEspacoRecursosSummary(tenantId: string, gravacaoId: string): Promise<EspacoRecursosSummaryResult>;
+  listEspacoResourcesByPeriod(tenantId: string, dateStart: string, dateEnd: string): Promise<EspacoResourcesByPeriodResult>;
   listDespesas(tenantId: string, gravacaoId: string): Promise<GravacaoDespesaRecord[]>;
   addDespesa(input: SaveGravacaoDespesaInput): Promise<GravacaoDespesaRecord>;
   updateDespesa(input: UpdateGravacaoDespesaInput): Promise<GravacaoDespesaRecord | null>;
@@ -456,10 +458,32 @@ export type EspacoRecursosSummaryResult = {
   items: EspacoRecursoSummaryItem[];
 };
 
+export type EspacoResourcePeriodItem = {
+  id: string;
+  gravacaoId: string;
+  gravacaoNome: string;
+  gravacaoCodigo: string;
+  espacoItemId: string;
+  espacoId: string | null;
+  espacoNome: string;
+  recursoId: string;
+  recursoNome: string;
+  funcaoOperadorId: string | null;
+  data: string | null;
+  horaInicio: string | null;
+  horaFim: string | null;
+};
+
+export type EspacoResourcesByPeriodResult = {
+  tecnicos: EspacoResourcePeriodItem[];
+  fisicos: EspacoResourcePeriodItem[];
+};
+
 export type GravacaoCustoItem = {
   categoria: string;
   recurso: string;
   descricao: string;
+  atividade: string | null;
   horas: number;
   custoUnitario: number;
   custoTotal: number;
@@ -1576,6 +1600,33 @@ export class PrismaGravacoesRepository implements GravacoesRepository {
     }
   }
 
+  async listEspacosByData(tenantId: string, data: string) {
+    await this.ensureTables();
+    const rows = await prisma.$queryRaw<Array<GravacaoEspacoRecord & { gravacaoNome: string; gravacaoCodigo: string; programaId: string | null; programaCor: string | null }>>`
+      select
+        ge.id,
+        ge.tenant_id as "tenantId",
+        ge.gravacao_id as "gravacaoId",
+        ge.espaco_id as "espacoId",
+        coalesce(e.titulo, '') as "espacoNome",
+        ge.descricao,
+        ge.hora_inicio as "horaInicio",
+        ge.hora_fim as "horaFim",
+        ge.data,
+        g.nome as "gravacaoNome",
+        g.codigo as "gravacaoCodigo",
+        g.programa_id as "programaId",
+        NULL::text as "programaCor"
+      from gravacao_espacos ge
+      left join public.espacos e on e.id = ge.espaco_id
+      left join "Gravacao" g on g.id = ge.gravacao_id
+      where ge.tenant_id = ${tenantId}
+        and ge.data = ${data}
+      order by ge.hora_inicio asc
+    `;
+    return rows;
+  }
+
   async findEspacoById(id: string): Promise<GravacaoEspacoRecord | null> {
     await this.ensureTables();
     const rows = await prisma.$queryRaw<GravacaoEspacoRecord[]>`
@@ -1640,7 +1691,7 @@ export class PrismaGravacoesRepository implements GravacoesRepository {
         r.tenant_id as "tenantId",
         r.gravacao_espaco_id as "gravacaoEspacoId",
         r.${idCol} as "recursoId",
-        res.nome as "recursoNome",
+        coalesce(res.nome, '') as "recursoNome",
         coalesce(r.valor_hora, 0)::float as "valorHora",
         coalesce(r.quantidade, 1) as "quantidade",
         r.hora_inicio as "horaInicio",
@@ -1650,10 +1701,10 @@ export class PrismaGravacoesRepository implements GravacoesRepository {
         coalesce(r.desconto_percentual, 0)::float as "descontoPercentual",
         coalesce(r.valor_com_desconto, 0)::float as "valorComDesconto"
       from ${itemTable} r
-      join public.${resourceTable} res on res.id = r.${idCol}
+      left join public.${resourceTable} res on res.id = r.${idCol}
       where r.tenant_id = ${tenantId}
         and r.gravacao_espaco_id = ${gravacaoEspacoId}
-      order by res.nome asc
+      order by coalesce(res.nome, '') asc
     `);
 
     const usedIds = items.map((i) => i.recursoId);
@@ -1692,7 +1743,7 @@ export class PrismaGravacoesRepository implements GravacoesRepository {
     const rows = await prisma.$queryRaw<GravacaoEspacoResourceRecord[]>(Prisma.sql`
       select
         r.id, r.tenant_id as "tenantId", r.gravacao_espaco_id as "gravacaoEspacoId",
-        r.${idCol} as "recursoId", res.nome as "recursoNome",
+        r.${idCol} as "recursoId", coalesce(res.nome, '') as "recursoNome",
         coalesce(r.valor_hora, 0)::float as "valorHora",
         coalesce(r.quantidade, 1) as "quantidade",
         r.hora_inicio as "horaInicio", r.hora_fim as "horaFim", r.data,
@@ -1700,7 +1751,7 @@ export class PrismaGravacoesRepository implements GravacoesRepository {
         coalesce(r.desconto_percentual, 0)::float as "descontoPercentual",
         coalesce(r.valor_com_desconto, 0)::float as "valorComDesconto"
       from ${itemTable} r
-      join public.${resourceTable} res on res.id = r.${idCol}
+      left join public.${resourceTable} res on res.id = r.${idCol}
       where r.id = ${id}
       limit 1
     `);
@@ -1823,7 +1874,7 @@ export class PrismaGravacoesRepository implements GravacoesRepository {
           const descricao = row.recursoTecnicoNome
             ? `${horas.toFixed(1)}h operando ${row.recursoTecnicoNome}`
             : `${horas.toFixed(1)}h de trabalho`;
-          itens.push({ categoria: 'Recursos Humanos', recurso: nome, descricao, horas, custoUnitario, custoTotal: horas * custoUnitario });
+          itens.push({ categoria: 'Recursos Humanos', recurso: nome, descricao, atividade: null, horas, custoUnitario, custoTotal: horas * custoUnitario });
           humanosProcessados.add(row.recursoHumanoId);
         }
         continue;
@@ -1831,7 +1882,7 @@ export class PrismaGravacoesRepository implements GravacoesRepository {
 
       if (row.recursoFisicoId && row.recursoFisicoNome && horas > 0) {
         const custoUnitario = row.recursoFisicoCustoHora ? Number(row.recursoFisicoCustoHora) : 0;
-        itens.push({ categoria: 'Recursos Físicos', recurso: row.recursoFisicoNome, descricao: `${horas.toFixed(1)}h de ocupação`, horas, custoUnitario, custoTotal: horas * custoUnitario });
+        itens.push({ categoria: 'Recursos Físicos', recurso: row.recursoFisicoNome, descricao: `${horas.toFixed(1)}h de ocupação`, atividade: null, horas, custoUnitario, custoTotal: horas * custoUnitario });
       }
     }
 
@@ -1839,6 +1890,7 @@ export class PrismaGravacoesRepository implements GravacoesRepository {
     type EspacoResourceRow = {
       recursoNome: string;
       espacoNome: string | null;
+      atividadeNome: string | null;
       valorHora: string | null;
       quantidade: number | null;
       horaInicio: string | null;
@@ -1852,6 +1904,7 @@ export class PrismaGravacoesRepository implements GravacoesRepository {
         select
           rf.nome as "recursoNome",
           e.titulo as "espacoNome",
+          ge.descricao as "atividadeNome",
           gerf.valor_hora::text as "valorHora",
           gerf.quantidade as "quantidade",
           gerf.hora_inicio as "horaInicio",
@@ -1870,7 +1923,7 @@ export class PrismaGravacoesRepository implements GravacoesRepository {
         const custoUnitario = r.valorHora ? Number(r.valorHora) : 0;
         const custoTotal = r.valorComDesconto ? Number(r.valorComDesconto) : horas * custoUnitario;
         const descricao = r.espacoNome ? `${horas.toFixed(1)}h no espaço ${r.espacoNome}` : `${horas.toFixed(1)}h de ocupação`;
-        itens.push({ categoria: 'Recursos Físicos', recurso: r.recursoNome, descricao, horas, custoUnitario, custoTotal });
+        itens.push({ categoria: 'Recursos Físicos', recurso: r.recursoNome, descricao, atividade: r.atividadeNome ?? null, horas, custoUnitario, custoTotal });
       }
     }
 
@@ -1880,6 +1933,7 @@ export class PrismaGravacoesRepository implements GravacoesRepository {
         select
           rt.nome as "recursoNome",
           e.titulo as "espacoNome",
+          ge.descricao as "atividadeNome",
           gert.valor_hora::text as "valorHora",
           gert.quantidade as "quantidade",
           gert.hora_inicio as "horaInicio",
@@ -1898,7 +1952,7 @@ export class PrismaGravacoesRepository implements GravacoesRepository {
         const custoUnitario = r.valorHora ? Number(r.valorHora) : 0;
         const custoTotal = r.valorComDesconto ? Number(r.valorComDesconto) : horas * custoUnitario;
         const descricao = r.espacoNome ? `${horas.toFixed(1)}h no espaço ${r.espacoNome}` : `${horas.toFixed(1)}h de uso`;
-        itens.push({ categoria: 'Equipamentos Técnicos', recurso: r.recursoNome, descricao, horas, custoUnitario, custoTotal });
+        itens.push({ categoria: 'Equipamentos Técnicos', recurso: r.recursoNome, descricao, atividade: r.atividadeNome ?? null, horas, custoUnitario, custoTotal });
       }
     }
 
@@ -1918,7 +1972,7 @@ export class PrismaGravacoesRepository implements GravacoesRepository {
       `;
       for (const t of terceiros) {
         const valor = t.valor ? Number(t.valor) : 0;
-        itens.push({ categoria: 'Terceiros', recurso: t.fornecedorNome, descricao: t.servicoNome ?? t.observacao ?? 'Serviço', horas: 0, custoUnitario: valor, custoTotal: valor });
+        itens.push({ categoria: 'Terceiros', recurso: t.fornecedorNome, descricao: t.servicoNome ?? t.observacao ?? 'Serviço', atividade: null, horas: 0, custoUnitario: valor, custoTotal: valor });
       }
     }
 
@@ -2141,6 +2195,101 @@ export class PrismaGravacoesRepository implements GravacoesRepository {
     }
 
     return { dataPrevista, items };
+  }
+
+  async listEspacoResourcesByPeriod(tenantId: string, dateStart: string, dateEnd: string): Promise<EspacoResourcesByPeriodResult> {
+    await this.ensureTables();
+
+    const tecnicos: EspacoResourcePeriodItem[] = [];
+    const fisicos: EspacoResourcePeriodItem[] = [];
+
+    if (await this.tableExists('gravacao_espaco_recursos_tecnicos')) {
+      const rows = await prisma.$queryRaw<Array<{
+        id: string;
+        gravacaoId: string;
+        gravacaoNome: string;
+        gravacaoCodigo: string;
+        espacoItemId: string;
+        espacoId: string | null;
+        espacoNome: string;
+        recursoId: string;
+        recursoNome: string;
+        funcaoOperadorId: string | null;
+        data: string | null;
+        horaInicio: string | null;
+        horaFim: string | null;
+      }>>(Prisma.sql`
+        SELECT
+          gert.id,
+          g.id AS "gravacaoId",
+          g.nome AS "gravacaoNome",
+          g.codigo AS "gravacaoCodigo",
+          ge.id AS "espacoItemId",
+          ge.espaco_id AS "espacoId",
+          COALESCE(e.titulo, '') AS "espacoNome",
+          gert.recurso_tecnico_id AS "recursoId",
+          COALESCE(rt.nome, '') AS "recursoNome",
+          rt.funcao_operador_id AS "funcaoOperadorId",
+          COALESCE(gert.data, ge.data) AS "data",
+          gert.hora_inicio AS "horaInicio",
+          gert.hora_fim AS "horaFim"
+        FROM gravacao_espaco_recursos_tecnicos gert
+        JOIN gravacao_espacos ge ON ge.id = gert.gravacao_espaco_id
+        JOIN "Gravacao" g ON g.id = ge.gravacao_id
+        JOIN recursos_tecnicos rt ON rt.id = gert.recurso_tecnico_id
+        LEFT JOIN public.espacos e ON e.id = ge.espaco_id
+        WHERE gert.tenant_id = ${tenantId}
+          AND COALESCE(gert.data, ge.data) >= ${dateStart}
+          AND COALESCE(gert.data, ge.data) <= ${dateEnd}
+        ORDER BY COALESCE(gert.data, ge.data), rt.nome
+      `);
+      for (const r of rows) tecnicos.push(r);
+    }
+
+    if (await this.tableExists('gravacao_espaco_recursos_fisicos')) {
+      const rows = await prisma.$queryRaw<Array<{
+        id: string;
+        gravacaoId: string;
+        gravacaoNome: string;
+        gravacaoCodigo: string;
+        espacoItemId: string;
+        espacoId: string | null;
+        espacoNome: string;
+        recursoId: string;
+        recursoNome: string;
+        funcaoOperadorId: string | null;
+        data: string | null;
+        horaInicio: string | null;
+        horaFim: string | null;
+      }>>(Prisma.sql`
+        SELECT
+          gerf.id,
+          g.id AS "gravacaoId",
+          g.nome AS "gravacaoNome",
+          g.codigo AS "gravacaoCodigo",
+          ge.id AS "espacoItemId",
+          ge.espaco_id AS "espacoId",
+          COALESCE(e.titulo, '') AS "espacoNome",
+          gerf.recurso_fisico_id AS "recursoId",
+          COALESCE(rf.nome, '') AS "recursoNome",
+          NULL::text AS "funcaoOperadorId",
+          COALESCE(gerf.data, ge.data) AS "data",
+          gerf.hora_inicio AS "horaInicio",
+          gerf.hora_fim AS "horaFim"
+        FROM gravacao_espaco_recursos_fisicos gerf
+        JOIN gravacao_espacos ge ON ge.id = gerf.gravacao_espaco_id
+        JOIN "Gravacao" g ON g.id = ge.gravacao_id
+        JOIN recursos_fisicos rf ON rf.id = gerf.recurso_fisico_id
+        LEFT JOIN public.espacos e ON e.id = ge.espaco_id
+        WHERE gerf.tenant_id = ${tenantId}
+          AND COALESCE(gerf.data, ge.data) >= ${dateStart}
+          AND COALESCE(gerf.data, ge.data) <= ${dateEnd}
+        ORDER BY COALESCE(gerf.data, ge.data), rf.nome
+      `);
+      for (const r of rows) fisicos.push(r);
+    }
+
+    return { tecnicos, fisicos };
   }
 
   private async tableExists(tableName: string): Promise<boolean> {

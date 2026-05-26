@@ -5,7 +5,7 @@ const nextConfig: NextConfig = {
   // Exclui o Prisma do bundle do Turbopack — carregado em runtime pelo Node.js.
   // Necessário porque src/lib/prisma.ts usa require() com caminho relativo
   // para backend/node_modules/.prisma/client, que Turbopack não resolve via bundle.
-  serverExternalPackages: ['@prisma/client', '.prisma/client'],
+  serverExternalPackages: ['@prisma/client', '.prisma/client', 'backend/node_modules/.prisma/client', 'backend/node_modules/@prisma/client'],
   outputFileTracingIncludes: {
     '**': [
       './node_modules/.prisma/**',

@@ -3,6 +3,7 @@ import type { SessionUser } from '../auth/auth.types.js';
 import { ensureSameTenant, resolveTenantId } from '../common/access.js';
 import type { GravacoesRepository } from './gravacoes.repository.js';
 import type { ContasPagarRepository } from '../contas-pagar/contas-pagar.repository.js';
+import type { PrismaGrelhaProgramacaoRepository } from '../grelha-programacao/grelha-programacao.repository.js';
 
 const emptyStringToNull = (value: unknown) => {
   if (typeof value === 'string' && value.trim() === '') {
@@ -111,6 +112,33 @@ export const saveGravacaoDespesaSchema = z.object({
 
 export type SaveGravacaoDto = z.infer<typeof saveGravacaoSchema>;
 
+const templateResourceItemSchema = z.object({
+  recursoId: z.string().min(1),
+  quantidade: z.coerce.number().int().min(1).default(1),
+  data: optionalNullableString,
+  horaInicio: optionalNullableString,
+  horaFim: optionalNullableString,
+});
+
+const templateEspacoItemSchema = z.object({
+  espacoId: z.string().min(1),
+  data: optionalNullableString,
+  horaInicio: optionalNullableString,
+  horaFim: optionalNullableString,
+});
+
+const templateAtividadeConfigSchema = z.object({
+  nome: z.string().optional(),
+  espacos: z.array(templateEspacoItemSchema).default([]),
+  recursosTecnicos: z.array(templateResourceItemSchema).default([]),
+  equipamentos: z.array(templateResourceItemSchema).default([]),
+});
+
+export const createFromTemplateSchema = z.object({
+  gravacao: saveGravacaoSchema,
+  atividades: z.array(templateAtividadeConfigSchema).default([]),
+});
+
 function formatDate(date: Date | null): string {
   return date ? date.toISOString().slice(0, 10) : '';
 }
@@ -119,6 +147,7 @@ export class GravacoesService {
   constructor(
     private readonly repository: GravacoesRepository,
     private readonly contasPagarRepository?: ContasPagarRepository,
+    private readonly grelhaRepository?: PrismaGrelhaProgramacaoRepository,
   ) {}
 
   async list(actor: SessionUser, opts?: { limit?: number; offset?: number }) {
@@ -236,6 +265,71 @@ export class GravacoesService {
     };
   }
 
+  async createFromTemplate(actor: SessionUser, input: z.infer<typeof createFromTemplateSchema>) {
+    const gravacao = await this.save(actor, input.gravacao);
+
+    for (const atividade of input.atividades) {
+      let firstEspacoItemId: string | null = null;
+
+      for (const espaco of atividade.espacos) {
+        const item = await this.addEspaco(actor, gravacao.id, {
+          espacoId: espaco.espacoId,
+          descricao: atividade.nome ?? null,
+          horaInicio: espaco.horaInicio ?? null,
+          horaFim: espaco.horaFim ?? null,
+          data: espaco.data ?? null,
+        });
+        if (!firstEspacoItemId) firstEspacoItemId = item.id;
+      }
+
+      if (firstEspacoItemId) {
+        for (const tecnico of atividade.recursosTecnicos) {
+          const slots = Math.max(1, tecnico.quantidade ?? 1);
+          for (let i = 0; i < slots; i++) {
+            try {
+              await this.addEspacoResource(actor, gravacao.id, firstEspacoItemId, 'tecnico', {
+                recursoId: tecnico.recursoId,
+                valorHora: 0,
+                quantidade: 1,
+                horaInicio: tecnico.horaInicio ?? null,
+                horaFim: tecnico.horaFim ?? null,
+                data: tecnico.data ?? null,
+                valorTotal: 0,
+                descontoPercentual: 0,
+                valorComDesconto: 0,
+              });
+            } catch {
+              // skip resource if catalog entry not found
+            }
+          }
+        }
+
+        for (const equip of atividade.equipamentos) {
+          const slots = Math.max(1, equip.quantidade ?? 1);
+          for (let i = 0; i < slots; i++) {
+            try {
+              await this.addEspacoResource(actor, gravacao.id, firstEspacoItemId, 'fisico', {
+                recursoId: equip.recursoId,
+                valorHora: 0,
+                quantidade: 1,
+                horaInicio: equip.horaInicio ?? null,
+                horaFim: equip.horaFim ?? null,
+                data: equip.data ?? null,
+                valorTotal: 0,
+                descontoPercentual: 0,
+                valorComDesconto: 0,
+              });
+            } catch {
+              // skip resource if catalog entry not found
+            }
+          }
+        }
+      }
+    }
+
+    return gravacao;
+  }
+
   async remove(actor: SessionUser, id: string) {
     const existing = await this.repository.findById(id);
     if (!existing) {
@@ -243,6 +337,8 @@ export class GravacoesService {
     }
 
     ensureSameTenant(actor, existing.tenantId);
+    // Clear any grelha link and reset planeamento status before deleting
+    await this.grelhaRepository?.unlinkGravacao(existing.tenantId, id).catch(() => {});
     await this.repository.remove(id);
   }
 
@@ -508,6 +604,11 @@ export class GravacoesService {
     return items.map((item) => this.mapEspaco(item));
   }
 
+  async listEspacosByData(actor: SessionUser, data: string) {
+    const tenantId = resolveTenantId(actor, actor.tenantId);
+    return this.repository.listEspacosByData(tenantId, data);
+  }
+
   async addEspaco(actor: SessionUser, gravacaoId: string, input: z.infer<typeof saveGravacaoEspacoSchema>) {
     const gravacao = await this.repository.findById(gravacaoId);
     if (!gravacao) throw new Error('Gravacao nao encontrada');
@@ -603,6 +704,11 @@ export class GravacoesService {
     if (!gravacao) throw new Error('Gravacao nao encontrada');
     ensureSameTenant(actor, gravacao.tenantId);
     return this.repository.listEspacoRecursosSummary(gravacao.tenantId, gravacaoId);
+  }
+
+  async listEspacoResourcesByPeriod(actor: SessionUser, dateStart: string, dateEnd: string) {
+    const tenantId = resolveTenantId(actor, actor.tenantId);
+    return this.repository.listEspacoResourcesByPeriod(tenantId, dateStart, dateEnd);
   }
 
   async listDespesas(actor: SessionUser, gravacaoId: string) {

@@ -20,12 +20,14 @@ import {
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { GravacaoBackendFormModal } from './GravacaoBackendFormModal';
+import { GrelhaTemplateAplicarModal } from './GrelhaTemplateAplicarModal';
 import { ApiGravacoesRepository } from '@/modules/gravacoes/gravacoes.api.repository';
 import { ApiProgramasRepository } from '@/modules/programas/programas.api.repository';
 import { ApiParametrizacoesRepository } from '@/modules/parametrizacoes/parametrizacoes.api.repository';
 import { ApiGrelhaProgramacaoRepository } from '@/modules/producao/grelha-programacao.api';
 import { templatesRepository, type Template } from '@/modules/templates/templates.api';
 import type { GravacaoInput } from '@/modules/gravacoes/gravacoes.types';
+import type { TemplateAtividadeConfig } from '@/modules/gravacoes/gravacoes.api.repository';
 import type { GrelhaProgramaItem } from '@/modules/producao/grelha-programacao.api';
 
 type Step = 'choice' | 'template-select';
@@ -46,10 +48,12 @@ export function GrelhaPlanearModal({ item, onClose, onSuccess }: Props) {
   const [step, setStep] = useState<Step>('choice');
   const [templates, setTemplates] = useState<Template[]>([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
+  const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
   const [loadingTemplates, setLoadingTemplates] = useState(false);
   const [resolving, setResolving] = useState(false);
   const [initialValues, setInitialValues] = useState<Partial<GravacaoInput>>({});
   const [showGravacaoForm, setShowGravacaoForm] = useState(false);
+  const [showTemplateAplicar, setShowTemplateAplicar] = useState(false);
 
   const isOpen = !!item;
 
@@ -59,7 +63,9 @@ export function GrelhaPlanearModal({ item, onClose, onSuccess }: Props) {
       setInitialValues({});
       setTemplates([]);
       setSelectedTemplateId('');
+      setSelectedTemplate(null);
       setShowGravacaoForm(false);
+      setShowTemplateAplicar(false);
     }
   }, [isOpen]);
 
@@ -151,10 +157,12 @@ export function GrelhaPlanearModal({ item, onClose, onSuccess }: Props) {
     if (!selectedTemplateId) return;
     setResolving(true);
     try {
-      const values = await resolveInitialValues();
+      const [values] = await Promise.all([resolveInitialValues()]);
+      const template = templates.find((t) => t.id === selectedTemplateId) ?? null;
       setInitialValues(values);
+      setSelectedTemplate(template);
       setStep('choice');
-      setShowGravacaoForm(true);
+      setShowTemplateAplicar(true);
     } catch {
       toast({ title: 'Erro', description: 'Erro ao preparar planeamento', variant: 'destructive' });
     } finally {
@@ -173,12 +181,42 @@ export function GrelhaPlanearModal({ item, onClose, onSuccess }: Props) {
     onClose();
   };
 
+  const handleTemplateConfirm = async (atividades: TemplateAtividadeConfig[]) => {
+    if (!initialValues.nome) throw new Error('Dados da gravação não resolvidos');
+    const gravacaoInput: GravacaoInput = {
+      codigo: `${new Date().getFullYear()}${String(Math.floor(Math.random() * 99999)).padStart(5, '0')}`,
+      codigoExterno: '',
+      nome: initialValues.nome ?? '',
+      descricao: initialValues.descricao ?? '',
+      dataPrevista: initialValues.dataPrevista ?? '',
+      status: initialValues.status ?? '',
+      centroLucro: '',
+      classificacao: '',
+      tipoConteudo: '',
+      programaId: initialValues.programaId,
+    };
+    const gravacao = await gravacoesRepo.createFromTemplate({
+      gravacao: gravacaoInput,
+      atividades,
+    });
+    if (item?.id && gravacao?.id) {
+      await grelhaRepo.linkGravacao(item.id, gravacao.id);
+    }
+    toast({
+      title: 'Gravação criada',
+      description: 'Planeamento criado com sucesso a partir do template.',
+    });
+    setShowTemplateAplicar(false);
+    onSuccess();
+    onClose();
+  };
+
   if (!item) return null;
 
   return (
     <>
       <Dialog
-        open={isOpen && !showGravacaoForm}
+        open={isOpen && !showGravacaoForm && !showTemplateAplicar}
         onOpenChange={(open) => {
           if (!open) onClose();
         }}
@@ -309,6 +347,18 @@ export function GrelhaPlanearModal({ item, onClose, onSuccess }: Props) {
         }}
         onSave={handleSave}
         initialValues={initialValues}
+      />
+
+      <GrelhaTemplateAplicarModal
+        isOpen={showTemplateAplicar}
+        onClose={() => {
+          setShowTemplateAplicar(false);
+          onClose();
+        }}
+        template={selectedTemplate}
+        defaultDate={item?.dataExibicao ?? ''}
+        item={item}
+        onConfirm={handleTemplateConfirm}
       />
     </>
   );

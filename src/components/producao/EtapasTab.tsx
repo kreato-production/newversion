@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Table,
   TableBody,
@@ -629,10 +628,51 @@ export function EtapasTab({ etapas, onChange, readOnly = false }: EtapasTabProps
                               key={`${atividade.id}-resources`}
                               className="hover:bg-transparent bg-muted/10"
                             >
-                              <TableCell colSpan={5} className="px-4 pb-4 pt-1">
-                                <Tabs defaultValue="tecnicos">
-                                  <TabsList className="h-8 mb-3">
-                                    <TabsTrigger value="tecnicos" className="text-xs h-7 gap-1.5">
+                              <TableCell colSpan={5} className="px-4 pb-4 pt-2">
+                                <div className="space-y-4">
+                                  {/* ── 1. Espaço (obrigatório) ── */}
+                                  <div>
+                                    <p className="text-[10px] uppercase tracking-wide font-medium text-muted-foreground mb-1.5 flex items-center gap-1">
+                                      Espaço
+                                      <span className="text-destructive font-bold">*</span>
+                                      <span className="normal-case font-normal text-muted-foreground/60 ml-1">
+                                        — obrigatório antes de adicionar recursos
+                                      </span>
+                                    </p>
+                                    <ResourceAllocationList
+                                      options={espacosOptions}
+                                      allocations={atividade.espacos}
+                                      onAdd={(alloc) =>
+                                        addAllocation(etapa.id, atividade.id, 'espacos', alloc)
+                                      }
+                                      onRemove={(recursoId) => {
+                                        removeAllocation(
+                                          etapa.id,
+                                          atividade.id,
+                                          'espacos',
+                                          recursoId,
+                                        );
+                                        // clear dependent resources when last espaço is removed
+                                        const remaining = atividade.espacos.filter(
+                                          (x) => x.recursoId !== recursoId,
+                                        );
+                                        if (remaining.length === 0) {
+                                          updateAtividade(etapa.id, atividade.id, {
+                                            recursosTecnicos: [],
+                                            equipamentos: [],
+                                          });
+                                        }
+                                      }}
+                                      loading={loadingCatalog}
+                                      color={etapa.cor}
+                                      defaultDe={atividade.horaInicio}
+                                      defaultAte={atividade.horaFim}
+                                    />
+                                  </div>
+
+                                  {/* ── 2. Recursos Técnicos (só disponível com espaço) ── */}
+                                  <div>
+                                    <p className="text-[10px] uppercase tracking-wide font-medium text-muted-foreground mb-1.5 flex items-center gap-1">
                                       Recursos Técnicos
                                       {atividade.recursosTecnicos.length > 0 && (
                                         <Badge
@@ -642,11 +682,42 @@ export function EtapasTab({ etapas, onChange, readOnly = false }: EtapasTabProps
                                           {atividade.recursosTecnicos.length}
                                         </Badge>
                                       )}
-                                    </TabsTrigger>
-                                    <TabsTrigger
-                                      value="equipamentos"
-                                      className="text-xs h-7 gap-1.5"
-                                    >
+                                    </p>
+                                    {atividade.espacos.length === 0 ? (
+                                      <div className="rounded border border-dashed border-muted-foreground/30 px-3 py-2 text-xs text-muted-foreground text-center">
+                                        Selecione primeiro um espaço.
+                                      </div>
+                                    ) : (
+                                      <ResourceAllocationList
+                                        options={tecnicosOptions}
+                                        allocations={atividade.recursosTecnicos}
+                                        onAdd={(alloc) =>
+                                          addAllocation(
+                                            etapa.id,
+                                            atividade.id,
+                                            'recursosTecnicos',
+                                            alloc,
+                                          )
+                                        }
+                                        onRemove={(recursoId) =>
+                                          removeAllocation(
+                                            etapa.id,
+                                            atividade.id,
+                                            'recursosTecnicos',
+                                            recursoId,
+                                          )
+                                        }
+                                        loading={loadingCatalog}
+                                        color={etapa.cor}
+                                        defaultDe={atividade.horaInicio}
+                                        defaultAte={atividade.horaFim}
+                                      />
+                                    )}
+                                  </div>
+
+                                  {/* ── 3. Equipamentos (só disponível com espaço) ── */}
+                                  <div>
+                                    <p className="text-[10px] uppercase tracking-wide font-medium text-muted-foreground mb-1.5 flex items-center gap-1">
                                       Equipamento
                                       {atividade.equipamentos.length > 0 && (
                                         <Badge
@@ -656,97 +727,57 @@ export function EtapasTab({ etapas, onChange, readOnly = false }: EtapasTabProps
                                           {atividade.equipamentos.length}
                                         </Badge>
                                       )}
-                                    </TabsTrigger>
-                                    <TabsTrigger value="espacos" className="text-xs h-7 gap-1.5">
-                                      Espaços
-                                      {atividade.espacos.length > 0 && (
-                                        <Badge
-                                          className="h-4 min-w-4 px-1 text-[10px]"
-                                          style={{ backgroundColor: etapa.cor }}
-                                        >
-                                          {atividade.espacos.length}
-                                        </Badge>
-                                      )}
-                                    </TabsTrigger>
-                                  </TabsList>
-
-                                  <TabsContent value="tecnicos" className="mt-0">
-                                    <ResourceAllocationList
-                                      options={tecnicosOptions}
-                                      allocations={atividade.recursosTecnicos}
-                                      onAdd={(alloc) =>
-                                        addAllocation(
-                                          etapa.id,
-                                          atividade.id,
-                                          'recursosTecnicos',
-                                          alloc,
-                                        )
-                                      }
-                                      onRemove={(recursoId) =>
-                                        removeAllocation(
-                                          etapa.id,
-                                          atividade.id,
-                                          'recursosTecnicos',
-                                          recursoId,
-                                        )
-                                      }
-                                      loading={loadingCatalog}
-                                      color={etapa.cor}
-                                      defaultDe={atividade.horaInicio}
-                                      defaultAte={atividade.horaFim}
-                                    />
-                                  </TabsContent>
-
-                                  <TabsContent value="equipamentos" className="mt-0">
-                                    <ResourceAllocationList
-                                      options={fisicosOptions}
-                                      allocations={atividade.equipamentos}
-                                      onAdd={(alloc) =>
-                                        addAllocation(etapa.id, atividade.id, 'equipamentos', alloc)
-                                      }
-                                      onRemove={(recursoId) =>
-                                        removeAllocation(
-                                          etapa.id,
-                                          atividade.id,
-                                          'equipamentos',
-                                          recursoId,
-                                        )
-                                      }
-                                      loading={loadingCatalog}
-                                      color={etapa.cor}
-                                      defaultDe={atividade.horaInicio}
-                                      defaultAte={atividade.horaFim}
-                                    />
-                                  </TabsContent>
-
-                                  <TabsContent value="espacos" className="mt-0">
-                                    <ResourceAllocationList
-                                      options={espacosOptions}
-                                      allocations={atividade.espacos}
-                                      onAdd={(alloc) =>
-                                        addAllocation(etapa.id, atividade.id, 'espacos', alloc)
-                                      }
-                                      onRemove={(recursoId) =>
-                                        removeAllocation(
-                                          etapa.id,
-                                          atividade.id,
-                                          'espacos',
-                                          recursoId,
-                                        )
-                                      }
-                                      loading={loadingCatalog}
-                                      color={etapa.cor}
-                                      defaultDe={atividade.horaInicio}
-                                      defaultAte={atividade.horaFim}
-                                    />
-                                  </TabsContent>
-                                </Tabs>
+                                    </p>
+                                    {atividade.espacos.length === 0 ? (
+                                      <div className="rounded border border-dashed border-muted-foreground/30 px-3 py-2 text-xs text-muted-foreground text-center">
+                                        Selecione primeiro um espaço.
+                                      </div>
+                                    ) : (
+                                      <ResourceAllocationList
+                                        options={fisicosOptions}
+                                        allocations={atividade.equipamentos}
+                                        onAdd={(alloc) =>
+                                          addAllocation(
+                                            etapa.id,
+                                            atividade.id,
+                                            'equipamentos',
+                                            alloc,
+                                          )
+                                        }
+                                        onRemove={(recursoId) =>
+                                          removeAllocation(
+                                            etapa.id,
+                                            atividade.id,
+                                            'equipamentos',
+                                            recursoId,
+                                          )
+                                        }
+                                        loading={loadingCatalog}
+                                        color={etapa.cor}
+                                        defaultDe={atividade.horaInicio}
+                                        defaultAte={atividade.horaFim}
+                                      />
+                                    )}
+                                  </div>
+                                </div>
 
                                 {/* Summary of selected resources */}
                                 {(atividade.recursosTecnicos.length > 0 ||
                                   atividade.equipamentos.length > 0 ||
                                   atividade.espacos.length > 0) && (
                                   <div className="mt-3 pt-3 border-t flex flex-wrap gap-1">
+                                    {atividade.espacos.map((alloc) => (
+                                      <Badge
+                                        key={alloc.recursoId}
+                                        variant="outline"
+                                        className="text-xs gap-1 border-dashed"
+                                      >
+                                        {espacosMap.get(alloc.recursoId) ?? alloc.recursoId}
+                                        {alloc.quantidade > 1 && (
+                                          <span className="opacity-70">×{alloc.quantidade}</span>
+                                        )}
+                                      </Badge>
+                                    ))}
                                     {atividade.recursosTecnicos.map((alloc) => (
                                       <Badge
                                         key={alloc.recursoId}
@@ -766,18 +797,6 @@ export function EtapasTab({ etapas, onChange, readOnly = false }: EtapasTabProps
                                         className="text-xs gap-1"
                                       >
                                         {fisicosMap.get(alloc.recursoId) ?? alloc.recursoId}
-                                        {alloc.quantidade > 1 && (
-                                          <span className="opacity-70">×{alloc.quantidade}</span>
-                                        )}
-                                      </Badge>
-                                    ))}
-                                    {atividade.espacos.map((alloc) => (
-                                      <Badge
-                                        key={alloc.recursoId}
-                                        variant="outline"
-                                        className="text-xs gap-1 border-dashed"
-                                      >
-                                        {espacosMap.get(alloc.recursoId) ?? alloc.recursoId}
                                         {alloc.quantidade > 1 && (
                                           <span className="opacity-70">×{alloc.quantidade}</span>
                                         )}

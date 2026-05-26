@@ -320,7 +320,7 @@ const RequisicoesTab = ({ dateStart, dateEnd, onSaveComplete }: RequisicoesTabPr
         }
       });
 
-      // Fetch espaco resources for all gravações in range (for BOTH espacoNome and espaco-sourced RT items)
+      // Build espacoMap for alocação-based items (gravações whose dataPrevista is in range)
       const inRangeGravacaoIds = [...gravMap.entries()]
         .filter(([, g]) => inRange(g.dataPrevista))
         .map(([id]) => id);
@@ -330,62 +330,60 @@ const RequisicoesTab = ({ dateStart, dateEnd, onSaveComplete }: RequisicoesTabPr
           try {
             const espacos = await gravacoesRelacionamentosApi.listEspacos(gid);
             espacoMap.set(gid, espacos.map((e) => e.espacoNome).join(', ') || '');
-            const gravacao = gravMap.get(gid)!;
-            await Promise.all(
-              espacos.map(async (espaco) => {
-                try {
-                  const [{ items: rtItems }, { items: rfItems }] = await Promise.all([
-                    gravacoesRelacionamentosApi.listEspacoResources(gid, espaco.id, 'tecnico'),
-                    gravacoesRelacionamentosApi.listEspacoResources(gid, espaco.id, 'fisico'),
-                  ]);
-                  for (const item of rtItems) {
-                    nextRt.push({
-                      gravacaoId: gid,
-                      gravacaoNome: gravacao.nome,
-                      recursoId: item.recursoId,
-                      recursoNome: item.recursoNome,
-                      dataPrevista: gravacao.dataPrevista,
-                      horaInicio: item.horaInicio?.slice(0, 5) || '',
-                      horaFim: item.horaFim?.slice(0, 5) || '',
-                      tempoGravacao: tempo(
-                        item.horaInicio?.slice(0, 5) || '',
-                        item.horaFim?.slice(0, 5) || '',
-                      ),
-                      anchorId: `espaco-${espaco.id}-${item.id}`,
-                      espacoNome: espaco.espacoNome,
-                      funcaoOperadorId: rtMap.get(item.recursoId)?.funcaoOperadorId,
-                      isEspacoResource: true,
-                    });
-                  }
-                  for (const item of rfItems) {
-                    nextRf.push({
-                      gravacaoId: gid,
-                      gravacaoNome: gravacao.nome,
-                      recursoId: item.recursoId,
-                      recursoNome: item.recursoNome,
-                      dataPrevista: gravacao.dataPrevista,
-                      horaInicio: item.horaInicio?.slice(0, 5) || '',
-                      horaFim: item.horaFim?.slice(0, 5) || '',
-                      tempoGravacao: tempo(
-                        item.horaInicio?.slice(0, 5) || '',
-                        item.horaFim?.slice(0, 5) || '',
-                      ),
-                      anchorId: `espaco-${espaco.id}-${item.id}`,
-                      espacoNome: espaco.espacoNome,
-                      isEspacoResource: true,
-                    });
-                  }
-                } catch {
-                  // ignore per-espaco resource errors
-                }
-              }),
-            );
           } catch {
             espacoMap.set(gid, '');
           }
         }),
       );
-      // Apply espacoNome to items sourced from gravacao_recursos (not espaco resources)
+
+      // Fetch espaco resources by actual resource date (not limited to gravação dataPrevista)
+      try {
+        const espacoResources = await gravacoesRelacionamentosApi.listEspacoResourcesByPeriod(
+          dateStart,
+          dateEnd,
+        );
+        for (const item of espacoResources.tecnicos) {
+          nextRt.push({
+            gravacaoId: item.gravacaoId,
+            gravacaoNome: item.gravacaoNome,
+            recursoId: item.recursoId,
+            recursoNome: item.recursoNome,
+            dataPrevista: item.data || dateStart,
+            horaInicio: item.horaInicio?.slice(0, 5) || '',
+            horaFim: item.horaFim?.slice(0, 5) || '',
+            tempoGravacao: tempo(
+              item.horaInicio?.slice(0, 5) || '',
+              item.horaFim?.slice(0, 5) || '',
+            ),
+            anchorId: `espaco-resource-${item.id}`,
+            espacoNome: item.espacoNome,
+            funcaoOperadorId: item.funcaoOperadorId ?? rtMap.get(item.recursoId)?.funcaoOperadorId,
+            isEspacoResource: true,
+          });
+        }
+        for (const item of espacoResources.fisicos) {
+          nextRf.push({
+            gravacaoId: item.gravacaoId,
+            gravacaoNome: item.gravacaoNome,
+            recursoId: item.recursoId,
+            recursoNome: item.recursoNome,
+            dataPrevista: item.data || dateStart,
+            horaInicio: item.horaInicio?.slice(0, 5) || '',
+            horaFim: item.horaFim?.slice(0, 5) || '',
+            tempoGravacao: tempo(
+              item.horaInicio?.slice(0, 5) || '',
+              item.horaFim?.slice(0, 5) || '',
+            ),
+            anchorId: `espaco-resource-${item.id}`,
+            espacoNome: item.espacoNome,
+            isEspacoResource: true,
+          });
+        }
+      } catch (err) {
+        console.error('[RequisicoesTab] espaco resources by period failed:', err);
+      }
+
+      // Apply espacoNome to alocação-based items (not espaco resources)
       nextRt.forEach((item) => {
         if (!item.isEspacoResource) {
           item.espacoNome = espacoMap.get(item.gravacaoId) || '';

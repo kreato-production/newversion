@@ -359,7 +359,11 @@ export const IncidenciaGravacaoFormModal = ({
         if (!open) onClose();
       }}
     >
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent
+        className="max-w-3xl max-h-[90vh] overflow-y-auto"
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onInteractOutside={(e) => e.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle>
             {data ? (readOnly ? t('common.view') : t('common.edit')) : t('common.new')}{' '}

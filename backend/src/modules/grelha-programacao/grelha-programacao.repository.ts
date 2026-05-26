@@ -294,6 +294,15 @@ export class PrismaGrelhaProgramacaoRepository {
     return this.findById(id, tenantId);
   }
 
+  async unlinkGravacao(tenantId: string, gravacaoId: string) {
+    await ensureTables();
+    await prisma.$executeRaw`
+      UPDATE grelha_programa
+      SET gravacao_id = NULL, status_planeamento_id = NULL, updated_at = NOW()
+      WHERE gravacao_id = ${gravacaoId} AND tenant_id = ${tenantId}
+    `;
+  }
+
   async upsertFromSync(tenantId: string, maestroId: string, items: SyncGrelhaItem[]) {
     await ensureTables();
     for (const item of items) {

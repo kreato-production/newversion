@@ -158,6 +158,7 @@ export class PrismaParametrosRepository implements ParametrosRepository {
   async save(storageKey: string, input: SaveParametroInput): Promise<ParametroRecord> {
     const tableName = resolveTableName(storageKey);
     const hasCor = await this.hasColumn(tableName, 'cor');
+    const hasUpdatedAt = await this.hasColumn(tableName, 'updated_at');
     const corSelect = hasCor ? ', cor' : ', NULL::text AS cor';
     const idInsertExpr = await this.buildColumnValueExpression(tableName, 'id', 1);
     const tenantInsertExpr = await this.buildColumnValueExpression(tableName, 'tenant_id', 2);
@@ -165,6 +166,7 @@ export class PrismaParametrosRepository implements ParametrosRepository {
 
     if (input.id) {
       const corUpdateClause = hasCor ? ', cor = $6' : '';
+      const updatedAtClause = hasUpdatedAt ? ', updated_at = NOW()' : '';
       const updateArgs: unknown[] = [
         input.codigoExterno ?? null,
         input.nome,
@@ -180,8 +182,7 @@ export class PrismaParametrosRepository implements ParametrosRepository {
           SET
             codigo_externo = $1,
             nome = $2,
-            descricao = $3,
-            updated_at = NOW()${corUpdateClause}
+            descricao = $3${updatedAtClause}${corUpdateClause}
           WHERE id::text = $4 AND tenant_id::text = $5
           RETURNING id, tenant_id, codigo_externo, nome, descricao${corSelect}, created_at, created_by
         `,
@@ -194,13 +195,16 @@ export class PrismaParametrosRepository implements ParametrosRepository {
     }
 
     const createdId = input.id ?? randomUUID();
+    const updatedAtInsertCol = hasUpdatedAt ? ', updated_at' : '';
+    const updatedAtInsertVal = hasUpdatedAt ? ', NOW()' : '';
+
     if (hasCor) {
       const rows = await prisma.$queryRawUnsafe<ParametroRow[]>(
         `
           INSERT INTO ${tableName} (
-            id, tenant_id, codigo_externo, nome, descricao, cor, created_at, updated_at, created_by
+            id, tenant_id, codigo_externo, nome, descricao, cor, created_at${updatedAtInsertCol}, created_by
           )
-          VALUES (${idInsertExpr}, ${tenantInsertExpr}, $3, $4, $5, $7, NOW(), NOW(), ${createdByInsertExpr})
+          VALUES (${idInsertExpr}, ${tenantInsertExpr}, $3, $4, $5, $7, NOW()${updatedAtInsertVal}, ${createdByInsertExpr})
           RETURNING id, tenant_id, codigo_externo, nome, descricao, cor, created_at, created_by
         `,
         createdId,
@@ -217,9 +221,9 @@ export class PrismaParametrosRepository implements ParametrosRepository {
     const rows = await prisma.$queryRawUnsafe<ParametroRow[]>(
       `
         INSERT INTO ${tableName} (
-          id, tenant_id, codigo_externo, nome, descricao, created_at, updated_at, created_by
+          id, tenant_id, codigo_externo, nome, descricao, created_at${updatedAtInsertCol}, created_by
         )
-        VALUES (${idInsertExpr}, ${tenantInsertExpr}, $3, $4, $5, NOW(), NOW(), ${createdByInsertExpr})
+        VALUES (${idInsertExpr}, ${tenantInsertExpr}, $3, $4, $5, NOW()${updatedAtInsertVal}, ${createdByInsertExpr})
         RETURNING id, tenant_id, codigo_externo, nome, descricao, NULL::text AS cor, created_at, created_by
       `,
       createdId,

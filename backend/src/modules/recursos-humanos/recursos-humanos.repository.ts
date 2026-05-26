@@ -501,36 +501,14 @@ export class PrismaRecursosHumanosRepository implements RecursosHumanosRepositor
   }
 
   async listOcupacoes(tenantId: string, dataInicio: string, dataFim: string): Promise<OcupacaoRecursoHumanoRecord[]> {
-    await this.ensureTables();
-
-    const gravacaoRecursosExists = await this.tableExists('gravacao_recursos');
-    if (!gravacaoRecursosExists) {
+    try {
+      await this.ensureTables();
+    } catch {
       return [];
     }
 
-    const gravacoesExists = await this.tableExists('gravacoes');
-    if (gravacoesExists) {
-      return prisma.$queryRaw<OcupacaoRecursoHumanoRecord[]>(Prisma.sql`
-        SELECT
-          gr.recurso_humano_id AS "recursoId",
-          to_char(g.data_prevista, 'YYYY-MM-DD') AS "data",
-          gr.gravacao_id AS "gravacaoId",
-          COALESCE(g.nome, g.codigo, 'Gravacao sem nome') AS "gravacaoNome",
-          gr.hora_inicio AS "horaInicio",
-          gr.hora_fim AS "horaFim"
-        FROM gravacao_recursos gr
-        INNER JOIN gravacoes g ON g.id = gr.gravacao_id
-        WHERE gr.tenant_id = ${tenantId}
-          AND gr.recurso_humano_id IS NOT NULL
-          AND gr.hora_inicio IS NOT NULL
-          AND gr.hora_fim IS NOT NULL
-          AND g.data_prevista BETWEEN ${dataInicio}::date AND ${dataFim}::date
-        ORDER BY g.data_prevista ASC, gr.hora_inicio ASC
-      `);
-    }
-
-    const prismaGravacoesExists = await this.tableExists('"Gravacao"');
-    if (!prismaGravacoesExists) {
+    const gravacaoRecursosExists = await this.tableExists('gravacao_recursos');
+    if (!gravacaoRecursosExists) {
       return [];
     }
 
@@ -548,7 +526,7 @@ export class PrismaRecursosHumanosRepository implements RecursosHumanosRepositor
         AND gr.recurso_humano_id IS NOT NULL
         AND gr.hora_inicio IS NOT NULL
         AND gr.hora_fim IS NOT NULL
-        AND g."dataPrevista" BETWEEN ${dataInicio}::date AND ${dataFim}::date
+        AND g."dataPrevista"::date BETWEEN ${dataInicio}::date AND ${dataFim}::date
       ORDER BY g."dataPrevista" ASC, gr.hora_inicio ASC
     `);
   }

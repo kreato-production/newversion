@@ -17,6 +17,14 @@ import { ptBR } from 'date-fns/locale';
 import { ChevronLeft, ChevronRight, AlertTriangle } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Badge } from '@/components/ui/badge';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { GrelhaProgramaItem } from '@/modules/producao/grelha-programacao.api';
 
@@ -24,7 +32,7 @@ import type { GrelhaProgramaItem } from '@/modules/producao/grelha-programacao.a
 
 const HOUR_HEIGHT = 60; // px per hour
 const DAY_START_HOUR = 6; // grid starts at 06:00
-const DAY_HOURS = 24; // 24 h window (06:00 → 06:00 next day)
+const DAY_HOURS = 24; // 24-h window (06:00 → 06:00 next day)
 const PX_PER_MIN = HOUR_HEIGHT / 60;
 const TOTAL_HEIGHT = DAY_HOURS * HOUR_HEIGHT;
 const WEEK_START_ON = 1 as const; // Monday-first week
@@ -57,6 +65,7 @@ function parseStartOffsetMin(time: string | null): number | null {
   if (parts.length < 2) return null;
   let h = parseInt(parts[0]);
   const m = parseInt(parts[1]);
+  if (isNaN(h) || isNaN(m)) return null;
   if (h < DAY_START_HOUR) h += 24; // early-morning (00–05) belongs to the extended window
   const offset = h * 60 + m - DAY_START_HOUR * 60;
   return offset >= 0 && offset < DAY_HOURS * 60 ? offset : null;
@@ -172,13 +181,14 @@ function WeekView({
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const todayStr = format(new Date(), 'yyyy-MM-dd');
+  const weekStartKey = weekDays[0] ? format(weekDays[0], 'yyyy-MM-dd') : '';
 
   useEffect(() => {
     if (scrollRef.current) {
       // Scroll to 08:00 (2 hours into the grid)
       scrollRef.current.scrollTop = 2 * HOUR_HEIGHT;
     }
-  }, [weekDays[0]?.toISOString()]);
+  }, [weekStartKey]);
 
   const dayEvents = useMemo(() => {
     const map = new Map<string, LayoutedEvent[]>();
@@ -274,7 +284,7 @@ function WeekView({
   );
 }
 
-// ─── MonthView (existing logic, extracted) ────────────────────────────────────
+// ─── MonthView ────────────────────────────────────────────────────────────────
 
 type DayCell = { date: Date; inMonth: boolean; items: GrelhaProgramaItem[] };
 
@@ -405,17 +415,52 @@ type Props = {
   items: GrelhaProgramaItem[];
   ano: number;
   mes: number;
+  isLoading?: boolean;
   onItemClick?: (item: GrelhaProgramaItem) => void;
   onMonthChange?: (mes: number, ano: number) => void;
 };
 
-export function GrelhaCalendarView({ items, ano, mes, onItemClick, onMonthChange }: Props) {
-  const [viewType, setViewType] = useState<'month' | 'week'>('week');
+export function GrelhaCalendarView({
+  items,
+  ano,
+  mes,
+  isLoading,
+  onItemClick,
+  onMonthChange,
+}: Props) {
+  const [viewType, setViewType] = useState<'month' | 'week'>('month');
+  // Initialize from parent's ano/mes but do NOT sync on subsequent changes —
+  // navigation is fully internal; parent only needs to know the month to fetch data.
   const [currentDate, setCurrentDate] = useState(() => new Date(ano, mes - 1, 1));
+  const [selectedCanal, setSelectedCanal] = useState<string>('');
+  // Keep last known canal list so it doesn't empty during loading
+  const [cachedCanais, setCachedCanais] = useState<string[]>([]);
+
+  const canais = useMemo(() => {
+    const set = new Set<string>();
+    for (const item of items) {
+      if (item.canal) set.add(item.canal);
+    }
+    return [...set].sort();
+  }, [items]);
 
   useEffect(() => {
-    setCurrentDate(new Date(ano, mes - 1, 1));
-  }, [ano, mes]);
+    if (canais.length > 0) setCachedCanais(canais);
+  }, [canais]);
+
+  const displayCanais = canais.length > 0 ? canais : cachedCanais;
+
+  // Clear selected canal if it no longer exists in the new month's data
+  useEffect(() => {
+    if (selectedCanal && canais.length > 0 && !canais.includes(selectedCanal)) {
+      setSelectedCanal('');
+    }
+  }, [canais, selectedCanal]);
+
+  const visibleItems = useMemo(
+    () => (selectedCanal ? items.filter((i) => i.canal === selectedCanal) : items),
+    [items, selectedCanal],
+  );
 
   const weekStart = startOfWeek(currentDate, { weekStartsOn: WEEK_START_ON });
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
@@ -424,6 +469,7 @@ export function GrelhaCalendarView({ items, ano, mes, onItemClick, onMonthChange
     if (viewType === 'week') {
       const newDate = subWeeks(currentDate, 1);
       setCurrentDate(newDate);
+      // Notify parent only when month changes so it can re-fetch
       if (
         newDate.getMonth() !== currentDate.getMonth() ||
         newDate.getFullYear() !== currentDate.getFullYear()
@@ -464,9 +510,9 @@ export function GrelhaCalendarView({ items, ano, mes, onItemClick, onMonthChange
   return (
     <div className="w-full">
       {/* Internal navigation bar */}
-      <div className="flex items-center justify-between px-4 py-2 border-b">
+      <div className="flex items-center justify-between px-4 py-2 border-b gap-3 flex-wrap">
         {/* Mês / Semana toggle */}
-        <div className="flex rounded-md border border-border overflow-hidden text-xs">
+        <div className="flex rounded-md border border-border overflow-hidden text-xs shrink-0">
           <button
             type="button"
             onClick={() => setViewType('month')}
@@ -490,34 +536,55 @@ export function GrelhaCalendarView({ items, ano, mes, onItemClick, onMonthChange
         </div>
 
         {/* Date label + navigation */}
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 flex-1 justify-center">
           <button
             type="button"
             onClick={navigatePrev}
-            className="h-8 w-8 flex items-center justify-center rounded hover:bg-muted transition-colors"
+            disabled={isLoading}
+            className="h-8 w-8 flex items-center justify-center rounded hover:bg-muted transition-colors disabled:opacity-40"
           >
             <ChevronLeft className="h-4 w-4" />
           </button>
-          <span className="text-sm font-medium capitalize min-w-[220px] text-center select-none">
+          <span className="text-sm font-medium capitalize min-w-[220px] text-center select-none flex items-center justify-center gap-2">
             {headerLabel}
+            {isLoading && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
           </span>
           <button
             type="button"
             onClick={navigateNext}
-            className="h-8 w-8 flex items-center justify-center rounded hover:bg-muted transition-colors"
+            disabled={isLoading}
+            className="h-8 w-8 flex items-center justify-center rounded hover:bg-muted transition-colors disabled:opacity-40"
           >
             <ChevronRight className="h-4 w-4" />
           </button>
         </div>
 
-        <div className="w-28" />
+        {/* Canal selector */}
+        <div className="shrink-0 w-44">
+          <Select
+            value={selectedCanal || '__all__'}
+            onValueChange={(v) => setSelectedCanal(v === '__all__' ? '' : v)}
+          >
+            <SelectTrigger className="h-8 text-xs">
+              <SelectValue placeholder="Todos os canais" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">Todos os canais</SelectItem>
+              {displayCanais.map((c) => (
+                <SelectItem key={c} value={c}>
+                  {c}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {viewType === 'week' ? (
-        <WeekView weekDays={weekDays} items={items} onItemClick={onItemClick} />
+        <WeekView weekDays={weekDays} items={visibleItems} onItemClick={onItemClick} />
       ) : (
         <MonthView
-          items={items}
+          items={visibleItems}
           ano={currentDate.getFullYear()}
           mes={currentDate.getMonth() + 1}
           onItemClick={onItemClick}

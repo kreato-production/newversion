@@ -152,6 +152,7 @@ export const CustosTab = ({ gravacaoId }: CustosTabProps) => {
                 <TableHeader>
                   <TableRow>
                     <TableHead>{t('costsTab.resource')}</TableHead>
+                    {!isTerceiros && <TableHead>Atividade</TableHead>}
                     <TableHead>{t('common.description')}</TableHead>
                     {!isTerceiros && (
                       <>
@@ -166,6 +167,11 @@ export const CustosTab = ({ gravacaoId }: CustosTabProps) => {
                   {catItens.map((item, idx) => (
                     <TableRow key={idx}>
                       <TableCell className="font-medium">{item.recurso}</TableCell>
+                      {!isTerceiros && (
+                        <TableCell className="text-muted-foreground text-xs">
+                          {item.atividade ?? '-'}
+                        </TableCell>
+                      )}
                       <TableCell className="text-muted-foreground">{item.descricao}</TableCell>
                       {!isTerceiros && (
                         <>
@@ -181,7 +187,7 @@ export const CustosTab = ({ gravacaoId }: CustosTabProps) => {
                     </TableRow>
                   ))}
                   <TableRow className="bg-muted/50">
-                    <TableCell colSpan={2} className="font-medium">
+                    <TableCell colSpan={isTerceiros ? 2 : 3} className="font-medium">
                       {t('costsTab.subtotal')} - {categoria}
                     </TableCell>
                     {!isTerceiros && (

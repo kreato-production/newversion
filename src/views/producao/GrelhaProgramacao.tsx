@@ -852,40 +852,51 @@ const GrelhaProgramacao = () => {
     {
       key: 'planear' as keyof GrelhaProgramaItem,
       label: '',
-      className: 'w-44',
+      className: 'w-12',
       sortable: false,
       render: (item: GrelhaProgramaItem) => (
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center justify-center">
           {item.gravacaoId ? (
-            <Button
-              size="sm"
-              variant="secondary"
-              className="h-7 text-xs gap-1.5"
-              onClick={(e) => {
-                e.stopPropagation();
-                setViewGravacaoId(item.gravacaoId);
-                void gravacoesRepo.getById(item.gravacaoId!).then((g) => {
-                  if (g) setViewGravacao(g);
-                });
-              }}
-              title={item.gravacaoNome ?? 'Ver gravação'}
-            >
-              <Video className="h-3.5 w-3.5" />
-              Ver Gravação
-            </Button>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    size="icon"
+                    variant="secondary"
+                    className="h-7 w-7"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setViewGravacaoId(item.gravacaoId);
+                      void gravacoesRepo.getById(item.gravacaoId!).then((g) => {
+                        if (g) setViewGravacao(g);
+                      });
+                    }}
+                  >
+                    <Video className="h-3.5 w-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="left">{item.gravacaoNome ?? 'Ver gravação'}</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           ) : (
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-7 text-xs gap-1.5"
-              onClick={(e) => {
-                e.stopPropagation();
-                setPlaneandoItem(item);
-              }}
-            >
-              <CalendarCheck className="h-3.5 w-3.5" />
-              Planear
-            </Button>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    size="icon"
+                    variant="outline"
+                    className="h-7 w-7"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setPlaneandoItem(item);
+                    }}
+                  >
+                    <CalendarCheck className="h-3.5 w-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="left">Planear gravação</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           )}
         </div>
       ),
@@ -963,7 +974,21 @@ const GrelhaProgramacao = () => {
       </ListActionBar>
 
       <DataCard>
-        {isLoading ? (
+        {mode === 'calendar' ? (
+          // Never unmount the calendar during loading — it would reset currentDate state.
+          // Items update transparently when the parent re-fetches after month navigation.
+          <GrelhaCalendarView
+            items={filteredItems}
+            ano={ano}
+            mes={mes}
+            isLoading={isLoading}
+            onItemClick={(item) => setSelectedItem(item)}
+            onMonthChange={(m, a) => {
+              setMes(m);
+              setAno(a);
+            }}
+          />
+        ) : isLoading ? (
           loadingSkeleton
         ) : filteredItems.length === 0 ? (
           emptyContent
@@ -988,17 +1013,6 @@ const GrelhaProgramacao = () => {
                 onConfirmAlteracao={() => setConfirmingAlteracaoId(item.id)}
               />
             )}
-          />
-        ) : mode === 'calendar' ? (
-          <GrelhaCalendarView
-            items={filteredItems}
-            ano={ano}
-            mes={mes}
-            onItemClick={(item) => setSelectedItem(item)}
-            onMonthChange={(m, a) => {
-              setMes(m);
-              setAno(a);
-            }}
           />
         ) : (
           /* detail mode */

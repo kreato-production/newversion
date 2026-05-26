@@ -77,7 +77,10 @@ import { formatCurrency as formatCurrencyUtil } from '@/lib/currencies';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { ApiGravacoesRepository } from '@/modules/gravacoes/gravacoes.api.repository';
-import { gravacoesRelacionamentosApi } from '@/modules/gravacoes/gravacoes-relacionamentos.api';
+import {
+  gravacoesRelacionamentosApi,
+  type EspacoResourcePeriodItem,
+} from '@/modules/gravacoes/gravacoes-relacionamentos.api';
 import { ApiParametrizacoesRepository } from '@/modules/parametrizacoes/parametrizacoes.api.repository';
 import { ApiRecursosFisicosRepository } from '@/modules/recursos-fisicos/recursos-fisicos.api.repository';
 import { ApiRecursosHumanosRepository } from '@/modules/recursos-humanos/recursos-humanos.api.repository';
@@ -154,13 +157,20 @@ interface OcupacaoItem {
 }
 
 interface AlocacaoEspacoData {
+  id: string;
   espacoId: string;
   espacoNome: string;
   gravacaoId: string;
   gravacaoNome: string;
+  descricao: string | null;
   horaInicio: string | null;
   horaFim: string | null;
   programaCor: string | null;
+}
+
+interface AlocacaoEspacoResourceInfo {
+  tecnicos: string[];
+  fisicos: string[];
 }
 
 interface CentroLucro {
@@ -211,6 +221,9 @@ const Mapas = () => {
   const [alocacaoLoading, setAlocacaoLoading] = useState(false);
   const [alocacaoEspacosFiltro, setAlocacaoEspacosFiltro] = useState<string[]>([]);
   const [showEspacosFiltroDropdown, setShowEspacosFiltroDropdown] = useState(false);
+  const [alocacaoResourcesMap, setAlocacaoResourcesMap] = useState<
+    Map<string, AlocacaoEspacoResourceInfo>
+  >(new Map());
 
   // Weather forecast hook
   const { getWeatherForDate, loading: weatherLoading } = useWeatherForecast(16);
@@ -469,31 +482,44 @@ const Mapas = () => {
   useEffect(() => {
     if (activeTab !== 'alocacoes') return;
 
-    const gravacoesNoDia = gravacoes.filter((g) => g.dataPrevista === alocacaoDate);
-    if (gravacoesNoDia.length === 0) {
-      setAlocacaoEspacosData([]);
-      return;
-    }
-
     let cancelled = false;
     setAlocacaoLoading(true);
-    Promise.all(
-      gravacoesNoDia.map(async (g) => {
-        const espacos = await gravacoesRelacionamentosApi.listEspacos(g.id);
-        const programaCor = g.programaId ? (programasCorMap.get(g.programaId) ?? null) : null;
-        return espacos.map((e) => ({
-          espacoId: e.espacoId,
-          espacoNome: e.espacoNome,
-          gravacaoId: g.id,
-          gravacaoNome: g.nome,
-          horaInicio: e.horaInicio,
-          horaFim: e.horaFim,
-          programaCor,
-        }));
-      }),
-    )
-      .then((results) => {
-        if (!cancelled) setAlocacaoEspacosData(results.flat());
+    Promise.all([
+      gravacoesRelacionamentosApi.listEspacosByData(alocacaoDate),
+      gravacoesRelacionamentosApi
+        .listEspacoResourcesByPeriod(alocacaoDate, alocacaoDate)
+        .catch(() => ({
+          tecnicos: [] as EspacoResourcePeriodItem[],
+          fisicos: [] as EspacoResourcePeriodItem[],
+        })),
+    ])
+      .then(([items, resources]) => {
+        if (cancelled) return;
+        setAlocacaoEspacosData(
+          items.map((e) => ({
+            id: e.id,
+            espacoId: e.espacoId ?? '',
+            espacoNome: e.espacoNome,
+            gravacaoId: e.gravacaoId,
+            gravacaoNome: e.gravacaoNome,
+            descricao: e.descricao,
+            horaInicio: e.horaInicio,
+            horaFim: e.horaFim,
+            programaCor: e.programaId ? (programasCorMap.get(e.programaId) ?? null) : null,
+          })),
+        );
+        const resMap = new Map<string, AlocacaoEspacoResourceInfo>();
+        for (const r of resources.tecnicos) {
+          const entry = resMap.get(r.espacoItemId) ?? { tecnicos: [], fisicos: [] };
+          entry.tecnicos.push(r.recursoNome);
+          resMap.set(r.espacoItemId, entry);
+        }
+        for (const r of resources.fisicos) {
+          const entry = resMap.get(r.espacoItemId) ?? { tecnicos: [], fisicos: [] };
+          entry.fisicos.push(r.recursoNome);
+          resMap.set(r.espacoItemId, entry);
+        }
+        setAlocacaoResourcesMap(resMap);
       })
       .catch(() => {
         if (!cancelled) setAlocacaoEspacosData([]);
@@ -505,7 +531,7 @@ const Mapas = () => {
     return () => {
       cancelled = true;
     };
-  }, [activeTab, alocacaoDate, gravacoes, programasCorMap]);
+  }, [activeTab, alocacaoDate, programasCorMap]);
 
   // Fechar dropdown de espaços ao clicar fora
   useEffect(() => {
@@ -2292,7 +2318,9 @@ const Mapas = () => {
             const espacoEventos = new Map<
               string,
               {
+                id: string;
                 gravacaoNome: string;
+                descricao: string | null;
                 horaInicio: string | null;
                 horaFim: string | null;
                 programaCor: string | null;
@@ -2301,7 +2329,9 @@ const Mapas = () => {
             for (const d of alocacaoEspacosData) {
               const list = espacoEventos.get(d.espacoId) ?? [];
               list.push({
+                id: d.id,
                 gravacaoNome: d.gravacaoNome,
+                descricao: d.descricao,
                 horaInicio: d.horaInicio,
                 horaFim: d.horaFim,
                 programaCor: d.programaCor,
@@ -2331,7 +2361,9 @@ const Mapas = () => {
             type SlotState =
               | {
                   type: 'event';
+                  id: string;
                   gravacaoNome: string;
+                  descricao: string | null;
                   horaInicio: string | null;
                   horaFim: string | null;
                   programaCor: string | null;
@@ -2371,7 +2403,9 @@ const Mapas = () => {
                 if (states[startIdx].type === 'empty') {
                   states[startIdx] = {
                     type: 'event',
+                    id: event.id,
                     gravacaoNome: event.gravacaoNome,
+                    descricao: event.descricao,
                     horaInicio: event.horaInicio,
                     horaFim: event.horaFim,
                     programaCor: event.programaCor,
@@ -2565,47 +2599,149 @@ const Mapas = () => {
 
                                 if (state.type === 'event') {
                                   // Each row is h-10 (2.5rem). py-1 adds 0.5rem total vertical padding.
-                                  // h-full doesn't work reliably in rowSpan cells, so we set minHeight explicitly.
                                   const cardMinH = `${state.span * 2.5 - 0.5}rem`;
+                                  const resources = alocacaoResourcesMap.get(state.id);
+                                  const hasResources =
+                                    resources &&
+                                    (resources.tecnicos.length > 0 || resources.fisicos.length > 0);
+
+                                  const slotCard = state.noTime ? (
+                                    <div
+                                      className="rounded-md bg-muted/50 border border-dashed border-muted-foreground/30 px-2 py-1.5 flex flex-col gap-0.5 cursor-default"
+                                      style={{ minHeight: cardMinH }}
+                                    >
+                                      <span className="text-xs font-semibold text-gray-800 dark:text-gray-200 leading-tight line-clamp-2">
+                                        {state.gravacaoNome}
+                                      </span>
+                                      <span className="text-[10px] text-gray-500 dark:text-gray-400 font-mono">
+                                        Dia todo · sem horário
+                                      </span>
+                                    </div>
+                                  ) : (
+                                    <div
+                                      className="rounded-md border px-2 py-1.5 flex flex-col gap-0.5 cursor-default"
+                                      style={{
+                                        minHeight: cardMinH,
+                                        backgroundColor: state.programaCor
+                                          ? hexToRgba(state.programaCor, 0.18)
+                                          : 'hsl(var(--primary) / 0.15)',
+                                        borderColor: state.programaCor
+                                          ? hexToRgba(state.programaCor, 0.45)
+                                          : 'hsl(var(--primary) / 0.4)',
+                                      }}
+                                    >
+                                      <span className="text-xs font-semibold text-gray-900 dark:text-gray-100 leading-tight line-clamp-2">
+                                        {state.gravacaoNome}
+                                      </span>
+                                      {state.descricao && (
+                                        <span className="text-[10px] text-gray-600 dark:text-gray-300 leading-tight line-clamp-1">
+                                          {state.descricao}
+                                        </span>
+                                      )}
+                                      <span className="text-[10px] text-gray-600 dark:text-gray-300 font-mono whitespace-nowrap">
+                                        {state.horaInicio?.substring(0, 5)} –{' '}
+                                        {state.horaFim?.substring(0, 5)}
+                                      </span>
+                                      {hasResources && (
+                                        <div className="flex flex-wrap gap-0.5 mt-0.5">
+                                          {resources.tecnicos.slice(0, 2).map((nome, i) => (
+                                            <span
+                                              key={i}
+                                              className="inline-flex items-center gap-0.5 text-[9px] bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 rounded px-1 py-0 leading-tight"
+                                            >
+                                              <Wrench className="h-2 w-2" />
+                                              {nome}
+                                            </span>
+                                          ))}
+                                          {resources.fisicos.slice(0, 2).map((nome, i) => (
+                                            <span
+                                              key={i}
+                                              className="inline-flex items-center gap-0.5 text-[9px] bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 rounded px-1 py-0 leading-tight"
+                                            >
+                                              <MapPin className="h-2 w-2" />
+                                              {nome}
+                                            </span>
+                                          ))}
+                                          {resources.tecnicos.length + resources.fisicos.length >
+                                            4 && (
+                                            <span className="text-[9px] text-muted-foreground">
+                                              +
+                                              {resources.tecnicos.length +
+                                                resources.fisicos.length -
+                                                4}
+                                            </span>
+                                          )}
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+
                                   return (
                                     <td
                                       key={col.id}
                                       rowSpan={state.span}
                                       className="border-l border-b border-t-0 px-1.5 py-1 align-top"
                                     >
-                                      {state.noTime ? (
-                                        <div
-                                          className="rounded-md bg-muted/50 border border-dashed border-muted-foreground/30 px-2 py-1.5 flex flex-col gap-0.5"
-                                          style={{ minHeight: cardMinH }}
-                                        >
-                                          <span className="text-xs font-semibold text-gray-800 dark:text-gray-200 leading-tight line-clamp-2">
-                                            {state.gravacaoNome}
-                                          </span>
-                                          <span className="text-[10px] text-gray-500 dark:text-gray-400 font-mono">
-                                            Dia todo · sem horário
-                                          </span>
-                                        </div>
+                                      {hasResources ? (
+                                        <HoverCard openDelay={200} closeDelay={100}>
+                                          <HoverCardTrigger asChild>{slotCard}</HoverCardTrigger>
+                                          <HoverCardContent
+                                            side="right"
+                                            align="start"
+                                            className="w-64 p-3 space-y-2"
+                                          >
+                                            <div className="font-semibold text-sm leading-tight">
+                                              {state.gravacaoNome}
+                                            </div>
+                                            {state.descricao && (
+                                              <div className="text-xs text-muted-foreground">
+                                                {state.descricao}
+                                              </div>
+                                            )}
+                                            {!state.noTime && (
+                                              <div className="text-xs font-mono text-muted-foreground">
+                                                {state.horaInicio?.substring(0, 5)} –{' '}
+                                                {state.horaFim?.substring(0, 5)}
+                                              </div>
+                                            )}
+                                            {resources.tecnicos.length > 0 && (
+                                              <div className="space-y-1">
+                                                <div className="flex items-center gap-1 text-xs font-medium text-blue-600 dark:text-blue-400">
+                                                  <Wrench className="h-3 w-3" /> Técnicos
+                                                </div>
+                                                <ul className="space-y-0.5">
+                                                  {resources.tecnicos.map((nome, i) => (
+                                                    <li
+                                                      key={i}
+                                                      className="text-xs text-foreground truncate"
+                                                    >
+                                                      • {nome}
+                                                    </li>
+                                                  ))}
+                                                </ul>
+                                              </div>
+                                            )}
+                                            {resources.fisicos.length > 0 && (
+                                              <div className="space-y-1">
+                                                <div className="flex items-center gap-1 text-xs font-medium text-amber-600 dark:text-amber-400">
+                                                  <MapPin className="h-3 w-3" /> Equipamentos
+                                                </div>
+                                                <ul className="space-y-0.5">
+                                                  {resources.fisicos.map((nome, i) => (
+                                                    <li
+                                                      key={i}
+                                                      className="text-xs text-foreground truncate"
+                                                    >
+                                                      • {nome}
+                                                    </li>
+                                                  ))}
+                                                </ul>
+                                              </div>
+                                            )}
+                                          </HoverCardContent>
+                                        </HoverCard>
                                       ) : (
-                                        <div
-                                          className="rounded-md border px-2 py-1.5 flex flex-col gap-0.5"
-                                          style={{
-                                            minHeight: cardMinH,
-                                            backgroundColor: state.programaCor
-                                              ? hexToRgba(state.programaCor, 0.18)
-                                              : 'hsl(var(--primary) / 0.15)',
-                                            borderColor: state.programaCor
-                                              ? hexToRgba(state.programaCor, 0.45)
-                                              : 'hsl(var(--primary) / 0.4)',
-                                          }}
-                                        >
-                                          <span className="text-xs font-semibold text-gray-900 dark:text-gray-100 leading-tight line-clamp-2">
-                                            {state.gravacaoNome}
-                                          </span>
-                                          <span className="text-[10px] text-gray-600 dark:text-gray-300 font-mono whitespace-nowrap">
-                                            {state.horaInicio?.substring(0, 5)} –{' '}
-                                            {state.horaFim?.substring(0, 5)}
-                                          </span>
-                                        </div>
+                                        slotCard
                                       )}
                                     </td>
                                   );

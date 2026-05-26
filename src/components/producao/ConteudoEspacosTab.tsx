@@ -544,6 +544,7 @@ function EspacoModal({
   const [horaFim, setHoraFim] = useState('');
   const [dataEspaco, setDataEspaco] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
   const [activeTab, setActiveTab] = useState<'equipamentos' | 'tecnicos'>('equipamentos');
   const [savedItem, setSavedItem] = useState<EspacoItem | null>(null);
 
@@ -553,6 +554,7 @@ function EspacoModal({
   useEffect(() => {
     if (!isOpen) {
       setSavedItem(null);
+      setSubmitted(false);
       return;
     }
     setEspacoId(editing?.espacoId ?? '');
@@ -565,10 +567,11 @@ function EspacoModal({
 
   const { label: total } = calcDuration(horaInicio || null, horaFim || null);
   const horaInvalida = !!(horaInicio && horaFim && horaInicio >= horaFim);
-  const isValid = !!espacoId && !horaInvalida;
+  const espacoInvalido = submitted && !espacoId;
 
   const handleSave = async () => {
-    if (!isValid) return;
+    setSubmitted(true);
+    if (!espacoId || horaInvalida) return;
     setIsSaving(true);
     try {
       const result = await onSave({
@@ -615,28 +618,38 @@ function EspacoModal({
                   Carregando...
                 </div>
               ) : (
-                <Select
-                  value={espacoId}
-                  onValueChange={setEspacoId}
-                  disabled={isSaving || !!activeEspacoItem}
-                >
-                  <SelectTrigger id="espaco-select">
-                    <SelectValue placeholder="Selecione um espaço..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {espacoOptions.length === 0 ? (
-                      <div className="px-3 py-4 text-xs text-muted-foreground text-center">
-                        Nenhum espaço cadastrado em Recursos → Espaços.
-                      </div>
-                    ) : (
-                      espacoOptions.map((e) => (
+                <>
+                  <Select
+                    value={espacoId}
+                    onValueChange={(v) => {
+                      setEspacoId(v);
+                      setSubmitted(false);
+                    }}
+                    disabled={isSaving || !!activeEspacoItem || espacoOptions.length === 0}
+                  >
+                    <SelectTrigger
+                      id="espaco-select"
+                      className={espacoInvalido ? 'border-destructive ring-destructive' : ''}
+                    >
+                      <SelectValue placeholder="Selecione um espaço..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {espacoOptions.map((e) => (
                         <SelectItem key={e.id} value={e.id}>
                           {e.titulo}
                         </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {espacoOptions.length === 0 && (
+                    <p className="text-xs text-destructive">
+                      Nenhum espaço cadastrado. Acesse Recursos → Espaços para cadastrar.
+                    </p>
+                  )}
+                  {espacoInvalido && (
+                    <p className="text-xs text-destructive">Selecione um espaço.</p>
+                  )}
+                </>
               )}
             </div>
 
@@ -764,7 +777,7 @@ function EspacoModal({
             <Button
               type="button"
               onClick={handleSave}
-              disabled={isSaving || !isValid}
+              disabled={isSaving}
               className="gradient-primary hover:opacity-90"
             >
               {isSaving && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
@@ -775,7 +788,7 @@ function EspacoModal({
             <Button
               type="button"
               onClick={handleSave}
-              disabled={isSaving || !isValid}
+              disabled={isSaving}
               className="gradient-primary hover:opacity-90"
             >
               {isSaving && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}

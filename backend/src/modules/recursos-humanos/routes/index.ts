@@ -34,7 +34,12 @@ export function createRecursosHumanosRoutes(authService: AuthService, recursosHu
     app.get('/recursos-humanos/ocupacao', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const query = ocupacaoQuerySchema.parse(request.query);
-      return reply.status(200).send(await recursosHumanosService.listOcupacoes(user, query.dataInicio, query.dataFim));
+      try {
+        return reply.status(200).send(await recursosHumanosService.listOcupacoes(user, query.dataInicio, query.dataFim));
+      } catch (err) {
+        request.log.error({ err, dataInicio: query.dataInicio, dataFim: query.dataFim }, 'listOcupacoes_error');
+        return reply.status(200).send([]);
+      }
     });
 
     app.post('/recursos-humanos', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {

@@ -101,6 +101,7 @@ export type GravacaoCustoItem = {
   categoria: string;
   recurso: string;
   descricao: string;
+  atividade: string | null;
   horas: number;
   custoUnitario: number;
   custoTotal: number;
@@ -156,6 +157,38 @@ export type EspacoRecursoSummaryItem = {
 export type EspacoRecursosSummaryResult = {
   dataPrevista: string | null;
   items: EspacoRecursoSummaryItem[];
+};
+
+export type EspacoPorDataItem = {
+  id: string;
+  tenantId: string;
+  gravacaoId: string;
+  espacoId: string | null;
+  espacoNome: string;
+  descricao: string | null;
+  horaInicio: string | null;
+  horaFim: string | null;
+  data: string | null;
+  gravacaoNome: string;
+  gravacaoCodigo: string;
+  programaId: string | null;
+  programaCor: string | null;
+};
+
+export type EspacoResourcePeriodItem = {
+  id: string;
+  gravacaoId: string;
+  gravacaoNome: string;
+  gravacaoCodigo: string;
+  espacoItemId: string;
+  espacoId: string | null;
+  espacoNome: string;
+  recursoId: string;
+  recursoNome: string;
+  funcaoOperadorId: string | null;
+  data: string | null;
+  horaInicio: string | null;
+  horaFim: string | null;
 };
 
 export const gravacoesRelacionamentosApi = {
@@ -373,5 +406,20 @@ export const gravacoesRelacionamentosApi = {
 
   listEspacoRecursosSummary(gravacaoId: string) {
     return apiRequest<EspacoRecursosSummaryResult>(`/gravacoes/${gravacaoId}/recursos-espacos`);
+  },
+
+  listEspacosByData(data: string) {
+    return apiRequest<EspacoPorDataItem[]>(
+      `/gravacoes/espacos/por-data?data=${encodeURIComponent(data)}`,
+    );
+  },
+
+  listEspacoResourcesByPeriod(dateStart: string, dateEnd: string) {
+    return apiRequest<{
+      tecnicos: EspacoResourcePeriodItem[];
+      fisicos: EspacoResourcePeriodItem[];
+    }>(
+      `/gravacoes/espacos/recursos-por-periodo?dateStart=${encodeURIComponent(dateStart)}&dateEnd=${encodeURIComponent(dateEnd)}`,
+    );
   },
 };

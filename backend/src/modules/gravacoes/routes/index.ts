@@ -5,6 +5,7 @@ import type { AuthenticatedRequest } from '../../../fastify.js';
 import type { AuthService } from '../../auth/auth.service.js';
 import {
   GravacoesService,
+  createFromTemplateSchema,
   gravacaoEspacoResourceTypeSchema,
   saveGravacaoConvidadoSchema,
   saveGravacaoDespesaSchema,
@@ -38,6 +39,12 @@ export function createGravacoesRoutes(authService: AuthService, gravacoesService
       const { user } = request as AuthenticatedRequest;
       const body = saveGravacaoSchema.parse(request.body);
       return reply.status(200).send(await gravacoesService.save(user, body));
+    });
+
+    app.post('/gravacoes/from-template', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      const body = createFromTemplateSchema.parse(request.body);
+      return reply.status(200).send(await gravacoesService.createFromTemplate(user, body));
     });
 
     app.get('/gravacoes/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
@@ -127,6 +134,22 @@ export function createGravacoesRoutes(authService: AuthService, gravacoesService
       const params = request.params as { id: string; itemId: string };
       await gravacoesService.removeConvidado(user, params.id, params.itemId);
       return reply.status(204).send();
+    });
+
+    app.get('/gravacoes/espacos/por-data', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      const query = request.query as { data?: string };
+      if (!query.data) return reply.status(400).send({ message: 'Parâmetro data obrigatório' });
+      return reply.status(200).send(await gravacoesService.listEspacosByData(user, query.data));
+    });
+
+    app.get('/gravacoes/espacos/recursos-por-periodo', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      const query = request.query as { dateStart?: string; dateEnd?: string };
+      if (!query.dateStart || !query.dateEnd) {
+        return reply.status(400).send({ message: 'Parâmetros dateStart e dateEnd obrigatórios' });
+      }
+      return reply.status(200).send(await gravacoesService.listEspacoResourcesByPeriod(user, query.dateStart, query.dateEnd));
     });
 
     app.get('/gravacoes/:id/espacos', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {

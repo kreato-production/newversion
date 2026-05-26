@@ -31,6 +31,7 @@ import { RoteiroTab } from './RoteiroTab';
 import { CustosTab } from './CustosTab';
 import { GravacaoEspacosTab } from './GravacaoEspacosTab';
 import { GravacaoDespesasTab } from './GravacaoDespesasTab';
+import { GravacaoEtapasTab } from './GravacaoEtapasTab';
 
 interface GravacaoBackendFormModalProps {
   isOpen: boolean;
@@ -232,6 +233,8 @@ export const GravacaoBackendFormModal = ({
     { value: 'dadosGerais', label: 'Dados Gerais' },
   ];
   if (data) {
+    if (isVisible('Produção', 'Gravação', '-', 'Tabulador "Etapas"'))
+      visibleTabs.push({ value: 'etapas', label: 'Etapas' });
     if (isVisible('Produção', 'Gravação', '-', 'Tabulador "Espaços"'))
       visibleTabs.push({ value: 'espacos', label: 'Espaços' });
     if (isVisible('Produção', 'Gravação', '-', 'Tabulador "Recursos"'))
@@ -464,6 +467,12 @@ export const GravacaoBackendFormModal = ({
                 </div>
               )}
             </TabsContent>
+
+            {data && isVisible('Produção', 'Gravação', '-', 'Tabulador "Etapas"') && (
+              <TabsContent value="etapas" className="mt-4">
+                <GravacaoEtapasTab gravacaoId={data.id} />
+              </TabsContent>
+            )}
 
             {data && isVisible('Produção', 'Gravação', '-', 'Tabulador "Espaços"') && (
               <TabsContent value="espacos" className="mt-4">

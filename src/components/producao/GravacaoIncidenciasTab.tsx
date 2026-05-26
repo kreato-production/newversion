@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { AlertTriangle, Plus, Edit } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { IncidenciaGravacaoFormModal } from './IncidenciaGravacaoFormModal';
@@ -114,10 +115,16 @@ export const GravacaoIncidenciasTab = ({ gravacaoId }: GravacaoIncidenciasTabPro
   return (
     <div className="mt-4">
       <div className="flex justify-end mb-4">
-        <Button size="sm" onClick={handleAddNew}>
-          <Plus className="w-4 h-4 mr-1" />
-          {t('common.new')} {t('incident.entity')}
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button size="icon" variant="default" onClick={handleAddNew}>
+              <Plus className="w-4 h-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            {t('common.new')} {t('incident.entity')}
+          </TooltipContent>
+        </Tooltip>
       </div>
 
       {items.length === 0 ? (

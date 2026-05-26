@@ -2,6 +2,33 @@ import { apiRequest } from '@/lib/api/http';
 import type { Gravacao, GravacaoInput } from './gravacoes.types';
 import type { GravacoesRepository } from './gravacoes.repository';
 
+export type TemplateResourceItem = {
+  recursoId: string;
+  quantidade: number;
+  data?: string | null;
+  horaInicio?: string | null;
+  horaFim?: string | null;
+};
+
+export type TemplateEspacoItem = {
+  espacoId: string;
+  data?: string | null;
+  horaInicio?: string | null;
+  horaFim?: string | null;
+};
+
+export type TemplateAtividadeConfig = {
+  nome?: string;
+  espacos: TemplateEspacoItem[];
+  recursosTecnicos: TemplateResourceItem[];
+  equipamentos: TemplateResourceItem[];
+};
+
+export type CreateFromTemplateInput = {
+  gravacao: GravacaoInput;
+  atividades: TemplateAtividadeConfig[];
+};
+
 function toNullableString(value?: string): string | null {
   return value && value.trim() ? value.trim() : null;
 }
@@ -48,5 +75,15 @@ export class ApiGravacoesRepository implements GravacoesRepository {
 
   async remove(id: string): Promise<void> {
     await apiRequest(`/gravacoes/${id}`, { method: 'DELETE' });
+  }
+
+  async createFromTemplate(input: CreateFromTemplateInput): Promise<Gravacao> {
+    return apiRequest<Gravacao>('/gravacoes/from-template', {
+      method: 'POST',
+      body: JSON.stringify({
+        gravacao: sanitizeInput(input.gravacao),
+        atividades: input.atividades,
+      }),
+    });
   }
 }

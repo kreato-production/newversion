@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { LayoutList, Loader2 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 import {
   Dialog,
   DialogContent,
@@ -50,6 +51,7 @@ export function TemplateFormModal({
   const [etapas, setEtapas] = useState<Etapa[]>([]);
   const [saving, setSaving] = useState(false);
   const [showPlano, setShowPlano] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     if (!isOpen) return;
@@ -69,6 +71,28 @@ export function TemplateFormModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!nome.trim()) return;
+
+    for (const etapa of etapas) {
+      for (const atividade of etapa.atividades) {
+        if (!atividade.nome.trim()) {
+          toast({
+            title: 'Nome da atividade obrigatório',
+            description: `Preencha o nome de todas as atividades da etapa "${etapa.nome}" antes de salvar.`,
+            variant: 'destructive',
+          });
+          return;
+        }
+        if (!atividade.horaInicio || !atividade.horaFim) {
+          toast({
+            title: 'Horário da atividade obrigatório',
+            description: `Preencha o início e fim da atividade "${atividade.nome || '(sem nome)'}" na etapa "${etapa.nome}".`,
+            variant: 'destructive',
+          });
+          return;
+        }
+      }
+    }
+
     setSaving(true);
     try {
       await onSave({
