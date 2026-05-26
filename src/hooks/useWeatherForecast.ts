@@ -68,8 +68,7 @@ export const useWeatherForecast = (days: number = 16) => {
 
         setWeather(weatherData);
         setError(null);
-      } catch (err) {
-        console.error('Error fetching weather:', err);
+      } catch {
         setError('Não foi possível carregar a previsão do tempo');
 
         // Generate fallback data for demo purposes
