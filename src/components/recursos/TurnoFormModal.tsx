@@ -13,8 +13,10 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2 } from 'lucide-react';
 import { ModalNavigation, type ModalNavigationProps } from '@/components/shared/ModalNavigation';
+import { TraducaoTab, type Traducoes } from '@/components/shared/TraducaoTab';
 import { useLanguage } from '@/contexts/LanguageContext';
 import type { TurnoInput, WeekdayKey } from '@/modules/turnos/turnos.types';
 import { createEmptyPeoplePerDay, createEmptyWeekdayFlags } from '@/modules/turnos/turnos.types';
@@ -98,6 +100,7 @@ export const TurnoFormModal = ({
 }: TurnoFormModalProps) => {
   const { t } = useLanguage();
   const [formData, setFormData] = useState<TurnoInput>(emptyFormData);
+  const [traducoes, setTraducoes] = useState<Traducoes>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const corInputRef = useRef<HTMLInputElement>(null);
 
@@ -112,6 +115,7 @@ export const TurnoFormModal = ({
           }
         : { ...emptyFormData },
     );
+    setTraducoes((data?.traducoes as Traducoes) ?? {});
     setIsSubmitting(false);
   }, [isOpen, data]);
 
@@ -160,6 +164,7 @@ export const TurnoFormModal = ({
         folgaEspecial: formData.folgaEspecial || '',
         horaInicio: toTimeApiValue(formData.horaInicio),
         horaFim: toTimeApiValue(formData.horaFim),
+        traducoes,
       });
       onClose();
     } finally {
@@ -185,238 +190,259 @@ export const TurnoFormModal = ({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Row 1: Sigla | Nome | Cor */}
-          <div className="flex gap-3 items-end">
-            <div className="space-y-2 w-24 shrink-0">
-              <Label htmlFor="turno-sigla">Sigla</Label>
-              <Input
-                id="turno-sigla"
-                value={formData.sigla || ''}
-                onChange={(e) => setFormData((p) => ({ ...p, sigla: e.target.value }))}
-                maxLength={10}
-                disabled={readOnly || isSubmitting}
-              />
-            </div>
-            <div className="space-y-2 flex-1">
-              <Label htmlFor="turno-nome">
-                Nome do Turno <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="turno-nome"
-                value={formData.nome}
-                onChange={(e) => setFormData((p) => ({ ...p, nome: e.target.value }))}
-                maxLength={120}
-                required
-                disabled={readOnly || isSubmitting}
-              />
-            </div>
-            <div className="space-y-2 shrink-0">
-              <Label>Cor</Label>
-              <div className="flex items-center gap-2">
-                <input
-                  ref={corInputRef}
-                  type="color"
-                  value={formData.cor}
-                  onChange={(e) => setFormData((p) => ({ ...p, cor: e.target.value }))}
-                  disabled={readOnly || isSubmitting}
-                  className="sr-only"
-                />
-                <button
-                  type="button"
-                  onClick={() => corInputRef.current?.click()}
-                  disabled={readOnly || isSubmitting}
-                  className="h-10 w-16 rounded border border-input cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
-                  style={{ backgroundColor: formData.cor }}
-                  aria-label="Selecionar cor"
-                />
-              </div>
-            </div>
-          </div>
+          <Tabs defaultValue="dados">
+            <TabsList className="w-full">
+              <TabsTrigger value="dados" className="flex-1">
+                Dados Gerais
+              </TabsTrigger>
+              <TabsTrigger value="traducao" className="flex-1">
+                Tradução
+              </TabsTrigger>
+            </TabsList>
 
-          {/* Row 2: Início | Fim | Total */}
-          <div className="grid grid-cols-3 gap-3">
-            <div className="space-y-2">
-              <Label htmlFor="turno-inicio">Início do Turno</Label>
-              <Input
-                id="turno-inicio"
-                type="time"
-                value={toTimeInputValue(formData.horaInicio)}
-                onChange={(e) => setFormData((p) => ({ ...p, horaInicio: e.target.value }))}
-                required
-                disabled={readOnly || isSubmitting}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="turno-fim">Fim do Turno</Label>
-              <Input
-                id="turno-fim"
-                type="time"
-                value={toTimeInputValue(formData.horaFim)}
-                onChange={(e) => setFormData((p) => ({ ...p, horaFim: e.target.value }))}
-                required
-                disabled={readOnly || isSubmitting}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Total de Horas</Label>
-              <Input value={totalHours} readOnly className="bg-muted font-mono" />
-            </div>
-          </div>
-
-          {/* Days grid */}
-          <div className="space-y-2">
-            <Label>Dias da Semana e Pessoas por Dia</Label>
-            <div className="rounded-md border overflow-hidden">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="bg-muted/40">
-                    {displayOrder.map((key) => (
-                      <th
-                        key={key}
-                        className="text-center font-medium py-2 px-1 text-muted-foreground"
-                      >
-                        {dayLabels[key]}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {/* Checkboxes row */}
-                  <tr className="border-t">
-                    {displayOrder.map((key) => (
-                      <td key={key} className="text-center py-2 px-1">
-                        <div className="flex justify-center">
-                          <Checkbox
-                            checked={formData.diasSemana[key]}
-                            onCheckedChange={(checked) => handleDayToggle(key, !!checked)}
-                            disabled={readOnly || isSubmitting}
-                          />
-                        </div>
-                      </td>
-                    ))}
-                  </tr>
-                  {/* People per day row */}
-                  <tr className="border-t bg-muted/10">
-                    {displayOrder.map((key) => (
-                      <td key={key} className="text-center py-2 px-1">
-                        <Input
-                          type="number"
-                          min={0}
-                          value={formData.pessoasPorDia[key]}
-                          onChange={(e) => handlePeopleChange(key, e.target.value)}
-                          disabled={readOnly || isSubmitting || !formData.diasSemana[key]}
-                          className="h-8 text-center px-1"
-                        />
-                      </td>
-                    ))}
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Dias Trabalhados | Folgas por Semana */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label htmlFor="turno-dias-trabalhados">Dias Trabalhados</Label>
-              <Input
-                id="turno-dias-trabalhados"
-                type="number"
-                min={0}
-                max={7}
-                value={formData.diasTrabalhados ?? ''}
-                onChange={(e) =>
-                  setFormData((p) => ({
-                    ...p,
-                    diasTrabalhados: e.target.value === '' ? null : Number(e.target.value),
-                  }))
-                }
-                placeholder={String(activeDaysCount)}
-                disabled={readOnly || isSubmitting}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="turno-folgas">Folgas por Semana</Label>
-              <Input
-                id="turno-folgas"
-                type="number"
-                min={0}
-                max={7}
-                value={formData.folgasPorSemana}
-                onChange={(e) =>
-                  setFormData((p) => ({ ...p, folgasPorSemana: Number(e.target.value || 0) }))
-                }
-                disabled={readOnly || isSubmitting}
-              />
-            </div>
-          </div>
-
-          {/* Folga Especial */}
-          <div className="rounded-md border p-4 space-y-3">
-            <Label className="text-xs font-medium">Folga Especial</Label>
-            <RadioGroup
-              value={formData.folgaEspecial || ''}
-              onValueChange={(value) =>
-                setFormData((p) => ({
-                  ...p,
-                  folgaEspecial: value === p.folgaEspecial ? '' : value,
-                }))
-              }
-              disabled={readOnly || isSubmitting}
-              className="grid grid-cols-3 gap-x-6 gap-y-2"
-            >
-              {FOLGA_OPTIONS.map((opt) => (
-                <div key={opt.value} className="flex items-center space-x-2">
-                  <RadioGroupItem
-                    value={opt.value}
-                    id={`folga-${opt.value}`}
-                    onClick={() => {
-                      if (formData.folgaEspecial === opt.value) {
-                        setFormData((p) => ({ ...p, folgaEspecial: '' }));
-                      }
-                    }}
+            <TabsContent value="dados" className="space-y-4 mt-4">
+              {/* Row 1: Sigla | Nome | Cor */}
+              <div className="flex gap-3 items-end">
+                <div className="space-y-2 w-24 shrink-0">
+                  <Label htmlFor="turno-sigla">Sigla</Label>
+                  <Input
+                    id="turno-sigla"
+                    value={formData.sigla || ''}
+                    onChange={(e) => setFormData((p) => ({ ...p, sigla: e.target.value }))}
+                    maxLength={10}
+                    disabled={readOnly || isSubmitting}
                   />
-                  <Label
-                    htmlFor={`folga-${opt.value}`}
-                    className="font-normal cursor-pointer text-xs"
-                  >
-                    {opt.label}
-                  </Label>
                 </div>
-              ))}
-            </RadioGroup>
-          </div>
-
-          {/* Descrição */}
-          <div className="space-y-2">
-            <Label htmlFor="turno-descricao">{t('common.description')}</Label>
-            <Textarea
-              id="turno-descricao"
-              rows={3}
-              placeholder="Descrição do turno"
-              value={formData.descricao || ''}
-              onChange={(e) => setFormData((p) => ({ ...p, descricao: e.target.value }))}
-              disabled={readOnly || isSubmitting}
-            />
-          </div>
-
-          {/* Usuário/Data Cadastro — only in edit mode */}
-          {isEditing && (usuarioCadastro || dataCadastro) && (
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label>Usuário de Cadastro</Label>
-                <Input value={usuarioCadastro || ''} readOnly className="bg-muted" />
+                <div className="space-y-2 flex-1">
+                  <Label htmlFor="turno-nome">
+                    Nome do Turno <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="turno-nome"
+                    value={formData.nome}
+                    onChange={(e) => setFormData((p) => ({ ...p, nome: e.target.value }))}
+                    maxLength={120}
+                    required
+                    disabled={readOnly || isSubmitting}
+                  />
+                </div>
+                <div className="space-y-2 shrink-0">
+                  <Label>Cor</Label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      ref={corInputRef}
+                      type="color"
+                      value={formData.cor}
+                      onChange={(e) => setFormData((p) => ({ ...p, cor: e.target.value }))}
+                      disabled={readOnly || isSubmitting}
+                      className="sr-only"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => corInputRef.current?.click()}
+                      disabled={readOnly || isSubmitting}
+                      className="h-10 w-16 rounded border border-input cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+                      style={{ backgroundColor: formData.cor }}
+                      aria-label="Selecionar cor"
+                    />
+                  </div>
+                </div>
               </div>
+
+              {/* Row 2: Início | Fim | Total */}
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="turno-inicio">Início do Turno</Label>
+                  <Input
+                    id="turno-inicio"
+                    type="time"
+                    value={toTimeInputValue(formData.horaInicio)}
+                    onChange={(e) => setFormData((p) => ({ ...p, horaInicio: e.target.value }))}
+                    required
+                    disabled={readOnly || isSubmitting}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="turno-fim">Fim do Turno</Label>
+                  <Input
+                    id="turno-fim"
+                    type="time"
+                    value={toTimeInputValue(formData.horaFim)}
+                    onChange={(e) => setFormData((p) => ({ ...p, horaFim: e.target.value }))}
+                    required
+                    disabled={readOnly || isSubmitting}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Total de Horas</Label>
+                  <Input value={totalHours} readOnly className="bg-muted font-mono" />
+                </div>
+              </div>
+
+              {/* Days grid */}
               <div className="space-y-2">
-                <Label>Data de Cadastro</Label>
-                <Input
-                  value={dataCadastro ? new Date(dataCadastro).toLocaleDateString('pt-BR') : ''}
-                  readOnly
-                  className="bg-muted"
+                <Label>Dias da Semana e Pessoas por Dia</Label>
+                <div className="rounded-md border overflow-hidden">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="bg-muted/40">
+                        {displayOrder.map((key) => (
+                          <th
+                            key={key}
+                            className="text-center font-medium py-2 px-1 text-muted-foreground"
+                          >
+                            {dayLabels[key]}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {/* Checkboxes row */}
+                      <tr className="border-t">
+                        {displayOrder.map((key) => (
+                          <td key={key} className="text-center py-2 px-1">
+                            <div className="flex justify-center">
+                              <Checkbox
+                                checked={formData.diasSemana[key]}
+                                onCheckedChange={(checked) => handleDayToggle(key, !!checked)}
+                                disabled={readOnly || isSubmitting}
+                              />
+                            </div>
+                          </td>
+                        ))}
+                      </tr>
+                      {/* People per day row */}
+                      <tr className="border-t bg-muted/10">
+                        {displayOrder.map((key) => (
+                          <td key={key} className="text-center py-2 px-1">
+                            <Input
+                              type="number"
+                              min={0}
+                              value={formData.pessoasPorDia[key]}
+                              onChange={(e) => handlePeopleChange(key, e.target.value)}
+                              disabled={readOnly || isSubmitting || !formData.diasSemana[key]}
+                              className="h-8 text-center px-1"
+                            />
+                          </td>
+                        ))}
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Dias Trabalhados | Folgas por Semana */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="turno-dias-trabalhados">Dias Trabalhados</Label>
+                  <Input
+                    id="turno-dias-trabalhados"
+                    type="number"
+                    min={0}
+                    max={7}
+                    value={formData.diasTrabalhados ?? ''}
+                    onChange={(e) =>
+                      setFormData((p) => ({
+                        ...p,
+                        diasTrabalhados: e.target.value === '' ? null : Number(e.target.value),
+                      }))
+                    }
+                    placeholder={String(activeDaysCount)}
+                    disabled={readOnly || isSubmitting}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="turno-folgas">Folgas por Semana</Label>
+                  <Input
+                    id="turno-folgas"
+                    type="number"
+                    min={0}
+                    max={7}
+                    value={formData.folgasPorSemana}
+                    onChange={(e) =>
+                      setFormData((p) => ({ ...p, folgasPorSemana: Number(e.target.value || 0) }))
+                    }
+                    disabled={readOnly || isSubmitting}
+                  />
+                </div>
+              </div>
+
+              {/* Folga Especial */}
+              <div className="rounded-md border p-4 space-y-3">
+                <Label className="text-xs font-medium">Folga Especial</Label>
+                <RadioGroup
+                  value={formData.folgaEspecial || ''}
+                  onValueChange={(value) =>
+                    setFormData((p) => ({
+                      ...p,
+                      folgaEspecial: value === p.folgaEspecial ? '' : value,
+                    }))
+                  }
+                  disabled={readOnly || isSubmitting}
+                  className="grid grid-cols-3 gap-x-6 gap-y-2"
+                >
+                  {FOLGA_OPTIONS.map((opt) => (
+                    <div key={opt.value} className="flex items-center space-x-2">
+                      <RadioGroupItem
+                        value={opt.value}
+                        id={`folga-${opt.value}`}
+                        onClick={() => {
+                          if (formData.folgaEspecial === opt.value) {
+                            setFormData((p) => ({ ...p, folgaEspecial: '' }));
+                          }
+                        }}
+                      />
+                      <Label
+                        htmlFor={`folga-${opt.value}`}
+                        className="font-normal cursor-pointer text-xs"
+                      >
+                        {opt.label}
+                      </Label>
+                    </div>
+                  ))}
+                </RadioGroup>
+              </div>
+
+              {/* Descrição */}
+              <div className="space-y-2">
+                <Label htmlFor="turno-descricao">{t('common.description')}</Label>
+                <Textarea
+                  id="turno-descricao"
+                  rows={3}
+                  placeholder="Descrição do turno"
+                  value={formData.descricao || ''}
+                  onChange={(e) => setFormData((p) => ({ ...p, descricao: e.target.value }))}
+                  disabled={readOnly || isSubmitting}
                 />
               </div>
-            </div>
-          )}
+
+              {/* Usuário/Data Cadastro — only in edit mode */}
+              {isEditing && (usuarioCadastro || dataCadastro) && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label>Usuário de Cadastro</Label>
+                    <Input value={usuarioCadastro || ''} readOnly className="bg-muted" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Data de Cadastro</Label>
+                    <Input
+                      value={dataCadastro ? new Date(dataCadastro).toLocaleDateString('pt-BR') : ''}
+                      readOnly
+                      className="bg-muted"
+                    />
+                  </div>
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="traducao">
+              <TraducaoTab
+                traducoes={traducoes}
+                onChange={(lang, value) => setTraducoes({ ...traducoes, [lang]: value })}
+                readOnly={readOnly}
+              />
+            </TabsContent>
+          </Tabs>
 
           <DialogFooter className={navigation ? 'sm:justify-between' : undefined}>
             {navigation && <ModalNavigation {...navigation} />}

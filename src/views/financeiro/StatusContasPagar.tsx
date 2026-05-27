@@ -49,6 +49,7 @@ export interface StatusContaPagarItem {
   cor: string;
   isInicial: boolean;
   isBaixa: boolean;
+  traducoes?: Record<string, string> | null;
   dataCadastro: string;
   usuarioCadastro: string;
 }
@@ -307,6 +308,7 @@ const StatusContasPagar = () => {
         cor: data.cor,
         isInicial: data.isInicial,
         isBaixa: data.isBaixa,
+        traducoes: data.traducoes,
       });
 
       toast({

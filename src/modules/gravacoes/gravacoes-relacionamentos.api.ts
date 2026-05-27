@@ -183,6 +183,7 @@ export type EspacoResourcePeriodItem = {
   espacoItemId: string;
   espacoId: string | null;
   espacoNome: string;
+  descricao: string | null;
   recursoId: string;
   recursoNome: string;
   funcaoOperadorId: string | null;

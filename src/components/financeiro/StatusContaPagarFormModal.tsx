@@ -13,8 +13,10 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { ModalNavigation, type ModalNavigationProps } from '@/components/shared/ModalNavigation';
+import { TraducaoTab, type Traducoes } from '@/components/shared/TraducaoTab';
 import { type StatusContaPagarItem } from '@/views/financeiro/StatusContasPagar';
 
 interface StatusContaPagarFormModalProps {
@@ -56,6 +58,7 @@ export const StatusContaPagarFormModal = ({
     isInicial: false,
     isBaixa: false,
   });
+  const [traducoes, setTraducoes] = useState<Traducoes>({});
 
   useEffect(() => {
     if (!isOpen) return;
@@ -69,6 +72,7 @@ export const StatusContaPagarFormModal = ({
         isInicial: data.isInicial || false,
         isBaixa: data.isBaixa || false,
       });
+      setTraducoes((data.traducoes as Traducoes) ?? {});
       return;
     }
 
@@ -80,6 +84,7 @@ export const StatusContaPagarFormModal = ({
       isInicial: false,
       isBaixa: false,
     });
+    setTraducoes({});
   }, [data, isOpen]);
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -88,6 +93,7 @@ export const StatusContaPagarFormModal = ({
     await onSave({
       id: data?.id || crypto.randomUUID(),
       ...formData,
+      traducoes,
       dataCadastro: data?.dataCadastro || new Date().toLocaleDateString('pt-BR'),
       usuarioCadastro: data?.usuarioCadastro || user?.nome || 'Admin',
     });
@@ -107,136 +113,157 @@ export const StatusContaPagarFormModal = ({
         </DialogHeader>
 
         <form onSubmit={(event) => void handleSubmit(event)} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="codigoExterno">Codigo Externo</Label>
-              <Input
-                id="codigoExterno"
-                value={formData.codigoExterno}
-                onChange={(event) =>
-                  setFormData((current) => ({ ...current, codigoExterno: event.target.value }))
-                }
-                maxLength={50}
-                placeholder="Opcional"
-                disabled={readOnly}
-              />
-            </div>
+          <Tabs defaultValue="dados">
+            <TabsList className="w-full">
+              <TabsTrigger value="dados" className="flex-1">
+                Dados Gerais
+              </TabsTrigger>
+              <TabsTrigger value="traducao" className="flex-1">
+                Tradução
+              </TabsTrigger>
+            </TabsList>
 
-            <div className="space-y-2">
-              <Label htmlFor="titulo">
-                Titulo <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="titulo"
-                value={formData.titulo}
-                onChange={(event) =>
-                  setFormData((current) => ({ ...current, titulo: event.target.value }))
-                }
-                required
-                disabled={readOnly}
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label>Cor</Label>
-            <div className="space-y-3">
-              <div className="flex flex-wrap gap-2">
-                {PRESET_COLORS.map((color) => (
-                  <button
-                    key={color}
-                    type="button"
-                    className={`w-8 h-8 rounded-full border-2 transition-all ${
-                      formData.cor === color
-                        ? 'border-primary ring-2 ring-primary/50 scale-110'
-                        : 'border-border hover:scale-105'
-                    }`}
-                    style={{ backgroundColor: color }}
-                    onClick={() => setFormData((current) => ({ ...current, cor: color }))}
+            <TabsContent value="dados" className="space-y-4 mt-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="codigoExterno">Codigo Externo</Label>
+                  <Input
+                    id="codigoExterno"
+                    value={formData.codigoExterno}
+                    onChange={(event) =>
+                      setFormData((current) => ({ ...current, codigoExterno: event.target.value }))
+                    }
+                    maxLength={50}
+                    placeholder="Opcional"
                     disabled={readOnly}
                   />
-                ))}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="titulo">
+                    Titulo <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="titulo"
+                    value={formData.titulo}
+                    onChange={(event) =>
+                      setFormData((current) => ({ ...current, titulo: event.target.value }))
+                    }
+                    required
+                    disabled={readOnly}
+                  />
+                </div>
               </div>
-              <div className="flex items-center gap-3">
-                <Input
-                  type="color"
-                  value={formData.cor}
+
+              <div className="space-y-2">
+                <Label>Cor</Label>
+                <div className="space-y-3">
+                  <div className="flex flex-wrap gap-2">
+                    {PRESET_COLORS.map((color) => (
+                      <button
+                        key={color}
+                        type="button"
+                        className={`w-8 h-8 rounded-full border-2 transition-all ${
+                          formData.cor === color
+                            ? 'border-primary ring-2 ring-primary/50 scale-110'
+                            : 'border-border hover:scale-105'
+                        }`}
+                        style={{ backgroundColor: color }}
+                        onClick={() => setFormData((current) => ({ ...current, cor: color }))}
+                        disabled={readOnly}
+                      />
+                    ))}
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Input
+                      type="color"
+                      value={formData.cor}
+                      onChange={(event) =>
+                        setFormData((current) => ({ ...current, cor: event.target.value }))
+                      }
+                      className="w-14 h-10 p-1 cursor-pointer"
+                      disabled={readOnly}
+                    />
+                    <Input
+                      type="text"
+                      value={formData.cor}
+                      onChange={(event) =>
+                        setFormData((current) => ({ ...current, cor: event.target.value }))
+                      }
+                      placeholder="#000000"
+                      className="w-28 font-mono text-xs"
+                      disabled={readOnly}
+                    />
+                    <Badge style={{ backgroundColor: formData.cor }} className="text-white ml-auto">
+                      {formData.titulo || 'Preview'}
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-6">
+                <div className="flex items-start gap-3 rounded-md border p-3">
+                  <Checkbox
+                    id="isInicial"
+                    checked={formData.isInicial}
+                    onCheckedChange={(checked) =>
+                      setFormData((current) => ({ ...current, isInicial: Boolean(checked) }))
+                    }
+                    disabled={readOnly}
+                  />
+                  <div className="space-y-1">
+                    <Label htmlFor="isInicial" className="cursor-pointer">
+                      Status inicial
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      Define o status padrao ao criar uma conta a pagar.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3 rounded-md border p-3">
+                  <Checkbox
+                    id="isBaixa"
+                    checked={formData.isBaixa}
+                    onCheckedChange={(checked) =>
+                      setFormData((current) => ({ ...current, isBaixa: Boolean(checked) }))
+                    }
+                    disabled={readOnly}
+                  />
+                  <div className="space-y-1">
+                    <Label htmlFor="isBaixa" className="cursor-pointer">
+                      Status de baixa
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      Indica que esse status representa a baixa financeira da conta.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="descricao">Descricao</Label>
+                <Textarea
+                  id="descricao"
+                  value={formData.descricao}
                   onChange={(event) =>
-                    setFormData((current) => ({ ...current, cor: event.target.value }))
+                    setFormData((current) => ({ ...current, descricao: event.target.value }))
                   }
-                  className="w-14 h-10 p-1 cursor-pointer"
+                  rows={3}
+                  placeholder="Descricao do status..."
                   disabled={readOnly}
                 />
-                <Input
-                  type="text"
-                  value={formData.cor}
-                  onChange={(event) =>
-                    setFormData((current) => ({ ...current, cor: event.target.value }))
-                  }
-                  placeholder="#000000"
-                  className="w-28 font-mono text-xs"
-                  disabled={readOnly}
-                />
-                <Badge style={{ backgroundColor: formData.cor }} className="text-white ml-auto">
-                  {formData.titulo || 'Preview'}
-                </Badge>
               </div>
-            </div>
-          </div>
+            </TabsContent>
 
-          <div className="grid grid-cols-2 gap-6">
-            <div className="flex items-start gap-3 rounded-md border p-3">
-              <Checkbox
-                id="isInicial"
-                checked={formData.isInicial}
-                onCheckedChange={(checked) =>
-                  setFormData((current) => ({ ...current, isInicial: Boolean(checked) }))
-                }
-                disabled={readOnly}
+            <TabsContent value="traducao">
+              <TraducaoTab
+                traducoes={traducoes}
+                onChange={(lang, value) => setTraducoes({ ...traducoes, [lang]: value })}
+                readOnly={readOnly}
               />
-              <div className="space-y-1">
-                <Label htmlFor="isInicial" className="cursor-pointer">
-                  Status inicial
-                </Label>
-                <p className="text-xs text-muted-foreground">
-                  Define o status padrao ao criar uma conta a pagar.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-3 rounded-md border p-3">
-              <Checkbox
-                id="isBaixa"
-                checked={formData.isBaixa}
-                onCheckedChange={(checked) =>
-                  setFormData((current) => ({ ...current, isBaixa: Boolean(checked) }))
-                }
-                disabled={readOnly}
-              />
-              <div className="space-y-1">
-                <Label htmlFor="isBaixa" className="cursor-pointer">
-                  Status de baixa
-                </Label>
-                <p className="text-xs text-muted-foreground">
-                  Indica que esse status representa a baixa financeira da conta.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="descricao">Descricao</Label>
-            <Textarea
-              id="descricao"
-              value={formData.descricao}
-              onChange={(event) =>
-                setFormData((current) => ({ ...current, descricao: event.target.value }))
-              }
-              rows={3}
-              placeholder="Descricao do status..."
-              disabled={readOnly}
-            />
-          </div>
+            </TabsContent>
+          </Tabs>
 
           <DialogFooter className={navigation ? 'sm:justify-between' : undefined}>
             {navigation && <ModalNavigation {...navigation} />}

@@ -7,6 +7,7 @@ export type FeriadoRecord = {
   data: string;
   feriado: string;
   observacoes: string | null;
+  traducoes: Record<string, string> | null;
   createdAt: Date;
   createdBy: string | null;
 };
@@ -17,6 +18,7 @@ export type SaveFeriadoInput = {
   data: string;
   feriado: string;
   observacoes?: string | null;
+  traducoes?: Record<string, string> | null;
   createdBy?: string | null;
 };
 
@@ -29,6 +31,7 @@ type FeriadoRow = {
   data: string;
   feriado: string;
   observacoes: string | null;
+  traducoes: Record<string, string> | null;
   created_at: Date;
   created_by: string | null;
 };
@@ -48,6 +51,7 @@ function mapFeriado(row: FeriadoRow): FeriadoRecord {
     data: row.data,
     feriado: row.feriado,
     observacoes: row.observacoes,
+    traducoes: row.traducoes,
     createdAt: row.created_at,
     createdBy: row.created_by,
   };
@@ -70,6 +74,7 @@ export class PrismaFeriadosRepository implements FeriadosRepository {
           data::text AS data,
           feriado,
           observacoes,
+          traducoes,
           created_at,
           created_by
         FROM feriados
@@ -108,6 +113,7 @@ export class PrismaFeriadosRepository implements FeriadosRepository {
           data::text AS data,
           feriado,
           observacoes,
+          traducoes,
           created_at,
           created_by
         FROM feriados
@@ -131,6 +137,7 @@ export class PrismaFeriadosRepository implements FeriadosRepository {
           data::text AS data,
           feriado,
           observacoes,
+          traducoes,
           created_at,
           created_by
         FROM feriados
@@ -155,20 +162,23 @@ export class PrismaFeriadosRepository implements FeriadosRepository {
             data = $1::date,
             feriado = $2,
             observacoes = $3,
+            traducoes = $4::jsonb,
             updated_at = NOW()
-          WHERE id = $4 AND tenant_id = $5
+          WHERE id = $5 AND tenant_id = $6
           RETURNING
             id,
             tenant_id,
             data::text AS data,
             feriado,
             observacoes,
+            traducoes,
             created_at,
             created_by
         `,
         input.data,
         input.feriado,
         input.observacoes ?? null,
+        JSON.stringify(input.traducoes ?? {}),
         input.id,
         input.tenantId,
       );
@@ -187,17 +197,19 @@ export class PrismaFeriadosRepository implements FeriadosRepository {
           data,
           feriado,
           observacoes,
+          traducoes,
           created_at,
           updated_at,
           created_by
         )
-        VALUES ($1, $2, $3::date, $4, $5, NOW(), NOW(), $6)
+        VALUES ($1, $2, $3::date, $4, $5, $6::jsonb, NOW(), NOW(), $7)
         RETURNING
           id,
           tenant_id,
           data::text AS data,
           feriado,
           observacoes,
+          traducoes,
           created_at,
           created_by
       `,
@@ -206,6 +218,7 @@ export class PrismaFeriadosRepository implements FeriadosRepository {
       input.data,
       input.feriado,
       input.observacoes ?? null,
+      JSON.stringify(input.traducoes ?? {}),
       input.createdBy ?? null,
     );
 
@@ -236,6 +249,10 @@ export class PrismaFeriadosRepository implements FeriadosRepository {
         await prisma.$executeRawUnsafe(`
           CREATE UNIQUE INDEX IF NOT EXISTS feriados_tenant_data_key
           ON feriados (tenant_id, data)
+        `);
+
+        await prisma.$executeRawUnsafe(`
+          ALTER TABLE feriados ADD COLUMN IF NOT EXISTS traducoes jsonb NULL DEFAULT '{}'::jsonb
         `);
       })().catch((err) => {
         this.ready = null;

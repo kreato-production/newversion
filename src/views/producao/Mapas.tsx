@@ -162,9 +162,12 @@ interface AlocacaoEspacoData {
   espacoNome: string;
   gravacaoId: string;
   gravacaoNome: string;
+  gravacaoCodigo: string;
   descricao: string | null;
   horaInicio: string | null;
   horaFim: string | null;
+  programaId: string | null;
+  programaNome: string | null;
   programaCor: string | null;
 }
 
@@ -217,7 +220,9 @@ const Mapas = () => {
   const [alocacaoIntervalo, setAlocacaoIntervalo] = useState<60 | 30 | 15>(60);
   const [alocacaoEspacosData, setAlocacaoEspacosData] = useState<AlocacaoEspacoData[]>([]);
   const [allEspacos, setAllEspacos] = useState<{ id: string; nome: string }[]>([]);
-  const [programasCorMap, setProgramasCorMap] = useState<Map<string, string | null>>(new Map());
+  const [programasMap, setProgramasMap] = useState<
+    Map<string, { nome: string; cor: string | null }>
+  >(new Map());
   const [alocacaoLoading, setAlocacaoLoading] = useState(false);
   const [alocacaoEspacosFiltro, setAlocacaoEspacosFiltro] = useState<string[]>([]);
   const [showEspacosFiltroDropdown, setShowEspacosFiltroDropdown] = useState(false);
@@ -466,14 +471,14 @@ const Mapas = () => {
       .catch(() => {});
   }, []);
 
-  // Carregar cores dos programas para o tabulador Alocações
+  // Carregar programas (nome + cor) para o tabulador Alocações
   useEffect(() => {
     programasRepository
       .list()
       .then((list) => {
-        const map = new Map<string, string | null>();
-        for (const p of list) map.set(p.id, p.cor ?? null);
-        setProgramasCorMap(map);
+        const map = new Map<string, { nome: string; cor: string | null }>();
+        for (const p of list) map.set(p.id, { nome: p.nome, cor: p.cor ?? null });
+        setProgramasMap(map);
       })
       .catch(() => {});
   }, []);
@@ -496,17 +501,23 @@ const Mapas = () => {
       .then(([items, resources]) => {
         if (cancelled) return;
         setAlocacaoEspacosData(
-          items.map((e) => ({
-            id: e.id,
-            espacoId: e.espacoId ?? '',
-            espacoNome: e.espacoNome,
-            gravacaoId: e.gravacaoId,
-            gravacaoNome: e.gravacaoNome,
-            descricao: e.descricao,
-            horaInicio: e.horaInicio,
-            horaFim: e.horaFim,
-            programaCor: e.programaId ? (programasCorMap.get(e.programaId) ?? null) : null,
-          })),
+          items.map((e) => {
+            const programa = e.programaId ? programasMap.get(e.programaId) : undefined;
+            return {
+              id: e.id,
+              espacoId: e.espacoId ?? '',
+              espacoNome: e.espacoNome,
+              gravacaoId: e.gravacaoId,
+              gravacaoNome: e.gravacaoNome,
+              gravacaoCodigo: e.gravacaoCodigo,
+              descricao: e.descricao,
+              horaInicio: e.horaInicio,
+              horaFim: e.horaFim,
+              programaId: e.programaId ?? null,
+              programaNome: programa?.nome ?? null,
+              programaCor: programa?.cor ?? e.programaCor ?? null,
+            };
+          }),
         );
         const resMap = new Map<string, AlocacaoEspacoResourceInfo>();
         for (const r of resources.tecnicos) {
@@ -531,7 +542,7 @@ const Mapas = () => {
     return () => {
       cancelled = true;
     };
-  }, [activeTab, alocacaoDate, programasCorMap]);
+  }, [activeTab, alocacaoDate, programasMap]);
 
   // Fechar dropdown de espaços ao clicar fora
   useEffect(() => {
@@ -2320,9 +2331,12 @@ const Mapas = () => {
               {
                 id: string;
                 gravacaoNome: string;
+                gravacaoCodigo: string;
                 descricao: string | null;
                 horaInicio: string | null;
                 horaFim: string | null;
+                programaId: string | null;
+                programaNome: string | null;
                 programaCor: string | null;
               }[]
             >();
@@ -2331,9 +2345,12 @@ const Mapas = () => {
               list.push({
                 id: d.id,
                 gravacaoNome: d.gravacaoNome,
+                gravacaoCodigo: d.gravacaoCodigo,
                 descricao: d.descricao,
                 horaInicio: d.horaInicio,
                 horaFim: d.horaFim,
+                programaId: d.programaId,
+                programaNome: d.programaNome,
                 programaCor: d.programaCor,
               });
               espacoEventos.set(d.espacoId, list);
@@ -2362,9 +2379,12 @@ const Mapas = () => {
                   type: 'event';
                   id: string;
                   gravacaoNome: string;
+                  gravacaoCodigo: string;
                   descricao: string | null;
                   horaInicio: string | null;
                   horaFim: string | null;
+                  programaId: string | null;
+                  programaNome: string | null;
                   programaCor: string | null;
                   span: number;
                   noTime: boolean;
@@ -2405,9 +2425,12 @@ const Mapas = () => {
                     type: 'event',
                     id: event.id,
                     gravacaoNome: event.gravacaoNome,
+                    gravacaoCodigo: event.gravacaoCodigo,
                     descricao: event.descricao,
                     horaInicio: event.horaInicio,
                     horaFim: event.horaFim,
+                    programaId: event.programaId,
+                    programaNome: event.programaNome,
                     programaCor: event.programaCor,
                     span,
                     noTime,
@@ -2598,19 +2621,18 @@ const Mapas = () => {
                                 if (state.type === 'absorbed') return null;
 
                                 if (state.type === 'event') {
-                                  // Each row is h-10 (2.5rem). py-1 adds 0.5rem total vertical padding.
-                                  const cardMinH = `${state.span * 2.5 - 0.5}rem`;
+                                  // Each row is h-10 (2.5rem = 40px). The wrapper div uses an
+                                  // explicit height matching the spanned rows so the table rows
+                                  // never expand beyond their natural 40px height.
+                                  const cellH = `${state.span * 2.5}rem`;
                                   const resources = alocacaoResourcesMap.get(state.id);
                                   const hasResources =
                                     resources &&
                                     (resources.tecnicos.length > 0 || resources.fisicos.length > 0);
 
                                   const slotCard = state.noTime ? (
-                                    <div
-                                      className="rounded-md bg-muted/50 border border-dashed border-muted-foreground/30 px-2 py-1.5 flex flex-col gap-0.5 cursor-default"
-                                      style={{ minHeight: cardMinH }}
-                                    >
-                                      <span className="text-xs font-semibold text-gray-800 dark:text-gray-200 leading-tight line-clamp-2">
+                                    <div className="rounded-md bg-muted/50 border border-dashed border-muted-foreground/30 px-2 py-1.5 flex flex-col gap-0.5 cursor-default h-full overflow-hidden">
+                                      <span className="text-xs font-semibold text-gray-800 dark:text-gray-200 leading-tight line-clamp-1">
                                         {state.gravacaoNome}
                                       </span>
                                       <span className="text-[10px] text-gray-500 dark:text-gray-400 font-mono">
@@ -2619,9 +2641,8 @@ const Mapas = () => {
                                     </div>
                                   ) : (
                                     <div
-                                      className="rounded-md border px-2 py-1.5 flex flex-col gap-0.5 cursor-default"
+                                      className="rounded-md border px-2 py-1 flex flex-col gap-0.5 cursor-default h-full overflow-hidden"
                                       style={{
-                                        minHeight: cardMinH,
                                         backgroundColor: state.programaCor
                                           ? hexToRgba(state.programaCor, 0.18)
                                           : 'hsl(var(--primary) / 0.15)',
@@ -2630,10 +2651,15 @@ const Mapas = () => {
                                           : 'hsl(var(--primary) / 0.4)',
                                       }}
                                     >
-                                      <span className="text-xs font-semibold text-gray-900 dark:text-gray-100 leading-tight line-clamp-2">
+                                      {state.programaNome && (
+                                        <span className="text-[9px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400 truncate">
+                                          {state.programaNome}
+                                        </span>
+                                      )}
+                                      <span className="text-xs font-semibold text-gray-900 dark:text-gray-100 leading-tight line-clamp-1">
                                         {state.gravacaoNome}
                                       </span>
-                                      {state.descricao && (
+                                      {state.descricao && state.span > 1 && (
                                         <span className="text-[10px] text-gray-600 dark:text-gray-300 leading-tight line-clamp-1">
                                           {state.descricao}
                                         </span>
@@ -2642,7 +2668,7 @@ const Mapas = () => {
                                         {state.horaInicio?.substring(0, 5)} –{' '}
                                         {state.horaFim?.substring(0, 5)}
                                       </span>
-                                      {hasResources && (
+                                      {hasResources && state.span > 1 && (
                                         <div className="flex flex-wrap gap-0.5 mt-0.5">
                                           {resources.tecnicos.slice(0, 2).map((nome, i) => (
                                             <span
@@ -2680,34 +2706,65 @@ const Mapas = () => {
                                     <td
                                       key={col.id}
                                       rowSpan={state.span}
-                                      className="border-l border-b border-t-0 px-1.5 py-1 align-top"
+                                      className="border-l border-b border-t-0 p-0 align-top"
                                     >
-                                      {hasResources ? (
-                                        <HoverCard openDelay={200} closeDelay={100}>
+                                      {/* Wrapper with explicit height = span × row-height prevents
+                                          the table row from expanding beyond its natural 40px */}
+                                      <div
+                                        style={{ height: cellH, overflow: 'hidden' }}
+                                        className="px-1.5 py-1"
+                                      >
+                                        <HoverCard openDelay={150} closeDelay={100}>
                                           <HoverCardTrigger asChild>{slotCard}</HoverCardTrigger>
                                           <HoverCardContent
                                             side="right"
                                             align="start"
-                                            className="w-64 p-3 space-y-2"
+                                            className="w-72 p-3 space-y-2"
                                           >
-                                            <div className="font-semibold text-sm leading-tight">
-                                              {state.gravacaoNome}
+                                            {/* Programa */}
+                                            {state.programaNome && (
+                                              <div className="flex items-center gap-1.5">
+                                                {state.programaCor && (
+                                                  <span
+                                                    className="inline-block w-2.5 h-2.5 rounded-full shrink-0"
+                                                    style={{ backgroundColor: state.programaCor }}
+                                                  />
+                                                )}
+                                                <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                                  {state.programaNome}
+                                                </span>
+                                              </div>
+                                            )}
+                                            {/* Gravação */}
+                                            <div>
+                                              <div className="font-semibold text-sm leading-tight">
+                                                {state.gravacaoNome}
+                                              </div>
+                                              {state.gravacaoCodigo && (
+                                                <div className="text-[10px] font-mono text-muted-foreground mt-0.5">
+                                                  #{state.gravacaoCodigo}
+                                                </div>
+                                              )}
                                             </div>
+                                            {/* Descrição */}
                                             {state.descricao && (
                                               <div className="text-xs text-muted-foreground">
                                                 {state.descricao}
                                               </div>
                                             )}
+                                            {/* Horário */}
                                             {!state.noTime && (
-                                              <div className="text-xs font-mono text-muted-foreground">
+                                              <div className="flex items-center gap-1 text-xs font-mono text-muted-foreground">
+                                                <Clock className="h-3 w-3 shrink-0" />
                                                 {state.horaInicio?.substring(0, 5)} –{' '}
                                                 {state.horaFim?.substring(0, 5)}
                                               </div>
                                             )}
-                                            {resources.tecnicos.length > 0 && (
-                                              <div className="space-y-1">
+                                            {/* Recursos Técnicos (humanos) */}
+                                            {resources && resources.tecnicos.length > 0 && (
+                                              <div className="space-y-1 pt-1 border-t">
                                                 <div className="flex items-center gap-1 text-xs font-medium text-blue-600 dark:text-blue-400">
-                                                  <Wrench className="h-3 w-3" /> Técnicos
+                                                  <User className="h-3 w-3" /> Técnicos
                                                 </div>
                                                 <ul className="space-y-0.5">
                                                   {resources.tecnicos.map((nome, i) => (
@@ -2721,8 +2778,9 @@ const Mapas = () => {
                                                 </ul>
                                               </div>
                                             )}
-                                            {resources.fisicos.length > 0 && (
-                                              <div className="space-y-1">
+                                            {/* Recursos Físicos */}
+                                            {resources && resources.fisicos.length > 0 && (
+                                              <div className="space-y-1 pt-1 border-t">
                                                 <div className="flex items-center gap-1 text-xs font-medium text-amber-600 dark:text-amber-400">
                                                   <MapPin className="h-3 w-3" /> Equipamentos
                                                 </div>
@@ -2738,11 +2796,17 @@ const Mapas = () => {
                                                 </ul>
                                               </div>
                                             )}
+                                            {/* Sem recursos */}
+                                            {(!resources ||
+                                              (resources.tecnicos.length === 0 &&
+                                                resources.fisicos.length === 0)) && (
+                                              <div className="text-xs text-muted-foreground italic pt-1 border-t">
+                                                Sem recursos alocados
+                                              </div>
+                                            )}
                                           </HoverCardContent>
                                         </HoverCard>
-                                      ) : (
-                                        slotCard
-                                      )}
+                                      </div>
                                     </td>
                                   );
                                 }

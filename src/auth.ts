@@ -110,6 +110,10 @@ function normalizeTokenShape(token: SessionTokenShape): string | undefined {
 // ─── Auth.js ──────────────────────────────────────────────────────────────────
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  // Necessário para que Auth.js aceite requests de proxies e hosts dinâmicos
+  // sem rejeitar por falha de CSRF/host validation.
+  trustHost: true,
+
   session: {
     // JWT é obrigatório para o Credentials provider no Auth.js v5.
     // O token fica em cookie HttpOnly assinado — equivalente em segurança

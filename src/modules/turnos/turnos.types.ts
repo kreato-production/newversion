@@ -33,6 +33,7 @@ export type TurnoInput = {
   folgaEspecial?: string;
   descricao?: string;
   diasTrabalhados?: number | null;
+  traducoes?: Record<string, string> | null;
 };
 
 export const weekdayKeys: WeekdayKey[] = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab'];

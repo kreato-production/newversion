@@ -38,6 +38,7 @@ export interface CategoriaDespesaItem {
   titulo: string;
   descricao: string;
   cor: string;
+  traducoes?: Record<string, string> | null;
   dataCadastro: string;
   usuarioCadastro: string;
 }
@@ -244,6 +245,7 @@ const CategoriasDespesa = () => {
         titulo: data.titulo,
         descricao: data.descricao,
         cor: data.cor,
+        traducoes: data.traducoes,
       });
 
       toast({

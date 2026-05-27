@@ -12,4 +12,5 @@ export type FeriadoInput = {
   data: string;
   feriado: string;
   observacoes?: string;
+  traducoes?: Record<string, string> | null;
 };

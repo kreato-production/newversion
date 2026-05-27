@@ -9,6 +9,7 @@ export const saveDepartamentoSchema = z.object({
   codigoExterno: z.string().optional().nullable(),
   nome: z.string().min(1),
   descricao: z.string().optional().nullable(),
+  traducoes: z.record(z.string()).optional().nullable(),
 });
 
 export const saveDepartamentoFuncaoSchema = z.object({
@@ -31,6 +32,7 @@ export class DepartamentosService {
         codigoExterno: item.codigoExterno || '',
         nome: item.nome,
         descricao: item.descricao || '',
+        traducoes: item.traducoes ?? null,
         dataCadastro: item.createdAt.toISOString(),
         usuarioCadastro: item.createdBy || '',
       })),
@@ -54,6 +56,7 @@ export class DepartamentosService {
       codigoExterno: input.codigoExterno,
       nome: input.nome,
       descricao: input.descricao,
+      traducoes: input.traducoes,
       createdBy: actor.nome,
     });
 
@@ -62,6 +65,7 @@ export class DepartamentosService {
       codigoExterno: item.codigoExterno || '',
       nome: item.nome,
       descricao: item.descricao || '',
+      traducoes: item.traducoes ?? null,
       dataCadastro: item.createdAt.toISOString(),
       usuarioCadastro: item.createdBy || '',
     };

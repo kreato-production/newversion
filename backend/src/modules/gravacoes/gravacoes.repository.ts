@@ -466,6 +466,7 @@ export type EspacoResourcePeriodItem = {
   espacoItemId: string;
   espacoId: string | null;
   espacoNome: string;
+  descricao: string | null;
   recursoId: string;
   recursoNome: string;
   funcaoOperadorId: string | null;
@@ -2212,6 +2213,7 @@ export class PrismaGravacoesRepository implements GravacoesRepository {
         espacoItemId: string;
         espacoId: string | null;
         espacoNome: string;
+        descricao: string | null;
         recursoId: string;
         recursoNome: string;
         funcaoOperadorId: string | null;
@@ -2227,6 +2229,7 @@ export class PrismaGravacoesRepository implements GravacoesRepository {
           ge.id AS "espacoItemId",
           ge.espaco_id AS "espacoId",
           COALESCE(e.titulo, '') AS "espacoNome",
+          ge.descricao AS "descricao",
           gert.recurso_tecnico_id AS "recursoId",
           COALESCE(rt.nome, '') AS "recursoNome",
           rt.funcao_operador_id AS "funcaoOperadorId",
@@ -2255,6 +2258,7 @@ export class PrismaGravacoesRepository implements GravacoesRepository {
         espacoItemId: string;
         espacoId: string | null;
         espacoNome: string;
+        descricao: string | null;
         recursoId: string;
         recursoNome: string;
         funcaoOperadorId: string | null;
@@ -2270,6 +2274,7 @@ export class PrismaGravacoesRepository implements GravacoesRepository {
           ge.id AS "espacoItemId",
           ge.espaco_id AS "espacoId",
           COALESCE(e.titulo, '') AS "espacoNome",
+          ge.descricao AS "descricao",
           gerf.recurso_fisico_id AS "recursoId",
           COALESCE(rf.nome, '') AS "recursoNome",
           NULL::text AS "funcaoOperadorId",

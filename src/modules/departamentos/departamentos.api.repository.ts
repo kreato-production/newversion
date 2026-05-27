@@ -5,6 +5,7 @@ export type DepartamentoApiItem = {
   codigoExterno: string;
   nome: string;
   descricao: string;
+  traducoes?: Record<string, string> | null;
   dataCadastro: string;
   usuarioCadastro: string;
 };
@@ -14,6 +15,7 @@ export type DepartamentoApiInput = {
   codigoExterno?: string;
   nome: string;
   descricao?: string;
+  traducoes?: Record<string, string> | null;
 };
 
 export type FuncaoApiItem = {

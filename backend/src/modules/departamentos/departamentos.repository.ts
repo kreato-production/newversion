@@ -7,6 +7,7 @@ export type DepartamentoRecord = {
   codigoExterno: string | null;
   nome: string;
   descricao: string | null;
+  traducoes: Record<string, string> | null;
   createdAt: Date;
   createdBy: string | null;
 };
@@ -17,6 +18,7 @@ export type SaveDepartamentoInput = {
   codigoExterno?: string | null;
   nome: string;
   descricao?: string | null;
+  traducoes?: Record<string, string> | null;
   createdBy?: string | null;
 };
 
@@ -42,6 +44,7 @@ type DepartamentoRow = {
   codigo_externo: string | null;
   nome: string;
   descricao: string | null;
+  traducoes: Record<string, string> | null;
   created_at: Date;
   created_by: string | null;
 };
@@ -70,6 +73,7 @@ function mapDepartamento(row: DepartamentoRow): DepartamentoRecord {
     codigoExterno: row.codigo_externo,
     nome: row.nome,
     descricao: row.descricao,
+    traducoes: row.traducoes,
     createdAt: row.created_at,
     createdBy: row.created_by,
   };
@@ -86,7 +90,7 @@ export class PrismaDepartamentosRepository implements DepartamentosRepository {
 
     const rows = await prisma.$queryRawUnsafe<DepartamentoRow[]>(
       `
-        SELECT id, tenant_id, codigo_externo, nome, descricao, created_at, created_by
+        SELECT id, tenant_id, codigo_externo, nome, descricao, traducoes, created_at, created_by
         FROM departamentos
         WHERE tenant_id = $1
         ORDER BY nome ASC
@@ -117,7 +121,7 @@ export class PrismaDepartamentosRepository implements DepartamentosRepository {
 
     const rows = await prisma.$queryRawUnsafe<DepartamentoRow[]>(
       `
-        SELECT id, tenant_id, codigo_externo, nome, descricao, created_at, created_by
+        SELECT id, tenant_id, codigo_externo, nome, descricao, traducoes, created_at, created_by
         FROM departamentos
         WHERE id = $1
         LIMIT 1
@@ -139,13 +143,15 @@ export class PrismaDepartamentosRepository implements DepartamentosRepository {
             codigo_externo = $1,
             nome = $2,
             descricao = $3,
+            traducoes = $4::jsonb,
             updated_at = NOW()
-          WHERE id = $4 AND tenant_id = $5
-          RETURNING id, tenant_id, codigo_externo, nome, descricao, created_at, created_by
+          WHERE id = $5 AND tenant_id = $6
+          RETURNING id, tenant_id, codigo_externo, nome, descricao, traducoes, created_at, created_by
         `,
         input.codigoExterno ?? null,
         input.nome,
         input.descricao ?? null,
+        JSON.stringify(input.traducoes ?? {}),
         input.id,
         input.tenantId,
       );
@@ -164,18 +170,20 @@ export class PrismaDepartamentosRepository implements DepartamentosRepository {
           codigo_externo,
           nome,
           descricao,
+          traducoes,
           created_at,
           updated_at,
           created_by
         )
-        VALUES ($1, $2, $3, $4, $5, NOW(), NOW(), $6)
-        RETURNING id, tenant_id, codigo_externo, nome, descricao, created_at, created_by
+        VALUES ($1, $2, $3, $4, $5, $6::jsonb, NOW(), NOW(), $7)
+        RETURNING id, tenant_id, codigo_externo, nome, descricao, traducoes, created_at, created_by
       `,
       id,
       input.tenantId,
       input.codigoExterno ?? null,
       input.nome,
       input.descricao ?? null,
+      JSON.stringify(input.traducoes ?? {}),
       input.createdBy ?? null,
     );
 
@@ -306,6 +314,10 @@ export class PrismaDepartamentosRepository implements DepartamentosRepository {
         await prisma.$executeRawUnsafe(`
           CREATE UNIQUE INDEX IF NOT EXISTS departamento_funcoes_departamento_funcao_key
           ON departamento_funcoes (departamento_id, funcao_id)
+        `);
+
+        await prisma.$executeRawUnsafe(`
+          ALTER TABLE departamentos ADD COLUMN IF NOT EXISTS traducoes jsonb NULL DEFAULT '{}'::jsonb
         `);
       })().catch((err) => {
         this.ready = null;

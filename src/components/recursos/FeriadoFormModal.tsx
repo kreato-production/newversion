@@ -11,8 +11,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2 } from 'lucide-react';
 import { ModalNavigation, type ModalNavigationProps } from '@/components/shared/ModalNavigation';
+import { TraducaoTab, type Traducoes } from '@/components/shared/TraducaoTab';
 import type { FeriadoInput } from '@/modules/feriados/feriados.types';
 
 interface FeriadoFormModalProps {
@@ -39,11 +41,13 @@ export const FeriadoFormModal = ({
   navigation,
 }: FeriadoFormModalProps) => {
   const [formData, setFormData] = useState<FeriadoInput>(emptyFormData);
+  const [traducoes, setTraducoes] = useState<Traducoes>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
       setFormData(data ? { ...data } : { ...emptyFormData });
+      setTraducoes((data?.traducoes as Traducoes) ?? {});
       setIsSubmitting(false);
     }
   }, [isOpen, data]);
@@ -62,6 +66,7 @@ export const FeriadoFormModal = ({
         data: formData.data,
         feriado: formData.feriado.trim(),
         observacoes: formData.observacoes?.trim() || '',
+        traducoes,
       });
       onClose();
     } finally {
@@ -87,46 +92,69 @@ export const FeriadoFormModal = ({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="data">
-                Data <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="data"
-                type="date"
-                value={formData.data}
-                onChange={(e) => setFormData((prev) => ({ ...prev, data: e.target.value }))}
-                required
-                disabled={readOnly || isSubmitting}
-              />
-            </div>
+          <Tabs defaultValue="dados">
+            <TabsList className="w-full">
+              <TabsTrigger value="dados" className="flex-1">
+                Dados Gerais
+              </TabsTrigger>
+              <TabsTrigger value="traducao" className="flex-1">
+                Tradução
+              </TabsTrigger>
+            </TabsList>
 
-            <div className="space-y-2">
-              <Label htmlFor="feriado">
-                Feriado <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="feriado"
-                value={formData.feriado}
-                onChange={(e) => setFormData((prev) => ({ ...prev, feriado: e.target.value }))}
-                maxLength={120}
-                required
-                disabled={readOnly || isSubmitting}
-              />
-            </div>
-          </div>
+            <TabsContent value="dados" className="space-y-4 mt-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="data">
+                    Data <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="data"
+                    type="date"
+                    value={formData.data}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, data: e.target.value }))}
+                    required
+                    disabled={readOnly || isSubmitting}
+                  />
+                </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="observacoes">Observacoes</Label>
-            <Textarea
-              id="observacoes"
-              value={formData.observacoes || ''}
-              onChange={(e) => setFormData((prev) => ({ ...prev, observacoes: e.target.value }))}
-              rows={4}
-              disabled={readOnly || isSubmitting}
-            />
-          </div>
+                <div className="space-y-2">
+                  <Label htmlFor="feriado">
+                    Feriado <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="feriado"
+                    value={formData.feriado}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, feriado: e.target.value }))}
+                    maxLength={120}
+                    required
+                    disabled={readOnly || isSubmitting}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="observacoes">Observacoes</Label>
+                <Textarea
+                  id="observacoes"
+                  value={formData.observacoes || ''}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, observacoes: e.target.value }))
+                  }
+                  rows={4}
+                  disabled={readOnly || isSubmitting}
+                />
+              </div>
+            </TabsContent>
+
+            <TabsContent value="traducao">
+              <TraducaoTab
+                traducoes={traducoes}
+                onChange={(lang, value) => setTraducoes({ ...traducoes, [lang]: value })}
+                readOnly={readOnly}
+              />
+            </TabsContent>
+          </Tabs>
 
           <DialogFooter className={navigation ? 'sm:justify-between' : undefined}>
             {navigation && <ModalNavigation {...navigation} />}

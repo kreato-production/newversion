@@ -11,6 +11,7 @@ export const saveFeriadoSchema = z.object({
   data: z.string().regex(datePattern, 'Data invalida'),
   feriado: z.string().trim().min(1),
   observacoes: z.string().optional().nullable(),
+  traducoes: z.record(z.string()).optional().nullable(),
 });
 
 export type SaveFeriadoDto = z.infer<typeof saveFeriadoSchema>;
@@ -29,6 +30,7 @@ export class FeriadosService {
         data: item.data,
         feriado: item.feriado,
         observacoes: item.observacoes || '',
+        traducoes: item.traducoes ?? null,
         dataCadastro: item.createdAt.toISOString(),
         usuarioCadastro: item.createdBy || '',
       })),
@@ -57,6 +59,7 @@ export class FeriadosService {
       data: input.data,
       feriado: input.feriado.trim(),
       observacoes: input.observacoes?.trim() || null,
+      traducoes: input.traducoes,
       createdBy: actor.nome,
     });
 
@@ -65,6 +68,7 @@ export class FeriadosService {
       data: item.data,
       feriado: item.feriado,
       observacoes: item.observacoes || '',
+      traducoes: item.traducoes ?? null,
       dataCadastro: item.createdAt.toISOString(),
       usuarioCadastro: item.createdBy || '',
     };

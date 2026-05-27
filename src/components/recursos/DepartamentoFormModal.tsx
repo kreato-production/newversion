@@ -24,6 +24,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { useToast } from '@/hooks/use-toast';
 import { ModalNavigation, type ModalNavigationProps } from '@/components/shared/ModalNavigation';
 import { SortableTable, type Column } from '@/components/shared/SortableTable';
+import { TraducaoTab, type Traducoes } from '@/components/shared/TraducaoTab';
 import { Plus, Trash2, Briefcase, Loader2 } from 'lucide-react';
 import {
   ApiDepartamentosRepository,
@@ -36,6 +37,7 @@ interface Departamento {
   codigoExterno: string;
   nome: string;
   descricao: string;
+  traducoes?: Record<string, string> | null;
   dataCadastro?: string;
   usuarioCadastro?: string;
 }
@@ -101,6 +103,7 @@ export const DepartamentoFormModal = ({
   const { t } = useLanguage();
   const { toast } = useToast();
   const [formData, setFormData] = useState<Departamento>(emptyFormData);
+  const [traducoes, setTraducoes] = useState<Traducoes>({});
   const [isAddingFuncao, setIsAddingFuncao] = useState(false);
   const [selectedFuncaoId, setSelectedFuncaoId] = useState('');
   const [funcoesAssociadas, setFuncoesAssociadas] = useState<DepartamentoFuncao[]>([]);
@@ -140,6 +143,7 @@ export const DepartamentoFormModal = ({
     if (!isOpen) return;
 
     setFormData(data ? { ...data } : { ...emptyFormData });
+    setTraducoes((data?.traducoes as Traducoes) ?? {});
     setIsAddingFuncao(false);
     setSelectedFuncaoId('');
     void fetchFuncoes();
@@ -229,6 +233,7 @@ export const DepartamentoFormModal = ({
 
     await onSave({
       ...formData,
+      traducoes,
       ...(data?.id ? { id: data.id } : {}),
       ...(data?.dataCadastro ? { dataCadastro: data.dataCadastro } : {}),
       usuarioCadastro: data?.usuarioCadastro || user?.nome || 'Admin',
@@ -344,6 +349,9 @@ export const DepartamentoFormModal = ({
                     <Briefcase className="h-4 w-4" />
                     Funcoes
                   </TabsTrigger>
+                  <TabsTrigger value="traducao" className="flex-1">
+                    Tradução
+                  </TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="funcoes" className="mt-4">
@@ -416,6 +424,14 @@ export const DepartamentoFormModal = ({
                       />
                     </div>
                   )}
+                </TabsContent>
+
+                <TabsContent value="traducao" className="mt-4">
+                  <TraducaoTab
+                    traducoes={traducoes}
+                    onChange={(lang, value) => setTraducoes({ ...traducoes, [lang]: value })}
+                    readOnly={readOnly}
+                  />
                 </TabsContent>
               </Tabs>
             </div>

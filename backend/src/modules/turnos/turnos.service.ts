@@ -40,6 +40,7 @@ export const saveTurnoSchema = z.object({
   folgaEspecial: z.string().trim().max(80).optional().nullable(),
   descricao: z.string().trim().max(500).optional().nullable(),
   diasTrabalhados: z.number().int().min(0).max(7).optional().nullable(),
+  traducoes: z.record(z.string()).optional().nullable(),
 });
 
 export type SaveTurnoDto = z.infer<typeof saveTurnoSchema>;
@@ -66,6 +67,7 @@ export class TurnosService {
         folgaEspecial: item.folgaEspecial ?? '',
         descricao: item.descricao ?? '',
         diasTrabalhados: item.diasTrabalhados,
+        traducoes: item.traducoes ?? null,
         dataCadastro: item.createdAt.toISOString(),
         usuarioCadastro: item.createdBy ?? '',
       })),
@@ -102,6 +104,7 @@ export class TurnosService {
       folgaEspecial: input.folgaEspecial?.trim() || null,
       descricao: input.descricao?.trim() || null,
       diasTrabalhados: input.diasTrabalhados ?? null,
+      traducoes: input.traducoes,
       createdBy: actor.nome,
     });
 
@@ -118,6 +121,7 @@ export class TurnosService {
       folgaEspecial: item.folgaEspecial ?? '',
       descricao: item.descricao ?? '',
       diasTrabalhados: item.diasTrabalhados,
+      traducoes: item.traducoes ?? null,
       dataCadastro: item.createdAt.toISOString(),
       usuarioCadastro: item.createdBy ?? '',
     };

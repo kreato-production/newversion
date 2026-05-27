@@ -20,6 +20,7 @@ export type TurnoRecord = {
   folgaEspecial: string | null;
   descricao: string | null;
   diasTrabalhados: number | null;
+  traducoes: Record<string, string> | null;
   createdAt: Date;
   createdBy: string | null;
 };
@@ -38,6 +39,7 @@ export type SaveTurnoInput = {
   folgaEspecial?: string | null;
   descricao?: string | null;
   diasTrabalhados?: number | null;
+  traducoes?: Record<string, string> | null;
   createdBy?: string | null;
 };
 
@@ -60,6 +62,7 @@ type TurnoRow = {
   folga_especial: string | null;
   descricao: string | null;
   dias_trabalhados: number | null;
+  traducoes: Record<string, string> | null;
   created_at: Date;
   created_by: string | null;
 };
@@ -87,6 +90,7 @@ const turnoSelectProjection = `
   folga_especial,
   descricao,
   dias_trabalhados,
+  traducoes,
   created_at,
   created_by
 `;
@@ -177,6 +181,7 @@ function mapTurno(row: TurnoRow): TurnoRecord {
     folgaEspecial: row.folga_especial,
     descricao: row.descricao,
     diasTrabalhados: row.dias_trabalhados,
+    traducoes: row.traducoes,
     createdAt: row.created_at,
     createdBy: row.created_by,
   };
@@ -277,8 +282,9 @@ export class PrismaTurnosRepository implements TurnosRepository {
             folga_especial = $9,
             descricao = $10,
             dias_trabalhados = $11,
+            traducoes = $12::jsonb,
             updated_at = NOW()
-          WHERE id = $12 AND tenant_id = $13
+          WHERE id = $13 AND tenant_id = $14
           RETURNING
             ${turnoSelectProjection}
         `,
@@ -293,6 +299,7 @@ export class PrismaTurnosRepository implements TurnosRepository {
         input.folgaEspecial ?? null,
         input.descricao ?? null,
         input.diasTrabalhados ?? null,
+        JSON.stringify(input.traducoes ?? {}),
         input.id,
         input.tenantId,
       );
@@ -319,6 +326,7 @@ export class PrismaTurnosRepository implements TurnosRepository {
           folga_especial,
           descricao,
           dias_trabalhados,
+          traducoes,
           created_at,
           updated_at,
           created_by
@@ -337,9 +345,10 @@ export class PrismaTurnosRepository implements TurnosRepository {
           $11,
           $12,
           $13,
+          $14::jsonb,
           NOW(),
           NOW(),
-          $14
+          $15
         )
         RETURNING
           ${turnoSelectProjection}
@@ -357,6 +366,7 @@ export class PrismaTurnosRepository implements TurnosRepository {
       input.folgaEspecial ?? null,
       input.descricao ?? null,
       input.diasTrabalhados ?? null,
+      JSON.stringify(input.traducoes ?? {}),
       input.createdBy ?? null,
     );
 
@@ -395,6 +405,10 @@ export class PrismaTurnosRepository implements TurnosRepository {
         await prisma.$executeRawUnsafe(`
           CREATE UNIQUE INDEX IF NOT EXISTS turnos_tenant_nome_key
           ON turnos (tenant_id, LOWER(nome))
+        `);
+
+        await prisma.$executeRawUnsafe(`
+          ALTER TABLE turnos ADD COLUMN IF NOT EXISTS traducoes jsonb NULL DEFAULT '{}'::jsonb
         `);
 
         // Ambientes locais antigos criaram estas colunas como text.

@@ -46,6 +46,7 @@ type RTItem = {
   tempoGravacao: string;
   anchorId: string;
   espacoNome: string;
+  atividade?: string;
   funcaoOperadorId?: string;
   isEspacoResource?: boolean;
   selectedRh?: { id: string; nome: string; sobrenome: string; foto?: string } | null;
@@ -65,6 +66,7 @@ type RFItem = {
   tempoGravacao: string;
   anchorId: string;
   espacoNome?: string;
+  atividade?: string;
   isEspacoResource?: boolean;
   selectedEstoque?: { id: string; nome: string; numerador: number; imagemUrl?: string } | null;
   associadoHoraInicio?: string;
@@ -357,6 +359,7 @@ const RequisicoesTab = ({ dateStart, dateEnd, onSaveComplete }: RequisicoesTabPr
             ),
             anchorId: `espaco-resource-${item.id}`,
             espacoNome: item.espacoNome,
+            atividade: item.descricao || undefined,
             funcaoOperadorId: item.funcaoOperadorId ?? rtMap.get(item.recursoId)?.funcaoOperadorId,
             isEspacoResource: true,
           });
@@ -376,6 +379,7 @@ const RequisicoesTab = ({ dateStart, dateEnd, onSaveComplete }: RequisicoesTabPr
             ),
             anchorId: `espaco-resource-${item.id}`,
             espacoNome: item.espacoNome,
+            atividade: item.descricao || undefined,
             isEspacoResource: true,
           });
         }
@@ -466,7 +470,7 @@ const RequisicoesTab = ({ dateStart, dateEnd, onSaveComplete }: RequisicoesTabPr
   const handleDrop = (index: number) => {
     if (!dragItem) return;
     const item = tecnicos[index];
-    if (!item || dragItem.date !== item.dataPrevista) return;
+    if (!item || item.isEspacoResource || dragItem.date !== item.dataPrevista) return;
     if (item.funcaoOperadorId && dragItem.funcaoId !== item.funcaoOperadorId) {
       toast.error('A função do recurso humano não corresponde ao recurso técnico solicitado');
       setDragItem(null);
@@ -549,7 +553,7 @@ const RequisicoesTab = ({ dateStart, dateEnd, onSaveComplete }: RequisicoesTabPr
   const handleStockDrop = (index: number) => {
     if (!stockDragItem) return;
     const item = fisicos[index];
-    if (!item || stockDragItem.date !== item.dataPrevista) return;
+    if (!item || item.isEspacoResource || stockDragItem.date !== item.dataPrevista) return;
     if (stockDragItem.recursoId !== item.recursoId) {
       toast.error('Este item não corresponde ao equipamento requisitado');
       setStockDragItem(null);
@@ -582,14 +586,14 @@ const RequisicoesTab = ({ dateStart, dateEnd, onSaveComplete }: RequisicoesTabPr
   const associar = async () => {
     setSaving(true);
     try {
-      for (const item of tecnicosAssociaveis.filter((entry) => entry.selectedRh)) {
+      for (const item of tecnicosParaSalvar.filter((entry) => entry.selectedRh)) {
         await alocacoesApi.addColaborador(item.gravacaoId, item.anchorId, {
           recursoHumanoId: item.selectedRh!.id,
           horaInicio: item.associadoHoraInicio || item.horaInicio || '08:00',
           horaFim: item.associadoHoraFim || item.horaFim || '18:00',
         });
       }
-      for (const item of fisicosAssociaveis.filter((entry) => entry.selectedEstoque)) {
+      for (const item of fisicosParaSalvar.filter((entry) => entry.selectedEstoque)) {
         await alocacoesApi.updateHorario(item.gravacaoId, item.anchorId, {
           horaInicio: item.associadoHoraInicio || null,
           horaFim: item.associadoHoraFim || null,
@@ -613,28 +617,45 @@ const RequisicoesTab = ({ dateStart, dateEnd, onSaveComplete }: RequisicoesTabPr
     return `${day}/${month}/${year}`;
   };
 
-  // Only standard alocação items can be associated (espaco resources use a different mechanism)
-  const fisicosAssociaveis = fisicos.filter((item) => !item.isEspacoResource);
-  const tecnicosAssociaveis = tecnicos.filter((item) => !item.isEspacoResource);
+  // All items are shown in Requisições; espaco resources are read-only (no drag-drop association)
+  const tecnicosAssociaveis = tecnicos;
+  const fisicosAssociaveis = fisicos;
+
+  // Only standard alocação items can be saved via the association mechanism
+  const tecnicosParaSalvar = tecnicos.filter((item) => !item.isEspacoResource);
+  const fisicosParaSalvar = fisicos.filter((item) => !item.isEspacoResource);
 
   const hasPending =
-    tecnicosAssociaveis.some((item) => item.selectedRh) ||
-    fisicosAssociaveis.some((item) => item.selectedEstoque);
+    tecnicosParaSalvar.some((item) => item.selectedRh) ||
+    fisicosParaSalvar.some((item) => item.selectedEstoque);
 
   // Items pending association (have a match selected but not yet saved)
-  const fisicosPendentes = fisicosAssociaveis.filter((item) => item.selectedEstoque);
+  const fisicosPendentes = fisicosParaSalvar.filter((item) => item.selectedEstoque);
   // Items still waiting for a match
-  const fisicosNaoAssociados = fisicosAssociaveis.filter((item) => !item.selectedEstoque);
+  const fisicosNaoAssociados = fisicosParaSalvar.filter((item) => !item.selectedEstoque);
 
-  const tecnicosPendentes = tecnicosAssociaveis.filter((item) => item.selectedRh);
-  const tecnicosNaoAssociados = tecnicosAssociaveis.filter((item) => !item.selectedRh);
+  const tecnicosPendentes = tecnicosParaSalvar.filter((item) => item.selectedRh);
+  const tecnicosNaoAssociados = tecnicosParaSalvar.filter((item) => !item.selectedRh);
 
-  // ── Column widths (shared between both table sections) ───────────────────────
-  const COL_FIXED = 'w-24 min-w-[96px]';
-  const COL_RECURSO = 'w-32 min-w-[128px]';
-  const COL_GRAVACAO = 'w-44 min-w-[176px]';
-  const COL_PERIODO = 'w-28 min-w-[112px]';
+  // ── Column widths and sticky left offsets ────────────────────────────────────
+  const COL_FIXED = 'w-24 min-w-[96px]'; // 96px  — Espaço
+  const COL_RECURSO = 'w-32 min-w-[128px]'; // 128px — Recurso Técnico
+  const COL_GRAVACAO = 'w-44 min-w-[176px]'; // 176px — Gravação
+  const COL_PERIODO = 'w-28 min-w-[112px]'; // 112px — Período
+  const COL_ATIVIDADE = 'w-40 min-w-[160px]'; // 160px — Atividade
   const COL_DAY = 'w-10 min-w-[40px]';
+
+  // Cumulative left offsets for sticky positioning
+  const LEFT_ESPACO = 0;
+  const LEFT_RECURSO = 96;
+  const LEFT_GRAVACAO = 96 + 128; // 224
+  const LEFT_PERIODO = 224 + 176; // 400
+  const LEFT_ATIVIDADE = 400 + 112; // 512
+  const FIXED_COLS_WIDTH = 512 + 160; // 672
+
+  // Shared class for sticky column cells
+  const stickyHeaderCell = 'sticky z-20 bg-muted';
+  const stickyBodyCell = 'sticky z-[1] bg-background';
 
   // ── Render Técnicos tab ──────────────────────────────────────────────────────
   const renderTecnicos = () => {
@@ -650,32 +671,70 @@ const RequisicoesTab = ({ dateStart, dateEnd, onSaveComplete }: RequisicoesTabPr
       <div className="overflow-x-auto rounded-md border">
         <table
           className="text-xs border-collapse"
-          style={{ minWidth: `${4 * 128 + daysArray.length * 40}px` }}
+          style={{ minWidth: `${FIXED_COLS_WIDTH + daysArray.length * 40}px` }}
         >
           {/* ── REQUISIÇÕES ─────────────────────────────────────────────── */}
           <tbody>
             {/* Section header */}
             <tr>
               <td
-                colSpan={4 + daysArray.length}
+                colSpan={5 + daysArray.length}
                 className="bg-orange-500 text-white text-center font-bold py-1.5 tracking-widest text-[11px] uppercase"
               >
                 Requisições
               </td>
             </tr>
             {/* Column headers */}
-            <tr className="bg-muted/70 border-b">
-              <th className={cn('text-left px-2 py-1.5 font-semibold border-r', COL_FIXED)}>
+            <tr className="border-b">
+              <th
+                className={cn(
+                  'text-left px-2 py-1.5 font-semibold border-r',
+                  COL_FIXED,
+                  stickyHeaderCell,
+                )}
+                style={{ left: LEFT_ESPACO }}
+              >
                 Espaço
               </th>
-              <th className={cn('text-left px-2 py-1.5 font-semibold border-r', COL_RECURSO)}>
+              <th
+                className={cn(
+                  'text-left px-2 py-1.5 font-semibold border-r',
+                  COL_RECURSO,
+                  stickyHeaderCell,
+                )}
+                style={{ left: LEFT_RECURSO }}
+              >
                 Recurso Técnico
               </th>
-              <th className={cn('text-left px-2 py-1.5 font-semibold border-r', COL_GRAVACAO)}>
+              <th
+                className={cn(
+                  'text-left px-2 py-1.5 font-semibold border-r',
+                  COL_GRAVACAO,
+                  stickyHeaderCell,
+                )}
+                style={{ left: LEFT_GRAVACAO }}
+              >
                 Gravação
               </th>
-              <th className={cn('text-left px-2 py-1.5 font-semibold border-r', COL_PERIODO)}>
+              <th
+                className={cn(
+                  'text-left px-2 py-1.5 font-semibold border-r',
+                  COL_PERIODO,
+                  stickyHeaderCell,
+                )}
+                style={{ left: LEFT_PERIODO }}
+              >
                 Período
+              </th>
+              <th
+                className={cn(
+                  'text-left px-2 py-1.5 font-semibold border-r',
+                  COL_ATIVIDADE,
+                  stickyHeaderCell,
+                )}
+                style={{ left: LEFT_ATIVIDADE }}
+              >
+                Atividade
               </th>
               {daysArray.map((day) => (
                 <th
@@ -695,7 +754,7 @@ const RequisicoesTab = ({ dateStart, dateEnd, onSaveComplete }: RequisicoesTabPr
             {tecnicosAssociaveis.length === 0 ? (
               <tr>
                 <td
-                  colSpan={4 + daysArray.length}
+                  colSpan={5 + daysArray.length}
                   className="text-center py-6 text-muted-foreground"
                 >
                   Nenhum recurso técnico pendente de associação neste período.
@@ -714,17 +773,39 @@ const RequisicoesTab = ({ dateStart, dateEnd, onSaveComplete }: RequisicoesTabPr
                         : 'hover:bg-muted/30',
                     )}
                   >
-                    <td className={cn('px-2 py-1.5 border-r truncate', COL_FIXED)}>
+                    <td
+                      className={cn('px-2 py-1.5 border-r truncate', COL_FIXED, stickyBodyCell)}
+                      style={{ left: LEFT_ESPACO }}
+                    >
                       {item.espacoNome || '-'}
                     </td>
-                    <td className={cn('px-2 py-1.5 border-r truncate', COL_RECURSO)}>
+                    <td
+                      className={cn('px-2 py-1.5 border-r truncate', COL_RECURSO, stickyBodyCell)}
+                      style={{ left: LEFT_RECURSO }}
+                    >
                       {item.recursoNome}
                     </td>
-                    <td className={cn('px-2 py-1.5 border-r truncate', COL_GRAVACAO)}>
+                    <td
+                      className={cn('px-2 py-1.5 border-r truncate', COL_GRAVACAO, stickyBodyCell)}
+                      style={{ left: LEFT_GRAVACAO }}
+                    >
                       {item.gravacaoNome}
                     </td>
-                    <td className={cn('px-2 py-1.5 border-r whitespace-nowrap', COL_PERIODO)}>
+                    <td
+                      className={cn(
+                        'px-2 py-1.5 border-r whitespace-nowrap',
+                        COL_PERIODO,
+                        stickyBodyCell,
+                      )}
+                      style={{ left: LEFT_PERIODO }}
+                    >
                       {item.horaInicio} às {item.horaFim}
+                    </td>
+                    <td
+                      className={cn('px-2 py-1.5 border-r truncate', COL_ATIVIDADE, stickyBodyCell)}
+                      style={{ left: LEFT_ATIVIDADE }}
+                    >
+                      {item.atividade || '-'}
                     </td>
 
                     {daysArray.map((day) => {
@@ -732,6 +813,7 @@ const RequisicoesTab = ({ dateStart, dateEnd, onSaveComplete }: RequisicoesTabPr
                       const isOver = dragOverAnchorId === item.anchorId;
                       const canDrop =
                         isThisDay &&
+                        !item.isEspacoResource &&
                         dragItem &&
                         (!item.funcaoOperadorId || dragItem.funcaoId === item.funcaoOperadorId);
 
@@ -808,12 +890,12 @@ const RequisicoesTab = ({ dateStart, dateEnd, onSaveComplete }: RequisicoesTabPr
           <tbody>
             {/* Spacer */}
             <tr>
-              <td colSpan={4 + daysArray.length} className="h-2 bg-background" />
+              <td colSpan={5 + daysArray.length} className="h-2 bg-background" />
             </tr>
             {/* Section header */}
             <tr>
               <td
-                colSpan={4 + daysArray.length}
+                colSpan={5 + daysArray.length}
                 className="bg-blue-500 text-white text-center font-bold py-1.5 tracking-widest text-[11px] uppercase"
               >
                 Disponibilidade
@@ -821,18 +903,50 @@ const RequisicoesTab = ({ dateStart, dateEnd, onSaveComplete }: RequisicoesTabPr
             </tr>
             {/* Column headers */}
             <tr className="bg-muted/70 border-b">
-              <th className={cn('text-left px-2 py-1.5 font-semibold border-r', COL_FIXED)}>
+              <th
+                className={cn(
+                  'text-left px-2 py-1.5 font-semibold border-r',
+                  COL_FIXED,
+                  stickyHeaderCell,
+                )}
+                style={{ left: LEFT_ESPACO }}
+              >
                 Departamento
               </th>
-              <th className={cn('text-left px-2 py-1.5 font-semibold border-r', COL_RECURSO)}>
+              <th
+                className={cn(
+                  'text-left px-2 py-1.5 font-semibold border-r',
+                  COL_RECURSO,
+                  stickyHeaderCell,
+                )}
+                style={{ left: LEFT_RECURSO }}
+              >
                 Recurso Técnico
               </th>
-              <th className={cn('text-left px-2 py-1.5 font-semibold border-r', COL_GRAVACAO)}>
+              <th
+                className={cn(
+                  'text-left px-2 py-1.5 font-semibold border-r',
+                  COL_GRAVACAO,
+                  stickyHeaderCell,
+                )}
+                style={{ left: LEFT_GRAVACAO }}
+              >
                 Recurso Humano
               </th>
-              <th className={cn('text-left px-2 py-1.5 font-semibold border-r', COL_PERIODO)}>
+              <th
+                className={cn(
+                  'text-left px-2 py-1.5 font-semibold border-r',
+                  COL_PERIODO,
+                  stickyHeaderCell,
+                )}
+                style={{ left: LEFT_PERIODO }}
+              >
                 Ociosidade
               </th>
+              <th
+                className={cn('border-r', COL_ATIVIDADE, stickyHeaderCell)}
+                style={{ left: LEFT_ATIVIDADE }}
+              />
               {daysArray.map((day) => (
                 <th
                   key={day}
@@ -851,7 +965,7 @@ const RequisicoesTab = ({ dateStart, dateEnd, onSaveComplete }: RequisicoesTabPr
             {rhCandidates.length === 0 ? (
               <tr>
                 <td
-                  colSpan={4 + daysArray.length}
+                  colSpan={5 + daysArray.length}
                   className="text-center py-6 text-muted-foreground"
                 >
                   Nenhum recurso humano elegível encontrado para este período.
@@ -865,18 +979,42 @@ const RequisicoesTab = ({ dateStart, dateEnd, onSaveComplete }: RequisicoesTabPr
 
                 return (
                   <tr key={rh.id} className="border-b hover:bg-muted/30 transition-colors">
-                    <td className={cn('px-2 py-1 border-r truncate', COL_FIXED)}>
+                    <td
+                      className={cn('px-2 py-1 border-r truncate', COL_FIXED, stickyBodyCell)}
+                      style={{ left: LEFT_ESPACO }}
+                    >
                       {rh.departamento || '-'}
                     </td>
-                    <td className={cn('px-2 py-1 border-r truncate', COL_RECURSO)}>
+                    <td
+                      className={cn('px-2 py-1 border-r truncate', COL_RECURSO, stickyBodyCell)}
+                      style={{ left: LEFT_RECURSO }}
+                    >
                       {rh.funcao || '-'}
                     </td>
-                    <td className={cn('px-2 py-1 border-r font-medium truncate', COL_GRAVACAO)}>
+                    <td
+                      className={cn(
+                        'px-2 py-1 border-r font-medium truncate',
+                        COL_GRAVACAO,
+                        stickyBodyCell,
+                      )}
+                      style={{ left: LEFT_GRAVACAO }}
+                    >
                       {rh.nome} {rh.sobrenome}
                     </td>
-                    <td className={cn('px-2 py-1 border-r font-bold text-foreground', COL_PERIODO)}>
+                    <td
+                      className={cn(
+                        'px-2 py-1 border-r font-bold text-foreground',
+                        COL_PERIODO,
+                        stickyBodyCell,
+                      )}
+                      style={{ left: LEFT_PERIODO }}
+                    >
                       {ociosidadeLabel}
                     </td>
+                    <td
+                      className={cn('border-r', COL_ATIVIDADE, stickyBodyCell)}
+                      style={{ left: LEFT_ATIVIDADE }}
+                    />
 
                     {daysArray.map((day) => {
                       const off = rhDayOff(rh, day);
@@ -964,30 +1102,68 @@ const RequisicoesTab = ({ dateStart, dateEnd, onSaveComplete }: RequisicoesTabPr
       <div className="overflow-x-auto rounded-md border">
         <table
           className="text-xs border-collapse"
-          style={{ minWidth: `${4 * 128 + daysArray.length * 40}px` }}
+          style={{ minWidth: `${FIXED_COLS_WIDTH + daysArray.length * 40}px` }}
         >
           {/* ── REQUISIÇÕES ─────────────────────────────────────────────── */}
           <tbody>
             <tr>
               <td
-                colSpan={4 + daysArray.length}
+                colSpan={5 + daysArray.length}
                 className="bg-orange-500 text-white text-center font-bold py-1.5 tracking-widest text-[11px] uppercase"
               >
                 Requisições
               </td>
             </tr>
-            <tr className="bg-muted/70 border-b">
-              <th className={cn('text-left px-2 py-1.5 font-semibold border-r', COL_FIXED)}>
+            <tr className="border-b">
+              <th
+                className={cn(
+                  'text-left px-2 py-1.5 font-semibold border-r',
+                  COL_FIXED,
+                  stickyHeaderCell,
+                )}
+                style={{ left: LEFT_ESPACO }}
+              >
                 Espaço
               </th>
-              <th className={cn('text-left px-2 py-1.5 font-semibold border-r', COL_RECURSO)}>
+              <th
+                className={cn(
+                  'text-left px-2 py-1.5 font-semibold border-r',
+                  COL_RECURSO,
+                  stickyHeaderCell,
+                )}
+                style={{ left: LEFT_RECURSO }}
+              >
                 Equipamento
               </th>
-              <th className={cn('text-left px-2 py-1.5 font-semibold border-r', COL_GRAVACAO)}>
+              <th
+                className={cn(
+                  'text-left px-2 py-1.5 font-semibold border-r',
+                  COL_GRAVACAO,
+                  stickyHeaderCell,
+                )}
+                style={{ left: LEFT_GRAVACAO }}
+              >
                 Gravação
               </th>
-              <th className={cn('text-left px-2 py-1.5 font-semibold border-r', COL_PERIODO)}>
+              <th
+                className={cn(
+                  'text-left px-2 py-1.5 font-semibold border-r',
+                  COL_PERIODO,
+                  stickyHeaderCell,
+                )}
+                style={{ left: LEFT_PERIODO }}
+              >
                 Período
+              </th>
+              <th
+                className={cn(
+                  'text-left px-2 py-1.5 font-semibold border-r',
+                  COL_ATIVIDADE,
+                  stickyHeaderCell,
+                )}
+                style={{ left: LEFT_ATIVIDADE }}
+              >
+                Atividade
               </th>
               {daysArray.map((day) => (
                 <th
@@ -1006,7 +1182,7 @@ const RequisicoesTab = ({ dateStart, dateEnd, onSaveComplete }: RequisicoesTabPr
             {fisicosAssociaveis.length === 0 ? (
               <tr>
                 <td
-                  colSpan={4 + daysArray.length}
+                  colSpan={5 + daysArray.length}
                   className="text-center py-6 text-muted-foreground"
                 >
                   Nenhum equipamento pendente de associação neste período.
@@ -1019,24 +1195,47 @@ const RequisicoesTab = ({ dateStart, dateEnd, onSaveComplete }: RequisicoesTabPr
                   <tr
                     key={item.anchorId}
                     className={cn(
-                      'border-b transition-colors cursor-pointer',
+                      'border-b transition-colors',
+                      !item.isEspacoResource && 'cursor-pointer',
                       item.selectedEstoque
                         ? 'bg-green-50/60 dark:bg-green-950/20 hover:bg-green-50 dark:hover:bg-green-950/30'
                         : 'hover:bg-muted/30',
                     )}
-                    onClick={() => openRfDialog(index)}
+                    onClick={item.isEspacoResource ? undefined : () => openRfDialog(index)}
                   >
-                    <td className={cn('px-2 py-1.5 border-r truncate', COL_FIXED)}>
+                    <td
+                      className={cn('px-2 py-1.5 border-r truncate', COL_FIXED, stickyBodyCell)}
+                      style={{ left: LEFT_ESPACO }}
+                    >
                       {item.espacoNome || '-'}
                     </td>
-                    <td className={cn('px-2 py-1.5 border-r truncate', COL_RECURSO)}>
+                    <td
+                      className={cn('px-2 py-1.5 border-r truncate', COL_RECURSO, stickyBodyCell)}
+                      style={{ left: LEFT_RECURSO }}
+                    >
                       {item.recursoNome}
                     </td>
-                    <td className={cn('px-2 py-1.5 border-r truncate', COL_GRAVACAO)}>
+                    <td
+                      className={cn('px-2 py-1.5 border-r truncate', COL_GRAVACAO, stickyBodyCell)}
+                      style={{ left: LEFT_GRAVACAO }}
+                    >
                       {item.gravacaoNome}
                     </td>
-                    <td className={cn('px-2 py-1.5 border-r whitespace-nowrap', COL_PERIODO)}>
+                    <td
+                      className={cn(
+                        'px-2 py-1.5 border-r whitespace-nowrap',
+                        COL_PERIODO,
+                        stickyBodyCell,
+                      )}
+                      style={{ left: LEFT_PERIODO }}
+                    >
                       {item.horaInicio} às {item.horaFim}
+                    </td>
+                    <td
+                      className={cn('px-2 py-1.5 border-r truncate', COL_ATIVIDADE, stickyBodyCell)}
+                      style={{ left: LEFT_ATIVIDADE }}
+                    >
+                      {item.atividade || '-'}
                     </td>
                     {daysArray.map((day) => {
                       const isThisDay = day === item.dataPrevista;
@@ -1129,29 +1328,61 @@ const RequisicoesTab = ({ dateStart, dateEnd, onSaveComplete }: RequisicoesTabPr
           {fisicosPendentes.length > 0 && (
             <tbody>
               <tr>
-                <td colSpan={4 + daysArray.length} className="h-2 bg-background" />
+                <td colSpan={5 + daysArray.length} className="h-2 bg-background" />
               </tr>
               <tr>
                 <td
-                  colSpan={4 + daysArray.length}
+                  colSpan={5 + daysArray.length}
                   className="bg-green-600 text-white text-center font-bold py-1.5 tracking-widest text-[11px] uppercase"
                 >
                   Associações Prontas para Salvar ({fisicosPendentes.length})
                 </td>
               </tr>
               <tr className="bg-muted/70 border-b">
-                <th className={cn('text-left px-2 py-1.5 font-semibold border-r', COL_FIXED)}>
+                <th
+                  className={cn(
+                    'text-left px-2 py-1.5 font-semibold border-r',
+                    COL_FIXED,
+                    stickyHeaderCell,
+                  )}
+                  style={{ left: LEFT_ESPACO }}
+                >
                   Espaço
                 </th>
-                <th className={cn('text-left px-2 py-1.5 font-semibold border-r', COL_RECURSO)}>
+                <th
+                  className={cn(
+                    'text-left px-2 py-1.5 font-semibold border-r',
+                    COL_RECURSO,
+                    stickyHeaderCell,
+                  )}
+                  style={{ left: LEFT_RECURSO }}
+                >
                   Equipamento
                 </th>
-                <th className={cn('text-left px-2 py-1.5 font-semibold border-r', COL_GRAVACAO)}>
+                <th
+                  className={cn(
+                    'text-left px-2 py-1.5 font-semibold border-r',
+                    COL_GRAVACAO,
+                    stickyHeaderCell,
+                  )}
+                  style={{ left: LEFT_GRAVACAO }}
+                >
                   Gravação
                 </th>
-                <th className={cn('text-left px-2 py-1.5 font-semibold border-r', COL_PERIODO)}>
+                <th
+                  className={cn(
+                    'text-left px-2 py-1.5 font-semibold border-r',
+                    COL_PERIODO,
+                    stickyHeaderCell,
+                  )}
+                  style={{ left: LEFT_PERIODO }}
+                >
                   Item
                 </th>
+                <th
+                  className={cn('border-r', COL_ATIVIDADE, stickyHeaderCell)}
+                  style={{ left: LEFT_ATIVIDADE }}
+                />
                 {daysArray.map((day) => (
                   <th
                     key={day}
@@ -1169,20 +1400,31 @@ const RequisicoesTab = ({ dateStart, dateEnd, onSaveComplete }: RequisicoesTabPr
                 const index = fisicos.indexOf(item);
                 return (
                   <tr key={item.anchorId} className="border-b bg-green-50/60 dark:bg-green-950/20">
-                    <td className={cn('px-2 py-1.5 border-r truncate', COL_FIXED)}>
+                    <td
+                      className={cn('px-2 py-1.5 border-r truncate', COL_FIXED, stickyBodyCell)}
+                      style={{ left: LEFT_ESPACO }}
+                    >
                       {item.espacoNome || '-'}
                     </td>
-                    <td className={cn('px-2 py-1.5 border-r truncate', COL_RECURSO)}>
+                    <td
+                      className={cn('px-2 py-1.5 border-r truncate', COL_RECURSO, stickyBodyCell)}
+                      style={{ left: LEFT_RECURSO }}
+                    >
                       {item.recursoNome}
                     </td>
-                    <td className={cn('px-2 py-1.5 border-r truncate', COL_GRAVACAO)}>
+                    <td
+                      className={cn('px-2 py-1.5 border-r truncate', COL_GRAVACAO, stickyBodyCell)}
+                      style={{ left: LEFT_GRAVACAO }}
+                    >
                       {item.gravacaoNome}
                     </td>
                     <td
                       className={cn(
                         'px-2 py-1.5 border-r whitespace-nowrap flex items-center gap-1',
                         COL_PERIODO,
+                        stickyBodyCell,
                       )}
+                      style={{ left: LEFT_PERIODO }}
                     >
                       {item.selectedEstoque?.imagemUrl ? (
                         <img
@@ -1213,6 +1455,12 @@ const RequisicoesTab = ({ dateStart, dateEnd, onSaveComplete }: RequisicoesTabPr
                         <X className="h-3 w-3" />
                       </button>
                     </td>
+                    <td
+                      className={cn('px-2 py-1.5 border-r truncate', COL_ATIVIDADE, stickyBodyCell)}
+                      style={{ left: LEFT_ATIVIDADE }}
+                    >
+                      {item.atividade || '-'}
+                    </td>
                     {daysArray.map((day) => {
                       const isThisDay = day === item.dataPrevista;
                       return (
@@ -1242,27 +1490,55 @@ const RequisicoesTab = ({ dateStart, dateEnd, onSaveComplete }: RequisicoesTabPr
           {fisicos.length > 0 && (
             <tbody>
               <tr>
-                <td colSpan={4 + daysArray.length} className="h-2 bg-background" />
+                <td colSpan={5 + daysArray.length} className="h-2 bg-background" />
               </tr>
               <tr>
                 <td
-                  colSpan={4 + daysArray.length}
+                  colSpan={5 + daysArray.length}
                   className="bg-blue-500 text-white text-center font-bold py-1.5 tracking-widest text-[11px] uppercase"
                 >
                   Disponibilidade (Estoque)
                 </td>
               </tr>
               <tr className="bg-muted/70 border-b">
-                <th className={cn('text-left px-2 py-1.5 font-semibold border-r', COL_FIXED)}>
+                <th
+                  className={cn(
+                    'text-left px-2 py-1.5 font-semibold border-r',
+                    COL_FIXED,
+                    stickyHeaderCell,
+                  )}
+                  style={{ left: LEFT_ESPACO }}
+                >
                   Equipamento
                 </th>
-                <th className={cn('text-center px-2 py-1.5 font-semibold border-r', COL_RECURSO)}>
+                <th
+                  className={cn(
+                    'text-center px-2 py-1.5 font-semibold border-r',
+                    COL_RECURSO,
+                    stickyHeaderCell,
+                  )}
+                  style={{ left: LEFT_RECURSO }}
+                >
                   #
                 </th>
-                <th className={cn('text-left px-2 py-1.5 font-semibold border-r', COL_GRAVACAO)}>
+                <th
+                  className={cn(
+                    'text-left px-2 py-1.5 font-semibold border-r',
+                    COL_GRAVACAO,
+                    stickyHeaderCell,
+                  )}
+                  style={{ left: LEFT_GRAVACAO }}
+                >
                   Item
                 </th>
-                <th className={cn('border-r', COL_PERIODO)} />
+                <th
+                  className={cn('border-r', COL_PERIODO, stickyHeaderCell)}
+                  style={{ left: LEFT_PERIODO }}
+                />
+                <th
+                  className={cn('border-r', COL_ATIVIDADE, stickyHeaderCell)}
+                  style={{ left: LEFT_ATIVIDADE }}
+                />
                 {daysArray.map((day) => (
                   <th
                     key={day}
@@ -1280,7 +1556,7 @@ const RequisicoesTab = ({ dateStart, dateEnd, onSaveComplete }: RequisicoesTabPr
               {estoqueGroups.every((g) => g.estoqueItens.length === 0) ? (
                 <tr>
                   <td
-                    colSpan={4 + daysArray.length}
+                    colSpan={5 + daysArray.length}
                     className="text-center py-6 text-muted-foreground"
                   >
                     Nenhum item de estoque encontrado para os equipamentos requisitados.
@@ -1295,7 +1571,7 @@ const RequisicoesTab = ({ dateStart, dateEnd, onSaveComplete }: RequisicoesTabPr
                             {group.recursoNome}
                           </td>
                           <td
-                            colSpan={3}
+                            colSpan={4}
                             className="text-center text-muted-foreground italic px-2 py-1.5"
                           >
                             Sem itens de estoque
@@ -1351,6 +1627,7 @@ const RequisicoesTab = ({ dateStart, dateEnd, onSaveComplete }: RequisicoesTabPr
                             </div>
                           </td>
                           <td className={cn('border-r', COL_PERIODO)} />
+                          <td className={cn('border-r', COL_ATIVIDADE)} />
                           {daysArray.map((day) => {
                             const isDraggingThis =
                               stockDragItem?.estoqueItemId === estoqueItem.id &&

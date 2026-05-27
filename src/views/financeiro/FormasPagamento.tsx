@@ -39,6 +39,7 @@ export interface FormaPagamentoItem {
   descricao: string;
   cor: string;
   isPadrao: boolean;
+  traducoes?: Record<string, string> | null;
   dataCadastro: string;
   usuarioCadastro: string;
 }
@@ -277,6 +278,7 @@ const FormasPagamento = () => {
         descricao: data.descricao,
         cor: data.cor,
         isPadrao: data.isPadrao,
+        traducoes: data.traducoes,
       });
 
       toast({
