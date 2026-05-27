@@ -109,6 +109,13 @@ function normalizeTokenShape(token: SessionTokenShape): string | undefined {
 
 // ─── Auth.js ──────────────────────────────────────────────────────────────────
 
+// Cookies __Secure- exigem HTTPS. Em servidores HTTP (sem TLS), usar
+// o prefixo __Secure- faz o browser rejeitar o cookie silenciosamente.
+// Derivamos do AUTH_URL: se for https://, ativamos modo seguro; caso contrário,
+// usamos cookies sem prefixo __Secure- e sem flag Secure para funcionar em HTTP.
+const authUrl = process.env.AUTH_URL ?? process.env.NEXTAUTH_URL ?? '';
+const useSecureCookies = process.env.NODE_ENV === 'production' && authUrl.startsWith('https://');
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   // Necessário para que Auth.js aceite requests de proxies e hosts dinâmicos
   // sem rejeitar por falha de CSRF/host validation.
@@ -125,15 +132,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
   cookies: {
     sessionToken: {
-      name:
-        process.env.NODE_ENV === 'production'
-          ? '__Secure-authjs.session-token'
-          : 'authjs.session-token',
+      name: useSecureCookies ? '__Secure-authjs.session-token' : 'authjs.session-token',
       options: {
         httpOnly: true,
         sameSite: 'lax' as const,
         path: '/',
-        secure: process.env.NODE_ENV === 'production',
+        secure: useSecureCookies,
       },
     },
   },
