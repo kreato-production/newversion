@@ -15,6 +15,10 @@ dist-ssr
 .env.*
 backend/.env
 
+# Deploy credentials — nunca commitar
+.deploy.env
+deploy.bat
+
 # Next.js build output
 .next/
 out/
