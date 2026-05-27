@@ -175,6 +175,8 @@ class InMemoryGravacoesRepository implements GravacoesRepository {
   async updateDespesa() { return null; }
   async findDespesaById() { return null; }
   async removeDespesa() {}
+  async listEspacosByData() { return []; }
+  async listEspacoResourcesByPeriod() { return { tecnicos: [], fisicos: [] }; }
 }
 
 describe('gravacoes routes', () => {

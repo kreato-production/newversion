@@ -105,6 +105,7 @@ class InMemoryTurnosRepository implements TurnosRepository {
       diasTrabalhados: input.diasTrabalhados ?? null,
       createdAt: new Date('2026-04-08T12:00:00.000Z'),
       createdBy: input.createdBy ?? null,
+      traducoes: input.traducoes ?? null,
     };
     this.items.set(item.id, item);
     return item;

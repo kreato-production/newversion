@@ -30,6 +30,7 @@ class InMemoryDepartamentosRepository implements DepartamentosRepository {
       descricao: input.descricao ?? null,
       createdAt: new Date('2026-04-09T11:20:00.000Z'),
       createdBy: input.createdBy ?? null,
+      traducoes: input.traducoes ?? null,
     };
     this.items.set(item.id, item);
     return item;
