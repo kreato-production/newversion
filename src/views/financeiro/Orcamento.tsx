@@ -62,6 +62,7 @@ import { ApiParametrizacoesRepository } from '@/modules/parametrizacoes/parametr
 import { ApiRecursosTecnicosRepository } from '@/modules/recursos-tecnicos/recursos-tecnicos.api.repository';
 import { ApiRecursosFisicosRepository } from '@/modules/recursos-fisicos/recursos-fisicos.api.repository';
 import { ApiUnidadesRepository } from '@/modules/unidades/unidades.api.repository';
+import type { UnidadeNegocio } from '@/modules/unidades/unidades.types';
 import { formatCurrency as fmtCurrency } from '@/lib/currencies';
 import {
   ApiOrcamentoRepository,
@@ -927,7 +928,7 @@ const Orcamento = () => {
         paramsRepo.listCentrosLucro(),
         rtRepo.list().catch((): RecursoOption[] => []),
         rfRepo.list().catch((): RecursoOption[] => []),
-        unidadesRepo.list().catch(() => []),
+        unidadesRepo.list().catch((): UnidadeNegocio[] => []),
       ]);
       setList(data);
       setCentrosLucro(centros.data.map((c) => ({ id: c.id, nome: c.nome })));
