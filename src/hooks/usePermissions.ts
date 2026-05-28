@@ -130,13 +130,14 @@ export const usePermissions = (): UsePermissionsResult => {
       const moduloPermission = findPermission(modulo, '-', '-', '-');
       if (moduloPermission?.acao === 'invisible') return false;
 
-      // For regular users with a configured profile: if the profile has no entries
-      // for this module at any level, the module is not accessible.
-      if (!isTenantAdmin && permissions.length > 0 && !hasAnyEntryForModule(modulo)) {
-        return false;
-      }
-
       if (subModulo1 === '-') return true;
+
+      // For sub-items: if the profile has entries for this module, apply restrictions.
+      // If the profile has no entries for this module (e.g. new module added after profile
+      // was created), allow access — the tenant admin already enabled the module.
+      if (!isTenantAdmin && permissions.length > 0 && !hasAnyEntryForModule(modulo)) {
+        return true;
+      }
 
       const subModulo1Permission = findPermission(modulo, subModulo1, '-', '-');
       if (subModulo1Permission?.acao === 'invisible') return false;
