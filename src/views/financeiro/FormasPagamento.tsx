@@ -486,6 +486,8 @@ const FormasPagamento = () => {
       key: 'isPadrao',
       label: 'Padrao',
       className: 'w-24',
+      groupable: true,
+      groupValue: (item) => (item.isPadrao ? 'Sim' : 'Nao'),
       render: (item) =>
         item.isPadrao ? (
           <Badge variant="secondary">Sim</Badge>

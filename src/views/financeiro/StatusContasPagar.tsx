@@ -526,6 +526,8 @@ const StatusContasPagar = () => {
       key: 'isInicial',
       label: 'Inicial',
       className: 'w-24',
+      groupable: true,
+      groupValue: (item) => (item.isInicial ? 'Sim' : 'Nao'),
       render: (item) =>
         item.isInicial ? (
           <Badge variant="secondary">Sim</Badge>
@@ -537,6 +539,8 @@ const StatusContasPagar = () => {
       key: 'isBaixa',
       label: 'Baixa',
       className: 'w-24',
+      groupable: true,
+      groupValue: (item) => (item.isBaixa ? 'Sim' : 'Nao'),
       render: (item) =>
         item.isBaixa ? (
           <Badge variant="secondary">Sim</Badge>
