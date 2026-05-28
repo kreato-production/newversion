@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { SessionUser } from '../auth/auth.service.js';
+import type { SessionUser } from '../auth/auth.types.js';
 import type {
   JanelasRepository,
   JanelaRecord,
