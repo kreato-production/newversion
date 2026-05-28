@@ -157,10 +157,13 @@ async function deploy() {
     );
 
     // Copia arquivos estáticos para dentro do standalone (necessário para standalone server.js)
+    // IMPORTANTE: remove o diretório de destino antes do cp para evitar aninhamento
+    // (cp -r src dest/ cria dest/src/ se dest já existe em vez de sobrescrever)
     await runCommand(conn,
+      `rm -rf ${APP_DIR}/.next/standalone/.next/static ${APP_DIR}/.next/standalone/public && ` +
       `cp -r ${APP_DIR}/.next/static ${APP_DIR}/.next/standalone/.next/static && ` +
-      `cp -r ${APP_DIR}/public ${APP_DIR}/.next/standalone/public 2>/dev/null || true`,
-      { label: '3/5 — Copia static files para standalone', ignoreError: true }
+      `cp -r ${APP_DIR}/public ${APP_DIR}/.next/standalone/public`,
+      { label: '3/5 — Copia static files para standalone' }
     );
 
     // 4. Dependências + build do backend
