@@ -471,18 +471,9 @@ export function JanelaRelatorioModal({ janela, satelite, isOpen, onClose }: Prop
       const sevMap = new Map<string, string>();
       const impMap = new Map<string, string>();
       const catMap = new Map<string, string>();
-      (sevs.data ?? (sevs as unknown[])).forEach(
-        (x: { id: string; titulo?: string; nome?: string }) =>
-          sevMap.set(x.id, x.titulo ?? x.nome ?? ''),
-      );
-      (imps.data ?? (imps as unknown[])).forEach(
-        (x: { id: string; titulo?: string; nome?: string }) =>
-          impMap.set(x.id, x.titulo ?? x.nome ?? ''),
-      );
-      (cats.data ?? (cats as unknown[])).forEach(
-        (x: { id: string; titulo?: string; nome?: string }) =>
-          catMap.set(x.id, x.titulo ?? x.nome ?? ''),
-      );
+      sevs.data.forEach((x) => sevMap.set(x.id, x.titulo ?? ''));
+      imps.data.forEach((x) => impMap.set(x.id, x.titulo ?? ''));
+      cats.data.forEach((x) => catMap.set(x.id, x.titulo ?? ''));
 
       setData({
         janela,
