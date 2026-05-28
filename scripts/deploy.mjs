@@ -37,7 +37,8 @@ function loadDeployEnv() {
     console.error('   DEPLOY_HOST=45.147.251.171');
     console.error('   DEPLOY_USER=root');
     console.error('   DEPLOY_PASSWORD=sua_senha');
-    console.error('   DEPLOY_APP_DIR=/opt/kreato\n');
+    console.error('   DEPLOY_APP_DIR=/opt/kreato');
+    console.error('   DEPLOY_PUBLIC_URL=https://kreato-production.com  # URL pública do site\n');
     process.exit(1);
   }
 
@@ -54,10 +55,11 @@ function loadDeployEnv() {
 }
 
 const deployEnv = loadDeployEnv();
-const HOST     = deployEnv.DEPLOY_HOST     || '45.147.251.171';
-const USER     = deployEnv.DEPLOY_USER     || 'root';
-const PASSWORD = deployEnv.DEPLOY_PASSWORD || '';
-const APP_DIR  = deployEnv.DEPLOY_APP_DIR  || '/opt/kreato';
+const HOST       = deployEnv.DEPLOY_HOST       || '45.147.251.171';
+const USER       = deployEnv.DEPLOY_USER       || 'root';
+const PASSWORD   = deployEnv.DEPLOY_PASSWORD   || '';
+const APP_DIR    = deployEnv.DEPLOY_APP_DIR    || '/opt/kreato';
+const PUBLIC_URL = deployEnv.DEPLOY_PUBLIC_URL || `http://${HOST}`;
 
 if (!PASSWORD) {
   console.error('\n❌  DEPLOY_PASSWORD não definido em .deploy.env\n');
@@ -142,6 +144,7 @@ async function deploy() {
       setEnvLine('NEXT_PUBLIC_APP_VERSION',      version),
       setEnvLine('NEXT_PUBLIC_APP_RELEASE',      gitHash),
       setEnvLine('NEXT_PUBLIC_APP_PUBLISHED_AT', publishedAt),
+      setEnvLine('AUTH_URL',                     PUBLIC_URL),
     ].join(' && ');
 
     await runCommand(conn, envCmd, { label: '2/5 — Atualiza metadados no .env' });

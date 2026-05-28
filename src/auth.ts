@@ -319,9 +319,29 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           sessionToken.tipoAcesso = dbUser.tipoAcesso ?? sessionToken.tipoAcesso ?? 'Operacional';
           sessionToken.name = (sessionToken.name as string | null | undefined) ?? dbUser.nome;
           sessionToken.email = (sessionToken.email as string | null | undefined) ?? dbUser.email;
-          sessionToken.enabledModules = Array.isArray(sessionToken.enabledModules)
-            ? sessionToken.enabledModules
-            : defaultEnabledModules(sessionToken.role);
+          // Refresh enabledModules from tenant configuration so newly enabled
+          // modules are picked up without requiring a logout/login cycle.
+          const resolvedTenantId = dbUser.tenantId;
+          if (resolvedTenantId) {
+            try {
+              const moduleRows = await prisma.$queryRaw<Array<{ modulo: string }>>`
+                SELECT modulo FROM tenant_modulos_backend WHERE tenant_id = ${resolvedTenantId}
+              `;
+              sessionToken.enabledModules =
+                moduleRows.length > 0
+                  ? moduleRows.map((r) => r.modulo)
+                  : defaultEnabledModules(sessionToken.role);
+            } catch {
+              // Table may not exist yet — keep current value or fall back to defaults
+              sessionToken.enabledModules = Array.isArray(sessionToken.enabledModules)
+                ? sessionToken.enabledModules
+                : defaultEnabledModules(sessionToken.role);
+            }
+          } else {
+            sessionToken.enabledModules = Array.isArray(sessionToken.enabledModules)
+              ? sessionToken.enabledModules
+              : defaultEnabledModules(sessionToken.role);
+          }
           sessionToken.unidadeIds = Array.isArray(sessionToken.unidadeIds)
             ? sessionToken.unidadeIds
             : [];
