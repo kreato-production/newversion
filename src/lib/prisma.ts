@@ -1,18 +1,19 @@
 /**
  * Singleton do PrismaClient para uso no Next.js (server-side apenas).
  *
- * Reutiliza o cliente gerado no backend (`backend/prisma/schema.prisma`).
- * O require() aponta diretamente para o .prisma/client gerado pelo backend,
- * pois o root node_modules não tem .prisma/client gerado (Prisma gera por app).
- *
- * Em desenvolvimento o hot-reload do Next.js pode criar múltiplas instâncias
- * — o padrão global evita isso.
+ * Usa process.cwd() + caminho relativo para garantir que o Turbopack NÃO
+ * tente bundle o módulo (require com caminho computado é opaco para o bundler).
+ * Em desenvolvimento: cwd = raiz do projeto → backend/node_modules/.prisma/client
+ * Em standalone:      cwd = .next/standalone → backend/node_modules/.prisma/client (copiado pelo nft)
  */
 
+import path from 'path';
 import type { PrismaClient as PrismaClientType } from '../../backend/node_modules/.prisma/client';
 
+const prismaClientPath = path.join(process.cwd(), 'backend', 'node_modules', '.prisma', 'client');
+
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const { PrismaClient } = require('../../backend/node_modules/.prisma/client') as {
+const { PrismaClient } = require(prismaClientPath) as {
   PrismaClient: new (options?: { log?: string[] }) => PrismaClientType;
 };
 
