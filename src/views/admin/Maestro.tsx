@@ -310,6 +310,8 @@ const MaestroView = () => {
               key: 'tipo' as keyof Maestro,
               label: 'Tipo',
               className: 'w-44',
+              groupable: true,
+              groupValue: (item: Maestro) => item.tipo || '(Sem tipo)',
               render: (item: Maestro) => (
                 <span className="text-xs text-muted-foreground">{item.tipo}</span>
               ),
@@ -375,6 +377,7 @@ const MaestroView = () => {
               key: 'status' as keyof Maestro,
               label: 'Status',
               className: 'w-20',
+              groupable: true,
               render: (item: Maestro) => (
                 <Badge
                   variant={item.status === 'Ativo' ? 'default' : 'secondary'}
@@ -437,7 +440,6 @@ const MaestroView = () => {
             },
           ]
         : []),
-      // eslint-disable-next-line react-hooks/exhaustive-deps
     ],
     [isColumnVisible, executingId],
   );

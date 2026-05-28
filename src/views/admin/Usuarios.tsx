@@ -434,11 +434,14 @@ const Usuarios = () => {
     {
       key: 'perfil',
       label: 'Perfil',
+      groupable: true,
+      groupValue: (item) => item.perfil || '(Sem perfil)',
       render: (item) => item.perfil || '-',
     },
     {
       key: 'status',
       label: 'Status',
+      groupable: true,
       render: (item) => (
         <Badge variant={item.status === 'Ativo' ? 'default' : 'secondary'}>{item.status}</Badge>
       ),

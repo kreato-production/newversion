@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -15,6 +15,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2 } from 'lucide-react';
+import { ColorPicker } from '@/components/shared/ColorPicker';
 import { ModalNavigation, type ModalNavigationProps } from '@/components/shared/ModalNavigation';
 import { TraducaoTab, type Traducoes } from '@/components/shared/TraducaoTab';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -102,7 +103,6 @@ export const TurnoFormModal = ({
   const [formData, setFormData] = useState<TurnoInput>(emptyFormData);
   const [traducoes, setTraducoes] = useState<Traducoes>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const corInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -201,7 +201,7 @@ export const TurnoFormModal = ({
             </TabsList>
 
             <TabsContent value="dados" className="space-y-4 mt-4">
-              {/* Row 1: Sigla | Nome | Cor */}
+              {/* Row 1: Sigla | Nome */}
               <div className="flex gap-3 items-end">
                 <div className="space-y-2 w-24 shrink-0">
                   <Label htmlFor="turno-sigla">Sigla</Label>
@@ -226,27 +226,17 @@ export const TurnoFormModal = ({
                     disabled={readOnly || isSubmitting}
                   />
                 </div>
-                <div className="space-y-2 shrink-0">
-                  <Label>Cor</Label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      ref={corInputRef}
-                      type="color"
-                      value={formData.cor}
-                      onChange={(e) => setFormData((p) => ({ ...p, cor: e.target.value }))}
-                      disabled={readOnly || isSubmitting}
-                      className="sr-only"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => corInputRef.current?.click()}
-                      disabled={readOnly || isSubmitting}
-                      className="h-10 w-16 rounded border border-input cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
-                      style={{ backgroundColor: formData.cor }}
-                      aria-label="Selecionar cor"
-                    />
-                  </div>
-                </div>
+              </div>
+
+              {/* Row 2: Cor */}
+              <div className="space-y-2">
+                <Label>Cor</Label>
+                <ColorPicker
+                  value={formData.cor}
+                  onChange={(cor) => setFormData((p) => ({ ...p, cor }))}
+                  disabled={readOnly || isSubmitting}
+                  previewLabel={formData.nome}
+                />
               </div>
 
               {/* Row 2: Início | Fim | Total */}

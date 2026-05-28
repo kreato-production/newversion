@@ -1004,6 +1004,8 @@ const Orcamento = () => {
       key: 'ano',
       label: 'Ano',
       className: 'w-20',
+      groupable: true,
+      groupValue: (item) => String(item.ano),
       render: (item) => (
         <Badge variant="outline" className="text-xs">
           {item.ano}
@@ -1013,6 +1015,8 @@ const Orcamento = () => {
     {
       key: 'centroLucroNome',
       label: 'Centro de Lucro',
+      groupable: true,
+      groupValue: (item) => item.centroLucroNome || item.centroLucroId || '(Sem centro)',
       render: (item) => (
         <span className="font-medium">{item.centroLucroNome || item.centroLucroId}</span>
       ),

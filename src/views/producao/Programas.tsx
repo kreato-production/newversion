@@ -316,6 +316,8 @@ const Programas = () => {
     {
       key: 'unidadeNegocio',
       label: t('recordings.businessUnit') || 'Unidade de Negócio',
+      groupable: true,
+      groupValue: (item) => item.unidadeNegocio || '(Sem unidade)',
       render: (item) => item.unidadeNegocio || '-',
     },
     {

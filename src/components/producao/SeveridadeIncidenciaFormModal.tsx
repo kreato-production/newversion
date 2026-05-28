@@ -15,6 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2 } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { ColorPicker } from '@/components/shared/ColorPicker';
 import { ModalNavigation, type ModalNavigationProps } from '@/components/shared/ModalNavigation';
 import { TraducaoTab, type Traducoes } from '@/components/shared/TraducaoTab';
 
@@ -133,35 +134,23 @@ export const SeveridadeIncidenciaFormModal = ({
                 />
               </div>
             </div>
-            <div className="grid grid-cols-[1fr_auto] gap-4">
-              <div>
-                <Label>{t('common.description')}</Label>
-                <Textarea
-                  rows={3}
-                  value={form.descricao}
-                  onChange={(e) => setForm({ ...form, descricao: e.target.value })}
-                  disabled={readOnly}
-                />
-              </div>
-              <div>
-                <Label>{t('common.color')}</Label>
-                <div className="flex items-center gap-2 mt-1">
-                  <input
-                    type="color"
-                    value={form.cor}
-                    onChange={(e) => setForm({ ...form, cor: e.target.value })}
-                    disabled={readOnly}
-                    className="w-10 h-10 rounded border cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                  />
-                  <Input
-                    value={form.cor}
-                    onChange={(e) => setForm({ ...form, cor: e.target.value })}
-                    disabled={readOnly}
-                    className="w-24 font-mono text-xs"
-                    maxLength={7}
-                  />
-                </div>
-              </div>
+            <div>
+              <Label>{t('common.description')}</Label>
+              <Textarea
+                rows={3}
+                value={form.descricao}
+                onChange={(e) => setForm({ ...form, descricao: e.target.value })}
+                disabled={readOnly}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>{t('common.color')}</Label>
+              <ColorPicker
+                value={form.cor}
+                onChange={(cor) => setForm({ ...form, cor })}
+                disabled={readOnly}
+                previewLabel={form.titulo}
+              />
             </div>
             <div>
               <Label>{t('incidentSeverity.user')}</Label>

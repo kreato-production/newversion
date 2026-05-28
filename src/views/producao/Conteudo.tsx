@@ -333,12 +333,16 @@ const Conteudo = () => {
     {
       key: 'centroLucro',
       label: t('menu.profitCenters'),
+      groupable: true,
+      groupValue: (item) => item.centroLucro || '(Sem centro de lucro)',
       render: (item) => item.centroLucro || '-',
     },
     {
       key: 'anoProducao',
       label: t('content.productionYear'),
       className: 'w-20',
+      groupable: true,
+      groupValue: (item) => (item.anoProducao ? String(item.anoProducao) : '(Sem ano)'),
       render: (item) => item.anoProducao || '-',
     },
     {

@@ -357,6 +357,8 @@ const Pessoas = () => {
     {
       key: 'classificacao',
       label: t('field.classification'),
+      groupable: true,
+      groupValue: (item) => item.classificacao || '(Sem classificação)',
       render: (item) => item.classificacao || '-',
     },
     {
@@ -367,6 +369,7 @@ const Pessoas = () => {
     {
       key: 'status',
       label: t('common.status'),
+      groupable: true,
       render: (item) => (
         <Badge variant={item.status === 'Ativo' ? 'default' : 'secondary'}>{item.status}</Badge>
       ),

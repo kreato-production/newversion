@@ -36,14 +36,14 @@ import {
 const STORAGE_KEY = 'kreato_figurinos_table';
 
 const COLUMN_CONFIG: ColumnConfig[] = [
-  { key: 'imagem',         label: 'Imagem',     defaultVisible: true },
-  { key: 'codigoFigurino', label: 'Código',     required: true },
-  { key: 'descricao',      label: 'Descrição',  required: true },
-  { key: 'tipoFigurino',   label: 'Tipo',       defaultVisible: true },
-  { key: 'tamanhoPeca',    label: 'Tamanho',    defaultVisible: true },
-  { key: 'cores',          label: 'Cores',      defaultVisible: true },
-  { key: 'qtdImagens',     label: 'Imagens',    defaultVisible: false },
-  { key: 'actions',        label: 'Ações',      required: true },
+  { key: 'imagem', label: 'Imagem', defaultVisible: true },
+  { key: 'codigoFigurino', label: 'Código', required: true },
+  { key: 'descricao', label: 'Descrição', required: true },
+  { key: 'tipoFigurino', label: 'Tipo', defaultVisible: true },
+  { key: 'tamanhoPeca', label: 'Tamanho', defaultVisible: true },
+  { key: 'cores', label: 'Cores', defaultVisible: true },
+  { key: 'qtdImagens', label: 'Imagens', defaultVisible: false },
+  { key: 'actions', label: 'Ações', required: true },
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -96,7 +96,11 @@ function FigurinoCard({
       <CardHeader className="pb-2 pt-3 px-4">
         <div className="flex items-start gap-3">
           {imgUrl ? (
-            <img src={imgUrl} alt={item.descricao} className="w-12 h-12 rounded object-cover shrink-0" />
+            <img
+              src={imgUrl}
+              alt={item.descricao}
+              className="w-12 h-12 rounded object-cover shrink-0"
+            />
           ) : (
             <div className="w-12 h-12 rounded bg-muted flex items-center justify-center shrink-0">
               <ImageIcon className="w-6 h-6 text-muted-foreground" />
@@ -118,7 +122,13 @@ function FigurinoCard({
       </CardContent>
 
       <CardFooter className="px-4 py-2 border-t flex justify-end gap-1">
-        <Button size="icon" variant="ghost" className="h-7 w-7" disabled={!podeAlterar} onClick={onEdit}>
+        <Button
+          size="icon"
+          variant="ghost"
+          className="h-7 w-7"
+          disabled={!podeAlterar}
+          onClick={onEdit}
+        >
           <Edit className="h-3.5 w-3.5" />
         </Button>
         {podeExcluir && (
@@ -164,7 +174,11 @@ function FigurinoDetailPanel({
     <div className="space-y-4">
       <div className="flex items-start gap-3">
         {imgUrl ? (
-          <img src={imgUrl} alt={item.descricao} className="w-16 h-16 rounded object-cover shrink-0" />
+          <img
+            src={imgUrl}
+            alt={item.descricao}
+            className="w-16 h-16 rounded object-cover shrink-0"
+          />
         ) : (
           <div className="w-16 h-16 rounded bg-muted flex items-center justify-center shrink-0">
             <ImageIcon className="w-8 h-8 text-muted-foreground" />
@@ -319,7 +333,13 @@ const Figurinos = () => {
     },
     { key: 'codigoFigurino', label: 'Código', sortable: true },
     { key: 'descricao', label: 'Descrição', sortable: true },
-    { key: 'tipoFigurino', label: 'Tipo', sortable: true },
+    {
+      key: 'tipoFigurino',
+      label: 'Tipo',
+      sortable: true,
+      groupable: true,
+      groupValue: (item) => item.tipoFigurino || '(Sem tipo)',
+    },
     { key: 'tamanhoPeca', label: 'Tamanho', sortable: true },
     {
       key: 'cores',
@@ -457,18 +477,26 @@ const Figurinos = () => {
               return (
                 <div className="flex items-center gap-2">
                   {imgUrl ? (
-                    <img src={imgUrl} alt={item.descricao} className="w-7 h-7 rounded object-cover shrink-0" />
+                    <img
+                      src={imgUrl}
+                      alt={item.descricao}
+                      className="w-7 h-7 rounded object-cover shrink-0"
+                    />
                   ) : (
                     <div className="w-7 h-7 rounded bg-muted flex items-center justify-center shrink-0">
                       <ImageIcon className="w-4 h-4 text-muted-foreground" />
                     </div>
                   )}
                   <div>
-                    <p className={`text-sm font-medium truncate ${isSelected ? 'text-primary' : ''}`}>
+                    <p
+                      className={`text-sm font-medium truncate ${isSelected ? 'text-primary' : ''}`}
+                    >
                       {item.descricao}
                     </p>
                     {item.codigoFigurino && (
-                      <p className="text-xs text-muted-foreground font-mono">{item.codigoFigurino}</p>
+                      <p className="text-xs text-muted-foreground font-mono">
+                        {item.codigoFigurino}
+                      </p>
                     )}
                   </div>
                 </div>

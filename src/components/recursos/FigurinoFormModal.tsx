@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Trash2, Star, Upload } from 'lucide-react';
+import { ColorPicker } from '@/components/shared/ColorPicker';
 import { SearchableSelect } from '@/components/shared/SearchableSelect';
 import { figurinosRepository } from '@/modules/figurinos/figurinos.repository.provider';
 import { ModalNavigation, type ModalNavigationProps } from '@/components/shared/ModalNavigation';
@@ -227,47 +228,22 @@ const FigurinoFormModal = ({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="corPredominante">Cor Predominante</Label>
-              <div className="flex gap-2">
-                <Input
-                  type="color"
-                  id="corPredominante"
-                  value={formData.corPredominante}
-                  disabled={readOnly}
-                  onChange={(e) => handleChange('corPredominante', e.target.value)}
-                  className="w-14 h-10 p-1 cursor-pointer"
-                />
-                <Input
-                  value={formData.corPredominante}
-                  disabled={readOnly}
-                  onChange={(e) => handleChange('corPredominante', e.target.value)}
-                  placeholder="#000000"
-                  className="flex-1"
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="corSecundaria">Cor Secundária</Label>
-              <div className="flex gap-2">
-                <Input
-                  type="color"
-                  id="corSecundaria"
-                  value={formData.corSecundaria}
-                  disabled={readOnly}
-                  onChange={(e) => handleChange('corSecundaria', e.target.value)}
-                  className="w-14 h-10 p-1 cursor-pointer"
-                />
-                <Input
-                  value={formData.corSecundaria}
-                  disabled={readOnly}
-                  onChange={(e) => handleChange('corSecundaria', e.target.value)}
-                  placeholder="#ffffff"
-                  className="flex-1"
-                />
-              </div>
-            </div>
+          <div className="space-y-2">
+            <Label>Cor Predominante</Label>
+            <ColorPicker
+              value={formData.corPredominante}
+              onChange={(cor) => handleChange('corPredominante', cor)}
+              disabled={readOnly}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Cor Secundária</Label>
+            <ColorPicker
+              value={formData.corSecundaria}
+              onChange={(cor) => handleChange('corSecundaria', cor)}
+              disabled={readOnly}
+            />
           </div>
 
           <div className="space-y-2">

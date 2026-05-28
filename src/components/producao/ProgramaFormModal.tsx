@@ -19,6 +19,7 @@ import { FieldAsterisk, useFormFieldConfig } from '@/hooks/useFormFieldConfig';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { unidadesRepository } from '@/modules/unidades/unidades.repository.provider';
 import type { Programa, ProgramaInput } from '@/modules/programas/programas.types';
+import { ColorPicker } from '@/components/shared/ColorPicker';
 import { ModalNavigation, type ModalNavigationProps } from '@/components/shared/ModalNavigation';
 import { cn } from '@/lib/utils';
 
@@ -43,7 +44,7 @@ const emptyForm = {
 const DEFAULT_COLS: Record<string, number> = {
   codigoExterno: 1,
   nome: 2,
-  cor: 1,
+  cor: 4,
   unidadeNegocio: 4,
   descricao: 4,
 };
@@ -195,29 +196,27 @@ export const ProgramaFormModal = ({
 
             {/* Cor */}
             <div className={cn('space-y-2', colSpanClass('cor'))} style={{ order: order('cor') }}>
-              <Label>
-                Cor
-                <FieldAsterisk type={getAsterisk('cor')} />
-              </Label>
-              <div className="flex items-center gap-2 h-9">
-                <input
-                  type="color"
-                  value={formData.cor || '#6366f1'}
-                  onChange={(e) => setFormData({ ...formData, cor: e.target.value })}
-                  disabled={readOnly || isSubmitting}
-                  className="h-8 w-12 cursor-pointer rounded border border-input bg-transparent p-0.5 disabled:opacity-50"
-                />
-                {formData.cor && (
+              <div className="flex items-center justify-between">
+                <Label>
+                  Cor
+                  <FieldAsterisk type={getAsterisk('cor')} />
+                </Label>
+                {formData.cor && !readOnly && !isSubmitting && (
                   <button
                     type="button"
                     onClick={() => setFormData({ ...formData, cor: '' })}
-                    disabled={readOnly || isSubmitting}
-                    className="text-xs text-muted-foreground hover:text-destructive disabled:opacity-50"
+                    className="text-xs text-muted-foreground hover:text-destructive"
                   >
                     Limpar
                   </button>
                 )}
               </div>
+              <ColorPicker
+                value={formData.cor || '#6366f1'}
+                onChange={(cor) => setFormData({ ...formData, cor })}
+                disabled={readOnly || isSubmitting}
+                previewLabel={formData.nome}
+              />
             </div>
 
             {/* Unidade de Negócio */}

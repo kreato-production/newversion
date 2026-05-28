@@ -40,6 +40,7 @@ import { toast } from 'sonner';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { ApiParametrizacoesRepository } from '@/modules/parametrizacoes/parametrizacoes.api.repository';
+import { ColorPicker } from '@/components/shared/ColorPicker';
 import { ModalNavigation } from '@/components/shared/ModalNavigation';
 
 interface StatusTarefaItem {
@@ -413,28 +414,15 @@ const StatusTarefa = () => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="cor">{t('common.color')}</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="cor"
-                  type="color"
-                  value={formData.cor || '#888888'}
-                  onChange={(e) => setFormData({ ...formData, cor: e.target.value })}
-                  className="w-16 h-10 p-1"
-                  disabled={
-                    !!editingItem && !canAlterar('ProduÃ§Ã£o', 'ParametrizaÃ§Ãµes', 'Status Tarefa')
-                  }
-                />
-                <Input
-                  value={formData.cor || ''}
-                  onChange={(e) => setFormData({ ...formData, cor: e.target.value })}
-                  placeholder="#000000"
-                  className="flex-1"
-                  disabled={
-                    !!editingItem && !canAlterar('ProduÃ§Ã£o', 'ParametrizaÃ§Ãµes', 'Status Tarefa')
-                  }
-                />
-              </div>
+              <Label>{t('common.color')}</Label>
+              <ColorPicker
+                value={formData.cor || '#888888'}
+                onChange={(cor) => setFormData({ ...formData, cor })}
+                disabled={
+                  !!editingItem && !canAlterar('ProduÃ§Ã£o', 'ParametrizaÃ§Ãµes', 'Status Tarefa')
+                }
+                previewLabel={formData.nome}
+              />
             </div>
 
             <div className="space-y-2">

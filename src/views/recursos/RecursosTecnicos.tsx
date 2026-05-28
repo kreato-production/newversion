@@ -305,6 +305,8 @@ const RecursosTecnicos = () => {
     {
       key: 'funcaoOperador',
       label: t('field.operatorFunction'),
+      groupable: true,
+      groupValue: (item) => item.funcaoOperador || '(Sem função)',
       render: (item) => item.funcaoOperador || '-',
     },
     {

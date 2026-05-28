@@ -303,12 +303,15 @@ const TabelasPreco = () => {
     {
       key: 'unidadeNegocioNome',
       label: 'Unidade de Negócio',
+      groupable: true,
+      groupValue: (item) => item.unidadeNegocioNome || '(Sem unidade)',
       render: (item) => item.unidadeNegocioNome || '-',
     },
     {
       key: 'status',
       label: 'Status',
       className: 'w-24',
+      groupable: true,
       render: (item) => (
         <Badge variant={item.status === 'Ativo' ? 'default' : 'secondary'}>{item.status}</Badge>
       ),

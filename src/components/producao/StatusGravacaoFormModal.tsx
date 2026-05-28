@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
-import { Badge } from '@/components/ui/badge';
+import { ColorPicker } from '@/components/shared/ColorPicker';
 import { ModalNavigation, type ModalNavigationProps } from '@/components/shared/ModalNavigation';
 import { TraducaoTab, type Traducoes } from '@/components/shared/TraducaoTab';
 import { type StatusGravacaoItem } from '@/views/producao/StatusGravacao';
@@ -26,19 +26,6 @@ interface StatusGravacaoFormModalProps {
   readOnly?: boolean;
   navigation?: ModalNavigationProps;
 }
-
-const PRESET_COLORS = [
-  '#3b82f6',
-  '#22c55e',
-  '#f97316',
-  '#ef4444',
-  '#8b5cf6',
-  '#ec4899',
-  '#06b6d4',
-  '#eab308',
-  '#6b7280',
-  '#000000',
-];
 
 export const StatusGravacaoFormModal = ({
   isOpen,
@@ -137,46 +124,12 @@ export const StatusGravacaoFormModal = ({
 
               <div className="space-y-2">
                 <Label>Cor</Label>
-                <div className="space-y-3">
-                  <div className="flex items-center gap-3">
-                    <div className="flex gap-2 flex-wrap">
-                      {PRESET_COLORS.map((color) => (
-                        <button
-                          key={color}
-                          type="button"
-                          className={`w-8 h-8 rounded-full border-2 transition-all ${
-                            formData.cor === color
-                              ? 'border-primary ring-2 ring-primary/50 scale-110'
-                              : 'border-border hover:scale-105'
-                          }`}
-                          style={{ backgroundColor: color }}
-                          onClick={() => setFormData({ ...formData, cor: color })}
-                          disabled={readOnly}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Input
-                      type="color"
-                      value={formData.cor}
-                      onChange={(e) => setFormData({ ...formData, cor: e.target.value })}
-                      className="w-14 h-10 p-1 cursor-pointer"
-                      disabled={readOnly}
-                    />
-                    <Input
-                      type="text"
-                      value={formData.cor}
-                      onChange={(e) => setFormData({ ...formData, cor: e.target.value })}
-                      placeholder="#000000"
-                      className="w-28 font-mono text-xs"
-                      disabled={readOnly}
-                    />
-                    <Badge style={{ backgroundColor: formData.cor }} className="text-white ml-auto">
-                      {formData.nome || 'Preview'}
-                    </Badge>
-                  </div>
-                </div>
+                <ColorPicker
+                  value={formData.cor}
+                  onChange={(cor) => setFormData({ ...formData, cor })}
+                  disabled={readOnly}
+                  previewLabel={formData.nome}
+                />
               </div>
 
               <div className="space-y-2">

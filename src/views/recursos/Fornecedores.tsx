@@ -416,6 +416,8 @@ const Fornecedores = () => {
     {
       key: 'categoria',
       label: t('common.category'),
+      groupable: true,
+      groupValue: (item) => item.categoria || '(Sem categoria)',
       render: (item) => item.categoria || '-',
     },
     {
@@ -426,6 +428,8 @@ const Fornecedores = () => {
     {
       key: 'pais',
       label: t('common.country'),
+      groupable: true,
+      groupValue: (item) => item.pais || '(Sem país)',
       render: (item) => item.pais || '-',
     },
     {

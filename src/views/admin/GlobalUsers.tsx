@@ -299,6 +299,7 @@ const GlobalUsers = () => {
     {
       key: 'status',
       label: 'Status',
+      groupable: true,
       render: (item) => (
         <Badge variant={item.status === 'Ativo' ? 'default' : 'secondary'}>{item.status}</Badge>
       ),

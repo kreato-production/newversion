@@ -15,26 +15,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { ColorPicker } from '@/components/shared/ColorPicker';
 import { ModalNavigation, type ModalNavigationProps } from '@/components/shared/ModalNavigation';
 import { TraducaoTab, type Traducoes } from '@/components/shared/TraducaoTab';
-
-const COLOR_PALETTE = [
-  '#3B82F6',
-  '#EF4444',
-  '#22C55E',
-  '#F59E0B',
-  '#8B5CF6',
-  '#EC4899',
-  '#14B8A6',
-  '#F97316',
-  '#6366F1',
-  '#84CC16',
-  '#DC2626',
-  '#0EA5E9',
-  '#A855F7',
-  '#10B981',
-  '#F43F5E',
-];
 
 interface ParametroFormData {
   id?: string;
@@ -108,7 +91,7 @@ export const ParametroFormModal = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>
             {isEditing ? `${t('common.edit')} ${title}` : `${t('common.new')} ${title}`}
@@ -160,35 +143,12 @@ export const ParametroFormModal = ({
               {showCor && (
                 <div className="space-y-2">
                   <Label>Cor</Label>
-                  <div className="flex flex-wrap gap-2 items-center">
-                    {COLOR_PALETTE.map((color) => (
-                      <button
-                        key={color}
-                        type="button"
-                        disabled={readOnly || isSubmitting}
-                        onClick={() =>
-                          setFormData({ ...formData, cor: formData.cor === color ? null : color })
-                        }
-                        className="w-8 h-8 rounded-full transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
-                        style={{
-                          backgroundColor: color,
-                          boxShadow:
-                            formData.cor === color
-                              ? `0 0 0 3px white, 0 0 0 5px ${color}`
-                              : undefined,
-                          transform: formData.cor === color ? 'scale(1.15)' : undefined,
-                        }}
-                        title={color}
-                      />
-                    ))}
-                    {formData.cor && !COLOR_PALETTE.includes(formData.cor) && (
-                      <div
-                        className="w-8 h-8 rounded-full border-2 border-dashed border-muted-foreground"
-                        style={{ backgroundColor: formData.cor }}
-                        title={formData.cor}
-                      />
-                    )}
-                  </div>
+                  <ColorPicker
+                    value={formData.cor || '#3b82f6'}
+                    onChange={(cor) => setFormData({ ...formData, cor })}
+                    disabled={readOnly || isSubmitting}
+                    previewLabel={formData.nome}
+                  />
                 </div>
               )}
 

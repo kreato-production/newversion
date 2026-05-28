@@ -456,11 +456,15 @@ const RecursosHumanos = () => {
     {
       key: 'departamento',
       label: t('field.department'),
+      groupable: true,
+      groupValue: (item) => item.departamento || '(Sem departamento)',
       render: (item) => item.departamento || '-',
     },
     {
       key: 'funcao',
       label: t('field.function'),
+      groupable: true,
+      groupValue: (item) => item.funcao || '(Sem função)',
       render: (item) => item.funcao || '-',
     },
     {
@@ -471,6 +475,8 @@ const RecursosHumanos = () => {
     {
       key: 'status',
       label: t('common.status'),
+      groupable: true,
+      groupValue: (item) => item.status,
       render: (item) => (
         <Badge variant={item.status === 'Ativo' ? 'default' : 'secondary'}>{item.status}</Badge>
       ),

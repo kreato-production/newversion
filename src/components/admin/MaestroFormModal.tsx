@@ -26,6 +26,7 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Loader2, Paperclip, X, FileText, Play } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { ColorPicker } from '@/components/shared/ColorPicker';
 import { ModalNavigation, type ModalNavigationProps } from '@/components/shared/ModalNavigation';
 import type { Maestro, SaveMaestroInput, EsquemaTipo } from '@/modules/maestro/maestro.api';
 import { CodeEditor, linguagemToLang } from '@/components/ui/CodeEditor';
@@ -290,21 +291,18 @@ export function MaestroFormModal({
                 />
               </div>
 
-              {/* Cor + Status + Tipo */}
-              <div className="grid grid-cols-3 gap-4">
-                <div className="space-y-1">
-                  <Label className="text-xs">Cor</Label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="color"
-                      value={form.cor ?? '#6366f1'}
-                      onChange={(e) => set('cor', e.target.value)}
-                      className="h-8 w-12 cursor-pointer rounded border border-input"
-                    />
-                    <span className="text-xs text-muted-foreground font-mono">{form.cor}</span>
-                  </div>
-                </div>
+              {/* Cor */}
+              <div className="space-y-1">
+                <Label className="text-xs">Cor</Label>
+                <ColorPicker
+                  value={form.cor ?? '#6366f1'}
+                  onChange={(cor) => set('cor', cor)}
+                  previewLabel={form.nome}
+                />
+              </div>
 
+              {/* Status + Tipo */}
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <Label className="text-xs">Status</Label>
                   <Select

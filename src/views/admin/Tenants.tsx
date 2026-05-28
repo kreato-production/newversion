@@ -293,6 +293,7 @@ const Tenants = () => {
       key: 'plano',
       label: 'Plano',
       className: 'w-32',
+      groupable: true,
     },
     {
       key: 'licencaFim',
@@ -309,6 +310,7 @@ const Tenants = () => {
       key: 'status',
       label: 'Status',
       className: 'w-24',
+      groupable: true,
       render: (item) => <Badge variant={statusVariants[item.status]}>{item.status}</Badge>,
     },
     {

@@ -308,6 +308,8 @@ export default function Escalas() {
     {
       key: 'grupoFuncao',
       label: 'Grupo de Função',
+      groupable: true,
+      groupValue: (item) => item.grupoFuncaoNome || '(Sem grupo)',
       render: (item) => item.grupoFuncaoNome || '-',
     },
     {

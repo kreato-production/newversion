@@ -408,6 +408,8 @@ const ContasPagar = () => {
       key: 'statusNome',
       label: 'Status',
       className: 'w-36',
+      groupable: true,
+      groupValue: (item) => item.statusNome || '(Sem status)',
       render: (item) =>
         item.statusNome ? (
           <Badge
@@ -440,6 +442,8 @@ const ContasPagar = () => {
     {
       key: 'categoriaNome',
       label: 'Categoria',
+      groupable: true,
+      groupValue: (item) => item.categoriaNome || '(Sem categoria)',
       render: (item) => (
         <span className="text-muted-foreground text-xs">{item.categoriaNome || '-'}</span>
       ),

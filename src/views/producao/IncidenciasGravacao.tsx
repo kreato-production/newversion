@@ -68,12 +68,12 @@ const parametrizacoesRepository = new ApiParametrizacoesRepository();
 const STORAGE_KEY = 'kreato_incidencias_gravacao';
 
 const COLUMN_CONFIG: ColumnConfig[] = [
-  { key: 'codigo_externo',    label: 'Código',       defaultVisible: true },
-  { key: 'titulo',            label: 'Título',       required: true },
-  { key: 'gravacao_nome',     label: 'Gravação',     defaultVisible: true },
-  { key: 'severidade_titulo', label: 'Severidade',   defaultVisible: true },
-  { key: 'data_incidencia',   label: 'Data',         defaultVisible: true },
-  { key: 'actions',           label: 'Ações',        required: true },
+  { key: 'codigo_externo', label: 'Código', defaultVisible: true },
+  { key: 'titulo', label: 'Título', required: true },
+  { key: 'gravacao_nome', label: 'Gravação', defaultVisible: true },
+  { key: 'severidade_titulo', label: 'Severidade', defaultVisible: true },
+  { key: 'data_incidencia', label: 'Data', defaultVisible: true },
+  { key: 'actions', label: 'Ações', required: true },
 ];
 
 // ─── Card renderer ────────────────────────────────────────────────────────────
@@ -455,12 +455,16 @@ const IncidenciasGravacao = () => {
       key: 'gravacao_nome',
       label: t('incident.recording'),
       className: 'hidden md:table-cell',
+      groupable: true,
+      groupValue: (item) => item.gravacao_nome || '(Sem gravação)',
       render: (item) => <span className="text-muted-foreground">{item.gravacao_nome || '-'}</span>,
     },
     {
       key: 'severidade_titulo',
       label: t('incident.severity'),
       className: 'hidden md:table-cell',
+      groupable: true,
+      groupValue: (item) => item.severidade_titulo || '(Sem severidade)',
       render: (item) =>
         item.severidade_titulo ? (
           <div className="flex items-center gap-2">
