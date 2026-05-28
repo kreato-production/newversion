@@ -6,7 +6,7 @@ function isPublic(pathname: string): boolean {
   return PUBLIC_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + '/'));
 }
 
-export function proxy(request: NextRequest) {
+export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   if (isPublic(pathname)) {
