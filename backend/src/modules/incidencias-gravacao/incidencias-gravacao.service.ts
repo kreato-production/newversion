@@ -18,6 +18,7 @@ export const saveIncidenciaGravacaoSchema = z.object({
   codigo_externo: optionalNullableString,
   titulo: z.string().min(1),
   gravacao_id: optionalNullableString,
+  janela_id: optionalNullableString,
   recurso_fisico_id: optionalNullableString,
   severidade_id: optionalNullableString,
   impacto_id: optionalNullableString,
@@ -53,6 +54,11 @@ export class IncidenciasGravacaoService {
     return this.repository.listByGravacao(tenantId, gravacaoId);
   }
 
+  async listByJanela(actor: SessionUser, janelaId: string) {
+    const tenantId = resolveTenantId(actor, actor.tenantId);
+    return this.repository.listByJanela(tenantId, janelaId);
+  }
+
   async save(actor: SessionUser, input: SaveIncidenciaGravacaoDto) {
     const tenantId = resolveTenantId(actor, input.tenantId ?? actor.tenantId);
 
@@ -70,6 +76,7 @@ export class IncidenciasGravacaoService {
       codigo_externo: input.codigo_externo ?? null,
       titulo: input.titulo,
       gravacao_id: input.gravacao_id ?? null,
+      janela_id: input.janela_id ?? null,
       recurso_fisico_id: input.recurso_fisico_id ?? null,
       severidade_id: input.severidade_id ?? null,
       impacto_id: input.impacto_id ?? null,

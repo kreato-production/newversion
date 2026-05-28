@@ -125,9 +125,9 @@ async function deploy() {
   console.log('\n✅  SSH conectado!');
 
   try {
-    // 1. Git pull
+    // 1. Git pull (descarta alterações locais do servidor — o código vem sempre do GitHub)
     await runCommand(conn,
-      `cd ${APP_DIR} && git pull origin main`,
+      `cd ${APP_DIR} && git fetch origin main && git reset --hard origin/main`,
       { label: '1/5 — Git pull' }
     );
 
@@ -156,6 +156,13 @@ async function deploy() {
       { label: '3/5 — npm run build (frontend)' }
     );
 
+    // Copia arquivos estáticos para dentro do standalone (necessário para standalone server.js)
+    await runCommand(conn,
+      `cp -r ${APP_DIR}/.next/static ${APP_DIR}/.next/standalone/.next/static && ` +
+      `cp -r ${APP_DIR}/public ${APP_DIR}/.next/standalone/public 2>/dev/null || true`,
+      { label: '3/5 — Copia static files para standalone', ignoreError: true }
+    );
+
     // 4. Dependências + build do backend
     await runCommand(conn,
       `cd ${APP_DIR}/backend && npm ci --prefer-offline`,
@@ -168,7 +175,7 @@ async function deploy() {
 
     // 5. Reinicia PM2
     await runCommand(conn,
-      `pm2 restart all && pm2 save`,
+      `cd ${APP_DIR} && pm2 restart all --update-env && pm2 save`,
       { label: '5/5 — Restart PM2', ignoreError: true }
     );
 

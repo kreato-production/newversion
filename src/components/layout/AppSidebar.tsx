@@ -12,6 +12,7 @@ import {
   ChevronRight,
   ChevronUp,
   Settings2,
+  Satellite,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -414,6 +415,53 @@ const getNavItems = (isGlobalAdmin: boolean, t: (k: string) => string): NavItem[
           {
             label: t('menu.formasPagamento'),
             path: '/financeiro/formas-pagamento',
+          },
+        ],
+      } satisfies NavSubGroup,
+    ],
+  },
+  {
+    id: 'satops',
+    label: t('menu.satops'),
+    icon: Satellite,
+    permission: { modulo: 'SatOps' },
+    children: [
+      {
+        label: t('menu.satopsDashboard'),
+        path: '/satops/dashboard',
+        permission: { modulo: 'SatOps', subModulo1: 'Dashboard' },
+      },
+      {
+        label: t('menu.satopsJanelas'),
+        path: '/satops/janelas',
+        permission: { modulo: 'SatOps', subModulo1: 'Janelas' },
+      },
+      {
+        label: t('menu.satopsSatelites'),
+        path: '/satops/satelites',
+        permission: { modulo: 'SatOps', subModulo1: 'Satélites' },
+      },
+      {
+        label: t('menu.parameters'),
+        isGroup: true,
+        children: [
+          {
+            label: t('menu.satopsEstadosEvento'),
+            path: '/satops/estados-evento',
+            permission: {
+              modulo: 'SatOps',
+              subModulo1: 'Parametrizações',
+              subModulo2: 'Estados de Evento',
+            },
+          },
+          {
+            label: t('menu.satopsAlertas'),
+            path: '/satops/alertas',
+            permission: {
+              modulo: 'SatOps',
+              subModulo1: 'Parametrizações',
+              subModulo2: 'Alertas',
+            },
           },
         ],
       } satisfies NavSubGroup,

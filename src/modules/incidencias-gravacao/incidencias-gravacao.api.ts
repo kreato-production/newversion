@@ -6,6 +6,7 @@ export type IncidenciaGravacaoApiItem = {
   codigo_externo: string | null;
   titulo: string;
   gravacao_id: string | null;
+  janela_id: string | null;
   recurso_fisico_id: string | null;
   severidade_id: string | null;
   impacto_id: string | null;
@@ -38,6 +39,10 @@ export class ApiIncidenciasGravacaoRepository {
 
   listByGravacao(gravacaoId: string) {
     return apiRequest<IncidenciaGravacaoApiItem[]>(`/gravacoes/${gravacaoId}/incidencias`);
+  }
+
+  listByJanela(janelaId: string) {
+    return apiRequest<IncidenciaGravacaoApiItem[]>(`/satops/janelas/${janelaId}/incidencias`);
   }
 
   save(input: Partial<IncidenciaGravacaoApiItem> & { titulo: string }) {

@@ -3790,6 +3790,91 @@ export const basePermissionsMatrix: Omit<PermissionItem, 'id'>[] = [
     excluir: true,
     tipo: 'campo',
   },
+
+  // ── SatOps ────────────────────────────────────────────────────────────────
+
+  {
+    modulo: 'SatOps',
+    subModulo1: '-',
+    subModulo2: '-',
+    campo: '-',
+    acao: 'visible',
+    somenteLeitura: false,
+    incluir: true,
+    alterar: true,
+    excluir: true,
+    tipo: 'modulo',
+  },
+
+  // SatOps > Dashboard
+  {
+    modulo: 'SatOps',
+    subModulo1: 'Dashboard',
+    subModulo2: '-',
+    campo: '-',
+    acao: 'visible',
+    somenteLeitura: false,
+    incluir: true,
+    alterar: true,
+    excluir: true,
+    tipo: 'submodulo1',
+  },
+
+  // SatOps > Janelas
+  {
+    modulo: 'SatOps',
+    subModulo1: 'Janelas',
+    subModulo2: '-',
+    campo: '-',
+    acao: 'visible',
+    somenteLeitura: false,
+    incluir: true,
+    alterar: true,
+    excluir: true,
+    tipo: 'submodulo1',
+  },
+
+  // SatOps > Parametrizações > Estados de Evento
+  {
+    modulo: 'SatOps',
+    subModulo1: 'Parametrizações',
+    subModulo2: 'Estados de Evento',
+    campo: '-',
+    acao: 'visible',
+    somenteLeitura: false,
+    incluir: true,
+    alterar: true,
+    excluir: true,
+    tipo: 'submodulo2',
+  },
+
+  // SatOps > Parametrizações > Alertas
+  {
+    modulo: 'SatOps',
+    subModulo1: 'Parametrizações',
+    subModulo2: 'Alertas',
+    campo: '-',
+    acao: 'visible',
+    somenteLeitura: false,
+    incluir: true,
+    alterar: true,
+    excluir: true,
+    tipo: 'submodulo2',
+  },
+
+  // SatOps > Satélites
+  {
+    modulo: 'SatOps',
+    subModulo1: 'Satélites',
+    subModulo2: '-',
+    campo: '-',
+    acao: 'visible',
+    somenteLeitura: false,
+    incluir: true,
+    alterar: true,
+    excluir: true,
+    tipo: 'submodulo1',
+  },
 ];
 
 // Gera a matriz com IDs

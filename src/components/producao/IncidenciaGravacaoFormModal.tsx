@@ -32,6 +32,7 @@ interface IncidenciaFormData {
   codigo_externo?: string;
   titulo?: string;
   gravacao_id?: string;
+  janela_id?: string | null;
   recurso_fisico_id?: string;
   severidade_id?: string;
   impacto_id?: string;
@@ -58,6 +59,7 @@ interface Props {
   data?: IncidenciaFormData;
   readOnly?: boolean;
   defaultGravacaoId?: string;
+  defaultJanelaId?: string;
   navigation?: ModalNavigationProps;
 }
 
@@ -81,6 +83,7 @@ export const IncidenciaGravacaoFormModal = ({
   data,
   readOnly = false,
   defaultGravacaoId,
+  defaultJanelaId,
   navigation,
 }: Props) => {
   const { user } = useAuth();
@@ -124,6 +127,7 @@ export const IncidenciaGravacaoFormModal = ({
     codigo_externo: '',
     titulo: '',
     gravacao_id: '',
+    janela_id: '',
     recurso_fisico_id: '',
     severidade_id: '',
     impacto_id: '',
@@ -198,6 +202,7 @@ export const IncidenciaGravacaoFormModal = ({
         codigo_externo: data.codigo_externo || '',
         titulo: data.titulo || '',
         gravacao_id: data.gravacao_id || '',
+        janela_id: data.janela_id || defaultJanelaId || '',
         recurso_fisico_id: data.recurso_fisico_id || '',
         severidade_id: data.severidade_id || '',
         impacto_id: data.impacto_id || '',
@@ -214,6 +219,7 @@ export const IncidenciaGravacaoFormModal = ({
         codigo_externo: '',
         titulo: '',
         gravacao_id: defaultGravacaoId || '',
+        janela_id: defaultJanelaId || '',
         recurso_fisico_id: '',
         severidade_id: '',
         impacto_id: '',
@@ -273,6 +279,7 @@ export const IncidenciaGravacaoFormModal = ({
         titulo: form.titulo,
         codigo_externo: form.codigo_externo || null,
         gravacao_id: form.gravacao_id || null,
+        janela_id: form.janela_id || null,
         recurso_fisico_id: form.recurso_fisico_id || null,
         severidade_id: form.severidade_id || null,
         impacto_id: form.impacto_id || null,

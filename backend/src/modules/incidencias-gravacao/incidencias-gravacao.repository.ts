@@ -7,6 +7,7 @@ export type IncidenciaGravacaoRecord = {
   codigo_externo: string | null;
   titulo: string;
   gravacao_id: string | null;
+  janela_id: string | null;
   recurso_fisico_id: string | null;
   severidade_id: string | null;
   impacto_id: string | null;
@@ -49,9 +50,32 @@ export type SaveIncidenciaAnexoInput = {
 type IncidenciaRow = IncidenciaGravacaoRecord;
 type IncidenciaAnexoRow = IncidenciaAnexoRecord;
 
+const SELECT_FIELDS = `
+  id,
+  tenant_id AS "tenantId",
+  codigo_externo,
+  titulo,
+  gravacao_id,
+  janela_id,
+  recurso_fisico_id,
+  severidade_id,
+  impacto_id,
+  categoria_id,
+  classificacao_id,
+  to_char(data_incidencia, 'YYYY-MM-DD') AS data_incidencia,
+  horario_incidencia,
+  tempo_incidencia,
+  descricao,
+  causa_provavel,
+  created_by,
+  to_char(created_at, 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS created_at,
+  to_char(updated_at, 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS updated_at
+`;
+
 export interface IncidenciasGravacaoRepository {
   listByTenant(tenantId: string): Promise<IncidenciaGravacaoRecord[]>;
   listByGravacao(tenantId: string, gravacaoId: string): Promise<IncidenciaGravacaoRecord[]>;
+  listByJanela(tenantId: string, janelaId: string): Promise<IncidenciaGravacaoRecord[]>;
   findById(id: string): Promise<IncidenciaGravacaoRecord | null>;
   save(input: SaveIncidenciaGravacaoInput): Promise<IncidenciaGravacaoRecord>;
   remove(id: string): Promise<void>;
@@ -72,6 +96,7 @@ export class PrismaIncidenciasGravacaoRepository implements IncidenciasGravacaoR
         codigo_externo,
         titulo,
         gravacao_id,
+        janela_id,
         recurso_fisico_id,
         severidade_id,
         impacto_id,
@@ -83,8 +108,8 @@ export class PrismaIncidenciasGravacaoRepository implements IncidenciasGravacaoR
         descricao,
         causa_provavel,
         created_by,
-        to_char(created_at, 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"') AS created_at,
-        to_char(updated_at, 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"') AS updated_at
+        to_char(created_at, 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS created_at,
+        to_char(updated_at, 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS updated_at
       FROM incidencias_gravacao
       WHERE tenant_id = ${tenantId}
       ORDER BY created_at DESC, id DESC
@@ -100,6 +125,7 @@ export class PrismaIncidenciasGravacaoRepository implements IncidenciasGravacaoR
         codigo_externo,
         titulo,
         gravacao_id,
+        janela_id,
         recurso_fisico_id,
         severidade_id,
         impacto_id,
@@ -111,11 +137,41 @@ export class PrismaIncidenciasGravacaoRepository implements IncidenciasGravacaoR
         descricao,
         causa_provavel,
         created_by,
-        to_char(created_at, 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"') AS created_at,
-        to_char(updated_at, 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"') AS updated_at
+        to_char(created_at, 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS created_at,
+        to_char(updated_at, 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS updated_at
       FROM incidencias_gravacao
       WHERE tenant_id = ${tenantId}
         AND gravacao_id = ${gravacaoId}
+      ORDER BY created_at DESC, id DESC
+    `;
+  }
+
+  async listByJanela(tenantId: string, janelaId: string): Promise<IncidenciaGravacaoRecord[]> {
+    await this.ensureTables();
+    return prisma.$queryRaw<IncidenciaRow[]>`
+      SELECT
+        id,
+        tenant_id AS "tenantId",
+        codigo_externo,
+        titulo,
+        gravacao_id,
+        janela_id,
+        recurso_fisico_id,
+        severidade_id,
+        impacto_id,
+        categoria_id,
+        classificacao_id,
+        to_char(data_incidencia, 'YYYY-MM-DD') AS data_incidencia,
+        horario_incidencia,
+        tempo_incidencia,
+        descricao,
+        causa_provavel,
+        created_by,
+        to_char(created_at, 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS created_at,
+        to_char(updated_at, 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS updated_at
+      FROM incidencias_gravacao
+      WHERE tenant_id = ${tenantId}
+        AND janela_id = ${janelaId}
       ORDER BY created_at DESC, id DESC
     `;
   }
@@ -129,6 +185,7 @@ export class PrismaIncidenciasGravacaoRepository implements IncidenciasGravacaoR
         codigo_externo,
         titulo,
         gravacao_id,
+        janela_id,
         recurso_fisico_id,
         severidade_id,
         impacto_id,
@@ -140,8 +197,8 @@ export class PrismaIncidenciasGravacaoRepository implements IncidenciasGravacaoR
         descricao,
         causa_provavel,
         created_by,
-        to_char(created_at, 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"') AS created_at,
-        to_char(updated_at, 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"') AS updated_at
+        to_char(created_at, 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS created_at,
+        to_char(updated_at, 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS updated_at
       FROM incidencias_gravacao
       WHERE id = ${id}
       LIMIT 1
@@ -161,6 +218,7 @@ export class PrismaIncidenciasGravacaoRepository implements IncidenciasGravacaoR
           codigo_externo = ${input.codigo_externo ?? null},
           titulo = ${input.titulo},
           gravacao_id = ${input.gravacao_id ?? null},
+          janela_id = ${input.janela_id ?? null},
           recurso_fisico_id = ${input.recurso_fisico_id ?? null},
           severidade_id = ${input.severidade_id ?? null},
           impacto_id = ${input.impacto_id ?? null},
@@ -183,6 +241,7 @@ export class PrismaIncidenciasGravacaoRepository implements IncidenciasGravacaoR
           codigo_externo,
           titulo,
           gravacao_id,
+          janela_id,
           recurso_fisico_id,
           severidade_id,
           impacto_id,
@@ -202,6 +261,7 @@ export class PrismaIncidenciasGravacaoRepository implements IncidenciasGravacaoR
           ${input.codigo_externo ?? null},
           ${input.titulo},
           ${input.gravacao_id ?? null},
+          ${input.janela_id ?? null},
           ${input.recurso_fisico_id ?? null},
           ${input.severidade_id ?? null},
           ${input.impacto_id ?? null},
@@ -243,7 +303,7 @@ export class PrismaIncidenciasGravacaoRepository implements IncidenciasGravacaoR
         url,
         tipo,
         tamanho,
-        to_char(created_at, 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"') AS created_at
+        to_char(created_at, 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS created_at
       FROM incidencia_anexos
       WHERE incidencia_id = ${incidenciaId}
       ORDER BY created_at ASC, id ASC
@@ -286,7 +346,7 @@ export class PrismaIncidenciasGravacaoRepository implements IncidenciasGravacaoR
         url,
         tipo,
         tamanho,
-        to_char(created_at, 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"') AS created_at
+        to_char(created_at, 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS created_at
       FROM incidencia_anexos
       WHERE id = ${id}
       LIMIT 1
@@ -315,6 +375,7 @@ export class PrismaIncidenciasGravacaoRepository implements IncidenciasGravacaoR
             codigo_externo text NULL,
             titulo text NOT NULL,
             gravacao_id text NULL,
+            janela_id text NULL,
             recurso_fisico_id text NULL,
             severidade_id text NULL,
             impacto_id text NULL,
@@ -329,6 +390,12 @@ export class PrismaIncidenciasGravacaoRepository implements IncidenciasGravacaoR
             created_at timestamptz NOT NULL DEFAULT NOW(),
             updated_at timestamptz NOT NULL DEFAULT NOW()
           )
+        `);
+
+        // Adiciona coluna janela_id a tabelas existentes (migracao segura)
+        await prisma.$executeRawUnsafe(`
+          ALTER TABLE incidencias_gravacao
+          ADD COLUMN IF NOT EXISTS janela_id text NULL
         `);
 
         await prisma.$executeRawUnsafe(`
@@ -353,6 +420,11 @@ export class PrismaIncidenciasGravacaoRepository implements IncidenciasGravacaoR
         await prisma.$executeRawUnsafe(`
           CREATE INDEX IF NOT EXISTS incidencias_gravacao_gravacao_idx
           ON incidencias_gravacao (gravacao_id)
+        `);
+
+        await prisma.$executeRawUnsafe(`
+          CREATE INDEX IF NOT EXISTS incidencias_gravacao_janela_idx
+          ON incidencias_gravacao (janela_id)
         `);
 
         await prisma.$executeRawUnsafe(`

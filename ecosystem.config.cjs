@@ -4,15 +4,14 @@ module.exports = {
   apps: [
     {
       name: 'kreato-frontend',
-      script: 'node_modules/next/dist/bin/next',
-      args: 'start -p 3000',
-      node_args: '--max-http-header-size=65536',
+      script: '.next/standalone/server.js',
       cwd: './',
       instances: 1,
       exec_mode: 'fork',
       env: {
         NODE_ENV: 'production',
-        PORT: '3000',
+        PORT: '3001',
+        HOSTNAME: '0.0.0.0',
       },
       log_date_format: 'YYYY-MM-DD HH:mm:ss',
       error_file: 'logs/frontend-error.log',

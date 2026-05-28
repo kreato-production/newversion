@@ -97,6 +97,13 @@ import { GrelhaProgramacaoService } from './modules/grelha-programacao/grelha-pr
 import { PrismaTarefasRepository } from './modules/tarefas/tarefas.repository.js';
 import { createTarefasRoutes } from './modules/tarefas/routes/index.js';
 import { TarefasService } from './modules/tarefas/tarefas.service.js';
+import { PrismaEstadosEventoRepository, PrismaSatelitesRepository } from './modules/satops/satops.repository.js';
+import { PrismaJanelasRepository } from './modules/satops/janelas.repository.js';
+import { PrismaAlertasRepository } from './modules/satops/alertas.repository.js';
+import { createSatOpsRoutes, createJanelasRoutes, createAlertasRoutes } from './modules/satops/routes/index.js';
+import { EstadosEventoService, SatelitesService } from './modules/satops/satops.service.js';
+import { JanelasService } from './modules/satops/janelas.service.js';
+import { AlertasService } from './modules/satops/alertas.service.js';
 import { PrismaTemplatesRepository } from './modules/templates/templates.repository.js';
 import { createTemplatesRoutes } from './modules/templates/routes/index.js';
 import { TemplatesService } from './modules/templates/templates.service.js';
@@ -159,6 +166,10 @@ type BuildAppOptions = {
   espacosService?: EspacosService;
   unidadesService?: UnidadesService;
   usersService?: UsersService;
+  estadosEventoService?: EstadosEventoService;
+  satelitesService?: SatelitesService;
+  janelasService?: JanelasService;
+  alertasService?: AlertasService;
   healthService?: HealthService;
 };
 
@@ -223,6 +234,10 @@ export async function buildApp(options: BuildAppOptions = {}) {
   const espacosService = options.espacosService ?? new EspacosService(new PrismaEspacosRepository());
   const unidadesService = options.unidadesService ?? new UnidadesService(new PrismaUnidadesRepository());
   const usersService = options.usersService ?? new UsersService(new PrismaUsersRepository());
+  const estadosEventoService = options.estadosEventoService ?? new EstadosEventoService(new PrismaEstadosEventoRepository());
+  const satelitesService = options.satelitesService ?? new SatelitesService(new PrismaSatelitesRepository());
+  const janelasService = options.janelasService ?? new JanelasService(new PrismaJanelasRepository());
+  const alertasService = options.alertasService ?? new AlertasService(new PrismaAlertasRepository());
 
   app.setErrorHandler(authErrorHandler);
 
@@ -446,6 +461,9 @@ export async function buildApp(options: BuildAppOptions = {}) {
   await app.register(createEspacosRoutes(authService, espacosService));
   await app.register(createUnidadesRoutes(authService, unidadesService));
   await app.register(createUsersRoutes(authService, usersService));
+  await app.register(createSatOpsRoutes(authService, estadosEventoService, satelitesService));
+  await app.register(createJanelasRoutes(authService, janelasService));
+  await app.register(createAlertasRoutes(authService, alertasService));
 
   // ── Maestro Scheduler ───────────────────────────────────────────────────────
   // Não inicia durante testes para evitar timers abertos e chamadas ao banco.

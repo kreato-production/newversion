@@ -19,6 +19,7 @@ const MODULE_LABELS: Record<string, string> = {
   financeiro: 'Financeiro',
   admin: 'Administração',
   global: 'Global',
+  satops: 'SatOps',
   'api-docs': 'API',
   arquitetura: 'Arquitetura',
   sobre: 'Sobre o Sistema',
@@ -30,6 +31,7 @@ const MODULE_PATHS: Record<string, string> = {
   financeiro: '/module/financeiro',
   admin: '/module/admin',
   global: '/module/global',
+  satops: '/module/satops',
 };
 
 const SUB_LABELS: Record<string, string> = {
@@ -74,6 +76,12 @@ const SUB_LABELS: Record<string, string> = {
   'tipos-pagamento': 'Tipos de Pagamentos',
   'categorias-despesa': 'Categorias de Despesas',
   'formas-pagamento': 'Formas de Pagamento',
+  // SatOps
+  dashboard: 'Dashboard Operacional',
+  janelas: 'Janelas',
+  'estados-evento': 'Estados de Evento',
+  alertas: 'Alertas',
+  satelites: 'Satélites',
   // Admin
   unidades: 'Unidades de Negócio',
   'centros-lucro': 'Centros de Custos',
@@ -109,6 +117,8 @@ const PARAM_SLUGS = new Set([
   'tipos-pagamento',
   'categorias-despesa',
   'formas-pagamento',
+  'estados-evento',
+  'alertas',
 ]);
 
 // ─── Types ────────────────────────────────────────────────────────────────────

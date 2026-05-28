@@ -27,6 +27,12 @@ export function createIncidenciasGravacaoRoutes(
       return reply.status(200).send(await incidenciasService.listByGravacao(user, params.id));
     });
 
+    app.get('/satops/janelas/:id/incidencias', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      const params = request.params as { id: string };
+      return reply.status(200).send(await incidenciasService.listByJanela(user, params.id));
+    });
+
     app.post('/incidencias-gravacao', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const body = saveIncidenciaGravacaoSchema.parse(request.body);
