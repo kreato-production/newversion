@@ -28,7 +28,8 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { SearchBar, PageHeader } from '@/components/shared/PageComponents';
+import { SearchBar, PageHeader, DataCard } from '@/components/shared/PageComponents';
+import { SortableTable, type Column } from '@/components/shared/SortableTable';
 import { ListActionBar } from '@/components/shared/ListActionBar';
 import { ModalNavigation } from '@/components/shared/ModalNavigation';
 import { Loader2, Settings2, Building2 } from 'lucide-react';
@@ -336,13 +337,53 @@ const Formularios = () => {
   // GLOBAL_ADMIN must select a tenant before configuring
   const canConfigure = !isGlobalAdmin || !!selectedTenantId;
 
+  const columns: Column<FormDefinition>[] = [
+    {
+      key: 'nome',
+      label: 'Formulário',
+      render: (item) => <span className="font-medium">{item.nome}</span>,
+    },
+    {
+      key: 'modulo',
+      label: 'Módulo',
+      groupable: true,
+      render: (item) => <Badge variant="outline">{item.modulo}</Badge>,
+    },
+    {
+      key: 'campos',
+      label: 'Campos',
+      className: 'w-20 text-center',
+      sortable: false,
+      render: (item) => <span className="text-muted-foreground">{item.campos.length}</span>,
+    },
+    {
+      key: 'acoes',
+      label: '',
+      className: 'w-32',
+      sortable: false,
+      render: (item) => (
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={!canConfigure}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (canConfigure) setConfiguringForm(item);
+          }}
+        >
+          <Settings2 className="h-4 w-4 mr-1" />
+          Configurar
+        </Button>
+      ),
+    },
+  ];
+
   return (
-    <div className="p-6 space-y-4">
+    <>
       <PageHeader
         title="Formulários"
         description="Configure validação e layout dos campos do sistema"
       />
-
       <ListActionBar>
         {isGlobalAdmin && (
           <div className="flex items-center gap-2 mr-auto">
@@ -377,55 +418,20 @@ const Formularios = () => {
           </p>
         </div>
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Formulário</TableHead>
-              <TableHead>Módulo</TableHead>
-              <TableHead className="w-[80px] text-center">Campos</TableHead>
-              <TableHead className="w-[120px]" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredForms.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={4} className="text-center text-muted-foreground py-10">
-                  Nenhum formulário encontrado.
-                </TableCell>
-              </TableRow>
-            ) : (
-              filteredForms.map((form) => (
-                <TableRow
-                  key={form.id}
-                  className={canConfigure ? 'cursor-pointer' : 'opacity-50'}
-                  onClick={() => canConfigure && setConfiguringForm(form)}
-                >
-                  <TableCell className="font-medium">{form.nome}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline">{form.modulo}</Badge>
-                  </TableCell>
-                  <TableCell className="text-center text-muted-foreground">
-                    {form.campos.length}
-                  </TableCell>
-                  <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      disabled={!canConfigure}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (canConfigure) setConfiguringForm(form);
-                      }}
-                    >
-                      <Settings2 className="h-4 w-4 mr-1" />
-                      Configurar
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+        <DataCard>
+          {filteredForms.length === 0 ? (
+            <div className="text-center text-muted-foreground py-10 text-sm">
+              Nenhum formulário encontrado.
+            </div>
+          ) : (
+            <SortableTable
+              data={filteredForms}
+              columns={columns}
+              getRowKey={(item) => item.id}
+              storageKey="kreato_formularios_table"
+            />
+          )}
+        </DataCard>
       )}
 
       <FormularioConfigModal
@@ -434,7 +440,7 @@ const Formularios = () => {
         tenantId={effectiveTenantId}
         onClose={() => setConfiguringForm(null)}
       />
-    </div>
+    </>
   );
 };
 

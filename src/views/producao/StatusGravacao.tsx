@@ -476,6 +476,8 @@ const StatusGravacao = () => {
       label: 'Inicial',
       className: 'w-20 text-center',
       sortable: false,
+      groupable: true,
+      groupValue: (item) => (item.isInicial ? 'Inicial' : 'Normal'),
       render: (item) => (
         <TooltipProvider>
           <Tooltip>

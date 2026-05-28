@@ -5,14 +5,7 @@ import { ListActionBar } from '@/components/shared/ListActionBar';
 import { Settings, Edit, Trash2, Loader2, Star, Download, Upload } from 'lucide-react';
 import { NewButton } from '@/components/shared/NewButton';
 import { Button } from '@/components/ui/button';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+import { SortableTable, type Column } from '@/components/shared/SortableTable';
 import {
   Dialog,
   DialogContent,
@@ -226,6 +219,98 @@ const StatusTarefa = () => {
       item.codigo.toLowerCase().includes(search.toLowerCase()),
   );
 
+  const columns: Column<StatusTarefaItem>[] = [
+    {
+      key: 'codigo',
+      label: t('common.code'),
+      className: 'w-28',
+      render: (item) => <span className="font-mono text-sm">{item.codigo}</span>,
+    },
+    {
+      key: 'nome',
+      label: t('common.name'),
+      render: (item) => <span className="font-medium">{item.nome}</span>,
+    },
+    {
+      key: 'cor',
+      label: t('common.color'),
+      className: 'w-36',
+      render: (item) => (
+        <div className="flex items-center gap-2">
+          <div className="w-6 h-6 rounded border" style={{ backgroundColor: item.cor || '#888' }} />
+          {item.cor}
+        </div>
+      ),
+    },
+    {
+      key: 'descricao',
+      label: t('common.description'),
+      className: 'hidden md:table-cell',
+      render: (item) => <span className="truncate">{item.descricao}</span>,
+    },
+    {
+      key: 'isInicial',
+      label: 'Inicial',
+      className: 'w-20 text-center',
+      sortable: false,
+      groupable: true,
+      groupValue: (item) => (item.isInicial ? 'Inicial' : 'Normal'),
+      render: (item) => (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={() => void handleToggleInicial(item.id, !item.isInicial)}
+              >
+                <Star
+                  className={`h-4 w-4 ${item.isInicial ? 'fill-yellow-400 text-yellow-400' : 'text-muted-foreground'}`}
+                />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              {item.isInicial ? 'Status inicial ativo' : 'Definir como status inicial'}
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      ),
+    },
+    {
+      key: 'acoes',
+      label: t('common.actions'),
+      className: 'w-24 text-right',
+      sortable: false,
+      render: (item) => (
+        <div className="flex gap-1 justify-end">
+          <Button variant="ghost" size="icon" onClick={() => handleOpenModal(item)}>
+            <Edit className="h-4 w-4" />
+          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <Trash2 className="h-4 w-4 text-destructive" />
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>{t('common.confirm.delete')}</AlertDialogTitle>
+                <AlertDialogDescription>{t('common.deleteConfirmation')}</AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+                <AlertDialogAction onClick={() => void handleDelete(item.id)}>
+                  {t('common.delete')}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
+      ),
+    },
+  ];
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -295,85 +380,12 @@ const StatusTarefa = () => {
         />
       ) : (
         <DataCard>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t('common.code')}</TableHead>
-                <TableHead>{t('common.name')}</TableHead>
-                <TableHead>{t('common.color')}</TableHead>
-                <TableHead>{t('common.description')}</TableHead>
-                <TableHead className="w-[80px] text-center">Inicial</TableHead>
-                <TableHead className="w-[100px]">{t('common.actions')}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredItems.map((item) => (
-                <TableRow key={item.id}>
-                  <TableCell className="font-medium">{item.codigo}</TableCell>
-                  <TableCell>{item.nome}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <div
-                        className="w-6 h-6 rounded border"
-                        style={{ backgroundColor: item.cor || '#888' }}
-                      />
-                      {item.cor}
-                    </div>
-                  </TableCell>
-                  <TableCell>{item.descricao}</TableCell>
-                  <TableCell className="text-center">
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7"
-                            onClick={() => void handleToggleInicial(item.id, !item.isInicial)}
-                          >
-                            <Star
-                              className={`h-4 w-4 ${item.isInicial ? 'fill-yellow-400 text-yellow-400' : 'text-muted-foreground'}`}
-                            />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          {item.isInicial ? 'Status inicial ativo' : 'Definir como status inicial'}
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex gap-1">
-                      <Button variant="ghost" size="icon" onClick={() => handleOpenModal(item)}>
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>{t('common.confirm.delete')}</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              {t('common.deleteConfirmation')}
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => void handleDelete(item.id)}>
-                              {t('common.delete')}
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <SortableTable
+            data={filteredItems}
+            columns={columns}
+            getRowKey={(item) => item.id}
+            storageKey="kreato_status_tarefa_table"
+          />
         </DataCard>
       )}
 

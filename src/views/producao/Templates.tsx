@@ -50,6 +50,7 @@ import {
 const COLUMN_CONFIG: ColumnConfig[] = [
   { key: 'nome', label: 'Nome', required: true },
   { key: 'descricao', label: 'Descrição', defaultVisible: true },
+  { key: 'estado', label: 'Estado', defaultVisible: true },
   { key: 'etapas', label: 'Etapas', defaultVisible: true },
   { key: 'atividades', label: 'Atividades', defaultVisible: true },
   { key: 'acoes', label: 'Ações', required: true },
@@ -329,6 +330,18 @@ export default function Templates() {
         <span className="text-muted-foreground truncate max-w-xs block">
           {item.descricao || '-'}
         </span>
+      ),
+    },
+    {
+      key: 'estado',
+      label: 'Estado',
+      className: 'w-28',
+      groupable: true,
+      groupValue: (item) => item.estado || '(Sem estado)',
+      render: (item) => (
+        <Badge variant={item.estado === 'Ativo' ? 'default' : 'secondary'}>
+          {item.estado || '-'}
+        </Badge>
       ),
     },
     {

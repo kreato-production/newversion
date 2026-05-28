@@ -752,11 +752,17 @@ const GrelhaProgramacao = () => {
 
   type Col = Column<GrelhaProgramaItem & { actions?: never }>;
 
-  const textCol = (key: keyof GrelhaProgramaItem, label: string, className?: string): Col => ({
+  const textCol = (
+    key: keyof GrelhaProgramaItem,
+    label: string,
+    className?: string,
+    extra?: Partial<Col>,
+  ): Col => ({
     key,
     label,
     className,
     render: (item) => <>{(item[key] as string) ?? '-'}</>,
+    ...extra,
   });
 
   const columns: Col[] = [
@@ -771,13 +777,34 @@ const GrelhaProgramacao = () => {
     },
     ...(isColumnVisible('serie') ? [textCol('serie', 'Série', 'w-36')] : []),
     ...(isColumnVisible('idPrograma') ? [textCol('idPrograma', 'Id Programa', 'w-28')] : []),
-    ...(isColumnVisible('programa') ? [textCol('programa', 'Programa', 'w-40')] : []),
+    ...(isColumnVisible('programa')
+      ? [
+          textCol('programa', 'Programa', 'w-40', {
+            groupable: true,
+            groupValue: (item) => item.programa || '(Sem programa)',
+          }),
+        ]
+      : []),
     ...(isColumnVisible('tipoRequisicao') ? [textCol('tipoRequisicao', 'Tipo Req.', 'w-32')] : []),
-    ...(isColumnVisible('genero') ? [textCol('genero', 'Género', 'w-28')] : []),
+    ...(isColumnVisible('genero')
+      ? [
+          textCol('genero', 'Género', 'w-28', {
+            groupable: true,
+            groupValue: (item) => item.genero || '(Sem género)',
+          }),
+        ]
+      : []),
     ...(isColumnVisible('codigoProducao')
       ? [textCol('codigoProducao', 'Cód. Produção', 'w-32')]
       : []),
-    ...(isColumnVisible('tipoAquisicao') ? [textCol('tipoAquisicao', 'Aquisição', 'w-28')] : []),
+    ...(isColumnVisible('tipoAquisicao')
+      ? [
+          textCol('tipoAquisicao', 'Aquisição', 'w-28', {
+            groupable: true,
+            groupValue: (item) => item.tipoAquisicao || '(Sem aquisição)',
+          }),
+        ]
+      : []),
     {
       key: 'nome',
       label: 'Nome',
@@ -788,11 +815,39 @@ const GrelhaProgramacao = () => {
         </button>
       ),
     },
-    ...(isColumnVisible('tipoPrograma') ? [textCol('tipoPrograma', 'Tipo Programa', 'w-32')] : []),
-    ...(isColumnVisible('categoria') ? [textCol('categoria', 'Categoria', 'w-32')] : []),
-    ...(isColumnVisible('canal') ? [textCol('canal', 'Canal', 'w-24')] : []),
+    ...(isColumnVisible('tipoPrograma')
+      ? [
+          textCol('tipoPrograma', 'Tipo Programa', 'w-32', {
+            groupable: true,
+            groupValue: (item) => item.tipoPrograma || '(Sem tipo)',
+          }),
+        ]
+      : []),
+    ...(isColumnVisible('categoria')
+      ? [
+          textCol('categoria', 'Categoria', 'w-32', {
+            groupable: true,
+            groupValue: (item) => item.categoria || '(Sem categoria)',
+          }),
+        ]
+      : []),
+    ...(isColumnVisible('canal')
+      ? [
+          textCol('canal', 'Canal', 'w-24', {
+            groupable: true,
+            groupValue: (item) => item.canal || '(Sem canal)',
+          }),
+        ]
+      : []),
     ...(isColumnVisible('semana') ? [textCol('semana', 'Semana', 'w-20')] : []),
-    ...(isColumnVisible('tipoExibicao') ? [textCol('tipoExibicao', 'Tipo Exibição', 'w-28')] : []),
+    ...(isColumnVisible('tipoExibicao')
+      ? [
+          textCol('tipoExibicao', 'Tipo Exibição', 'w-28', {
+            groupable: true,
+            groupValue: (item) => item.tipoExibicao || '(Sem exibição)',
+          }),
+        ]
+      : []),
     ...(isColumnVisible('episodio') ? [textCol('episodio', 'Episódio', 'w-24')] : []),
     {
       key: 'dataExibicao',
@@ -828,6 +883,8 @@ const GrelhaProgramacao = () => {
             key: 'statusGrelha' as keyof GrelhaProgramaItem,
             label: 'Status Grelha',
             className: 'w-32',
+            groupable: true,
+            groupValue: (item: GrelhaProgramaItem) => item.statusGrelha || '(Sem status)',
             render: (item: GrelhaProgramaItem) => <>{item.statusGrelha ?? '-'}</>,
           } as Col,
         ]

@@ -416,16 +416,22 @@ export const BackendGravacaoList = () => {
     {
       key: 'tipoConteudo',
       label: t('common.type'),
+      groupable: true,
+      groupValue: (item) => item.tipoConteudo || '(Sem tipo)',
       render: (item) => item.tipoConteudo || '-',
     },
     {
       key: 'classificacao',
       label: t('content.classification'),
+      groupable: true,
+      groupValue: (item) => item.classificacao || '(Sem classificação)',
       render: (item) => item.classificacao || '-',
     },
     {
       key: 'status',
       label: t('common.status'),
+      groupable: true,
+      groupValue: (item) => item.status || '(Sem status)',
       render: (item) => <StatusBadge status={item.status} cor={item.statusCor} />,
     },
     {
@@ -438,18 +444,24 @@ export const BackendGravacaoList = () => {
       key: 'unidadeNegocio',
       label: 'Unidade',
       className: 'hidden lg:table-cell',
+      groupable: true,
+      groupValue: (item) => item.unidadeNegocio || '(Sem unidade)',
       render: (item) => item.unidadeNegocio || '-',
     },
     {
       key: 'programa',
       label: 'Programa',
       className: 'hidden xl:table-cell',
+      groupable: true,
+      groupValue: (item) => item.programa || '(Sem programa)',
       render: (item) => item.programa || '-',
     },
     {
       key: 'centroLucro',
       label: 'Centro Lucro',
       className: 'hidden xl:table-cell',
+      groupable: true,
+      groupValue: (item) => item.centroLucro || '(Sem centro)',
       render: (item) => item.centroLucro || '-',
     },
     {
