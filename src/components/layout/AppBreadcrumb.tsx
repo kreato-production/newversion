@@ -183,18 +183,20 @@ export function AppBreadcrumb() {
 
   return (
     <Breadcrumb>
-      <BreadcrumbList>
+      <BreadcrumbList className="text-xs">
         {crumbs.map((crumb, index) => {
           const isLast = index === crumbs.length - 1;
 
           return (
-            <span key={index} className="flex items-center gap-1.5">
+            <span key={index} className="flex items-center gap-1">
               {index > 0 && <BreadcrumbSeparator />}
               <BreadcrumbItem>
                 {isLast || !crumb.href ? (
-                  <BreadcrumbPage>{crumb.label}</BreadcrumbPage>
+                  <BreadcrumbPage className="text-xs">{crumb.label}</BreadcrumbPage>
                 ) : (
-                  <BreadcrumbLink href={crumb.href}>{crumb.label}</BreadcrumbLink>
+                  <BreadcrumbLink href={crumb.href} className="text-xs">
+                    {crumb.label}
+                  </BreadcrumbLink>
                 )}
               </BreadcrumbItem>
             </span>

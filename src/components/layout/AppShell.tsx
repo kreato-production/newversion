@@ -85,17 +85,17 @@ export function AppShell({ children }: { children: ReactNode }) {
       <AppSidebar />
       <SidebarInset>
         {/* Top header bar */}
-        <header className="flex h-14 shrink-0 items-center gap-2 border-b bg-background px-4">
+        <header className="flex h-9 shrink-0 items-center gap-2 border-b bg-background px-3">
           <SidebarTrigger className="-ml-1" />
-          <Separator orientation="vertical" className="mr-2 h-4" />
+          <Separator orientation="vertical" className="mr-1 h-3.5" />
           <AppBreadcrumb />
 
           {/* Settings: theme + language */}
-          <div className="ml-auto flex items-center gap-1">
+          <div className="ml-auto flex items-center gap-0.5">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8">
-                  <Globe className="h-4 w-4" />
+                <Button variant="ghost" size="icon" className="h-7 w-7">
+                  <Globe className="h-3.5 w-3.5" />
                   <span className="sr-only">{t('language')}</span>
                 </Button>
               </DropdownMenuTrigger>
@@ -116,22 +116,22 @@ export function AppShell({ children }: { children: ReactNode }) {
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8"
+              className="h-7 w-7"
               onClick={toggleTheme}
               title={nextThemeLabel}
             >
               {!mounted || theme === 'light' ? (
-                <Moon className="h-4 w-4" />
+                <Moon className="h-3.5 w-3.5" />
               ) : (
-                <Sun className="h-4 w-4" />
+                <Sun className="h-3.5 w-3.5" />
               )}
               <span className="sr-only">{nextThemeLabel}</span>
             </Button>
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8" title="Sistema">
-                  <Settings className="h-4 w-4" />
+                <Button variant="ghost" size="icon" className="h-7 w-7" title="Sistema">
+                  <Settings className="h-3.5 w-3.5" />
                   <span className="sr-only">Sistema</span>
                 </Button>
               </DropdownMenuTrigger>
