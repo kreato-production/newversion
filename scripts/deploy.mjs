@@ -180,8 +180,10 @@ async function deploy() {
     );
 
     // 5. Reinicia PM2
+    // Faz source do .env para que variáveis como AUTH_URL e DATABASE_URL
+    // estejam no ambiente do shell antes de --update-env atualizar o PM2.
     await runCommand(conn,
-      `cd ${APP_DIR} && pm2 restart all --update-env && pm2 save`,
+      `cd ${APP_DIR} && set -a && . .env && set +a && pm2 restart all --update-env && pm2 save`,
       { label: '5/5 — Restart PM2', ignoreError: true }
     );
 

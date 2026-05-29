@@ -23,7 +23,7 @@ export function LogoutButton({
   const handleLogout = async () => {
     setIsLoading(true);
     // callbackUrl: para onde redirecionar após o logout
-    await signOut({ callbackUrl: '/login' });
+    await signOut({ callbackUrl: window.location.origin + '/login' });
   };
 
   return (

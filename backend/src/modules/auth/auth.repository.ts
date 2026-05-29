@@ -190,6 +190,25 @@ export class PrismaAuthRepository implements AuthRepository {
       permissions: [],
     };
 
+    // Fetch enabledModules independently so a missing perfis_acesso/usuario_unidades
+    // table never prevents the correct modules from reaching the session.
+    let enabledModules = fallback.enabledModules;
+    const resolvedTenantId = tenantId;
+    if (resolvedTenantId) {
+      try {
+        const moduleRows = await prisma.$queryRaw<Array<{ modulo: string }>>`
+          SELECT modulo
+          FROM tenant_modulos_backend
+          WHERE tenant_id = ${resolvedTenantId}
+        `;
+        if (moduleRows.length > 0) {
+          enabledModules = moduleRows.map((item) => item.modulo);
+        }
+      } catch {
+        // table does not exist yet — keep default
+      }
+    }
+
     try {
       const profileRows = await prisma.$queryRaw<Array<{
         tenant_id: string | null;
@@ -211,7 +230,6 @@ export class PrismaAuthRepository implements AuthRepository {
       `;
 
       const profile = profileRows[0];
-      const resolvedTenantId = tenantId ?? profile?.tenant_id ?? null;
       const perfilId = profile?.perfil_id ?? null;
 
       const unidadeRows = await prisma.$queryRaw<Array<{ unidade_id: string }>>`
@@ -219,14 +237,6 @@ export class PrismaAuthRepository implements AuthRepository {
         FROM usuario_unidades
         WHERE usuario_id = ${userId}
       `;
-
-      const moduleRows = resolvedTenantId
-        ? await prisma.$queryRaw<Array<{ modulo: string }>>`
-            SELECT modulo
-            FROM tenant_modulos_backend
-            WHERE tenant_id = ${resolvedTenantId}
-          `
-        : [];
 
       const permissionRows = perfilId
         ? await prisma.$queryRaw<Array<{
@@ -251,12 +261,12 @@ export class PrismaAuthRepository implements AuthRepository {
         perfil: profile?.perfil_nome || fallback.perfil,
         tipoAcesso: profile?.tipo_acesso || fallback.tipoAcesso,
         unidadeIds: unidadeRows.map((item) => item.unidade_id),
-        enabledModules: moduleRows.length > 0 ? moduleRows.map((item) => item.modulo) : fallback.enabledModules,
+        enabledModules,
         permissions: permissionRows.map(mapPermissionRow),
       };
     } catch (error) {
-      this.logger?.warn({ err: error }, 'Falling back to default authorization context');
-      return fallback;
+      this.logger?.warn({ err: error }, 'Falling back to default profile/permissions context');
+      return { ...fallback, enabledModules };
     }
   }
 

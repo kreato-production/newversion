@@ -127,7 +127,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const logout = async () => {
     // Limpa possíveis tokens legados no localStorage
     clearKreatoLocalStorage();
-    await signOut({ callbackUrl: '/login' });
+    await signOut({ callbackUrl: window.location.origin + '/login' });
   };
 
   return (
