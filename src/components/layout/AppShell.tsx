@@ -1,7 +1,17 @@
 'use client';
 
 import { useEffect, useState, type ReactNode } from 'react';
-import { Sun, Moon, Globe, Settings, Info, Layers, BookOpen, ShieldAlert } from 'lucide-react';
+import {
+  Sun,
+  Moon,
+  Globe,
+  Settings,
+  Info,
+  Layers,
+  BookOpen,
+  ShieldAlert,
+  ShieldCheck,
+} from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import AppSidebar from './AppSidebar';
@@ -32,6 +42,7 @@ const GLOBAL_ADMIN_ALLOWED_PREFIXES = [
   '/api-docs',
   '/arquitetura',
   '/sobre',
+  '/seguranca',
 ];
 
 function GlobalAdminGuard({ children }: { children: ReactNode }) {
@@ -148,6 +159,13 @@ export function AppShell({ children }: { children: ReactNode }) {
                     Arquitetura
                   </Link>
                 </DropdownMenuItem>
+                <DropdownMenuItem asChild className="cursor-pointer gap-2">
+                  <Link href="/seguranca">
+                    <ShieldCheck className="h-4 w-4" />
+                    Segurança
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
                 <DropdownMenuItem asChild className="cursor-pointer gap-2">
                   <Link href="/sobre">
                     <Info className="h-4 w-4" />

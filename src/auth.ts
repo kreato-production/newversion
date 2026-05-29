@@ -16,6 +16,7 @@ import Credentials from 'next-auth/providers/credentials';
 import Keycloak from 'next-auth/providers/keycloak';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
+import { logger } from '@/lib/logger';
 import type { KreatoUserRole, KreatoPermission } from '@/types/next-auth';
 
 // ─── Tipos internos ───────────────────────────────────────────────────────────
@@ -109,12 +110,18 @@ function normalizeTokenShape(token: SessionTokenShape): string | undefined {
 
 // ─── Auth.js ──────────────────────────────────────────────────────────────────
 
-// Cookies __Secure- exigem HTTPS. Em servidores HTTP (sem TLS), usar
-// o prefixo __Secure- faz o browser rejeitar o cookie silenciosamente.
-// Derivamos do AUTH_URL: se for https://, ativamos modo seguro; caso contrário,
-// usamos cookies sem prefixo __Secure- e sem flag Secure para funcionar em HTTP.
+// useSecureCookies determina se o cookie de sessão recebe o prefixo __Secure-
+// e a flag Secure. Regra de prioridade:
+//   1. NEXTAUTH_COOKIE_SECURE=true → forçado ativo (staging com HTTPS, por exemplo)
+//   2. NEXTAUTH_COOKIE_SECURE=false → forçado inativo (HTTP local sem TLS)
+//   3. Ausente → inferido: produção + AUTH_URL https → ativo; caso contrário inativo
 const authUrl = process.env.AUTH_URL ?? process.env.NEXTAUTH_URL ?? '';
-const useSecureCookies = process.env.NODE_ENV === 'production' && authUrl.startsWith('https://');
+const cookieSecureOverride = process.env.NEXTAUTH_COOKIE_SECURE;
+const useSecureCookies =
+  cookieSecureOverride === 'true' ||
+  (cookieSecureOverride !== 'false' &&
+    process.env.NODE_ENV === 'production' &&
+    authUrl.startsWith('https://'));
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   // Necessário para que Auth.js aceite requests de proxies e hosts dinâmicos
@@ -381,15 +388,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
   events: {
     async signIn({ user, account, isNewUser }) {
-      if (process.env.NODE_ENV !== 'test') {
-        console.log('[auth] signIn', { userId: user.id, provider: account?.provider, isNewUser });
-      }
+      logger.info({ userId: user.id, provider: account?.provider, isNewUser }, 'auth.signIn');
     },
     async signOut() {
-      // Com JWT strategy, signOut apaga o cookie — nenhuma ação de banco necessária
-      if (process.env.NODE_ENV !== 'test') {
-        console.log('[auth] signOut');
-      }
+      logger.info({}, 'auth.signOut');
     },
   },
 

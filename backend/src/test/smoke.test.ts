@@ -102,11 +102,13 @@ describe('api smoke', () => {
 
     const loginResponse = await app.inject({ method: 'POST', url: '/auth/login', payload: { usuario: 'ana', password: '123456' } });
     expect(loginResponse.statusCode).toBe(200);
-    const { accessToken, refreshToken } = loginResponse.json();
+    // Tokens ficam apenas no cookie HttpOnly — não no body (S4-02)
+    const accessToken = loginResponse.cookies.find(c => c.name === 'kreato_access_token')?.value ?? '';
+    const refreshToken = loginResponse.cookies.find(c => c.name === 'kreato_refresh_token')?.value ?? '';
 
     const refreshResponse = await app.inject({ method: 'POST', url: '/auth/refresh', payload: { refreshToken } });
     expect(refreshResponse.statusCode).toBe(200);
-    expect(refreshResponse.json()).toEqual(expect.objectContaining({ accessToken: expect.any(String) }));
+    expect(refreshResponse.json()).toEqual(expect.objectContaining({ user: expect.objectContaining({ id: 'user-1' }) }));
 
     const createProgramaResponse = await app.inject({ method: 'POST', url: '/programas', headers: { authorization: `Bearer ${accessToken}` }, payload: { nome: 'Programa Smoke', codigoExterno: 'SMK' } });
     expect(createProgramaResponse.statusCode).toBe(200);

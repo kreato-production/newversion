@@ -7,7 +7,11 @@ const envSchema = z.object({
   // ─── Aplicação ──────────────────────────────────────────────────────────────
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().positive().default(3333),
-  HOST: z.string().min(1).default('0.0.0.0'),
+  // Em produção o backend só deve escutar em loopback (acesso apenas via proxy Next.js).
+  // Use HOST=0.0.0.0 explicitamente quando precisar expor em todas as interfaces (ex: Docker).
+  HOST: z.string().min(1).default(
+    process.env.NODE_ENV === 'production' ? '127.0.0.1' : '0.0.0.0'
+  ),
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
   CORS_ORIGIN: z.string().min(1).default('http://localhost:8080'),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
@@ -57,6 +61,18 @@ const envSchema = z.object({
   SESSION_TTL_SECONDS: z.coerce.number().int().positive().default(604800),
   // Cookie name para o session_id
   SESSION_COOKIE_NAME: z.string().min(1).default('kreato_session'),
+
+  // ─── Swagger UI ─────────────────────────────────────────────────────────────
+  // Habilitar apenas em ambientes onde a documentação é necessária (dev/staging).
+  // Em produção manter SWAGGER_ENABLED=false (ou omitir — default é false).
+  SWAGGER_ENABLED: z
+    .string()
+    .default('false')
+    .transform((v) => v === 'true'),
+  // Basic Auth obrigatório quando SWAGGER_ENABLED=true.
+  // Gere uma senha forte: openssl rand -base64 24
+  SWAGGER_USER: z.string().min(1).default('admin'),
+  SWAGGER_PASSWORD: z.string().optional(),
 });
 
 export type AppEnv = z.infer<typeof envSchema>;

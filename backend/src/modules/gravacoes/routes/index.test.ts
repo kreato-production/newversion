@@ -186,7 +186,7 @@ describe('gravacoes routes', () => {
     const app = await buildApp({ authService, gravacoesService });
 
     const loginResponse = await app.inject({ method: 'POST', url: '/auth/login', payload: { usuario: 'ana', password: '123456' } });
-    const { accessToken } = loginResponse.json();
+    const accessToken = loginResponse.cookies.find(c => c.name === 'kreato_access_token')?.value ?? '';
 
     const createResponse = await app.inject({
       method: 'POST',

@@ -22,6 +22,7 @@ const MODULE_LABELS: Record<string, string> = {
   satops: 'SatOps',
   'api-docs': 'API',
   arquitetura: 'Arquitetura',
+  seguranca: 'Segurança',
   sobre: 'Sobre o Sistema',
 };
 

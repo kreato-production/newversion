@@ -83,13 +83,14 @@ describe('auth routes', () => {
     });
 
     expect(loginResponse.statusCode).toBe(200);
-    const loginBody = loginResponse.json();
+    // Tokens ficam apenas no cookie HttpOnly — não no body (S4-02)
+    const accessToken = loginResponse.cookies.find(c => c.name === 'kreato_access_token')?.value ?? '';
 
     const meResponse = await app.inject({
       method: 'GET',
       url: '/auth/me',
       headers: {
-        authorization: `Bearer ${loginBody.accessToken}`,
+        authorization: `Bearer ${accessToken}`,
       },
     });
 
@@ -116,7 +117,7 @@ describe('auth routes', () => {
       url: '/auth/login',
       payload: { usuario: 'ana', password: '123456' },
     });
-    const { accessToken } = loginResponse.json();
+    const accessToken = loginResponse.cookies.find(c => c.name === 'kreato_access_token')?.value ?? '';
 
     const adminResponse = await app.inject({
       method: 'GET',

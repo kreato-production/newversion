@@ -16,6 +16,19 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { useTheme } from '@/hooks/use-theme';
 import { APP_METADATA } from '@/lib/app-metadata';
 
+// Garante que o destino pós-login seja sempre um path interno.
+// Rejeita URLs absolutas (http://...), protocol-relative (//evil.com)
+// e qualquer valor que o URL constructor resolva para outra origem.
+function sanitizeRedirect(from: string | null): string {
+  if (!from || !from.startsWith('/') || from.startsWith('//')) return '/dashboard';
+  try {
+    const url = new URL(from, 'http://localhost');
+    return url.origin === 'http://localhost' ? url.pathname + url.search : '/dashboard';
+  } catch {
+    return '/dashboard';
+  }
+}
+
 const AUTH_ERROR_MESSAGES: Record<string, string> = {
   CredentialsSignin: 'Usuário ou senha inválidos.',
   OAuthSignin: 'Erro ao iniciar autenticação com provedor externo.',
@@ -47,7 +60,7 @@ const Login = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const redirectTo = searchParams.get('from') || '/dashboard';
+  const redirectTo = sanitizeRedirect(searchParams.get('from'));
   const oauthError = searchParams.get('error');
   const errorMessage = getErrorMessage(oauthError);
   const logoSrc = typeof kreatoLogo === 'string' ? kreatoLogo : kreatoLogo.src;

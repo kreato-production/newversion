@@ -7,6 +7,41 @@ import { AuthService } from '../auth.service.js';
 export const ACCESS_COOKIE = 'kreato_access_token';
 export const REFRESH_COOKIE = 'kreato_refresh_token';
 
+// ── Rate limiter por usuário ────────────────────────────────────────────────
+// Complementa o rate limit por IP do @fastify/rate-limit: mesmo que vários
+// clientes compartilhem o mesmo IP (proxy corporativo), cada usuário tem seu
+// próprio contador. Limpa entradas expiradas a cada ciclo para evitar leak.
+const MAX_LOGIN_ATTEMPTS = 10;
+const WINDOW_MS = 15 * 60 * 1000;
+
+type AttemptEntry = { count: number; resetAt: number };
+const loginAttempts = new Map<string, AttemptEntry>();
+
+function checkAndIncrementAttempts(identifier: string): boolean {
+  const now = Date.now();
+
+  // Limpa entradas expiradas periodicamente (a cada inserção nova)
+  if (loginAttempts.size > 5_000) {
+    for (const [key, entry] of loginAttempts) {
+      if (now > entry.resetAt) loginAttempts.delete(key);
+    }
+  }
+
+  const entry = loginAttempts.get(identifier);
+
+  if (!entry || now > entry.resetAt) {
+    loginAttempts.set(identifier, { count: 1, resetAt: now + WINDOW_MS });
+    return true;
+  }
+
+  if (entry.count >= MAX_LOGIN_ATTEMPTS) {
+    return false;
+  }
+
+  entry.count++;
+  return true;
+}
+
 function setSessionCookies(reply: FastifyReply, accessToken: string, refreshToken: string) {
   const secure = env.NODE_ENV === 'production';
   const cookieBase = { httpOnly: true, sameSite: 'strict' as const, secure, path: '/' };
@@ -41,9 +76,21 @@ export function createAuthRoutes(authService: AuthService): FastifyPluginAsync {
       },
     }, async (request, reply) => {
       const body = loginSchema.parse(request.body);
+
+      // Rate limit por usuário (após body parsing, complementa o limite por IP).
+      // Bloqueia brute-force mesmo quando múltiplos clientes compartilham um IP.
+      if (!checkAndIncrementAttempts(body.usuario.toLowerCase())) {
+        return reply.status(429).send({
+          message: 'Muitas tentativas de login. Tente novamente em 15 minutos.',
+        });
+      }
+
       const session = await authService.login(body.usuario, body.password);
-      setSessionCookies(reply, session.accessToken, session.refreshToken);
-      return reply.status(200).send(session);
+      // Tokens ficam apenas nos cookies HttpOnly — removidos do body para não
+      // ficarem acessíveis a JavaScript (derrota o propósito de HttpOnly).
+      const { accessToken, refreshToken, ...safeLoginResponse } = session;
+      setSessionCookies(reply, accessToken, refreshToken);
+      return reply.status(200).send(safeLoginResponse);
     });
 
     app.post('/auth/refresh', {
@@ -66,8 +113,9 @@ export function createAuthRoutes(authService: AuthService): FastifyPluginAsync {
       }
 
       const session = await authService.refresh(refreshToken);
-      setSessionCookies(reply, session.accessToken, session.refreshToken);
-      return reply.status(200).send(session);
+      const { accessToken: newAccess, refreshToken: newRefresh, ...safeRefreshResponse } = session;
+      setSessionCookies(reply, newAccess, newRefresh);
+      return reply.status(200).send(safeRefreshResponse);
     });
 
     app.get('/auth/me', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {

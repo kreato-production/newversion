@@ -5,6 +5,7 @@ import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
 import swagger from '@fastify/swagger';
 import swaggerUi from '@fastify/swagger-ui';
+import { timingSafeEqual } from 'node:crypto';
 import { env, assertKeycloakConfig } from './config/env.js';
 import { sessionSecretToKey } from './lib/security/session-crypto.js';
 import { getDiscovery, validateKeycloakToken } from './lib/oidc/discovery.js';
@@ -193,7 +194,9 @@ function expandLocalOriginAliases(origin: string): string[] {
 }
 
 export async function buildApp(options: BuildAppOptions = {}) {
-  const app = Fastify({ logger: createLoggerOptions() });
+  // trustProxy: true → request.ip usa X-Forwarded-For do proxy reverso (Next.js / nginx).
+  // Sem isso, todos os requests chegam com IP 127.0.0.1 e o rate limit é compartilhado.
+  const app = Fastify({ logger: createLoggerOptions(), trustProxy: true });
   const alocacoesService = options.alocacoesService ?? new AlocacoesService(new PrismaAlocacoesRepository());
   const analyticsService = options.analyticsService ?? new AnalyticsService(new PrismaAnalyticsRepository());
   const adminConfigService = options.adminConfigService ?? new AdminConfigService(new PrismaAdminConfigRepository());
@@ -259,7 +262,18 @@ export async function buildApp(options: BuildAppOptions = {}) {
   });
 
   await app.register(cookie);
-  await app.register(rateLimit, { global: false });
+
+  // Rate limiting global: protege todos os endpoints contra flooding/DoS.
+  // Rotas críticas (/auth/login, /auth/refresh) sobrescrevem com limites menores
+  // via config.rateLimit na definição da rota — o plugin respeita configs por rota.
+  await app.register(rateLimit, {
+    global: true,
+    max: 300,
+    timeWindow: '1 minute',
+    errorResponseBuilder: () => ({
+      message: 'Muitas requisições. Aguarde um momento e tente novamente.',
+    }),
+  });
 
   // ── Keycloak BFF — apenas quando KEYCLOAK_AUTH_ENABLED=true ────────────────
   // Durante a migração ambos os fluxos coexistem:
@@ -385,7 +399,12 @@ export async function buildApp(options: BuildAppOptions = {}) {
     });
   }
 
-  if (env.NODE_ENV !== 'production') {
+  if (env.SWAGGER_ENABLED) {
+    // Avisa em startup se Swagger está ativo sem senha configurada.
+    if (!env.SWAGGER_PASSWORD) {
+      app.log.warn('SWAGGER_ENABLED=true mas SWAGGER_PASSWORD não configurado — /docs sem autenticação');
+    }
+
     await app.register(swagger, {
       openapi: {
         info: {
@@ -404,7 +423,64 @@ export async function buildApp(options: BuildAppOptions = {}) {
         },
       },
     });
-    await app.register(swaggerUi, { routePrefix: '/docs' });
+
+    await app.register(swaggerUi, {
+      routePrefix: '/docs',
+      uiHooks: {
+        // Basic Auth protege o Swagger UI contra enumeração de endpoints.
+        // Configurar SWAGGER_USER e SWAGGER_PASSWORD no .env do ambiente.
+        onRequest: (request, reply, next) => {
+          if (!env.SWAGGER_PASSWORD) {
+            next();
+            return;
+          }
+
+          const authHeader = request.headers.authorization;
+          if (!authHeader?.startsWith('Basic ')) {
+            reply
+              .header('WWW-Authenticate', 'Basic realm="Kreato API Docs", charset="UTF-8"')
+              .status(401)
+              .send({ message: 'Autenticação necessária para acessar a documentação.' });
+            return;
+          }
+
+          let user: string;
+          let pass: string;
+          try {
+            const decoded = Buffer.from(authHeader.slice(6), 'base64').toString('utf8');
+            const sep = decoded.indexOf(':');
+            if (sep === -1) throw new Error('invalid');
+            user = decoded.slice(0, sep);
+            pass = decoded.slice(sep + 1);
+          } catch {
+            reply.status(400).send({ message: 'Cabeçalho Authorization inválido.' });
+            return;
+          }
+
+          // Comparação timing-safe para evitar side-channel por tempo de resposta.
+          // Buffers são padded para o mesmo comprimento: timingSafeEqual exige isso.
+          const expectedUser = Buffer.from(env.SWAGGER_USER);
+          const expectedPass = Buffer.from(env.SWAGGER_PASSWORD);
+          const givenUser = Buffer.alloc(expectedUser.length);
+          const givenPass = Buffer.alloc(expectedPass.length);
+          Buffer.from(user).copy(givenUser);
+          Buffer.from(pass).copy(givenPass);
+
+          const userOk = timingSafeEqual(expectedUser, givenUser);
+          const passOk = timingSafeEqual(expectedPass, givenPass);
+
+          if (!userOk || !passOk) {
+            reply
+              .header('WWW-Authenticate', 'Basic realm="Kreato API Docs", charset="UTF-8"')
+              .status(401)
+              .send({ message: 'Credenciais inválidas.' });
+            return;
+          }
+
+          next();
+        },
+      },
+    });
   }
 
   const allowedOrigins = env.CORS_ORIGIN
@@ -415,7 +491,21 @@ export async function buildApp(options: BuildAppOptions = {}) {
 
   await app.register(cors, {
     origin: (origin, callback) => {
-      if (!origin || normalizedAllowedOrigins.has(origin)) {
+      // Sem Origin (undefined): chamada server-side — curl, health checks, testes,
+      // X-Internal-Token do Next.js. Não é request de browser cross-origin → permitir.
+      if (!origin) {
+        callback(null, true);
+        return;
+      }
+
+      // Origin: "null" (string literal): emitido por iframes sandboxed, file://
+      // e redirects cross-origin — vetor clássico de CSRF → bloquear.
+      if (origin === 'null') {
+        callback(new Error('Origin not allowed by CORS'), false);
+        return;
+      }
+
+      if (normalizedAllowedOrigins.has(origin)) {
         callback(null, true);
         return;
       }
