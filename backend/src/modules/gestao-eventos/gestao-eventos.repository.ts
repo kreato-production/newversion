@@ -7,12 +7,15 @@ async function ensureTables() {
   if (!ensurePromise) {
     ensurePromise = (async () => {
       await prisma.$executeRawUnsafe(`
+        ALTER TABLE gestao_eventos ADD COLUMN IF NOT EXISTS agenda jsonb NOT NULL DEFAULT '[]'
+      `);
+      await prisma.$executeRawUnsafe(`
         ALTER TABLE gestao_eventos ADD COLUMN IF NOT EXISTS unidade_negocio_id uuid NULL
       `);
       await prisma.$executeRawUnsafe(`
         ALTER TABLE gestao_eventos ADD COLUMN IF NOT EXISTS orcamento_itens jsonb NOT NULL DEFAULT '[]'
       `);
-    })();
+    })().catch((err) => { ensurePromise = null; throw err; });
   }
   await ensurePromise;
 }
