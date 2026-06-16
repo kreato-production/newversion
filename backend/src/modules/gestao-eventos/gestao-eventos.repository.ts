@@ -1,6 +1,22 @@
 import { randomUUID } from 'node:crypto';
 import { prisma } from '../../lib/prisma.js';
 
+let ensurePromise: Promise<void> | null = null;
+
+async function ensureTables() {
+  if (!ensurePromise) {
+    ensurePromise = (async () => {
+      await prisma.$executeRawUnsafe(`
+        ALTER TABLE gestao_eventos ADD COLUMN IF NOT EXISTS unidade_negocio_id uuid NULL
+      `);
+      await prisma.$executeRawUnsafe(`
+        ALTER TABLE gestao_eventos ADD COLUMN IF NOT EXISTS orcamento_itens jsonb NOT NULL DEFAULT '[]'
+      `);
+    })();
+  }
+  await ensurePromise;
+}
+
 export type EventoExpositor = {
   id: string;
   nome: string;
@@ -150,6 +166,7 @@ export interface EventosRepository {
 
 export class PrismaEventosRepository implements EventosRepository {
   async listByTenant(tenantId: string, opts?: ListEventosOptions): Promise<PaginatedEventos> {
+    await ensureTables();
     const take = Math.min(opts?.limit ?? 200, 200);
     const skip = opts?.offset ?? 0;
 
@@ -176,6 +193,7 @@ export class PrismaEventosRepository implements EventosRepository {
   }
 
   async findById(id: string, tenantId: string): Promise<EventoRecord | null> {
+    await ensureTables();
     const rows = await prisma.$queryRawUnsafe<EventoRow[]>(
       `SELECT id, tenant_id, codigo_externo, nome, tipo_evento_id, unidade_negocio_id, descricao, tags, inicio_evento, fim_evento,
               local, latitude, longitude, publico_estimado, expositores,
@@ -190,6 +208,7 @@ export class PrismaEventosRepository implements EventosRepository {
   }
 
   async save(input: SaveEventoInput): Promise<EventoRecord> {
+    await ensureTables();
     const tags = JSON.stringify(input.tags ?? []);
     const expositores = JSON.stringify(input.expositores ?? []);
     const agenda = JSON.stringify(input.agenda ?? []);
@@ -267,6 +286,7 @@ export class PrismaEventosRepository implements EventosRepository {
   }
 
   async remove(id: string, tenantId: string): Promise<void> {
+    await ensureTables();
     await prisma.$executeRawUnsafe(
       `DELETE FROM gestao_eventos WHERE id = $1 AND tenant_id = $2`,
       id,
