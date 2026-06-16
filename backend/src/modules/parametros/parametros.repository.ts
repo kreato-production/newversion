@@ -15,7 +15,9 @@ export type ParametroStorageKey =
   | 'kreato_status_tarefa'
   | 'kreato_departamentos'
   | 'kreato_perfis_acesso'
-  | 'kreato_unidades_negocio';
+  | 'kreato_unidades_negocio'
+  | 'kreato_tipo_evento'
+  | 'kreato_tipo_expositor';
 
 export type ParametroRecord = {
   id: string;
@@ -58,6 +60,8 @@ const tableMapping: Record<ParametroStorageKey, string> = {
   kreato_departamentos: 'departamentos',
   kreato_perfis_acesso: 'perfis_acesso',
   kreato_unidades_negocio: 'unidades_negocio',
+  kreato_tipo_evento: 'tipos_evento',
+  kreato_tipo_expositor: 'tipos_expositor',
 };
 
 type ParametroRow = {

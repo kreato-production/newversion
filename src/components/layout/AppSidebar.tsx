@@ -13,6 +13,7 @@ import {
   ChevronUp,
   Settings2,
   Satellite,
+  CalendarDays,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -468,6 +469,48 @@ const getNavItems = (isGlobalAdmin: boolean, t: (k: string) => string): NavItem[
     ],
   },
   {
+    id: 'eventos',
+    label: t('menu.eventos'),
+    icon: CalendarDays,
+    permission: { modulo: 'Gestão de Eventos' },
+    children: [
+      {
+        label: t('menu.eventos.list'),
+        path: '/eventos',
+        permission: { modulo: 'Gestão de Eventos', subModulo1: 'Eventos' },
+      },
+      {
+        label: t('menu.expositores'),
+        path: '/eventos/expositores',
+        permission: { modulo: 'Gestão de Eventos', subModulo1: 'Expositores' },
+      },
+      {
+        label: t('menu.parameters'),
+        isGroup: true,
+        children: [
+          {
+            label: t('menu.tipoEvento'),
+            path: '/eventos/parametrizacoes/tipo-evento',
+            permission: {
+              modulo: 'Gestão de Eventos',
+              subModulo1: 'Parametrizações',
+              subModulo2: 'Tipo de Evento',
+            },
+          },
+          {
+            label: t('menu.tipoExpositor'),
+            path: '/eventos/parametrizacoes/tipo-expositor',
+            permission: {
+              modulo: 'Gestão de Eventos',
+              subModulo1: 'Parametrizações',
+              subModulo2: 'Tipo de Expositor',
+            },
+          },
+        ],
+      } satisfies NavSubGroup,
+    ],
+  },
+  {
     id: 'admin',
     label: t('menu.admin'),
     icon: Building2,
@@ -526,7 +569,7 @@ const AppSidebar = () => {
   const pathname = usePathname();
 
   const isGlobalAdmin = user?.role === 'GLOBAL_ADMIN';
-  const tenantLabel = isGlobalAdmin ? 'Kreato' : (user?.tenantNome ?? 'Kreato');
+  const _tenantLabel = isGlobalAdmin ? 'Kreato' : (user?.tenantNome ?? 'Kreato');
   const navItems = getNavItems(isGlobalAdmin, t);
 
   const logoSrc = typeof kreatoLogo === 'string' ? kreatoLogo : kreatoLogo.src;

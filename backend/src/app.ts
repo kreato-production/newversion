@@ -85,6 +85,12 @@ import { ApropriacoesCustoService } from './modules/apropriacoes-custo/apropriac
 import { PrismaContasPagarRepository } from './modules/contas-pagar/contas-pagar.repository.js';
 import { createContasPagarRoutes } from './modules/contas-pagar/routes/index.js';
 import { ContasPagarService } from './modules/contas-pagar/contas-pagar.service.js';
+import { PrismaEventosRepository } from './modules/gestao-eventos/gestao-eventos.repository.js';
+import { createEventosRoutes } from './modules/gestao-eventos/routes/index.js';
+import { EventosService } from './modules/gestao-eventos/gestao-eventos.service.js';
+import { PrismaExpositoresRepository } from './modules/gestao-eventos/expositores.repository.js';
+import { createExpositoresRoutes } from './modules/gestao-eventos/routes/expositores.js';
+import { ExpositoresService } from './modules/gestao-eventos/expositores.service.js';
 import { PrismaOrcamentoRepository } from './modules/orcamento/orcamento.repository.js';
 import { createOrcamentoRoutes } from './modules/orcamento/routes/index.js';
 import { OrcamentoService } from './modules/orcamento/orcamento.service.js';
@@ -138,6 +144,8 @@ type BuildAppOptions = {
   authService?: AuthService;
   apropriacoesCustoService?: ApropriacoesCustoService;
   contasPagarService?: ContasPagarService;
+  eventosService?: EventosService;
+  expositoresService?: ExpositoresService;
   orcamentoService?: OrcamentoService;
   maestroService?: MaestroService;
   grelhaProgramacaoService?: GrelhaProgramacaoService;
@@ -196,7 +204,7 @@ function expandLocalOriginAliases(origin: string): string[] {
 export async function buildApp(options: BuildAppOptions = {}) {
   // trustProxy: true → request.ip usa X-Forwarded-For do proxy reverso (Next.js / nginx).
   // Sem isso, todos os requests chegam com IP 127.0.0.1 e o rate limit é compartilhado.
-  const app = Fastify({ logger: createLoggerOptions(), trustProxy: true });
+  const app = Fastify({ logger: createLoggerOptions(), trustProxy: true, bodyLimit: 15 * 1024 * 1024 });
   const alocacoesService = options.alocacoesService ?? new AlocacoesService(new PrismaAlocacoesRepository());
   const analyticsService = options.analyticsService ?? new AnalyticsService(new PrismaAnalyticsRepository());
   const adminConfigService = options.adminConfigService ?? new AdminConfigService(new PrismaAdminConfigRepository());
@@ -205,6 +213,8 @@ export async function buildApp(options: BuildAppOptions = {}) {
   const authRepository = new PrismaAuthRepository();
   const authService = options.authService ?? new AuthService(authRepository);
   const apropriacoesCustoService = options.apropriacoesCustoService ?? new ApropriacoesCustoService(new PrismaApropriacoesCustoRepository());
+  const eventosService = options.eventosService ?? new EventosService(new PrismaEventosRepository());
+  const expositoresService = options.expositoresService ?? new ExpositoresService(new PrismaExpositoresRepository());
   const contasPagarRepository = new PrismaContasPagarRepository();
   const contasPagarService = options.contasPagarService ?? new ContasPagarService(contasPagarRepository);
   const orcamentoService = options.orcamentoService ?? new OrcamentoService(new PrismaOrcamentoRepository());
@@ -522,6 +532,8 @@ export async function buildApp(options: BuildAppOptions = {}) {
   await app.register(createAuthRoutes(authService));
   await app.register(createApropriacoesCustoRoutes(authService, apropriacoesCustoService));
   await app.register(createContasPagarRoutes(authService, contasPagarService));
+  await app.register(createEventosRoutes(authService, eventosService));
+  await app.register(createExpositoresRoutes(authService, expositoresService));
   await app.register(createOrcamentoRoutes(authService, orcamentoService));
   await app.register(createMaestroRoutes(authService, maestroService));
   await app.register(createGrelhaProgramacaoRoutes(authService, grelhaProgramacaoService));

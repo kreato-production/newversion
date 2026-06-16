@@ -7,11 +7,12 @@ const backendOrigin = process.env.NEXT_PUBLIC_BACKEND_API_URL ?? 'http://localho
 // Em produção remove unsafe-eval e restringe connect-src ao backend real.
 const cspDirectives = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline'" + (isDev ? " 'unsafe-eval'" : ''),
-  "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob:",
+  "script-src 'self' 'unsafe-inline' https://unpkg.com" + (isDev ? " 'unsafe-eval'" : ''),
+  "style-src 'self' 'unsafe-inline' https://unpkg.com",
+  "img-src 'self' data: blob: https://*.tile.openstreetmap.org",
   "font-src 'self'",
   `connect-src 'self' ${backendOrigin}` + (isDev ? ' ws://localhost:3001' : ''),
+  "frame-src 'self'",
   "frame-ancestors 'self'",
   "form-action 'self'",
   "base-uri 'self'",

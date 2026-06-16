@@ -162,6 +162,24 @@ export const ParametroFormModal = ({
                   disabled={readOnly || isSubmitting}
                 />
               </div>
+
+              {formData.dataCadastro && (
+                <div className="grid grid-cols-2 gap-4 pt-2 border-t">
+                  <div className="space-y-2">
+                    <Label>{t('common.registrationDate')}</Label>
+                    <Input value={formData.dataCadastro} readOnly disabled className="bg-muted" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>{t('common.registrationUser')}</Label>
+                    <Input
+                      value={formData.usuarioCadastro || '-'}
+                      readOnly
+                      disabled
+                      className="bg-muted"
+                    />
+                  </div>
+                </div>
+              )}
             </TabsContent>
 
             <TabsContent value="traducao">
