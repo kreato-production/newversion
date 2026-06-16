@@ -10,6 +10,7 @@ export type ContaPagar = {
   dataVencimento: string;
   dataPagamento: string;
   valor: number;
+  moeda: string;
   valorPago: number | null;
   statusId: string;
   statusNome: string;
@@ -21,6 +22,7 @@ export type ContaPagar = {
   tipoDocumentoId: string;
   tipoDocumentoNome: string;
   observacoes: string;
+  eventoOrcamentoItemId: string | null;
   createdAt: string;
   updatedAt: string;
 };

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+﻿import { useCallback, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   AlertDialog,
@@ -49,7 +49,7 @@ import {
 const repository = new ApiContasPagarRepository();
 
 const COLUMN_CONFIG: ColumnConfig[] = [
-  { key: 'numeroDocumento', label: 'Nº Doc', defaultVisible: true },
+  { key: 'numeroDocumento', label: 'NÂº Doc', defaultVisible: true },
   { key: 'fornecedor', label: 'Fornecedor', required: false, defaultVisible: true },
   { key: 'descricao', label: 'Descricao', required: true },
   { key: 'dataVencimento', label: 'Vencimento', defaultVisible: true },
@@ -73,9 +73,27 @@ function formatDate(dateStr: string | null | undefined) {
   }
 }
 
-function formatCurrency(value: number | null | undefined) {
+function formatCurrency(value: number | null | undefined, moeda = 'BRL') {
   if (value == null) return '-';
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+  const currency = [
+    'BRL',
+    'EUR',
+    'USD',
+    'GBP',
+    'CHF',
+    'JPY',
+    'ARS',
+    'MXN',
+    'COP',
+    'CLP',
+    'PEN',
+    'UYU',
+    'CAD',
+    'AUD',
+  ].includes(moeda)
+    ? moeda
+    : 'BRL';
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency }).format(value);
 }
 
 function isOverdue(dataVencimento: string, dataPagamento: string) {
@@ -83,7 +101,7 @@ function isOverdue(dataVencimento: string, dataPagamento: string) {
   return new Date(dataVencimento) < new Date();
 }
 
-// ─── Card view ───────────────────────────────────────────────────────────────
+// â”€â”€â”€ Card view â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function ContaPagarCard({
   item,
@@ -117,7 +135,7 @@ function ContaPagarCard({
       <CardContent className="px-4 pb-3 space-y-2 text-xs text-muted-foreground flex-1">
         <div className="flex items-center justify-between">
           <span className="font-semibold text-foreground text-base">
-            {formatCurrency(item.valor)}
+            {formatCurrency(item.valor, item.moeda)}
           </span>
           {item.statusNome && (
             <Badge
@@ -161,7 +179,7 @@ function ContaPagarCard({
   );
 }
 
-// ─── Detail panel ─────────────────────────────────────────────────────────────
+// â”€â”€â”€ Detail panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function ContaPagarDetailPanel({
   item,
@@ -192,7 +210,7 @@ function ContaPagarDetailPanel({
       </div>
 
       <div className="flex items-center gap-3">
-        <span className="text-2xl font-bold">{formatCurrency(item.valor)}</span>
+        <span className="text-2xl font-bold">{formatCurrency(item.valor, item.moeda)}</span>
         {item.statusNome && (
           <Badge
             style={item.statusCor ? { backgroundColor: item.statusCor, color: '#fff' } : undefined}
@@ -206,9 +224,9 @@ function ContaPagarDetailPanel({
       <Separator />
 
       <div className="grid grid-cols-2 gap-x-6 gap-y-3">
-        {field('Nº Documento', item.numeroDocumento)}
+        {field('NÂº Documento', item.numeroDocumento)}
         {field('Fornecedor', item.fornecedorNome)}
-        {field('Data Emissão', formatDate(item.dataEmissao))}
+        {field('Data EmissÃ£o', formatDate(item.dataEmissao))}
         <div>
           <p className="text-xs text-muted-foreground mb-0.5">Vencimento</p>
           <p className={`text-sm ${overdue ? 'text-destructive font-medium' : ''}`}>
@@ -217,7 +235,7 @@ function ContaPagarDetailPanel({
           </p>
         </div>
         {field('Data Pagamento', formatDate(item.dataPagamento))}
-        {item.valorPago != null && field('Valor Pago', formatCurrency(item.valorPago))}
+        {item.valorPago != null && field('Valor Pago', formatCurrency(item.valorPago, item.moeda))}
         {field('Categoria', item.categoriaNome)}
         {field('Forma de Pagamento', item.formaPagamentoNome)}
         {field('Tipo de Documento', item.tipoDocumentoNome)}
@@ -227,7 +245,7 @@ function ContaPagarDetailPanel({
         <>
           <Separator />
           <div>
-            <p className="text-xs text-muted-foreground mb-1">Observações</p>
+            <p className="text-xs text-muted-foreground mb-1">ObservaÃ§Ãµes</p>
             <p className="text-sm leading-relaxed">{item.observacoes}</p>
           </div>
         </>
@@ -254,7 +272,7 @@ function ContaPagarDetailPanel({
   );
 }
 
-// ─── Main component ───────────────────────────────────────────────────────────
+// â”€â”€â”€ Main component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const ContasPagar = () => {
   const { toast } = useToast();
@@ -369,7 +387,7 @@ const ContasPagar = () => {
   const columns: Column<ContaPagar & { actions?: never }>[] = [
     {
       key: 'numeroDocumento',
-      label: 'Nº Doc',
+      label: 'NÂº Doc',
       className: 'w-28',
       render: (item) => <span className="font-mono text-xs">{item.numeroDocumento || '-'}</span>,
     },
@@ -401,7 +419,7 @@ const ContasPagar = () => {
       label: 'Valor',
       className: 'w-36 text-right',
       render: (item) => (
-        <span className="font-semibold tabular-nums">{formatCurrency(item.valor)}</span>
+        <span className="font-semibold tabular-nums">{formatCurrency(item.valor, item.moeda)}</span>
       ),
     },
     {
@@ -435,7 +453,7 @@ const ContasPagar = () => {
       className: 'w-36 text-right',
       render: (item) => (
         <span className="tabular-nums">
-          {item.valorPago != null ? formatCurrency(item.valorPago) : '-'}
+          {item.valorPago != null ? formatCurrency(item.valorPago, item.moeda) : '-'}
         </span>
       ),
     },
@@ -493,7 +511,7 @@ const ContasPagar = () => {
     <div>
       <PageHeader
         title="Contas a Pagar"
-        description="Gerencie as contas e obrigações financeiras a pagar"
+        description="Gerencie as contas e obrigaÃ§Ãµes financeiras a pagar"
       />
 
       <ListActionBar>
@@ -637,7 +655,7 @@ const ContasPagar = () => {
                   {item.fornecedorNome && <span className="truncate">{item.fornecedorNome}</span>}
                   <span className="shrink-0">{formatDate(item.dataVencimento)}</span>
                   <span className="shrink-0 font-medium tabular-nums">
-                    {formatCurrency(item.valor)}
+                    {formatCurrency(item.valor, item.moeda)}
                   </span>
                 </div>
               </div>

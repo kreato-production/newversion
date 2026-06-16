@@ -20,6 +20,7 @@ const MODULE_LABELS: Record<string, string> = {
   admin: 'Administração',
   global: 'Global',
   satops: 'SatOps',
+  eventos: 'Gestão de Eventos',
   'api-docs': 'API',
   arquitetura: 'Arquitetura',
   seguranca: 'Segurança',
@@ -33,6 +34,7 @@ const MODULE_PATHS: Record<string, string> = {
   admin: '/module/admin',
   global: '/module/global',
   satops: '/module/satops',
+  eventos: '/eventos',
 };
 
 const SUB_LABELS: Record<string, string> = {
@@ -52,6 +54,12 @@ const SUB_LABELS: Record<string, string> = {
   'categorias-incidencia': 'Cat. de Incidência',
   'severidades-incidencia': 'Sev. de Incidência',
   'impactos-incidencia': 'Imp. de Incidência',
+  // Gestão de Eventos — principais
+  eventos: 'Eventos',
+  expositores: 'Expositores',
+  parametrizacoes: 'Parametrizações',
+  'tipo-evento': 'Tipo de Evento',
+  'tipo-expositor': 'Tipo de Expositor',
   // Recursos — principais
   humanos: 'Rec. Humanos',
   tecnicos: 'Rec. Técnicos',

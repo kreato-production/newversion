@@ -26,8 +26,13 @@ import {
   Upload,
   ZoomIn,
   Printer,
+  CalendarDays,
+  LayoutDashboard,
 } from 'lucide-react';
 import { printEventoRelatorio } from '@/lib/printEventoRelatorio';
+import { AgendaTab } from '@/components/eventos/AgendaTab';
+import { OrcamentoEventoTab } from '@/components/eventos/OrcamentoEventoTab';
+import { PreviewTab } from '@/components/eventos/PreviewTab';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { ModalNavigation, type ModalNavigationProps } from '@/components/shared/ModalNavigation';
 import { SearchableSelect } from '@/components/shared/SearchableSelect';
@@ -35,6 +40,8 @@ import {
   ApiParametrosRepository,
   type ParametroApiItem,
 } from '@/modules/parametros/parametros.api.repository';
+import { unidadesRepository } from '@/modules/unidades/unidades.repository.provider';
+import type { UnidadeNegocio } from '@/modules/unidades/unidades.types';
 import type {
   Evento,
   SaveEventoInput,
@@ -58,6 +65,7 @@ const emptyForm: SaveEventoInput = {
   codigoExterno: '',
   nome: '',
   tipoEventoId: null,
+  unidadeNegocioId: null,
   descricao: '',
   tags: [],
   inicioEvento: null,
@@ -70,6 +78,8 @@ const emptyForm: SaveEventoInput = {
   layoutArquivo: null,
   layoutNome: null,
   layoutTipo: null,
+  agenda: [],
+  orcamentoItens: [],
 };
 
 const expositoresRepository = new ApiExpositoresRepository();
@@ -98,6 +108,7 @@ export const EventoFormModal = ({
   const [tagInput, setTagInput] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [tiposEvento, setTiposEvento] = useState<ParametroApiItem[]>([]);
+  const [unidades, setUnidades] = useState<UnidadeNegocio[]>([]);
   const [allExpositores, setAllExpositores] = useState<Expositor[]>([]);
   const [selectedExpositorId, setSelectedExpositorId] = useState('');
   const [layoutError, setLayoutError] = useState('');
@@ -115,6 +126,10 @@ export const EventoFormModal = ({
     expositoresRepository
       .list()
       .then((r) => setAllExpositores(r.data))
+      .catch(() => {});
+    unidadesRepository
+      .list()
+      .then(setUnidades)
       .catch(() => {});
   }, []);
 
@@ -184,6 +199,7 @@ export const EventoFormModal = ({
           codigoExterno: data.codigoExterno ?? '',
           nome: data.nome ?? '',
           tipoEventoId: data.tipoEventoId ?? null,
+          unidadeNegocioId: data.unidadeNegocioId ?? null,
           descricao: data.descricao ?? '',
           tags: data.tags ?? [],
           inicioEvento: data.inicioEvento ?? null,
@@ -196,6 +212,8 @@ export const EventoFormModal = ({
           layoutArquivo: data.layoutArquivo ?? null,
           layoutNome: data.layoutNome ?? null,
           layoutTipo: data.layoutTipo ?? null,
+          agenda: data.agenda ?? [],
+          orcamentoItens: data.orcamentoItens ?? [],
         });
       } else {
         setForm(emptyForm);
@@ -307,6 +325,27 @@ L.marker([${form.latitude},${form.longitude}],{icon:redIcon}).addTo(map);
                   <span className="ml-1.5 h-2 w-2 rounded-full bg-primary inline-block" />
                 )}
               </TabsTrigger>
+              <TabsTrigger value="agenda" className="flex-1">
+                <CalendarDays className="h-3.5 w-3.5 mr-1.5" />
+                Agenda
+                {(form.agenda ?? []).length > 0 && (
+                  <span className="ml-1.5 rounded-full bg-primary text-primary-foreground text-[10px] font-semibold px-1.5 py-0.5 leading-none">
+                    {(form.agenda ?? []).reduce((s, d) => s + d.atividades.length, 0)}
+                  </span>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="orcamento" className="flex-1">
+                Orçamento
+                {(form.orcamentoItens ?? []).length > 0 && (
+                  <span className="ml-1.5 rounded-full bg-primary text-primary-foreground text-[10px] font-semibold px-1.5 py-0.5 leading-none">
+                    {(form.orcamentoItens ?? []).length}
+                  </span>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="preview" className="flex-1">
+                <LayoutDashboard className="h-3.5 w-3.5 mr-1.5" />
+                Preview
+              </TabsTrigger>
             </TabsList>
 
             {/* ── Dados Gerais ── */}
@@ -337,17 +376,31 @@ L.marker([${form.latitude},${form.longitude}],{icon:redIcon}).addTo(map);
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label>Tipo de Evento</Label>
-                <SearchableSelect
-                  options={tiposEvento.map((t) => ({ value: t.id, label: t.nome }))}
-                  value={form.tipoEventoId ?? ''}
-                  onValueChange={(v) => set('tipoEventoId', v || null)}
-                  placeholder="Selecione o tipo de evento..."
-                  searchPlaceholder="Pesquisar tipo de evento..."
-                  emptyMessage="Nenhum tipo de evento encontrado."
-                  disabled={readOnly || isSubmitting}
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Tipo de Evento</Label>
+                  <SearchableSelect
+                    options={tiposEvento.map((t) => ({ value: t.id, label: t.nome }))}
+                    value={form.tipoEventoId ?? ''}
+                    onValueChange={(v) => set('tipoEventoId', v || null)}
+                    placeholder="Selecione o tipo de evento..."
+                    searchPlaceholder="Pesquisar tipo de evento..."
+                    emptyMessage="Nenhum tipo de evento encontrado."
+                    disabled={readOnly || isSubmitting}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Unidade de Negócio</Label>
+                  <SearchableSelect
+                    options={unidades.map((u) => ({ value: u.id, label: u.nome }))}
+                    value={form.unidadeNegocioId ?? ''}
+                    onValueChange={(v) => set('unidadeNegocioId', v || null)}
+                    placeholder="Selecione a unidade de negócio..."
+                    searchPlaceholder="Pesquisar unidade..."
+                    emptyMessage="Nenhuma unidade encontrada."
+                    disabled={readOnly || isSubmitting}
+                  />
+                </div>
               </div>
 
               <div className="space-y-2">
@@ -697,6 +750,31 @@ L.marker([${form.latitude},${form.longitude}],{icon:redIcon}).addTo(map);
                   <p className="text-sm">Nenhum layout cadastrado para este evento</p>
                 </div>
               )}
+            </TabsContent>
+            {/* ── Agenda ── */}
+            <TabsContent value="agenda" className="space-y-4 mt-4">
+              <AgendaTab
+                value={form.agenda ?? []}
+                onChange={(dias) => set('agenda', dias)}
+                readOnly={readOnly}
+                disabled={isSubmitting}
+              />
+            </TabsContent>
+
+            {/* ── Orçamento ── */}
+            <TabsContent value="orcamento" className="space-y-4 mt-4">
+              <OrcamentoEventoTab
+                value={form.orcamentoItens ?? []}
+                onChange={(itens) => set('orcamentoItens', itens)}
+                unidadeNegocioId={form.unidadeNegocioId}
+                readOnly={readOnly}
+                disabled={isSubmitting}
+              />
+            </TabsContent>
+
+            {/* ── Preview ── */}
+            <TabsContent value="preview" className="mt-4">
+              <PreviewTab agenda={form.agenda ?? []} />
             </TabsContent>
           </Tabs>
 

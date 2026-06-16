@@ -46,8 +46,13 @@ import {
   type Expositor,
   type SaveExpositorInput,
 } from '@/modules/gestao-eventos/expositores.api.repository';
+import {
+  ApiParametrosRepository,
+  type ParametroApiItem,
+} from '@/modules/parametros/parametros.api.repository';
 
 const apiRepo = new ApiExpositoresRepository();
+const parametrosRepo = new ApiParametrosRepository();
 const STORAGE_KEY = 'kreato_expositores_table';
 
 function buildColumnConfig(t: (k: string) => string): ColumnConfig[] {
@@ -280,6 +285,8 @@ const Expositores = () => {
 
   const [search, setSearch] = useState('');
   const [filterSortBy, setFilterSortBy] = useState('');
+  const [filterTipoId, setFilterTipoId] = useState('');
+  const [tiposExpositor, setTiposExpositor] = useState<ParametroApiItem[]>([]);
   const [items, setItems] = useState<Expositor[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -305,8 +312,12 @@ const Expositores = () => {
     }
     setIsLoading(true);
     try {
-      const result = await apiRepo.list({ limit: 200 });
+      const [result, tipos] = await Promise.all([
+        apiRepo.list({ limit: 200 }),
+        parametrosRepo.list('kreato_tipo_expositor'),
+      ]);
       setItems(result.data);
+      setTiposExpositor(tipos);
     } catch (err) {
       toast({
         title: 'Erro',
@@ -356,15 +367,21 @@ const Expositores = () => {
     }
   };
 
+  const tipoNomeById = (id: string | null) => tiposExpositor.find((t) => t.id === id)?.nome ?? '';
+
   const filteredItems = (() => {
     const q = search.toLowerCase();
-    const result = items.filter(
-      (i) =>
+    const result = items.filter((i) => {
+      if (filterTipoId && i.tipoExpositorId !== filterTipoId) return false;
+      if (!q) return true;
+      return (
         i.nome.toLowerCase().includes(q) ||
         (i.codigoExterno ?? '').toLowerCase().includes(q) ||
         (i.contato ?? '').toLowerCase().includes(q) ||
-        (i.tags ?? []).some((tag) => tag.toLowerCase().includes(q)),
-    );
+        (i.tipoExpositorNome ?? '').toLowerCase().includes(q) ||
+        (i.tags ?? []).some((tag) => tag.toLowerCase().includes(q))
+      );
+    });
     if (filterSortBy === 'nome-asc')
       return [...result].sort((a, b) => a.nome.localeCompare(b.nome));
     if (filterSortBy === 'nome-desc')
@@ -393,6 +410,8 @@ const Expositores = () => {
       key: 'tipoExpositorNome',
       label: 'Tipo de Expositor',
       className: 'hidden md:table-cell',
+      groupable: true,
+      groupValue: (i) => i.tipoExpositorNome || '(Sem tipo)',
       render: (i) => (
         <span className="text-muted-foreground text-sm">{i.tipoExpositorNome || '-'}</span>
       ),
@@ -401,6 +420,8 @@ const Expositores = () => {
       key: 'tags',
       label: 'Tags',
       className: 'hidden lg:table-cell',
+      groupable: true,
+      groupValue: (i) => ((i.tags ?? []).length > 0 ? (i.tags[0] ?? '(Sem tag)') : '(Sem tag)'),
       render: (i) => (
         <div className="flex flex-wrap gap-1">
           {(i.tags ?? []).slice(0, 2).map((tag) => (
@@ -471,15 +492,48 @@ const Expositores = () => {
         <div className="flex-1" />
         <SearchBar value={search} onChange={setSearch} placeholder={t('common.search')} />
         <ListFilterPanel
-          activeCount={filterSortBy ? 1 : 0}
+          activeCount={(filterSortBy ? 1 : 0) + (filterTipoId ? 1 : 0)}
           resultCount={filteredItems.length}
-          onClear={() => setFilterSortBy('')}
+          onClear={() => {
+            setFilterSortBy('');
+            setFilterTipoId('');
+          }}
           entityLabel="expositores"
         >
           <FilterSection
+            title="Tipo de Expositor"
+            subtitle={filterTipoId ? tipoNomeById(filterTipoId) : undefined}
+            defaultOpen
+          >
+            <div className="flex flex-wrap gap-1.5">
+              <button
+                onClick={() => setFilterTipoId('')}
+                className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+                  !filterTipoId
+                    ? 'bg-primary text-primary-foreground border-primary'
+                    : 'border-border hover:bg-muted'
+                }`}
+              >
+                Todos
+              </button>
+              {tiposExpositor.map((tipo) => (
+                <button
+                  key={tipo.id}
+                  onClick={() => setFilterTipoId(filterTipoId === tipo.id ? '' : tipo.id)}
+                  className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+                    filterTipoId === tipo.id
+                      ? 'bg-primary text-primary-foreground border-primary'
+                      : 'border-border hover:bg-muted'
+                  }`}
+                >
+                  {tipo.nome}
+                </button>
+              ))}
+            </div>
+          </FilterSection>
+          <FilterSection
             title="Ordenar por"
             subtitle={sortSubtitle(filterSortBy, SORT_OPTIONS_NOME_DATA)}
-            defaultOpen
           >
             <SortChip
               value={filterSortBy}

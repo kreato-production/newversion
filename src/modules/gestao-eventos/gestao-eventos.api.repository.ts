@@ -7,11 +7,41 @@ export type EventoExpositor = {
   tipoExpositorNome: string;
 };
 
+export type AgendaAtividade = {
+  id: string;
+  horarioInicio: string;
+  horarioFim: string;
+  titulo: string;
+  descricao: string;
+  cor: string;
+  executada: boolean;
+};
+
+export type AgendaDia = {
+  id: string;
+  data: string;
+  atividades: AgendaAtividade[];
+};
+
+export type OrcamentoEventoItem = {
+  id: string;
+  fornecedorId: string;
+  fornecedorNome: string;
+  servicoIds: string[];
+  servicoNomes: string[];
+  centroLucroId: string | null;
+  centroLucroNome: string | null;
+  valor: number;
+  moeda: string;
+  dataPagamento: string | null;
+};
+
 export type Evento = {
   id: string;
   codigoExterno: string;
   nome: string;
   tipoEventoId: string | null;
+  unidadeNegocioId: string | null;
   descricao: string;
   tags: string[];
   inicioEvento: string | null;
@@ -24,6 +54,8 @@ export type Evento = {
   layoutArquivo: string | null;
   layoutNome: string | null;
   layoutTipo: string | null;
+  agenda: AgendaDia[];
+  orcamentoItens: OrcamentoEventoItem[];
   createdAt: string;
   createdBy: string;
 };
@@ -33,6 +65,7 @@ export type SaveEventoInput = {
   codigoExterno?: string | null;
   nome: string;
   tipoEventoId?: string | null;
+  unidadeNegocioId?: string | null;
   descricao?: string | null;
   tags?: string[];
   inicioEvento?: string | null;
@@ -45,6 +78,8 @@ export type SaveEventoInput = {
   layoutArquivo?: string | null;
   layoutNome?: string | null;
   layoutTipo?: string | null;
+  agenda?: AgendaDia[];
+  orcamentoItens?: OrcamentoEventoItem[];
 };
 
 type ListResponse = { total: number; data: Evento[] };

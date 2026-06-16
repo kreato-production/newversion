@@ -2,11 +2,7 @@ import { useState } from 'react';
 import { Check, ChevronsUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   Command,
   CommandEmpty,
@@ -59,16 +55,14 @@ export const SearchableSelect = ({
           aria-expanded={open}
           disabled={disabled}
           className={cn(
-            'w-full justify-between h-9 text-sm font-normal',
+            'w-full justify-between h-8 px-2 text-xs font-normal',
             !value && 'text-muted-foreground',
             disabled && 'opacity-50 cursor-not-allowed',
             triggerClassName,
             className,
           )}
         >
-          <span className="truncate">
-            {selectedOption ? selectedOption.label : placeholder}
-          </span>
+          <span className="truncate">{selectedOption ? selectedOption.label : placeholder}</span>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>

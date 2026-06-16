@@ -59,6 +59,18 @@ export class PrismaApropriacoesCustoRepository implements ApropriacoesCustoRepos
     return Boolean(rows[0]?.e);
   }
 
+  private async columnExists(table: string, column: string): Promise<boolean> {
+    const rows = await prisma.$queryRawUnsafe<Array<{ e: boolean }>>(
+      `SELECT EXISTS (
+         SELECT 1 FROM information_schema.columns
+         WHERE table_schema = 'public' AND table_name = $1 AND column_name = $2
+       ) AS e`,
+      table,
+      column,
+    );
+    return Boolean(rows[0]?.e);
+  }
+
   async aggregateCosts(tenantId: string, opts: ApropriacaoCustoOptions): Promise<CostAggRow[]> {
     const { ano } = opts;
     const safe = (s: string) => s.replace(/'/g, "''");
@@ -213,6 +225,36 @@ export class PrismaApropriacoesCustoRepository implements ApropriacoesCustoRepos
           AND EXTRACT(YEAR FROM g."dataPrevista") = ${ano}
           ${clWhere} ${unWhere}
         GROUP BY 1, cl.id, cl.nome, un.id, un.nome
+      `);
+      parts.push(rows);
+    }
+
+    // 6. Orçamento de eventos (gestao_eventos.orcamento_itens)
+    if (
+      await this.tableExists('gestao_eventos') &&
+      await this.columnExists('gestao_eventos', 'orcamento_itens') &&
+      await this.columnExists('gestao_eventos', 'unidade_negocio_id')
+    ) {
+      const geUnWhere = opts.unidadeId ? `AND ge.unidade_negocio_id::text = '${safe(opts.unidadeId)}'` : '';
+      const rows = await prisma.$queryRawUnsafe<RawRow[]>(`
+        SELECT
+          EXTRACT(MONTH FROM (item->>'dataPagamento')::date)::int AS mes,
+          cl.id AS centro_lucro_id,
+          cl.nome AS centro_lucro_nome,
+          un.id::text AS unidade_id,
+          un.nome AS unidade_nome,
+          COALESCE(item->>'fornecedorNome', 'Fornecedor') AS recurso_nome,
+          SUM(COALESCE((item->>'valor')::numeric, 0)) AS custo
+        FROM gestao_eventos ge
+        CROSS JOIN LATERAL jsonb_array_elements(COALESCE(ge.orcamento_itens, '[]'::jsonb)) AS item
+        LEFT JOIN centros_lucro cl ON cl.id::text = (item->>'centroLucroId')
+        LEFT JOIN "UnidadeNegocio" un ON un.id::text = ge.unidade_negocio_id::text
+        WHERE ge.tenant_id = '${st}'
+          AND (item->>'dataPagamento') IS NOT NULL
+          AND (item->>'dataPagamento') != ''
+          AND EXTRACT(YEAR FROM (item->>'dataPagamento')::date) = ${ano}
+          ${clWhere} ${geUnWhere}
+        GROUP BY mes, cl.id, cl.nome, un.id, un.nome, item->>'fornecedorNome'
       `);
       parts.push(rows);
     }

@@ -385,6 +385,8 @@ const Eventos = () => {
       key: 'tipoEvento',
       label: 'Tipo de Evento',
       className: 'hidden md:table-cell w-40',
+      groupable: true,
+      groupValue: (i) => tipoNomeById(i.tipoEventoId) || '(Sem tipo)',
       render: (i) => {
         const nome = tipoNomeById(i.tipoEventoId);
         return nome ? (
@@ -400,6 +402,12 @@ const Eventos = () => {
       key: 'inicioEvento',
       label: 'Início',
       className: 'w-36',
+      groupable: true,
+      groupValue: (i) => {
+        if (!i.inicioEvento) return '(Sem data)';
+        const d = new Date(i.inicioEvento);
+        return d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+      },
       render: (i) => <span className="text-sm">{formatDatetime(i.inicioEvento)}</span>,
     },
     {
@@ -412,6 +420,8 @@ const Eventos = () => {
       key: 'local',
       label: 'Local',
       className: 'hidden md:table-cell',
+      groupable: true,
+      groupValue: (i) => i.local || '(Sem local)',
       render: (i) => (
         <span className="text-muted-foreground truncate block max-w-[180px]">{i.local || '-'}</span>
       ),
@@ -420,6 +430,8 @@ const Eventos = () => {
       key: 'tags',
       label: 'Tags',
       className: 'hidden lg:table-cell',
+      groupable: true,
+      groupValue: (i) => ((i.tags ?? []).length > 0 ? (i.tags[0] ?? '(Sem tag)') : '(Sem tag)'),
       render: (i) => (
         <div className="flex flex-wrap gap-1">
           {(i.tags ?? []).slice(0, 2).map((tag) => (

@@ -90,6 +90,7 @@ function mapContaPagar(item: Awaited<ReturnType<ContasPagarRepository['findById'
     dataVencimento: item.dataVencimento,
     dataPagamento: item.dataPagamento ?? '',
     valor: item.valor,
+    moeda: item.moeda ?? 'BRL',
     valorPago: item.valorPago ?? null,
     statusId: item.statusId ?? '',
     statusNome: item.statusNome ?? '',
@@ -101,6 +102,7 @@ function mapContaPagar(item: Awaited<ReturnType<ContasPagarRepository['findById'
     tipoDocumentoId: item.tipoDocumentoId ?? '',
     tipoDocumentoNome: item.tipoDocumentoNome ?? '',
     observacoes: item.observacoes ?? '',
+    eventoOrcamentoItemId: item.eventoOrcamentoItemId ?? null,
     createdAt: item.createdAt?.toISOString() ?? '',
     updatedAt: item.updatedAt?.toISOString() ?? '',
   };

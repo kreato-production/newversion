@@ -8,12 +8,42 @@ export type EventoExpositor = {
   tipoExpositorNome: string;
 };
 
+export type AgendaAtividade = {
+  id: string;
+  horarioInicio: string;
+  horarioFim: string;
+  titulo: string;
+  descricao: string;
+  cor: string;
+  executada: boolean;
+};
+
+export type AgendaDia = {
+  id: string;
+  data: string;
+  atividades: AgendaAtividade[];
+};
+
+export type OrcamentoEventoItem = {
+  id: string;
+  fornecedorId: string;
+  fornecedorNome: string;
+  servicoIds: string[];
+  servicoNomes: string[];
+  centroLucroId: string | null;
+  centroLucroNome: string | null;
+  valor: number;
+  moeda: string;
+  dataPagamento: string | null;
+};
+
 export type EventoRecord = {
   id: string;
   tenantId: string;
   codigoExterno: string | null;
   nome: string;
   tipoEventoId: string | null;
+  unidadeNegocioId: string | null;
   descricao: string | null;
   tags: string[];
   inicioEvento: Date | null;
@@ -26,6 +56,8 @@ export type EventoRecord = {
   layoutArquivo: string | null;
   layoutNome: string | null;
   layoutTipo: string | null;
+  agenda: AgendaDia[];
+  orcamentoItens: OrcamentoEventoItem[];
   createdAt: Date | null;
   createdBy: string | null;
 };
@@ -36,6 +68,7 @@ export type SaveEventoInput = {
   codigoExterno?: string | null;
   nome: string;
   tipoEventoId?: string | null;
+  unidadeNegocioId?: string | null;
   descricao?: string | null;
   tags?: string[];
   inicioEvento?: string | null;
@@ -48,6 +81,8 @@ export type SaveEventoInput = {
   layoutArquivo?: string | null;
   layoutNome?: string | null;
   layoutTipo?: string | null;
+  agenda?: AgendaDia[];
+  orcamentoItens?: OrcamentoEventoItem[];
   createdBy?: string | null;
 };
 
@@ -60,6 +95,7 @@ type EventoRow = {
   codigo_externo: string | null;
   nome: string;
   tipo_evento_id: string | null;
+  unidade_negocio_id: string | null;
   descricao: string | null;
   tags: string[] | null;
   inicio_evento: Date | null;
@@ -72,6 +108,8 @@ type EventoRow = {
   layout_arquivo: string | null;
   layout_nome: string | null;
   layout_tipo: string | null;
+  agenda: AgendaDia[] | null;
+  orcamento_itens: OrcamentoEventoItem[] | null;
   created_at: Date | null;
   created_by: string | null;
 };
@@ -83,6 +121,7 @@ function mapRow(row: EventoRow): EventoRecord {
     codigoExterno: row.codigo_externo,
     nome: row.nome,
     tipoEventoId: row.tipo_evento_id,
+    unidadeNegocioId: row.unidade_negocio_id,
     descricao: row.descricao,
     tags: Array.isArray(row.tags) ? row.tags : [],
     inicioEvento: row.inicio_evento,
@@ -95,6 +134,8 @@ function mapRow(row: EventoRow): EventoRecord {
     layoutArquivo: row.layout_arquivo,
     layoutNome: row.layout_nome,
     layoutTipo: row.layout_tipo,
+    agenda: Array.isArray(row.agenda) ? row.agenda : [],
+    orcamentoItens: Array.isArray(row.orcamento_itens) ? row.orcamento_itens : [],
     createdAt: row.created_at,
     createdBy: row.created_by,
   };
@@ -114,9 +155,9 @@ export class PrismaEventosRepository implements EventosRepository {
 
     const [rows, totals] = await Promise.all([
       prisma.$queryRawUnsafe<EventoRow[]>(
-        `SELECT id, tenant_id, codigo_externo, nome, tipo_evento_id, descricao, tags, inicio_evento, fim_evento,
+        `SELECT id, tenant_id, codigo_externo, nome, tipo_evento_id, unidade_negocio_id, descricao, tags, inicio_evento, fim_evento,
                 local, latitude, longitude, publico_estimado, expositores,
-                layout_arquivo, layout_nome, layout_tipo, created_at, created_by
+                layout_arquivo, layout_nome, layout_tipo, agenda, orcamento_itens, created_at, created_by
          FROM gestao_eventos
          WHERE tenant_id = $1
          ORDER BY nome ASC
@@ -136,9 +177,9 @@ export class PrismaEventosRepository implements EventosRepository {
 
   async findById(id: string, tenantId: string): Promise<EventoRecord | null> {
     const rows = await prisma.$queryRawUnsafe<EventoRow[]>(
-      `SELECT id, tenant_id, codigo_externo, nome, tipo_evento_id, descricao, tags, inicio_evento, fim_evento,
+      `SELECT id, tenant_id, codigo_externo, nome, tipo_evento_id, unidade_negocio_id, descricao, tags, inicio_evento, fim_evento,
               local, latitude, longitude, publico_estimado, expositores,
-              layout_arquivo, layout_nome, layout_tipo, created_at, created_by
+              layout_arquivo, layout_nome, layout_tipo, agenda, orcamento_itens, created_at, created_by
        FROM gestao_eventos
        WHERE id = $1 AND tenant_id = $2
        LIMIT 1`,
@@ -151,6 +192,7 @@ export class PrismaEventosRepository implements EventosRepository {
   async save(input: SaveEventoInput): Promise<EventoRecord> {
     const tags = JSON.stringify(input.tags ?? []);
     const expositores = JSON.stringify(input.expositores ?? []);
+    const agenda = JSON.stringify(input.agenda ?? []);
 
     if (input.id) {
       const rows = await prisma.$queryRawUnsafe<EventoRow[]>(
@@ -158,11 +200,12 @@ export class PrismaEventosRepository implements EventosRepository {
          SET codigo_externo = $1, nome = $2, tipo_evento_id = $3, descricao = $4, tags = $5::jsonb,
              inicio_evento = $6::timestamptz, fim_evento = $7::timestamptz, local = $8,
              latitude = $9, longitude = $10, publico_estimado = $11, expositores = $12::jsonb,
-             layout_arquivo = $13, layout_nome = $14, layout_tipo = $15, updated_at = NOW()
-         WHERE id = $16 AND tenant_id = $17
-         RETURNING id, tenant_id, codigo_externo, nome, tipo_evento_id, descricao, tags, inicio_evento, fim_evento,
+             layout_arquivo = $13, layout_nome = $14, layout_tipo = $15, agenda = $16::jsonb,
+             unidade_negocio_id = $17::uuid, orcamento_itens = $18::jsonb, updated_at = NOW()
+         WHERE id = $19 AND tenant_id = $20
+         RETURNING id, tenant_id, codigo_externo, nome, tipo_evento_id, unidade_negocio_id, descricao, tags, inicio_evento, fim_evento,
                    local, latitude, longitude, publico_estimado, expositores,
-                   layout_arquivo, layout_nome, layout_tipo, created_at, created_by`,
+                   layout_arquivo, layout_nome, layout_tipo, agenda, orcamento_itens, created_at, created_by`,
         input.codigoExterno ?? null,
         input.nome,
         input.tipoEventoId ?? null,
@@ -178,6 +221,9 @@ export class PrismaEventosRepository implements EventosRepository {
         input.layoutArquivo ?? null,
         input.layoutNome ?? null,
         input.layoutTipo ?? null,
+        agenda,
+        input.unidadeNegocioId ?? null,
+        JSON.stringify(input.orcamentoItens ?? []),
         input.id,
         input.tenantId,
       );
@@ -189,12 +235,12 @@ export class PrismaEventosRepository implements EventosRepository {
       `INSERT INTO gestao_eventos
          (id, tenant_id, codigo_externo, nome, tipo_evento_id, descricao, tags, inicio_evento, fim_evento,
           local, latitude, longitude, publico_estimado, expositores,
-          layout_arquivo, layout_nome, layout_tipo, created_at, updated_at, created_by)
+          layout_arquivo, layout_nome, layout_tipo, agenda, unidade_negocio_id, orcamento_itens, created_at, updated_at, created_by)
        VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::timestamptz, $9::timestamptz, $10, $11, $12, $13, $14::jsonb,
-               $15, $16, $17, NOW(), NOW(), $18)
-       RETURNING id, tenant_id, codigo_externo, nome, tipo_evento_id, descricao, tags, inicio_evento, fim_evento,
+               $15, $16, $17, $18::jsonb, $19::uuid, $20::jsonb, NOW(), NOW(), $21)
+       RETURNING id, tenant_id, codigo_externo, nome, tipo_evento_id, unidade_negocio_id, descricao, tags, inicio_evento, fim_evento,
                  local, latitude, longitude, publico_estimado, expositores,
-                 layout_arquivo, layout_nome, layout_tipo, created_at, created_by`,
+                 layout_arquivo, layout_nome, layout_tipo, agenda, orcamento_itens, created_at, created_by`,
       newId,
       input.tenantId,
       input.codigoExterno ?? null,
@@ -212,6 +258,9 @@ export class PrismaEventosRepository implements EventosRepository {
       input.layoutArquivo ?? null,
       input.layoutNome ?? null,
       input.layoutTipo ?? null,
+      agenda,
+      input.unidadeNegocioId ?? null,
+      JSON.stringify(input.orcamentoItens ?? []),
       input.createdBy ?? null,
     );
     return mapRow(rows[0]);

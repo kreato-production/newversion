@@ -9,13 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { SearchableSelect } from '@/components/shared/SearchableSelect';
 import { Plus, Trash2, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { fornecedoresRepository } from '@/modules/fornecedores/fornecedores.repository.provider';
@@ -160,18 +154,13 @@ export const ServicosTab = ({ fornecedorId, readOnly = false }: ServicosTabProps
       {isAdding && !readOnly && (
         <div className="p-4 border rounded-lg bg-muted/30 space-y-3">
           <div className="space-y-1">
-            <Select value={selectedServicoId} onValueChange={setSelectedServicoId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione um serviço..." />
-              </SelectTrigger>
-              <SelectContent>
-                {servicosNaoSelecionados.map((item) => (
-                  <SelectItem key={item.id} value={item.id}>
-                    {item.nome}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <SearchableSelect
+              options={servicosNaoSelecionados.map((s) => ({ value: s.id, label: s.nome }))}
+              value={selectedServicoId}
+              onValueChange={setSelectedServicoId}
+              placeholder="Selecione um serviço..."
+              searchPlaceholder="Pesquisar serviço..."
+            />
           </div>
           <div className="flex gap-2">
             <Button onClick={handleAdd} size="sm" disabled={!selectedServicoId}>

@@ -12,6 +12,7 @@ export type ContaPagarRecord = {
   dataVencimento: string;
   dataPagamento: string | null;
   valor: number;
+  moeda: string;
   valorPago: number | null;
   statusId: string | null;
   statusNome: string | null;
@@ -23,8 +24,20 @@ export type ContaPagarRecord = {
   tipoDocumentoId: string | null;
   tipoDocumentoNome: string | null;
   observacoes: string | null;
+  eventoOrcamentoItemId: string | null;
   createdAt: Date | null;
   updatedAt: Date | null;
+};
+
+export type OrcamentoItemInput = {
+  id: string;
+  fornecedorId: string;
+  fornecedorNome: string;
+  servicoNomes: string[];
+  centroLucroNome: string | null;
+  valor: number;
+  moeda: string;
+  dataPagamento: string | null;
 };
 
 export type SaveContaPagarFromDespesaInput = {
@@ -78,6 +91,7 @@ type ContaPagarRow = {
   data_vencimento: string;
   data_pagamento: string | null;
   valor: string;
+  moeda: string | null;
   valor_pago: string | null;
   status_id: string | null;
   status_nome: string | null;
@@ -89,6 +103,7 @@ type ContaPagarRow = {
   tipo_documento_id: string | null;
   tipo_documento_nome: string | null;
   observacoes: string | null;
+  evento_orcamento_item_id: string | null;
   created_at: Date | null;
   updated_at: Date | null;
 };
@@ -146,6 +161,20 @@ async function ensureTables() {
       await prisma.$executeRawUnsafe(`
         ALTER TABLE contas_pagar ADD COLUMN IF NOT EXISTS gravacao_despesa_id text NULL
       `);
+
+      await prisma.$executeRawUnsafe(`
+        ALTER TABLE contas_pagar ADD COLUMN IF NOT EXISTS evento_orcamento_item_id text NULL
+      `);
+
+      await prisma.$executeRawUnsafe(`
+        ALTER TABLE contas_pagar ADD COLUMN IF NOT EXISTS moeda text NOT NULL DEFAULT 'BRL'
+      `);
+
+      await prisma.$executeRawUnsafe(`
+        CREATE INDEX IF NOT EXISTS contas_pagar_evento_orcamento_idx
+          ON contas_pagar (tenant_id, evento_orcamento_item_id)
+          WHERE evento_orcamento_item_id IS NOT NULL
+      `);
     })();
   }
 
@@ -156,12 +185,12 @@ const SELECT_COLUMNS = `
   cp.id, cp.tenant_id, cp.numero_documento, cp.descricao,
   cp.fornecedor_id, f.nome AS fornecedor_nome,
   cp.data_emissao::text, cp.data_vencimento::text, cp.data_pagamento::text,
-  cp.valor, cp.valor_pago,
+  cp.valor, COALESCE(cp.moeda, 'BRL') AS moeda, cp.valor_pago,
   cp.status_id, scp.titulo AS status_nome, scp.cor AS status_cor,
   cp.categoria_id, cd.titulo AS categoria_nome,
   cp.forma_pagamento_id, fp.titulo AS forma_pagamento_nome,
   cp.tipo_documento_id, tdf.titulo AS tipo_documento_nome,
-  cp.observacoes, cp.created_at, cp.updated_at
+  cp.observacoes, cp.evento_orcamento_item_id, cp.created_at, cp.updated_at
 `;
 
 const SELECT_JOINS = `
@@ -184,6 +213,7 @@ function rowToRecord(row: ContaPagarRow): ContaPagarRecord {
     dataVencimento: row.data_vencimento,
     dataPagamento: row.data_pagamento,
     valor: parseFloat(row.valor) || 0,
+    moeda: row.moeda ?? 'BRL',
     valorPago: row.valor_pago != null ? parseFloat(row.valor_pago) : null,
     statusId: row.status_id,
     statusNome: row.status_nome,
@@ -195,6 +225,7 @@ function rowToRecord(row: ContaPagarRow): ContaPagarRecord {
     tipoDocumentoId: row.tipo_documento_id,
     tipoDocumentoNome: row.tipo_documento_nome,
     observacoes: row.observacoes,
+    eventoOrcamentoItemId: row.evento_orcamento_item_id,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -208,6 +239,14 @@ export interface ContasPagarRepository {
   saveLinkedToGravacaoDespesa(input: SaveContaPagarFromDespesaInput): Promise<void>;
   updateLinkedToGravacaoDespesa(input: SaveContaPagarFromDespesaInput): Promise<void>;
   deleteByGravacaoDespesaId(tenantId: string, gravacaoDespesaId: string): Promise<void>;
+  syncFromEventoOrcamento(
+    tenantId: string,
+    eventoId: string,
+    eventoNome: string,
+    itens: OrcamentoItemInput[],
+    createdBy: string | null,
+  ): Promise<void>;
+  deleteByEventoId(tenantId: string, eventoId: string): Promise<void>;
 }
 
 export class PrismaContasPagarRepository implements ContasPagarRepository {
@@ -390,6 +429,87 @@ export class PrismaContasPagarRepository implements ContasPagarRepository {
     await prisma.$executeRawUnsafe(
       `DELETE FROM contas_pagar WHERE tenant_id = $1 AND gravacao_despesa_id = $2`,
       tenantId, gravacaoDespesaId,
+    );
+  }
+
+  async syncFromEventoOrcamento(
+    tenantId: string,
+    eventoId: string,
+    eventoNome: string,
+    itens: OrcamentoItemInput[],
+    createdBy: string | null,
+  ): Promise<void> {
+    await ensureTables();
+
+    // composite key: "{eventoId}/{itemId}" — identifica unicamente cada conta no evento
+    const makeKey = (itemId: string) => `${eventoId}/${itemId}`;
+
+    // Carrega as contas existentes para este evento
+    const existing = await prisma.$queryRawUnsafe<Array<{ id: string; evento_orcamento_item_id: string }>>(
+      `SELECT id, evento_orcamento_item_id FROM contas_pagar
+       WHERE tenant_id = $1 AND evento_orcamento_item_id LIKE $2`,
+      tenantId,
+      `${eventoId}/%`,
+    );
+
+    const existingByKey = new Map(existing.map((r) => [r.evento_orcamento_item_id, r.id]));
+    const newKeys = new Set(itens.map((i) => makeKey(i.id)));
+
+    // Remove contas cujos itens foram excluídos do orçamento
+    for (const [key, cpId] of existingByKey) {
+      if (!newKeys.has(key)) {
+        await prisma.$executeRawUnsafe(
+          `DELETE FROM contas_pagar WHERE id = $1 AND tenant_id = $2`,
+          cpId, tenantId,
+        );
+      }
+    }
+
+    const today = new Date().toISOString().slice(0, 10);
+    const now = new Date();
+
+    for (const item of itens) {
+      const key = makeKey(item.id);
+      const dataVencimento = item.dataPagamento || today;
+      const servicosPart = item.servicoNomes.length > 0 ? item.servicoNomes.join(', ') : null;
+      const descricao = `Evento: ${eventoNome}`;
+      const observacoes = [
+        `Fornecedor: ${item.fornecedorNome}`,
+        servicosPart ? `Serviços: ${servicosPart}` : null,
+        item.centroLucroNome ? `Centro de Custo: ${item.centroLucroNome}` : null,
+      ].filter(Boolean).join(' | ');
+
+      const existingId = existingByKey.get(key);
+
+      if (existingId) {
+        await prisma.$executeRawUnsafe(
+          `UPDATE contas_pagar SET
+             descricao = $1, fornecedor_id = $2, data_vencimento = $3::date,
+             valor = $4, moeda = $5, observacoes = $6, updated_at = $7
+           WHERE id = $8 AND tenant_id = $9`,
+          descricao, item.fornecedorId, dataVencimento,
+          item.valor, item.moeda, observacoes, now,
+          existingId, tenantId,
+        );
+      } else {
+        await prisma.$executeRawUnsafe(
+          `INSERT INTO contas_pagar
+             (id, tenant_id, descricao, fornecedor_id, data_vencimento, valor, moeda,
+              observacoes, evento_orcamento_item_id, created_by, created_at, updated_at)
+           VALUES ($1,$2,$3,$4,$5::date,$6,$7,$8,$9,$10,$11,$12)`,
+          randomUUID(), tenantId, descricao, item.fornecedorId, dataVencimento,
+          item.valor, item.moeda, observacoes, key, createdBy, now, now,
+        );
+      }
+    }
+  }
+
+  async deleteByEventoId(tenantId: string, eventoId: string): Promise<void> {
+    await ensureTables();
+    await prisma.$executeRawUnsafe(
+      `DELETE FROM contas_pagar WHERE tenant_id = $1 AND evento_orcamento_item_id LIKE $2`,
+      tenantId,
+      `${eventoId}/%`,
     );
   }
 }

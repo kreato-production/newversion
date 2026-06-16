@@ -27,6 +27,8 @@ export const proxy = auth((request) => {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|icon\\.png|sitemap\\.xml|robots\\.txt|.*\\.(?:png|jpg|jpeg|svg|ico|webp|gif)$).*)',
+    // Exclui rotas de auth do Next.js (/api/auth/*) para que o handler Auth.js
+    // as processe directamente sem interferência do proxy (evita conflito de cookies CSRF).
+    '/((?!_next/static|_next/image|favicon.ico|icon\\.png|sitemap\\.xml|robots\\.txt|api/auth|.*\\.(?:png|jpg|jpeg|svg|ico|webp|gif)$).*)',
   ],
 };

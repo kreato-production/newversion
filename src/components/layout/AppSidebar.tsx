@@ -485,6 +485,11 @@ const getNavItems = (isGlobalAdmin: boolean, t: (k: string) => string): NavItem[
         permission: { modulo: 'Gestão de Eventos', subModulo1: 'Expositores' },
       },
       {
+        label: t('menu.suppliers'),
+        path: '/eventos/fornecedores',
+        permission: { modulo: 'Recursos', subModulo1: 'Fornecedores' },
+      },
+      {
         label: t('menu.parameters'),
         isGroup: true,
         children: [
@@ -504,6 +509,15 @@ const getNavItems = (isGlobalAdmin: boolean, t: (k: string) => string): NavItem[
               modulo: 'Gestão de Eventos',
               subModulo1: 'Parametrizações',
               subModulo2: 'Tipo de Expositor',
+            },
+          },
+          {
+            label: t('menu.services'),
+            path: '/eventos/parametrizacoes/servicos',
+            permission: {
+              modulo: 'Recursos',
+              subModulo1: 'Parametrizações',
+              subModulo2: 'Serviços',
             },
           },
         ],
