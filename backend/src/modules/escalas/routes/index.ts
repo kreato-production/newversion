@@ -64,9 +64,23 @@ export function createEscalasRoutes(
 
     app.get('/escalas/opcoes/colaboradores', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
-      const { funcaoId } = request.query as { funcaoId?: string };
-      if (!funcaoId) return reply.status(200).send([]);
-      return reply.status(200).send(await escalasService.listColaboradoresByFuncao(user, funcaoId));
+      const { funcaoId, equipeId } = request.query as { funcaoId?: string; equipeId?: string };
+      if (equipeId) return reply.status(200).send(await escalasService.listColaboradoresByEquipe(user, equipeId));
+      if (funcaoId) return reply.status(200).send(await escalasService.listColaboradoresByFuncao(user, funcaoId));
+      return reply.status(200).send([]);
+    });
+
+    app.get('/escalas/opcoes/equipes', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      return reply.status(200).send(await escalasService.listEquipes(user));
+    });
+
+    app.get('/escalas/mapa', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      const { ano, mes } = request.query as { ano?: string; mes?: string };
+      const year = parseInt(ano ?? String(new Date().getFullYear()), 10);
+      const month = parseInt(mes ?? String(new Date().getMonth() + 1), 10);
+      return reply.status(200).send(await escalasService.getMapaMes(user, year, month));
     });
   };
 }

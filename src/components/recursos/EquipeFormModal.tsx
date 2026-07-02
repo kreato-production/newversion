@@ -27,6 +27,10 @@ import { Plus, Trash2, Users, Loader2 } from 'lucide-react';
 import { useFormFieldConfig, FieldAsterisk } from '@/hooks/useFormFieldConfig';
 import { equipesRepository } from '@/modules/equipes/equipes.repository.provider';
 import type { EquipeInput, Membro, RecursoHumano } from '@/modules/equipes/equipes.types';
+import { ApiParametrosRepository } from '@/modules/parametros/parametros.api.repository';
+import type { ParametroApiItem } from '@/modules/parametros/parametros.api.repository';
+
+const parametrosRepository = new ApiParametrosRepository();
 
 interface EquipeFormModalProps {
   isOpen: boolean;
@@ -58,9 +62,11 @@ export const EquipeFormModal = ({
   const { getAsterisk } = useFormFieldConfig('equipe');
   const [formData, setFormData] = useState<EquipeInput>(emptyFormData);
   const [isAddingMembro, setIsAddingMembro] = useState(false);
+  const [selectedFuncao, setSelectedFuncao] = useState('');
   const [selectedRHId, setSelectedRHId] = useState('');
   const [membros, setMembros] = useState<Membro[]>([]);
   const [recursosHumanos, setRecursosHumanos] = useState<RecursoHumano[]>([]);
+  const [funcoes, setFuncoes] = useState<ParametroApiItem[]>([]);
   const [isLoadingRH, setIsLoadingRH] = useState(false);
 
   const fetchMembros = useCallback(async (equipeId: string) => {
@@ -84,9 +90,15 @@ export const EquipeFormModal = ({
       data ? { id: data.id, codigo: data.codigo, descricao: data.descricao } : { ...emptyFormData },
     );
     setIsAddingMembro(false);
+    setSelectedFuncao('');
     setSelectedRHId('');
     setRecursosHumanos([]);
     setIsLoadingRH(true);
+
+    void parametrosRepository
+      .list('kreato_funcoes')
+      .then(setFuncoes)
+      .catch(() => setFuncoes([]));
 
     if (data?.id) {
       void fetchMembros(data.id);
@@ -100,6 +112,11 @@ export const EquipeFormModal = ({
     const membroIds = membros.map((membro) => membro.recursoHumanoId);
     return recursosHumanos.filter((rh) => !membroIds.includes(rh.id));
   }, [recursosHumanos, membros]);
+
+  const rhFiltradosPorFuncao = useMemo(() => {
+    if (!selectedFuncao) return [];
+    return rhDisponiveis.filter((rh) => rh.funcao_nome === selectedFuncao);
+  }, [rhDisponiveis, selectedFuncao]);
 
   const dadosTabelaMembros = useMemo(
     () =>
@@ -140,6 +157,7 @@ export const EquipeFormModal = ({
       const inserted = await equipesRepository.addMembro(data.id, selectedRHId);
       setMembros([...membros, inserted]);
       toast({ title: t('common.success'), description: t('teams.memberAdded') });
+      setSelectedFuncao('');
       setSelectedRHId('');
       setIsAddingMembro(false);
       onRefresh?.();
@@ -284,17 +302,39 @@ export const EquipeFormModal = ({
                     </TabsList>
 
                     <TabsContent value="membros" className="mt-4">
-                      <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center justify-between mb-4 gap-3">
                         <h3 className="text-lg font-semibold">{t('teams.membersList')}</h3>
-                        <Button
-                          type="button"
-                          size="sm"
-                          onClick={() => setIsAddingMembro(true)}
-                          disabled={rhDisponiveis.length === 0 || isLoadingRH}
-                        >
-                          <Plus className="h-4 w-4 mr-2" />
-                          {t('teams.addMember')}
-                        </Button>
+                        <div className="flex items-center gap-2">
+                          <Select
+                            value={selectedFuncao}
+                            onValueChange={(v) => {
+                              setSelectedFuncao(v);
+                              setSelectedRHId('');
+                              setIsAddingMembro(false);
+                            }}
+                            disabled={isLoadingRH || funcoes.length === 0}
+                          >
+                            <SelectTrigger className="w-48">
+                              <SelectValue placeholder={t('teams.selectFunction')} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {funcoes.map((fn) => (
+                                <SelectItem key={fn.id} value={fn.nome}>
+                                  {fn.nome}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={() => setIsAddingMembro(true)}
+                            disabled={!selectedFuncao || isLoadingRH}
+                          >
+                            <Plus className="h-4 w-4 mr-2" />
+                            {t('teams.addMember')}
+                          </Button>
+                        </div>
                       </div>
 
                       {isAddingMembro && (
@@ -304,12 +344,17 @@ export const EquipeFormModal = ({
                               <SelectValue placeholder={t('teams.selectMemberPlaceholder')} />
                             </SelectTrigger>
                             <SelectContent>
-                              {rhDisponiveis.map((rh) => (
-                                <SelectItem key={rh.id} value={rh.id}>
-                                  {rh.nome} {rh.sobrenome}{' '}
-                                  {rh.funcao_nome ? `(${rh.funcao_nome})` : ''}
+                              {rhFiltradosPorFuncao.length === 0 ? (
+                                <SelectItem value="__none__" disabled>
+                                  {t('teams.noMembersForFunction')}
                                 </SelectItem>
-                              ))}
+                              ) : (
+                                rhFiltradosPorFuncao.map((rh) => (
+                                  <SelectItem key={rh.id} value={rh.id}>
+                                    {rh.nome} {rh.sobrenome}
+                                  </SelectItem>
+                                ))
+                              )}
                             </SelectContent>
                           </Select>
                           <Button type="button" onClick={handleAddMembro} disabled={!selectedRHId}>

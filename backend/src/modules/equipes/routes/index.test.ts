@@ -53,6 +53,7 @@ class InMemoryEquipesRepository implements EquipesRepository {
     return item;
   }
   async remove(id: string) { this.items.delete(id); }
+  async countMembros() { return {}; }
   async listUsuariosAtivos() { return []; }
   async listMembros() { return []; }
   async addMembro() {

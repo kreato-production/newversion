@@ -36,6 +36,7 @@ export interface EquipesRepository {
   findById(id: string): Promise<EquipeRecord | null>;
   save(input: SaveEquipeInput): Promise<EquipeRecord>;
   remove(id: string): Promise<void>;
+  countMembros(equipeIds: string[]): Promise<Record<string, number>>;
   listUsuariosAtivos(tenantId: string): Promise<EquipeUserOptionRecord[]>;
   listMembros(equipeId: string): Promise<EquipeMemberRecord[]>;
   addMembro(input: { tenantId: string; equipeId: string; userId: string }): Promise<EquipeMemberRecord>;
@@ -117,26 +118,43 @@ export class PrismaEquipesRepository implements EquipesRepository {
     await prisma.equipe.delete({ where: { id } });
   }
 
-  async listUsuariosAtivos(tenantId: string): Promise<EquipeUserOptionRecord[]> {
-    const items = await prisma.user.findMany({
-      where: { tenantId, status: 'ATIVO' },
-      orderBy: { nome: 'asc' },
-      select: {
-        id: true,
-        nome: true,
-        perfil: true,
-      },
-    });
+  async countMembros(equipeIds: string[]): Promise<Record<string, number>> {
+    if (equipeIds.length === 0) return {};
+    try {
+      const rows = await prisma.$queryRawUnsafe<Array<{ equipe_id: string; total: bigint }>>(
+        `SELECT equipe_id, COUNT(*)::bigint AS total
+         FROM usuario_equipes
+         WHERE equipe_id = ANY($1::text[])
+         GROUP BY equipe_id`,
+        equipeIds,
+      );
+      const result: Record<string, number> = {};
+      for (const row of rows) result[row.equipe_id] = Number(row.total);
+      return result;
+    } catch {
+      return {};
+    }
+  }
 
-    return items.map((item) => {
-      const parts = item.nome.trim().split(/\s+/);
-      return {
-        id: item.id,
-        nome: parts[0] || item.nome,
-        sobrenome: parts.slice(1).join(' '),
-        funcaoNome: item.perfil || 'Usuario',
-      };
-    });
+  async listUsuariosAtivos(tenantId: string): Promise<EquipeUserOptionRecord[]> {
+    const rows = await prisma.$queryRawUnsafe<Array<{
+      id: string;
+      nome: string;
+      sobrenome: string;
+      funcaoNome: string | null;
+    }>>(
+      `SELECT
+         rh.id,
+         rh.nome,
+         COALESCE(rh.sobrenome, '') AS sobrenome,
+         COALESCE(f.nome, '') AS "funcaoNome"
+       FROM recursos_humanos rh
+       LEFT JOIN funcoes f ON f.id = rh.funcao_id
+       WHERE rh.tenant_id = $1 AND rh.status = 'Ativo'
+       ORDER BY rh.nome ASC, rh.sobrenome ASC`,
+      tenantId,
+    );
+    return rows.map((r) => ({ ...r, funcaoNome: r.funcaoNome ?? '' }));
   }
 
   async listMembros(equipeId: string): Promise<EquipeMemberRecord[]> {
@@ -191,15 +209,23 @@ export class PrismaEquipesRepository implements EquipesRepository {
 
   private async ensureMembersTable(): Promise<void> {
     if (!this.membersReady) {
-      this.membersReady = prisma.$executeRawUnsafe(`
-        CREATE TABLE IF NOT EXISTS usuario_equipes (
-          usuario_id text NOT NULL REFERENCES "User"(id) ON DELETE CASCADE,
-          equipe_id text NOT NULL REFERENCES "Equipe"(id) ON DELETE CASCADE,
-          tenant_id text NULL REFERENCES "Tenant"(id) ON DELETE CASCADE,
-          created_at timestamptz NOT NULL DEFAULT NOW(),
-          PRIMARY KEY (usuario_id, equipe_id)
-        )
-      `).then(() => undefined);
+      this.membersReady = (async () => {
+        // Create table without FK on usuario_id so it can store recursos_humanos IDs
+        await prisma.$executeRawUnsafe(`
+          CREATE TABLE IF NOT EXISTS usuario_equipes (
+            usuario_id text NOT NULL,
+            equipe_id text NOT NULL REFERENCES "Equipe"(id) ON DELETE CASCADE,
+            tenant_id text NULL REFERENCES "Tenant"(id) ON DELETE CASCADE,
+            created_at timestamptz NOT NULL DEFAULT NOW(),
+            PRIMARY KEY (usuario_id, equipe_id)
+          )
+        `);
+        // Drop the old FK to User if it exists (allows storing RH IDs)
+        await prisma.$executeRawUnsafe(`
+          ALTER TABLE usuario_equipes
+            DROP CONSTRAINT IF EXISTS usuario_equipes_usuario_id_fkey
+        `);
+      })();
     }
 
     await this.membersReady;

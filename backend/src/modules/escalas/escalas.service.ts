@@ -8,7 +8,7 @@ export const saveEscalaSchema = z.object({
   tenantId: z.string().min(1).optional(),
   codigoExterno: z.string().trim().max(10).optional().nullable(),
   titulo: z.string().trim().min(1),
-  grupoFuncaoId: z.string().min(1).optional().nullable(),
+  equipeId: z.string().min(1).optional().nullable(),
   dataInicio: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Data inválida'),
 });
 
@@ -39,8 +39,8 @@ export class EscalasService {
         numerador: item.numerador,
         codigoExterno: item.codigoExterno ?? '',
         titulo: item.titulo,
-        grupoFuncaoId: item.grupoFuncaoId ?? '',
-        grupoFuncaoNome: item.grupoFuncaoNome ?? '',
+        equipeId: item.equipeId ?? '',
+        equipeNome: item.equipeNome ?? '',
         dataInicio: item.dataInicio,
         dataCadastro: item.createdAt.toISOString(),
         usuarioCadastro: item.createdBy ?? '',
@@ -69,7 +69,7 @@ export class EscalasService {
       tenantId,
       codigoExterno: input.codigoExterno?.trim() || null,
       titulo: input.titulo.trim(),
-      grupoFuncaoId: input.grupoFuncaoId ?? null,
+      equipeId: input.equipeId ?? null,
       dataInicio: input.dataInicio,
       createdBy: actor.nome,
     });
@@ -79,8 +79,8 @@ export class EscalasService {
       numerador: item.numerador,
       codigoExterno: item.codigoExterno ?? '',
       titulo: item.titulo,
-      grupoFuncaoId: item.grupoFuncaoId ?? '',
-      grupoFuncaoNome: item.grupoFuncaoNome ?? '',
+      equipeId: item.equipeId ?? '',
+      equipeNome: item.equipeNome ?? '',
       dataInicio: item.dataInicio,
       dataCadastro: item.createdAt.toISOString(),
       usuarioCadastro: item.createdBy ?? '',
@@ -155,5 +155,43 @@ export class EscalasService {
   async listColaboradoresByFuncao(actor: SessionUser, funcaoId: string) {
     const tenantId = resolveTenantId(actor, actor.tenantId);
     return this.repository.listColaboradoresByFuncao(tenantId, funcaoId);
+  }
+
+  async listEquipes(actor: SessionUser) {
+    const tenantId = resolveTenantId(actor, actor.tenantId);
+    return this.repository.listEquipes(tenantId);
+  }
+
+  async listColaboradoresByEquipe(actor: SessionUser, equipeId: string) {
+    const tenantId = resolveTenantId(actor, actor.tenantId);
+    return this.repository.listColaboradoresByEquipe(tenantId, equipeId);
+  }
+
+  async getMapaMes(actor: SessionUser, year: number, month: number) {
+    const tenantId = resolveTenantId(actor, actor.tenantId);
+    const rows = await this.repository.listMapaByMonth(tenantId, year, month);
+
+    // Merge multiple escala entries for the same colaborador and convert
+    // day-of-month keys ("1"..."31") to full ISO dates ("YYYY-MM-DD").
+    const byColab: Record<string, Record<string, string>> = {};
+
+    for (const row of rows) {
+      const [yr, mo] = row.dataInicio.slice(0, 7).split('-').map(Number);
+      if (!byColab[row.colaboradorId]) byColab[row.colaboradorId] = {};
+
+      for (const [dayStr, value] of Object.entries(row.dias)) {
+        const dayNum = parseInt(dayStr, 10);
+        if (isNaN(dayNum) || dayNum < 1 || dayNum > 31) continue;
+        const isoDate = `${String(yr).padStart(4, '0')}-${String(mo).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
+        byColab[row.colaboradorId][isoDate] = value === 'FG' ? 'FG' : 'DI';
+      }
+    }
+
+    return {
+      colaboradores: Object.entries(byColab).map(([colaboradorId, dias]) => ({
+        colaboradorId,
+        dias,
+      })),
+    };
   }
 }

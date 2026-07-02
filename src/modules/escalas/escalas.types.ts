@@ -21,8 +21,8 @@ export type Escala = {
   numerador: number;
   codigoExterno: string;
   titulo: string;
-  grupoFuncaoId: string;
-  grupoFuncaoNome: string;
+  equipeId: string;
+  equipeNome: string;
   dataInicio: string;
   dataCadastro: string;
   usuarioCadastro: string;
@@ -32,8 +32,13 @@ export type EscalaInput = {
   id?: string;
   codigoExterno?: string;
   titulo: string;
-  grupoFuncaoId?: string | null;
+  equipeId?: string | null;
   dataInicio: string;
+};
+
+export type EquipeOption = {
+  id: string;
+  descricao: string;
 };
 
 export type FuncaoOption = {

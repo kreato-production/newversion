@@ -22,13 +22,14 @@ export class EquipesService {
   async list(actor: SessionUser, opts?: { limit?: number; offset?: number }) {
     const tenantId = resolveTenantId(actor, actor.tenantId);
     const { data, total } = await this.repository.listByTenant(tenantId, opts);
+    const counts = await this.repository.countMembros(data.map((e) => e.id));
     return {
       total,
       data: data.map((item) => ({
         id: item.id,
         codigo: item.codigo,
         descricao: item.descricao,
-        membrosCount: 0,
+        membrosCount: counts[item.id] ?? 0,
         dataCadastro: item.createdAt.toISOString(),
       })),
     };

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -35,6 +35,7 @@ import {
 import { ptBR } from 'date-fns/locale';
 import { getDateLocale, getDayAbbreviations } from '@/lib/dateLocale';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { escalasRepository } from '@/modules/escalas/escalas.repository.provider';
 import type {
   RecursoHumano,
   RecursoHumanoInput,
@@ -66,6 +67,26 @@ export const MapaEscalasModal = ({
   const { language } = useLanguage();
   const dateLocale = getDateLocale(language);
   const DIAS_SEMANA_ABREV = getDayAbbreviations(language);
+
+  // mapaData[colaboradorId]["YYYY-MM-DD"] = "FG" | "DI"
+  const [mapaData, setMapaData] = useState<Record<string, Record<string, string>>>({});
+
+  // Fetch mapa from escalas module whenever modal opens or visible month changes
+  useEffect(() => {
+    if (!isOpen) return;
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth() + 1;
+    escalasRepository
+      .getMapaMes(year, month)
+      .then((resp) => {
+        const map: Record<string, Record<string, string>> = {};
+        for (const item of resp.colaboradores) {
+          map[item.colaboradorId] = item.dias;
+        }
+        setMapaData(map);
+      })
+      .catch(() => setMapaData({}));
+  }, [isOpen, currentDate]);
 
   // Agrupar recursos por departamento
   const recursosPorDepartamento = useMemo(() => {
@@ -113,9 +134,7 @@ export const MapaEscalasModal = ({
 
   // Verificar status do colaborador em um dia específico
   const getStatusDia = (recurso: RecursoHumano, dia: Date): 'FG' | 'AU' | 'DI' => {
-    const diaNum = getDay(dia); // 0 = Domingo, 6 = Sábado
-
-    // Verificar se está ausente
+    // 1. Ausências têm prioridade máxima
     if (recurso.ausencias && recurso.ausencias.length > 0) {
       const estaAusente = recurso.ausencias.some((ausencia) => {
         try {
@@ -129,22 +148,28 @@ export const MapaEscalasModal = ({
       if (estaAusente) return 'AU';
     }
 
-    // Verificar se tem escala definida para este dia
+    // 2. Dados do módulo de Escalas (escala_colaboradores.dias)
+    const isoDate = format(dia, 'yyyy-MM-dd');
+    const colabMapa = mapaData[recurso.id];
+    if (colabMapa) {
+      // Colaborador está em uma escala para este mês
+      const statusDia = colabMapa[isoDate];
+      if (statusDia === 'FG') return 'FG';
+      // null key = dia sem escala registrada neste mês → DI
+      return 'DI';
+    }
+
+    // 3. Fallback: rh_escalas (sistema legado)
     if (recurso.escalas && recurso.escalas.length > 0) {
+      const diaNum = getDay(dia);
       const temEscala = recurso.escalas.some((escala) => {
         try {
           const inicio = parseISO(escala.dataInicio);
           const fim = parseISO(escala.dataFim);
-          const dentroDoIntervalo = isWithinInterval(dia, { start: inicio, end: fim });
-
-          if (!dentroDoIntervalo) return false;
-
-          // Se tem dias da semana definidos, verificar se o dia atual está incluído
+          if (!isWithinInterval(dia, { start: inicio, end: fim })) return false;
           if (escala.diasSemana && escala.diasSemana.length > 0) {
             return escala.diasSemana.includes(diaNum);
           }
-
-          // Se não tem dias específicos, considera todos os dias
           return true;
         } catch {
           return false;
@@ -153,7 +178,7 @@ export const MapaEscalasModal = ({
       if (temEscala) return 'DI';
     }
 
-    // Sem ausência e sem escala = Folga
+    // 4. Sem escala configurada = Folga
     return 'FG';
   };
 

@@ -46,7 +46,7 @@ const COLUMN_CONFIG: ColumnConfig[] = [
   { key: 'numerador', label: 'Nº', required: true },
   { key: 'codigoExterno', label: 'Código', defaultVisible: true },
   { key: 'titulo', label: 'Título', required: true },
-  { key: 'grupoFuncao', label: 'Grupo de Função', defaultVisible: true },
+  { key: 'equipe', label: 'Equipe', defaultVisible: true },
   { key: 'dataInicio', label: 'Início', defaultVisible: true },
   { key: 'dataCadastro', label: 'Cadastro', defaultVisible: false },
   { key: 'actions', label: 'Ações', required: true },
@@ -79,7 +79,7 @@ function EscalaCard({
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <p className="font-medium text-sm truncate">{item.titulo}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">{item.grupoFuncaoNome || '-'}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">{item.equipeNome || '-'}</p>
           </div>
           <span className="text-xs text-muted-foreground shrink-0 font-mono">
             #{item.numerador}
@@ -143,7 +143,7 @@ function EscalaDetailPanel({
       <div className="flex items-center justify-between">
         <div>
           <h3 className="font-semibold text-base">{item.titulo}</h3>
-          <p className="text-sm text-muted-foreground">{item.grupoFuncaoNome || '-'}</p>
+          <p className="text-sm text-muted-foreground">{item.equipeNome || '-'}</p>
         </div>
         <div className="flex gap-1">
           {canEdit && (
@@ -182,8 +182,8 @@ function EscalaDetailPanel({
           <p>{formatDateBR(item.dataInicio)}</p>
         </div>
         <div>
-          <p className="text-xs text-muted-foreground mb-0.5">Grupo de Função</p>
-          <p>{item.grupoFuncaoNome || '-'}</p>
+          <p className="text-xs text-muted-foreground mb-0.5">Equipe</p>
+          <p>{item.equipeNome || '-'}</p>
         </div>
         <div>
           <p className="text-xs text-muted-foreground mb-0.5">Usuário de Cadastro</p>
@@ -253,7 +253,7 @@ export default function Escalas() {
     return items.filter(
       (i) =>
         i.titulo.toLowerCase().includes(q) ||
-        i.grupoFuncaoNome.toLowerCase().includes(q) ||
+        i.equipeNome.toLowerCase().includes(q) ||
         i.codigoExterno.toLowerCase().includes(q),
     );
   }, [items, search]);
@@ -306,11 +306,11 @@ export default function Escalas() {
       render: (item) => <span className="font-medium">{item.titulo}</span>,
     },
     {
-      key: 'grupoFuncao',
-      label: 'Grupo de Função',
+      key: 'equipe',
+      label: 'Equipe',
       groupable: true,
-      groupValue: (item) => item.grupoFuncaoNome || '(Sem grupo)',
-      render: (item) => item.grupoFuncaoNome || '-',
+      groupValue: (item) => item.equipeNome || '(Sem equipe)',
+      render: (item) => item.equipeNome || '-',
     },
     {
       key: 'dataInicio',
@@ -449,7 +449,7 @@ export default function Escalas() {
                   <p className={`text-sm font-medium truncate ${isSelected ? 'text-primary' : ''}`}>
                     {item.titulo}
                   </p>
-                  <p className="text-xs text-muted-foreground">{item.grupoFuncaoNome || '-'}</p>
+                  <p className="text-xs text-muted-foreground">{item.equipeNome || '-'}</p>
                 </div>
               </div>
             )}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -31,7 +31,7 @@ import type {
   EscalaInput,
   EscalaColaborador,
   EscalaColaboradorInput,
-  FuncaoOption,
+  EquipeOption,
 } from '@/modules/escalas/escalas.types';
 import type { Turno } from '@/modules/turnos/turnos.types';
 import type { Escala as RhEscala } from '@/modules/recursos-humanos/recursos-humanos.types';
@@ -75,65 +75,152 @@ const WEEKDAY_SHORT = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 const WEEKDAY_KEYS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab'] as const;
 
 // Generate schedule for an employee based on turno rules for a month
+// Returns the position of a day within its Mon–Sun week: 1=Mon … 7=Sun
+function weekDayPos(year: number, month: number, day: number): number {
+  const dow = new Date(year, month - 1, day).getDay(); // 0=Sun … 6=Sat
+  return dow === 0 ? 7 : dow;
+}
+
 function generateDias(turno: Turno, year: number, month: number): Record<string, string | null> {
   const daysInMonth = getDaysInMonth(year, month);
   const dias: Record<string, string | null> = {};
 
-  // Parse folgaEspecial to determine special Sundays/Saturdays
+  const diasTrabalhados = turno.diasTrabalhados ?? 0;
+  const folgasPorSemana = turno.folgasPorSemana ?? 0;
   const folgaEspecial = turno.folgaEspecial || '';
-  const sundayFolgas = new Set<number>(); // day-of-month numbers that are special folgas
 
-  if (folgaEspecial.includes('domingos') || folgaEspecial.includes('domingo')) {
-    // Collect all Sundays in the month
-    const sundays: number[] = [];
-    for (let d = 1; d <= daysInMonth; d++) {
-      if (getDayOfWeek(year, month, d) === 0) sundays.push(d);
+  // ── 1. Collect Sundays and Saturdays of the month
+  const sundays: number[] = [];
+  const saturdays: number[] = [];
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dow = new Date(year, month - 1, d).getDay();
+    if (dow === 0) sundays.push(d);
+    if (dow === 6) saturdays.push(d);
+  }
+
+  // ── 2. Build special-folga set from folgaEspecial
+  const specialFolgas = new Set<number>();
+  switch (folgaEspecial) {
+    case '1_domingo_mes':
+      sundays.slice(0, 1).forEach((d) => specialFolgas.add(d));
+      break;
+    case '2_domingos_mes':
+      sundays.slice(0, 2).forEach((d) => specialFolgas.add(d));
+      break;
+    case '1_sabado_mes':
+      saturdays.slice(0, 1).forEach((d) => specialFolgas.add(d));
+      break;
+    case '2_sabados_mes':
+      saturdays.slice(0, 2).forEach((d) => specialFolgas.add(d));
+      break;
+    case '1_domingo_do_mes':
+      if (sundays[0]) specialFolgas.add(sundays[0]);
+      break;
+    case '2_domingo_do_mes':
+      if (sundays[1]) specialFolgas.add(sundays[1]);
+      break;
+    case '3_domingo_do_mes':
+      if (sundays[2]) specialFolgas.add(sundays[2]);
+      break;
+    case 'ultimo_domingo_mes': {
+      const s = sundays.at(-1);
+      if (s) specialFolgas.add(s);
+      break;
     }
-    if (folgaEspecial === '2_domingos_mes') {
-      sundays.slice(0, 2).forEach((d) => sundayFolgas.add(d));
-    } else if (folgaEspecial === '1_domingo_mes') {
-      sundays.slice(0, 1).forEach((d) => sundayFolgas.add(d));
-    } else if (folgaEspecial === '1_domingo_do_mes') {
-      if (sundays[0]) sundayFolgas.add(sundays[0]);
-    } else if (folgaEspecial === '2_domingo_do_mes') {
-      if (sundays[1]) sundayFolgas.add(sundays[1]);
-    } else if (folgaEspecial === '3_domingo_do_mes') {
-      if (sundays[2]) sundayFolgas.add(sundays[2]);
-    } else if (folgaEspecial === 'ultimo_domingo_mes') {
-      if (sundays.at(-1)) sundayFolgas.add(sundays.at(-1)!);
+    case '1_sabado_do_mes':
+      if (saturdays[0]) specialFolgas.add(saturdays[0]);
+      break;
+    case '2_sabado_do_mes':
+      if (saturdays[1]) specialFolgas.add(saturdays[1]);
+      break;
+    case '3_sabado_do_mes':
+      if (saturdays[2]) specialFolgas.add(saturdays[2]);
+      break;
+    case 'ultimo_sabado_mes': {
+      const s = saturdays.at(-1);
+      if (s) specialFolgas.add(s);
+      break;
     }
   }
 
-  // folgasPorSemana determines how many days off per week (cycling)
-  // Build per-week folga counters
-  let weekFolgaCount = 0;
-  let currentWeek = -1;
+  // ── 3. Rolling-folga set: for each Mon–Sun week, mark the last
+  //    folgasPorSemana eligible (diasSemana=true, not special) days as FG.
+  //    Used only when diasTrabalhados is not set.
+  const rollingFolgas = new Set<number>();
+  if (!diasTrabalhados && folgasPorSemana > 0) {
+    const DOW_KEY = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab'] as const;
+    // Group days by their Monday (can be ≤ 0 for days before the 1st)
+    const weeks = new Map<number, number[]>();
+    for (let d = 1; d <= daysInMonth; d++) {
+      const monday = d - (weekDayPos(year, month, d) - 1);
+      if (!weeks.has(monday)) weeks.set(monday, []);
+      weeks.get(monday)!.push(d);
+    }
+    for (const [, days] of weeks) {
+      // Eligible: in diasSemana and not a special folga — sorted Sun→Sat→…
+      const eligible = days
+        .filter((d) => {
+          const dow = new Date(year, month - 1, d).getDay();
+          return turno.diasSemana[DOW_KEY[dow]] && !specialFolgas.has(d);
+        })
+        .sort((a, b) => weekDayPos(year, month, b) - weekDayPos(year, month, a));
+      eligible.slice(0, folgasPorSemana).forEach((d) => rollingFolgas.add(d));
+    }
+  }
 
-  for (let d = 1; d <= daysInMonth; d++) {
-    const dow = getDayOfWeek(year, month, d); // 0=Sun
-    const weekdayKey = WEEKDAY_KEYS[dow];
-    const isWorkingDay = turno.diasSemana[weekdayKey];
-    const isSpecialFolga = sundayFolgas.has(d);
+  // ── 4. Assign each day
+  const DOW_KEY = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab'] as const;
 
-    // Calculate ISO week number for tracking folgas per week
-    const date = new Date(year, month - 1, d);
-    const weekNum = Math.floor((d + getDayOfWeek(year, month, 1) - 1) / 7);
+  if (diasTrabalhados > 0) {
+    const naturalLastPos = Math.min(diasTrabalhados + folgasPorSemana, 7);
 
-    if (weekNum !== currentWeek) {
-      currentWeek = weekNum;
-      weekFolgaCount = 0;
+    // EXCLUSIVE mode: triggered when folgaEspecial specifies exactly which Sundays get
+    // the weekly rest — meaning non-special weeks shift the rest to Saturday instead.
+    // Applies when: folgasPorSemana=1, folgaEspecial involves Sundays, and the
+    // natural last position is Sunday (diasTrabalhados + 1 = 7, i.e. diasTrabalhados=6).
+    const sundayExclusive =
+      folgasPorSemana === 1 && folgaEspecial.includes('domingo') && naturalLastPos === 7;
+
+    // Pre-compute which Monday-keys have a special day (only needed in exclusive mode)
+    const specialWeekKeys = new Set<number>();
+    if (sundayExclusive) {
+      for (const s of specialFolgas) {
+        specialWeekKeys.add(s - (weekDayPos(year, month, s) - 1));
+      }
     }
 
-    if (isSpecialFolga) {
-      dias[String(d)] = 'FG';
-    } else if (!isWorkingDay) {
-      dias[String(d)] = 'FG';
-    } else if (turno.folgasPorSemana > 0 && weekFolgaCount < turno.folgasPorSemana && dow === 0) {
-      // Give folga on Sundays if folgasPorSemana allows
-      dias[String(d)] = 'FG';
-      weekFolgaCount++;
-    } else {
-      dias[String(d)] = null; // working day (shows turno sigla)
+    for (let d = 1; d <= daysInMonth; d++) {
+      if (specialFolgas.has(d)) {
+        dias[String(d)] = 'FG';
+        continue;
+      }
+
+      const pos = weekDayPos(year, month, d); // 1=Mon … 7=Sun
+
+      if (sundayExclusive) {
+        const weekMonday = d - (pos - 1);
+        if (specialWeekKeys.has(weekMonday)) {
+          // The special Sunday handles this week's rest — all other days work
+          dias[String(d)] = null;
+        } else {
+          // Non-special week: rest falls on Saturday (one position before Sunday)
+          dias[String(d)] = pos === 6 ? 'FG' : null;
+        }
+      } else {
+        // Normal cyclic: work first diasTrabalhados days, then folgasPorSemana FG days
+        dias[String(d)] = pos > diasTrabalhados && pos <= naturalLastPos ? 'FG' : null;
+      }
+    }
+  } else {
+    // Fixed weekly schedule based on diasSemana + rolling folgas
+    for (let d = 1; d <= daysInMonth; d++) {
+      if (specialFolgas.has(d)) {
+        dias[String(d)] = 'FG';
+        continue;
+      }
+      const dow = new Date(year, month - 1, d).getDay();
+      const offByDiaSemana = !turno.diasSemana[DOW_KEY[dow]];
+      dias[String(d)] = offByDiaSemana || rollingFolgas.has(d) ? 'FG' : null;
     }
   }
 
@@ -189,14 +276,18 @@ export function EscalaFormModal({ isOpen, onClose, onSave, data, readOnly }: Esc
   const [titulo, setTitulo] = useState('');
   const [codigoExterno, setCodigoExterno] = useState('');
   const [dataInicio, setDataInicio] = useState('');
-  const [grupoFuncaoId, setGrupoFuncaoId] = useState('');
+  const [equipeId, setEquipeId] = useState('');
 
   // ── Options loaded from API
-  const [funcoes, setFuncoes] = useState<FuncaoOption[]>([]);
+  const [equipes, setEquipes] = useState<EquipeOption[]>([]);
   const [turnos, setTurnos] = useState<Turno[]>([]);
 
   // ── Colaboradores state (Escala tab)
   const [colaboradores, setColaboradores] = useState<EscalaColaborador[]>([]);
+
+  // Tracks the equipeId value at the time the modal opened, so the equipeId-change
+  // effect can skip the initial sync and only fire on user-driven changes.
+  const openedWithEquipeIdRef = useRef<string>('');
 
   // ── Loading states
   const [saving, setSaving] = useState(false);
@@ -211,17 +302,20 @@ export function EscalaFormModal({ isOpen, onClose, onSave, data, readOnly }: Esc
   useEffect(() => {
     if (!isOpen) return;
 
+    const initialEquipeId = data?.equipeId ?? '';
+    openedWithEquipeIdRef.current = initialEquipeId;
+
     setActiveTab('dados');
     setTitulo(data?.titulo ?? '');
     setCodigoExterno(data?.codigoExterno ?? '');
     setDataInicio(data?.dataInicio ?? new Date().toISOString().slice(0, 10));
-    setGrupoFuncaoId(data?.grupoFuncaoId ?? '');
+    setEquipeId(initialEquipeId);
     setColaboradores([]);
 
     // Load options
-    Promise.all([escalasRepository.listFuncoes(), turnosRepository.list()])
-      .then(([f, t]) => {
-        setFuncoes(f);
+    Promise.all([escalasRepository.listEquipes(), turnosRepository.list()])
+      .then(([eq, t]) => {
+        setEquipes(eq);
         setTurnos(t);
       })
       .catch(() => {});
@@ -231,19 +325,44 @@ export function EscalaFormModal({ isOpen, onClose, onSave, data, readOnly }: Esc
       setLoadingColabs(true);
       escalasRepository
         .getColaboradores(data.id)
-        .then(setColaboradores)
+        .then(async (colabs) => {
+          if (colabs.length === 0 && data.equipeId) {
+            // No saved colaboradores yet — populate from the team
+            const options = await escalasRepository.listColaboradoresByEquipe(data.equipeId);
+            setColaboradores(
+              options.map((c) => ({
+                id: '',
+                colaboradorId: c.id,
+                colaboradorNome: c.nome,
+                colaboradorFuncao: c.funcaoNome ?? '',
+                turnoId: '',
+                turnoNome: '',
+                turnoSigla: '',
+                turnoCor: '',
+                dias: {},
+              })),
+            );
+          } else {
+            setColaboradores(colabs);
+          }
+        })
         .catch(() => {})
         .finally(() => setLoadingColabs(false));
     }
   }, [isOpen, data?.id]);
 
-  // ── When grupoFuncaoId changes and it's a new escala, load employees for that function
+  // ── When equipeId changes (user-driven), reload employees for that team
   useEffect(() => {
-    if (!isOpen || !grupoFuncaoId || data?.id) return;
+    if (!isOpen || !equipeId) return;
+    // Skip the first fire caused by resetting equipeId to the value from `data`
+    if (equipeId === openedWithEquipeIdRef.current) {
+      openedWithEquipeIdRef.current = '';
+      return;
+    }
 
     setLoadingColabs(true);
     escalasRepository
-      .listColaboradoresByFuncao(grupoFuncaoId)
+      .listColaboradoresByEquipe(equipeId)
       .then((options) => {
         setColaboradores(
           options.map((c) => ({
@@ -261,7 +380,7 @@ export function EscalaFormModal({ isOpen, onClose, onSave, data, readOnly }: Esc
       })
       .catch(() => {})
       .finally(() => setLoadingColabs(false));
-  }, [grupoFuncaoId, isOpen, data?.id]);
+  }, [equipeId, isOpen]);
 
   // ── Computed month info
   const { year, month } = useMemo(() => {
@@ -426,7 +545,7 @@ export function EscalaFormModal({ isOpen, onClose, onSave, data, readOnly }: Esc
         id: data?.id,
         titulo,
         codigoExterno: codigoExterno || undefined,
-        grupoFuncaoId: grupoFuncaoId || null,
+        equipeId: equipeId || null,
         dataInicio,
       });
 
@@ -449,7 +568,7 @@ export function EscalaFormModal({ isOpen, onClose, onSave, data, readOnly }: Esc
   return (
     <>
       <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-        <DialogContent className="w-[1100px] max-w-[95vw] max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[95vw] max-w-[1700px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{data ? t('scales.edit') : t('scales.new')}</DialogTitle>
             <DialogDescription>
@@ -515,7 +634,7 @@ export function EscalaFormModal({ isOpen, onClose, onSave, data, readOnly }: Esc
                 </div>
               </div>
 
-              {/* Row 3: Data Início + Grupo de Função */}
+              {/* Row 3: Data Início + Equipe */}
               <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="dataInicio">Início</Label>
@@ -528,18 +647,18 @@ export function EscalaFormModal({ isOpen, onClose, onSave, data, readOnly }: Esc
                   />
                 </div>
                 <div className="col-span-2 space-y-2">
-                  <Label>Grupo de Função</Label>
+                  <Label>Equipe</Label>
                   {readOnly ? (
-                    <Input value={data?.grupoFuncaoNome ?? ''} readOnly className="bg-muted" />
+                    <Input value={data?.equipeNome ?? ''} readOnly className="bg-muted" />
                   ) : (
-                    <Select value={grupoFuncaoId} onValueChange={setGrupoFuncaoId}>
+                    <Select value={equipeId} onValueChange={setEquipeId}>
                       <SelectTrigger>
-                        <SelectValue placeholder="Selecione uma função..." />
+                        <SelectValue placeholder="Selecione uma equipe..." />
                       </SelectTrigger>
                       <SelectContent>
-                        {funcoes.map((f) => (
-                          <SelectItem key={f.id} value={f.id}>
-                            {f.nome}
+                        {equipes.map((eq) => (
+                          <SelectItem key={eq.id} value={eq.id}>
+                            {eq.descricao}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -586,9 +705,9 @@ export function EscalaFormModal({ isOpen, onClose, onSave, data, readOnly }: Esc
                 </div>
               ) : colaboradores.length === 0 ? (
                 <div className="text-xs text-muted-foreground text-center py-10">
-                  {grupoFuncaoId
-                    ? 'Nenhum colaborador encontrado para esta função.'
-                    : 'Selecione um Grupo de Função na aba Dados para ver os colaboradores.'}
+                  {equipeId
+                    ? 'Nenhum colaborador encontrado para esta equipe.'
+                    : 'Selecione uma Equipe na aba Dados para ver os colaboradores.'}
                 </div>
               ) : (
                 <div className="overflow-x-auto rounded border">

@@ -4,6 +4,7 @@ import type {
   EscalaInput,
   EscalaColaborador,
   EscalaColaboradorInput,
+  EquipeOption,
   FuncaoOption,
   ColaboradorOption,
 } from './escalas.types';
@@ -55,5 +56,24 @@ export class ApiEscalasRepository {
     return apiRequest<ColaboradorOption[]>(
       `/escalas/opcoes/colaboradores?funcaoId=${encodeURIComponent(funcaoId)}`,
     );
+  }
+
+  async listEquipes(): Promise<EquipeOption[]> {
+    return apiRequest<EquipeOption[]>('/escalas/opcoes/equipes');
+  }
+
+  async listColaboradoresByEquipe(equipeId: string): Promise<ColaboradorOption[]> {
+    return apiRequest<ColaboradorOption[]>(
+      `/escalas/opcoes/colaboradores?equipeId=${encodeURIComponent(equipeId)}`,
+    );
+  }
+
+  async getMapaMes(
+    year: number,
+    month: number,
+  ): Promise<{
+    colaboradores: Array<{ colaboradorId: string; dias: Record<string, string> }>;
+  }> {
+    return apiRequest(`/escalas/mapa?ano=${year}&mes=${month}`);
   }
 }
