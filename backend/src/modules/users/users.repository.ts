@@ -93,6 +93,7 @@ export class PrismaUsersRepository implements UsersRepository {
 
     // Regra 3: se o actor tem unidades restritas, só retorna usuários vinculados a essas unidades
     if (actorUnidadeIds && actorUnidadeIds.length > 0 && tenantId != null) {
+      await this.ensureRelationTables();
       const unidadeList = Prisma.join(actorUnidadeIds.map((id) => Prisma.sql`${id}`));
 
       const [countRows, data] = await Promise.all([
@@ -264,6 +265,8 @@ export class PrismaUsersRepository implements UsersRepository {
   }
 
   async listUserUnidades(userId: string): Promise<UserLinkedUnidadeRecord[]> {
+    await this.ensureRelationTables();
+
     const rows = await prisma.$queryRaw<Array<{ id: string; nome: string }>>`
       SELECT u.id, u.nome
       FROM usuario_unidades uu
@@ -276,6 +279,8 @@ export class PrismaUsersRepository implements UsersRepository {
   }
 
   async addUserUnidade(userId: string, unidadeId: string): Promise<void> {
+    await this.ensureRelationTables();
+
     await prisma.$executeRaw`
       INSERT INTO usuario_unidades (usuario_id, unidade_id, created_at)
       VALUES (${userId}, ${unidadeId}, NOW())
@@ -284,6 +289,8 @@ export class PrismaUsersRepository implements UsersRepository {
   }
 
   async removeUserUnidade(userId: string, unidadeId: string): Promise<void> {
+    await this.ensureRelationTables();
+
     await prisma.$executeRaw`
       DELETE FROM usuario_unidades
       WHERE usuario_id = ${userId} AND unidade_id = ${unidadeId}
@@ -416,6 +423,23 @@ export class PrismaUsersRepository implements UsersRepository {
             created_at timestamptz NOT NULL DEFAULT NOW(),
             PRIMARY KEY (usuario_id, equipe_id)
           )
+        `);
+
+        await prisma.$executeRawUnsafe(`
+          CREATE TABLE IF NOT EXISTS usuario_unidades (
+            usuario_id text NOT NULL REFERENCES "User"(id) ON DELETE CASCADE,
+            unidade_id text NOT NULL REFERENCES "UnidadeNegocio"(id) ON DELETE CASCADE,
+            created_at timestamptz NOT NULL DEFAULT NOW(),
+            PRIMARY KEY (usuario_id, unidade_id)
+          )
+        `);
+
+        await prisma.$executeRawUnsafe(`
+          CREATE INDEX IF NOT EXISTS idx_usuario_unidades_usuario_id ON usuario_unidades (usuario_id)
+        `);
+
+        await prisma.$executeRawUnsafe(`
+          CREATE INDEX IF NOT EXISTS idx_usuario_unidades_unidade_id ON usuario_unidades (unidade_id)
         `);
       })();
     }

@@ -111,6 +111,39 @@ export interface ParametrosRepository {
 export class PrismaParametrosRepository implements ParametrosRepository {
   private readonly columnTypeCache = new Map<string, CachedColumnType>();
   private readonly traducoesMigrated = new Set<string>();
+  private perfisAcessoReady: Promise<void> | null = null;
+
+  private async ensureTable(tableName: string): Promise<void> {
+    if (tableName !== 'perfis_acesso') return;
+
+    if (!this.perfisAcessoReady) {
+      this.perfisAcessoReady = (async () => {
+        await prisma.$executeRawUnsafe(`
+          CREATE TABLE IF NOT EXISTS perfis_acesso (
+            id uuid NOT NULL PRIMARY KEY,
+            tenant_id uuid NOT NULL,
+            codigo_externo text NULL,
+            nome text NOT NULL,
+            descricao text NULL,
+            created_at timestamptz NOT NULL DEFAULT NOW(),
+            updated_at timestamptz NOT NULL DEFAULT NOW(),
+            created_by uuid NULL,
+            traducoes jsonb NULL DEFAULT '{}'::jsonb
+          )
+        `);
+
+        await prisma.$executeRawUnsafe(`
+          CREATE INDEX IF NOT EXISTS idx_perfis_acesso_tenant_id ON perfis_acesso (tenant_id)
+        `);
+
+        await prisma.$executeRawUnsafe(`
+          CREATE UNIQUE INDEX IF NOT EXISTS idx_perfis_acesso_tenant_nome ON perfis_acesso (tenant_id, nome)
+        `);
+      })();
+    }
+
+    await this.perfisAcessoReady;
+  }
 
   private async ensureTraducoes(tableName: string): Promise<void> {
     if (this.traducoesMigrated.has(tableName)) return;
@@ -128,6 +161,7 @@ export class PrismaParametrosRepository implements ParametrosRepository {
 
   async listByTenant(storageKey: string, tenantId: string, opts?: ListOptions): Promise<PaginatedResult<ParametroRecord>> {
     const tableName = resolveTableName(storageKey);
+    await this.ensureTable(tableName);
     await this.ensureTraducoes(tableName);
     const take = Math.min(opts?.limit ?? 200, 200);
     const skip = opts?.offset ?? 0;
@@ -164,6 +198,7 @@ export class PrismaParametrosRepository implements ParametrosRepository {
 
   async findById(storageKey: string, id: string): Promise<ParametroRecord | null> {
     const tableName = resolveTableName(storageKey);
+    await this.ensureTable(tableName);
     await this.ensureTraducoes(tableName);
     const hasCor = await this.hasColumn(tableName, 'cor');
     const corSelect = hasCor ? ', cor' : ', NULL::text AS cor';
@@ -182,6 +217,7 @@ export class PrismaParametrosRepository implements ParametrosRepository {
 
   async save(storageKey: string, input: SaveParametroInput): Promise<ParametroRecord> {
     const tableName = resolveTableName(storageKey);
+    await this.ensureTable(tableName);
     await this.ensureTraducoes(tableName);
     const hasCor = await this.hasColumn(tableName, 'cor');
     const hasUpdatedAt = await this.hasColumn(tableName, 'updated_at');
@@ -270,6 +306,7 @@ export class PrismaParametrosRepository implements ParametrosRepository {
 
   async remove(storageKey: string, id: string): Promise<void> {
     const tableName = resolveTableName(storageKey);
+    await this.ensureTable(tableName);
     await prisma.$executeRawUnsafe(`DELETE FROM ${tableName} WHERE id::text = $1`, id);
   }
 
