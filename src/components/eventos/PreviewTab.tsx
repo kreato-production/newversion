@@ -1,6 +1,7 @@
 'use client';
 
 import { Calendar, Clock, Check, ChevronRight } from 'lucide-react';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import type {
   AgendaDia,
   AgendaAtividade,
@@ -149,8 +150,8 @@ function DayTimeline({ dia }: { dia: AgendaDia }) {
       </div>
 
       {/* Scroll horizontal */}
-      <div className="overflow-x-auto p-5">
-        <div className="flex items-stretch" style={{ minWidth: totalW }}>
+      <ScrollArea className="w-full whitespace-nowrap">
+        <div className="flex items-stretch p-5" style={{ minWidth: totalW }}>
           {sorted.map((atv, i) => (
             <div key={atv.id} className="flex items-stretch flex-shrink-0">
               <StepCard atv={atv} index={i} />
@@ -160,7 +161,8 @@ function DayTimeline({ dia }: { dia: AgendaDia }) {
             </div>
           ))}
         </div>
-      </div>
+        <ScrollBar orientation="horizontal" />
+      </ScrollArea>
     </div>
   );
 }
