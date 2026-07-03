@@ -115,6 +115,43 @@ function mapPermission(row: PermissionRow): PermissionRecord {
 
 export class PrismaAdminConfigRepository implements AdminConfigRepository {
   private formularioCamposReady: Promise<void> | null = null;
+  private perfilPermissoesReady: Promise<void> | null = null;
+
+  private async ensurePerfilPermissoesTable(): Promise<void> {
+    if (!this.perfilPermissoesReady) {
+      this.perfilPermissoesReady = (async () => {
+        await prisma.$executeRawUnsafe(`
+          CREATE TABLE IF NOT EXISTS perfil_permissoes (
+            id uuid NOT NULL PRIMARY KEY,
+            perfil_id uuid NOT NULL,
+            tenant_id uuid NOT NULL,
+            modulo text NOT NULL,
+            sub_modulo1 text NULL,
+            sub_modulo2 text NULL,
+            campo text NULL,
+            acao text NOT NULL,
+            somente_leitura boolean NULL,
+            incluir boolean NULL,
+            alterar boolean NULL,
+            excluir boolean NULL,
+            tipo text NOT NULL,
+            created_at timestamptz NOT NULL DEFAULT NOW(),
+            updated_at timestamptz NOT NULL DEFAULT NOW()
+          )
+        `);
+
+        await prisma.$executeRawUnsafe(`
+          CREATE INDEX IF NOT EXISTS idx_perfil_permissoes_perfil_id ON perfil_permissoes (perfil_id)
+        `);
+
+        await prisma.$executeRawUnsafe(`
+          CREATE INDEX IF NOT EXISTS idx_perfil_permissoes_tenant_id ON perfil_permissoes (tenant_id)
+        `);
+      })();
+    }
+
+    await this.perfilPermissoesReady;
+  }
 
   async findPerfilById(tenantId: string, perfilId: string): Promise<PerfilRecord | null> {
     const rows = await prisma.$queryRawUnsafe<PerfilRow[]>(
@@ -132,6 +169,8 @@ export class PrismaAdminConfigRepository implements AdminConfigRepository {
   }
 
   async listPerfilPermissions(tenantId: string, perfilId: string): Promise<PermissionRecord[]> {
+    await this.ensurePerfilPermissoesTable();
+
     const rows = await prisma.$queryRawUnsafe<PermissionRow[]>(
       `
         SELECT id, perfil_id, tenant_id, modulo, sub_modulo1, sub_modulo2, campo, acao, somente_leitura, incluir, alterar, excluir, tipo
@@ -147,6 +186,8 @@ export class PrismaAdminConfigRepository implements AdminConfigRepository {
   }
 
   async replacePerfilPermissions(tenantId: string, perfilId: string, permissions: PermissionRecord[]): Promise<void> {
+    await this.ensurePerfilPermissoesTable();
+
     await prisma.$transaction(async (tx) => {
       await tx.$executeRawUnsafe(
         `
