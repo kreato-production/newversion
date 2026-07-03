@@ -10,6 +10,7 @@ export type UserRecord = {
   usuario: string;
   fotoUrl: string | null;
   perfil: string | null;
+  perfilId: string | null;
   descricao: string | null;
   status: 'ATIVO' | 'INATIVO' | 'BLOQUEADO';
   tipoAcesso: string;
@@ -28,6 +29,7 @@ export type SaveUserInput = {
   passwordHash?: string | null;
   fotoUrl?: string | null;
   perfil?: string | null;
+  perfilId?: string | null;
   descricao?: string | null;
   status: 'ATIVO' | 'INATIVO' | 'BLOQUEADO';
   tipoAcesso?: string;
@@ -78,8 +80,24 @@ export interface UsersRepository {
 
 export class PrismaUsersRepository implements UsersRepository {
   private relationsReady: Promise<void> | null = null;
+  private perfilIdColumnReady: Promise<void> | null = null;
+
+  // The `perfilId` column is a Prisma-schema field on a table otherwise
+  // managed outside Prisma migrations (see CLAUDE.md: `prisma db push` would
+  // drop unrelated raw-SQL-managed tables). Bootstrap it the same way other
+  // modules bootstrap their own tables/columns, so any environment self-heals.
+  private async ensurePerfilIdColumn(): Promise<void> {
+    if (!this.perfilIdColumnReady) {
+      this.perfilIdColumnReady = prisma
+        .$executeRawUnsafe(`ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "perfilId" text NULL`)
+        .then(() => undefined);
+    }
+
+    await this.perfilIdColumnReady;
+  }
 
   async listByTenant(tenantId?: string | null, opts?: ListOptions): Promise<PaginatedResult<UserRecord>> {
+    await this.ensurePerfilIdColumn();
     const take = Math.min(opts?.limit ?? 50, 200);
     const skip = opts?.offset ?? 0;
     const actorUnidadeIds = opts?.actorUnidadeIds;
@@ -134,6 +152,7 @@ export class PrismaUsersRepository implements UsersRepository {
           usuario: item.usuario,
           fotoUrl: item.fotoUrl,
           perfil: item.perfil,
+          perfilId: item.perfilId,
           descricao: item.descricao,
           status: item.status,
           tipoAcesso: item.tipoAcesso,
@@ -159,6 +178,7 @@ export class PrismaUsersRepository implements UsersRepository {
         usuario: item.usuario,
         fotoUrl: item.fotoUrl,
         perfil: item.perfil,
+        perfilId: item.perfilId,
         descricao: item.descricao,
         status: item.status,
         tipoAcesso: item.tipoAcesso,
@@ -171,21 +191,25 @@ export class PrismaUsersRepository implements UsersRepository {
   }
 
   async findById(id: string): Promise<UserRecord | null> {
+    await this.ensurePerfilIdColumn();
     const item = await prisma.user.findUnique({ where: { id } });
     return item ? this.map(item) : null;
   }
 
   async findByEmail(email: string): Promise<UserRecord | null> {
+    await this.ensurePerfilIdColumn();
     const item = await prisma.user.findUnique({ where: { email } });
     return item ? this.map(item) : null;
   }
 
   async findByUsername(usuario: string): Promise<UserRecord | null> {
+    await this.ensurePerfilIdColumn();
     const item = await prisma.user.findUnique({ where: { usuario } });
     return item ? this.map(item) : null;
   }
 
   async findTenantAdmin(tenantId: string): Promise<UserRecord | null> {
+    await this.ensurePerfilIdColumn();
     const item = await prisma.user.findFirst({
       where: { tenantId, role: 'TENANT_ADMIN' },
       orderBy: { createdAt: 'asc' },
@@ -194,6 +218,7 @@ export class PrismaUsersRepository implements UsersRepository {
   }
 
   async save(input: SaveUserInput): Promise<UserRecord> {
+    await this.ensurePerfilIdColumn();
     const item = input.id
       ? await prisma.user.upsert({
           where: { id: input.id },
@@ -206,6 +231,7 @@ export class PrismaUsersRepository implements UsersRepository {
             ...(input.passwordHash ? { passwordHash: input.passwordHash } : {}),
             fotoUrl: input.fotoUrl ?? null,
             perfil: input.perfil ?? null,
+            perfilId: input.perfilId ?? null,
             descricao: input.descricao ?? null,
             status: input.status,
             tipoAcesso: input.tipoAcesso ?? 'Operacional',
@@ -222,6 +248,7 @@ export class PrismaUsersRepository implements UsersRepository {
             passwordHash: input.passwordHash ?? null,
             fotoUrl: input.fotoUrl ?? null,
             perfil: input.perfil ?? null,
+            perfilId: input.perfilId ?? null,
             descricao: input.descricao ?? null,
             status: input.status,
             tipoAcesso: input.tipoAcesso ?? 'Operacional',
@@ -239,6 +266,7 @@ export class PrismaUsersRepository implements UsersRepository {
             passwordHash: input.passwordHash ?? null,
             fotoUrl: input.fotoUrl ?? null,
             perfil: input.perfil ?? null,
+            perfilId: input.perfilId ?? null,
             descricao: input.descricao ?? null,
             status: input.status,
             tipoAcesso: input.tipoAcesso ?? 'Operacional',
@@ -393,6 +421,7 @@ export class PrismaUsersRepository implements UsersRepository {
       usuario: item.usuario,
       fotoUrl: item.fotoUrl,
       perfil: item.perfil,
+      perfilId: item.perfilId,
       descricao: item.descricao,
       status: item.status,
       tipoAcesso: item.tipoAcesso,

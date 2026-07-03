@@ -144,7 +144,25 @@ function mapPermissionRow(row: {
 export class PrismaAuthRepository implements AuthRepository {
   constructor(private readonly logger?: FastifyBaseLogger) {}
 
+  private static perfilIdColumnReady: Promise<void> | null = null;
+
+  // Bootstraps the `perfilId` column the same way other modules bootstrap
+  // their own tables/columns (see CLAUDE.md: `prisma db push` would drop
+  // unrelated raw-SQL-managed tables, so it's never run against this DB).
+  // Login is typically the very first query the app runs, so this must be
+  // checked here too — not only in users.repository.ts.
+  private async ensurePerfilIdColumn(): Promise<void> {
+    if (!PrismaAuthRepository.perfilIdColumnReady) {
+      PrismaAuthRepository.perfilIdColumnReady = prisma
+        .$executeRawUnsafe(`ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "perfilId" text NULL`)
+        .then(() => undefined);
+    }
+
+    await PrismaAuthRepository.perfilIdColumnReady;
+  }
+
   async findUserForLogin(identifier: string) {
+    await this.ensurePerfilIdColumn();
     const user = await prisma.user.findFirst({
       where: {
         OR: [
@@ -166,6 +184,7 @@ export class PrismaAuthRepository implements AuthRepository {
   }
 
   async findUserById(id: string) {
+    await this.ensurePerfilIdColumn();
     const user = await prisma.user.findUnique({
       where: { id },
       include: {
@@ -210,6 +229,7 @@ export class PrismaAuthRepository implements AuthRepository {
     }
 
     try {
+      await this.ensurePerfilIdColumn();
       const profileRows = await prisma.$queryRaw<Array<{
         tenant_id: string | null;
         perfil_id: string | null;
@@ -223,7 +243,7 @@ export class PrismaAuthRepository implements AuthRepository {
           pa.nome         AS perfil_nome
         FROM "User" u
         LEFT JOIN perfis_acesso pa
-          ON pa.nome = u.perfil
+          ON pa.id::text = u."perfilId"
          AND pa.tenant_id::text = u."tenantId"
         WHERE u.id = ${userId}
         LIMIT 1

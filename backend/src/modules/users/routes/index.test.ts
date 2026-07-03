@@ -30,7 +30,7 @@ class InMemoryUsersRepository implements UsersRepository {
   async findById(id: string) { return this.items.get(id) ?? null; }
   async findByEmail(email: string) { return [...this.items.values()].find((item) => item.email === email) ?? null; }
   async findByUsername(usuario: string) { return [...this.items.values()].find((item) => item.usuario === usuario) ?? null; }
-  async save(input: SaveUserInput) { const item: UserRecord = { id: input.id ?? crypto.randomUUID(), tenantId: input.tenantId, codigoExterno: input.codigoExterno ?? null, nome: input.nome, email: input.email, usuario: input.usuario, fotoUrl: input.fotoUrl ?? null, perfil: input.perfil ?? null, descricao: input.descricao ?? null, status: input.status, tipoAcesso: input.tipoAcesso ?? 'Operacional', recursoHumanoId: input.recursoHumanoId ?? null, role: input.role ?? 'USER', createdAt: new Date('2026-03-25T12:00:00.000Z') }; this.items.set(item.id, item); return item; }
+  async save(input: SaveUserInput) { const item: UserRecord = { id: input.id ?? crypto.randomUUID(), tenantId: input.tenantId, codigoExterno: input.codigoExterno ?? null, nome: input.nome, email: input.email, usuario: input.usuario, fotoUrl: input.fotoUrl ?? null, perfil: input.perfil ?? null, perfilId: input.perfilId ?? null, descricao: input.descricao ?? null, status: input.status, tipoAcesso: input.tipoAcesso ?? 'Operacional', recursoHumanoId: input.recursoHumanoId ?? null, role: input.role ?? 'USER', createdAt: new Date('2026-03-25T12:00:00.000Z') }; this.items.set(item.id, item); return item; }
   async remove(id: string) { this.items.delete(id); }
   async findTenantAdmin(_tenantId: string) { return null; }
   async listAvailableUnidades() { return []; }

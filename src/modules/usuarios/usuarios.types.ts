@@ -7,6 +7,7 @@ export interface UsuarioApiModel {
   senha?: string;
   foto?: string;
   perfil: string;
+  perfilId?: string;
   descricao: string;
   status: 'Ativo' | 'Inativo' | 'Bloqueado';
   tipoAcesso: string;

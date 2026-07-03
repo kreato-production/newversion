@@ -41,6 +41,10 @@ model User {
   /// Espelho de `fotoUrl` — exigido pelo PrismaAdapter do Auth.js.
   image           String?
   perfil          String?
+  /// FK estavel para perfis_acesso.id (tabela gerenciada fora do Prisma via SQL raw).
+  /// `perfil` acima fica apenas como nome espelhado para exibicao; a resolucao
+  /// de permissoes deve sempre usar perfilId, nunca comparar por nome.
+  perfilId        String?
   descricao       String?
   role            UserRole       @default(USER)
   status          UserStatus     @default(ATIVO)

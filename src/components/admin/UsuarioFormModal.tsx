@@ -49,6 +49,7 @@ const emptyFormData = {
   senha: '',
   foto: '',
   perfil: '',
+  perfilId: '',
   descricao: '',
   status: 'Ativo' as 'Ativo' | 'Inativo' | 'Bloqueado',
   tipoAcesso: 'Operacional',
@@ -91,6 +92,7 @@ export const UsuarioFormModal = ({
             senha: '',
             foto: data.foto || '',
             perfil: data.perfil || '',
+            perfilId: data.perfilId || '',
             descricao: data.descricao,
             status: data.status,
             tipoAcesso: data.tipoAcesso || 'Operacional',
@@ -191,7 +193,7 @@ export const UsuarioFormModal = ({
         senha: formData.senha || '',
         foto: formData.foto || '',
         perfil: formData.perfil || '',
-        perfilId: undefined,
+        perfilId: formData.perfilId || undefined,
         descricao: formData.descricao,
         status: formData.status,
         tipoAcesso: formData.tipoAcesso,
@@ -379,17 +381,22 @@ export const UsuarioFormModal = ({
                 <div className="space-y-2">
                   <Label>Perfil</Label>
                   <Select
-                    value={formData.perfil}
-                    onValueChange={(value) =>
-                      setFormData((current) => ({ ...current, perfil: value }))
-                    }
+                    value={formData.perfilId}
+                    onValueChange={(perfilId) => {
+                      const selected = perfis.find((p) => p.id === perfilId);
+                      setFormData((current) => ({
+                        ...current,
+                        perfilId,
+                        perfil: selected?.nome ?? '',
+                      }));
+                    }}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione o perfil..." />
                     </SelectTrigger>
                     <SelectContent>
                       {perfis.map((perfil) => (
-                        <SelectItem key={perfil.id} value={perfil.nome}>
+                        <SelectItem key={perfil.id} value={perfil.id}>
                           {perfil.nome}
                         </SelectItem>
                       ))}
