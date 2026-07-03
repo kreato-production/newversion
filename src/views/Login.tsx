@@ -41,7 +41,17 @@ const AUTH_ERROR_MESSAGES: Record<string, string> = {
   Default: 'Erro de autenticação. Tente novamente.',
 };
 
-function getErrorMessage(error: string | null): string | null {
+// Códigos específicos emitidos por src/auth.ts (authorize) para credenciais
+// válidas mas acesso negado por outro motivo (licença, tenant, status).
+const CREDENTIALS_ERROR_CODES: Record<string, string> = {
+  'license-expired': 'A licença da sua organização está expirada. Contate o administrador.',
+  'tenant-inactive': 'Sua organização está inativa. Contate o administrador.',
+  'tenant-blocked': 'Sua organização está bloqueada. Contate o administrador.',
+  'user-inactive': 'Seu usuário não está ativo. Contate o administrador.',
+};
+
+function getErrorMessage(error: string | null, code: string | null): string | null {
+  if (code && CREDENTIALS_ERROR_CODES[code]) return CREDENTIALS_ERROR_CODES[code];
   if (!error) return null;
   return AUTH_ERROR_MESSAGES[error] ?? AUTH_ERROR_MESSAGES.Default;
 }
@@ -62,7 +72,8 @@ const Login = () => {
 
   const redirectTo = sanitizeRedirect(searchParams.get('from'));
   const oauthError = searchParams.get('error');
-  const errorMessage = getErrorMessage(oauthError);
+  const oauthErrorCode = searchParams.get('code');
+  const errorMessage = getErrorMessage(oauthError, oauthErrorCode);
   const logoSrc = typeof kreatoLogo === 'string' ? kreatoLogo : kreatoLogo.src;
   const keycloakEnabled =
     process.env.NEXT_PUBLIC_KEYCLOAK_AUTH_ENABLED === 'true' &&
@@ -97,7 +108,11 @@ const Login = () => {
     });
 
     if (result?.error) {
-      router.replace(`/login?from=${encodeURIComponent(redirectTo)}&error=${result.error}`);
+      const code = (result as { code?: string }).code;
+      const codeParam = code ? `&code=${encodeURIComponent(code)}` : '';
+      router.replace(
+        `/login?from=${encodeURIComponent(redirectTo)}&error=${result.error}${codeParam}`,
+      );
     } else if (result?.ok) {
       router.replace(redirectTo);
     }

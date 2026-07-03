@@ -60,6 +60,26 @@ const credentialsSchema = z.object({
   password: z.string().min(1),
 });
 
+// Mapeia mensagens estáveis do backend (backend/src/modules/auth/auth.service.ts)
+// para um `code` seguro de expor na URL de redirecionamento do login.
+// Mensagens de credencial invalida (401) NAO entram aqui de propósito —
+// devem cair no código genérico "credentials" para não expor se o usuário existe.
+const BACKEND_MESSAGE_TO_CODE: Record<string, string> = {
+  'Licenca expirada': 'license-expired',
+  'Tenant inativo': 'tenant-inactive',
+  'Tenant bloqueado': 'tenant-blocked',
+  'Tenant nao encontrado': 'tenant-inactive',
+  'Acesso ao tenant negado': 'tenant-inactive',
+  'Usuario sem acesso ativo': 'user-inactive',
+};
+
+class BackendCredentialsError extends CredentialsSignin {
+  constructor(code: string) {
+    super();
+    this.code = code;
+  }
+}
+
 function defaultEnabledModules(role: KreatoUserRole): string[] {
   if (role === 'GLOBAL_ADMIN') {
     return ['Dashboard', 'Produção', 'Recursos', 'Administração', 'Financeiro', 'Global'];
@@ -180,7 +200,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           });
 
           if (!response.ok) {
-            throw new CredentialsSignin();
+            const body = (await response.json().catch((): null => null)) as {
+              message?: string;
+            } | null;
+            const code = (body?.message && BACKEND_MESSAGE_TO_CODE[body.message]) || 'credentials';
+            throw new BackendCredentialsError(code);
           }
 
           data = (await response.json()) as FastifyLoginResponse;
