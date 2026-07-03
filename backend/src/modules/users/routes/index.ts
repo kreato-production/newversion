@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 import { createAuthenticate, createRequireRole, createRequireTenantAccess } from '../../../plugins/auth.js';
+import { createRequirePermission } from '../../../plugins/permissions.js';
 import type { AuthenticatedRequest } from '../../../fastify.js';
 import { saveUserRelationSchema, saveUserSchema, UsersService } from '../users.service.js';
 import type { AuthService } from '../../auth/auth.service.js';
@@ -15,6 +16,9 @@ export function createUsersRoutes(authService: AuthService, usersService: UsersS
     const authenticate = createAuthenticate(authService);
     const requireTenantAccess = createRequireTenantAccess();
     const requireAdminRole = createRequireRole(['GLOBAL_ADMIN', 'TENANT_ADMIN']);
+    const requireIncluir = createRequirePermission(authService, 'Administração', 'Usuários', 'incluir');
+    const requireAlterar = createRequirePermission(authService, 'Administração', 'Usuários', 'alterar');
+    const requireExcluir = createRequirePermission(authService, 'Administração', 'Usuários', 'excluir');
 
     app.get('/users', { preHandler: [authenticate, requireAdminRole, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
@@ -22,20 +26,20 @@ export function createUsersRoutes(authService: AuthService, usersService: UsersS
       return reply.status(200).send(await usersService.list(user, opts));
     });
 
-    app.post('/users', { preHandler: [authenticate, requireAdminRole, requireTenantAccess] }, async (request, reply) => {
+    app.post('/users', { preHandler: [authenticate, requireAdminRole, requireTenantAccess, requireIncluir] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const body = saveUserSchema.parse(request.body);
       return reply.status(200).send(await usersService.save(user, body));
     });
 
-    app.put('/users/:id', { preHandler: [authenticate, requireAdminRole, requireTenantAccess] }, async (request, reply) => {
+    app.put('/users/:id', { preHandler: [authenticate, requireAdminRole, requireTenantAccess, requireAlterar] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const params = request.params as { id: string };
       const body = saveUserSchema.parse({ ...(request.body as object), id: params.id });
       return reply.status(200).send(await usersService.save(user, body));
     });
 
-    app.delete('/users/:id', { preHandler: [authenticate, requireAdminRole, requireTenantAccess] }, async (request, reply) => {
+    app.delete('/users/:id', { preHandler: [authenticate, requireAdminRole, requireTenantAccess, requireExcluir] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const params = request.params as { id: string };
       await usersService.remove(user, params.id);

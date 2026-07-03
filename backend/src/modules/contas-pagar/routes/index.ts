@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 import { createAuthenticate, createRequireTenantAccess } from '../../../plugins/auth.js';
+import { createRequirePermission } from '../../../plugins/permissions.js';
 import type { AuthenticatedRequest } from '../../../fastify.js';
 import type { AuthService } from '../../auth/auth.service.js';
 import { saveContaPagarSchema, ContasPagarService } from '../contas-pagar.service.js';
@@ -17,6 +18,9 @@ export function createContasPagarRoutes(
   return async (app) => {
     const authenticate = createAuthenticate(authService);
     const requireTenantAccess = createRequireTenantAccess();
+    const requireIncluir = createRequirePermission(authService, 'Financeiro', 'Contas a Pagar', 'incluir');
+    const requireAlterar = createRequirePermission(authService, 'Financeiro', 'Contas a Pagar', 'alterar');
+    const requireExcluir = createRequirePermission(authService, 'Financeiro', 'Contas a Pagar', 'excluir');
 
     app.get('/contas-pagar', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
@@ -24,14 +28,14 @@ export function createContasPagarRoutes(
       return reply.status(200).send(await contasPagarService.list(user, query));
     });
 
-    app.post('/contas-pagar', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+    app.post('/contas-pagar', { preHandler: [authenticate, requireTenantAccess, requireIncluir] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       return reply.status(200).send(
         await contasPagarService.save(user, saveContaPagarSchema.parse(request.body)),
       );
     });
 
-    app.put('/contas-pagar/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+    app.put('/contas-pagar/:id', { preHandler: [authenticate, requireTenantAccess, requireAlterar] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const params = request.params as { id: string };
       return reply.status(200).send(
@@ -42,7 +46,7 @@ export function createContasPagarRoutes(
       );
     });
 
-    app.delete('/contas-pagar/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+    app.delete('/contas-pagar/:id', { preHandler: [authenticate, requireTenantAccess, requireExcluir] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const params = request.params as { id: string };
       await contasPagarService.remove(user, params.id);

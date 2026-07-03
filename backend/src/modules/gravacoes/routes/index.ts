@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 import { createAuthenticate, createRequireRole, createRequireTenantAccess } from '../../../plugins/auth.js';
+import { createRequirePermission } from '../../../plugins/permissions.js';
 import type { AuthenticatedRequest } from '../../../fastify.js';
 import type { AuthService } from '../../auth/auth.service.js';
 import {
@@ -28,6 +29,9 @@ export function createGravacoesRoutes(authService: AuthService, gravacoesService
   return async (app) => {
     const authenticate = createAuthenticate(authService);
     const requireTenantAccess = createRequireTenantAccess();
+    const requireIncluir = createRequirePermission(authService, 'Produção', 'Gravação', 'incluir');
+    const requireAlterar = createRequirePermission(authService, 'Produção', 'Gravação', 'alterar');
+    const requireExcluir = createRequirePermission(authService, 'Produção', 'Gravação', 'excluir');
 
     app.get('/gravacoes', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
@@ -35,7 +39,7 @@ export function createGravacoesRoutes(authService: AuthService, gravacoesService
       return reply.status(200).send(await gravacoesService.list(user, opts));
     });
 
-    app.post('/gravacoes', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+    app.post('/gravacoes', { preHandler: [authenticate, requireTenantAccess, requireIncluir] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const body = saveGravacaoSchema.parse(request.body);
       return reply.status(200).send(await gravacoesService.save(user, body));
@@ -55,14 +59,14 @@ export function createGravacoesRoutes(authService: AuthService, gravacoesService
       return reply.status(200).send(item);
     });
 
-    app.put('/gravacoes/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+    app.put('/gravacoes/:id', { preHandler: [authenticate, requireTenantAccess, requireAlterar] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const params = request.params as { id: string };
       const body = saveGravacaoSchema.parse({ ...(request.body as object), id: params.id });
       return reply.status(200).send(await gravacoesService.save(user, body));
     });
 
-    app.delete('/gravacoes/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+    app.delete('/gravacoes/:id', { preHandler: [authenticate, requireTenantAccess, requireExcluir] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const params = request.params as { id: string };
       await gravacoesService.remove(user, params.id);

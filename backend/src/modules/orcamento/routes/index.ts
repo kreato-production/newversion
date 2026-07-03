@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 import { createAuthenticate, createRequireTenantAccess } from '../../../plugins/auth.js';
+import { createRequirePermission } from '../../../plugins/permissions.js';
 import type { AuthenticatedRequest } from '../../../fastify.js';
 import type { AuthService } from '../../auth/auth.service.js';
 import { saveOrcamentoSchema, saveOrcamentoItemSchema, OrcamentoService } from '../orcamento.service.js';
@@ -22,6 +23,9 @@ export function createOrcamentoRoutes(
     const authenticate = createAuthenticate(authService);
     const requireTenantAccess = createRequireTenantAccess();
     const pre = [authenticate, requireTenantAccess];
+    const requireIncluir = createRequirePermission(authService, 'Financeiro', 'Orçamento', 'incluir');
+    const requireAlterar = createRequirePermission(authService, 'Financeiro', 'Orçamento', 'alterar');
+    const requireExcluir = createRequirePermission(authService, 'Financeiro', 'Orçamento', 'excluir');
 
     // ─── Orçamentos ───────────────────────────────────────────────────────────
 
@@ -57,14 +61,14 @@ export function createOrcamentoRoutes(
       return reply.status(200).send(item);
     });
 
-    app.post('/orcamento', { preHandler: pre }, async (request, reply) => {
+    app.post('/orcamento', { preHandler: [...pre, requireIncluir] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       return reply.status(200).send(
         await orcamentoService.save(user, saveOrcamentoSchema.parse(request.body)),
       );
     });
 
-    app.put('/orcamento/:id', { preHandler: pre }, async (request, reply) => {
+    app.put('/orcamento/:id', { preHandler: [...pre, requireAlterar] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const { id } = request.params as { id: string };
       return reply.status(200).send(
@@ -72,7 +76,7 @@ export function createOrcamentoRoutes(
       );
     });
 
-    app.delete('/orcamento/:id', { preHandler: pre }, async (request, reply) => {
+    app.delete('/orcamento/:id', { preHandler: [...pre, requireExcluir] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const { id } = request.params as { id: string };
       await orcamentoService.remove(user, id);

@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 import { createAuthenticate, createRequireRole, createRequireTenantAccess } from '../../../plugins/auth.js';
+import { createRequirePermission } from '../../../plugins/permissions.js';
 import type { AuthenticatedRequest } from '../../../fastify.js';
 import type { AuthService } from '../../auth/auth.service.js';
 import { FigurinosService, saveFigurinoSchema } from '../figurinos.service.js';
@@ -14,6 +15,9 @@ export function createFigurinosRoutes(authService: AuthService, figurinosService
   return async (app) => {
     const authenticate = createAuthenticate(authService);
     const requireTenantAccess = createRequireTenantAccess();
+    const requireIncluir = createRequirePermission(authService, 'Recursos', 'Figurinos', 'incluir');
+    const requireAlterar = createRequirePermission(authService, 'Recursos', 'Figurinos', 'alterar');
+    const requireExcluir = createRequirePermission(authService, 'Recursos', 'Figurinos', 'excluir');
 
     app.get('/figurinos', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
@@ -26,20 +30,20 @@ export function createFigurinosRoutes(authService: AuthService, figurinosService
       return reply.status(200).send(await figurinosService.listOptions(user));
     });
 
-    app.post('/figurinos', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+    app.post('/figurinos', { preHandler: [authenticate, requireTenantAccess, requireIncluir] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const body = saveFigurinoSchema.parse(request.body);
       return reply.status(200).send(await figurinosService.save(user, body));
     });
 
-    app.put('/figurinos/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+    app.put('/figurinos/:id', { preHandler: [authenticate, requireTenantAccess, requireAlterar] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const params = request.params as { id: string };
       const body = saveFigurinoSchema.parse({ ...(request.body as object), id: params.id });
       return reply.status(200).send(await figurinosService.save(user, body));
     });
 
-    app.delete('/figurinos/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+    app.delete('/figurinos/:id', { preHandler: [authenticate, requireTenantAccess, requireExcluir] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const params = request.params as { id: string };
       await figurinosService.remove(user, params.id);

@@ -4,7 +4,7 @@ import { buildApp } from '../../../app.js';
 import { hashPassword } from '../../../lib/security/password.js';
 import type { AuthRepository, LoginUserRecord, RefreshTokenRecord } from '../../auth/auth.repository.js';
 import { AuthService } from '../../auth/auth.service.js';
-import type { TenantValidation } from '../../auth/auth.types.js';
+import type { AuthorizationContext, TenantValidation } from '../../auth/auth.types.js';
 import type { ProgramasRepository, ProgramaRecord, SaveProgramaInput } from '../programas.repository.js';
 import { ProgramasService } from '../programas.service.js';
 
@@ -13,11 +13,12 @@ class RouteAuthRepository implements AuthRepository {
     id: 'user-1', tenantId: '11111111-1111-1111-1111-111111111111', nome: 'Ana Silva', email: 'ana@kreato.app', usuario: 'ana', role: 'TENANT_ADMIN' as UserRole, status: 'ATIVO' as UserStatus, passwordHash: hashPassword('123456'), tenantStatus: 'ATIVO' as TenantStatus, tenantNome: null,
   };
   tenantValidation: TenantValidation = { valid: true };
+  authorizationContext: AuthorizationContext = { perfil: 'Administrador Tenant', tipoAcesso: 'Operacional', unidadeIds: [], enabledModules: ['Dashboard', 'Produção', 'Recursos', 'Administração'], permissions: [] };
   refreshTokens = new Map<string, RefreshTokenRecord>();
   async findUserForLogin(identifier: string) { return this.user.usuario === identifier || this.user.email === identifier ? this.user : null; }
   async findUserById(id: string) { return this.user.id === id ? this.user : null; }
   async validateTenantAccess() { return this.tenantValidation; }
-  async getAuthorizationContext() { return { perfil: 'Administrador Tenant', tipoAcesso: 'Operacional', unidadeIds: [], enabledModules: ['Dashboard', 'Produ��o', 'Recursos', 'Administra��o'], permissions: [] }; }
+  async getAuthorizationContext() { return this.authorizationContext; }
   async createRefreshToken(input: { userId: string; tokenHash: string; expiresAt: Date }) { this.refreshTokens.set(input.tokenHash, { id: input.tokenHash, userId: input.userId, tokenHash: input.tokenHash, expiresAt: input.expiresAt, revokedAt: null, user: { ...this.user, tenantStatus: this.user.tenantStatus } }); }
   async findRefreshToken(tokenHash: string) { return this.refreshTokens.get(tokenHash) ?? null; }
   async revokeRefreshToken(tokenHash: string, revokedAt: Date) { const token = this.refreshTokens.get(tokenHash); if (token) token.revokedAt = revokedAt; }
@@ -47,6 +48,43 @@ describe('programas routes', () => {
     const listResponse = await app.inject({ method: 'GET', url: '/programas', headers: { authorization: `Bearer ${accessToken}` } });
     expect(listResponse.statusCode).toBe(200);
     expect(listResponse.json().data).toEqual([expect.objectContaining({ nome: 'Programa A', codigoExterno: 'PA' })]);
+
+    await app.close();
+  });
+
+  it('bloqueia POST quando o perfil do usuario desativa incluir para Produção > Programas', async () => {
+    const authRepository = new RouteAuthRepository();
+    authRepository.user.role = 'USER' as UserRole;
+    authRepository.authorizationContext = {
+      perfil: 'Operacional Restrito',
+      tipoAcesso: 'Operacional',
+      unidadeIds: [],
+      enabledModules: ['Dashboard', 'Produção', 'Recursos', 'Administração'],
+      permissions: [
+        {
+          id: 'produ__o_programas____',
+          modulo: 'Produção',
+          subModulo1: 'Programas',
+          subModulo2: '-',
+          campo: '-',
+          acao: 'visible',
+          somenteLeitura: false,
+          incluir: false,
+          alterar: true,
+          excluir: true,
+          tipo: 'submodulo1',
+        },
+      ],
+    };
+    const authService = new AuthService(authRepository, () => new Date('2026-03-25T10:00:00.000Z'));
+    const programasService = new ProgramasService(new InMemoryProgramasRepository());
+    const app = await buildApp({ authService, programasService });
+
+    const loginResponse = await app.inject({ method: 'POST', url: '/auth/login', payload: { usuario: 'ana', password: '123456' } });
+    const accessToken = loginResponse.cookies.find(c => c.name === 'kreato_access_token')?.value ?? '';
+
+    const createResponse = await app.inject({ method: 'POST', url: '/programas', headers: { authorization: `Bearer ${accessToken}` }, payload: { nome: 'Programa A', codigoExterno: 'PA' } });
+    expect(createResponse.statusCode).toBe(403);
 
     await app.close();
   });

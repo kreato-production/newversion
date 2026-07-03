@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 import { createAuthenticate, createRequireRole, createRequireTenantAccess } from '../../../plugins/auth.js';
+import { createRequirePermission } from '../../../plugins/permissions.js';
 import type { AuthenticatedRequest } from '../../../fastify.js';
 import type { AuthService } from '../../auth/auth.service.js';
 import {
@@ -20,6 +21,9 @@ export function createFornecedoresRoutes(authService: AuthService, fornecedoresS
   return async (app) => {
     const authenticate = createAuthenticate(authService);
     const requireTenantAccess = createRequireTenantAccess();
+    const requireIncluir = createRequirePermission(authService, 'Recursos', 'Fornecedores', 'incluir');
+    const requireAlterar = createRequirePermission(authService, 'Recursos', 'Fornecedores', 'alterar');
+    const requireExcluir = createRequirePermission(authService, 'Recursos', 'Fornecedores', 'excluir');
 
     app.get('/fornecedores', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
@@ -32,20 +36,20 @@ export function createFornecedoresRoutes(authService: AuthService, fornecedoresS
       return reply.status(200).send(await fornecedoresService.listOptions(user));
     });
 
-    app.post('/fornecedores', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+    app.post('/fornecedores', { preHandler: [authenticate, requireTenantAccess, requireIncluir] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const body = saveFornecedorSchema.parse(request.body);
       return reply.status(200).send(await fornecedoresService.save(user, body));
     });
 
-    app.put('/fornecedores/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+    app.put('/fornecedores/:id', { preHandler: [authenticate, requireTenantAccess, requireAlterar] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const params = request.params as { id: string };
       const body = saveFornecedorSchema.parse({ ...(request.body as object), id: params.id });
       return reply.status(200).send(await fornecedoresService.save(user, body));
     });
 
-    app.delete('/fornecedores/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+    app.delete('/fornecedores/:id', { preHandler: [authenticate, requireTenantAccess, requireExcluir] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const params = request.params as { id: string };
       await fornecedoresService.remove(user, params.id);

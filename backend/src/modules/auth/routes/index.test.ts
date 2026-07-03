@@ -35,7 +35,7 @@ class RouteAuthRepository implements AuthRepository {
   }
 
   async getAuthorizationContext() {
-    return { perfil: 'Administrador Tenant', tipoAcesso: 'Operacional', unidadeIds: ['unidade-1'], enabledModules: ['Dashboard', 'Produ��o', 'Recursos', 'Administra��o'], permissions: [] };
+    return { perfil: 'Administrador Tenant', tipoAcesso: 'Operacional', unidadeIds: ['unidade-1'], enabledModules: ['Dashboard', 'Produção', 'Recursos', 'Administração'], permissions: [] };
   }
 
   async createRefreshToken(input: { userId: string; tokenHash: string; expiresAt: Date }) {

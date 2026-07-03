@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 import { createAuthenticate, createRequireTenantAccess } from '../../../plugins/auth.js';
+import { createRequirePermission } from '../../../plugins/permissions.js';
 import type { AuthenticatedRequest } from '../../../fastify.js';
 import type { AuthService } from '../../auth/auth.service.js';
 import {
@@ -25,6 +26,9 @@ export function createSatOpsRoutes(
   return async (app) => {
     const authenticate = createAuthenticate(authService);
     const requireTenantAccess = createRequireTenantAccess();
+    const requireSatelitesIncluir = createRequirePermission(authService, 'SatOps', 'Satélites', 'incluir');
+    const requireSatelitesAlterar = createRequirePermission(authService, 'SatOps', 'Satélites', 'alterar');
+    const requireSatelitesExcluir = createRequirePermission(authService, 'SatOps', 'Satélites', 'excluir');
 
     // ── Estados de Evento ────────────────────────────────────────────────────
 
@@ -65,14 +69,14 @@ export function createSatOpsRoutes(
       return reply.status(200).send(await satelitesService.list(user));
     });
 
-    app.post('/satops/satelites', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+    app.post('/satops/satelites', { preHandler: [authenticate, requireTenantAccess, requireSatelitesIncluir] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       return reply.status(200).send(
         await satelitesService.save(user, saveSateliteSchema.parse(request.body)),
       );
     });
 
-    app.put('/satops/satelites/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+    app.put('/satops/satelites/:id', { preHandler: [authenticate, requireTenantAccess, requireSatelitesAlterar] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const params = request.params as { id: string };
       return reply.status(200).send(
@@ -83,7 +87,7 @@ export function createSatOpsRoutes(
       );
     });
 
-    app.delete('/satops/satelites/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+    app.delete('/satops/satelites/:id', { preHandler: [authenticate, requireTenantAccess, requireSatelitesExcluir] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const params = request.params as { id: string };
       await satelitesService.remove(user, params.id);
@@ -139,6 +143,9 @@ export function createJanelasRoutes(
   return async (app) => {
     const authenticate = createAuthenticate(authService);
     const requireTenantAccess = createRequireTenantAccess();
+    const requireIncluir = createRequirePermission(authService, 'SatOps', 'Janelas', 'incluir');
+    const requireAlterar = createRequirePermission(authService, 'SatOps', 'Janelas', 'alterar');
+    const requireExcluir = createRequirePermission(authService, 'SatOps', 'Janelas', 'excluir');
 
     // ── Helpers de Grelha ────────────────────────────────────────────────────
 
@@ -160,14 +167,14 @@ export function createJanelasRoutes(
       return reply.status(200).send(await janelasService.list(user));
     });
 
-    app.post('/satops/janelas', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+    app.post('/satops/janelas', { preHandler: [authenticate, requireTenantAccess, requireIncluir] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       return reply.status(200).send(
         await janelasService.save(user, saveJanelaSchema.parse(request.body)),
       );
     });
 
-    app.put('/satops/janelas/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+    app.put('/satops/janelas/:id', { preHandler: [authenticate, requireTenantAccess, requireAlterar] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const params = request.params as { id: string };
       return reply.status(200).send(
@@ -178,7 +185,7 @@ export function createJanelasRoutes(
       );
     });
 
-    app.delete('/satops/janelas/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+    app.delete('/satops/janelas/:id', { preHandler: [authenticate, requireTenantAccess, requireExcluir] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const params = request.params as { id: string };
       await janelasService.remove(user, params.id);

@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 import { createAuthenticate, createRequireRole, createRequireTenantAccess } from '../../../plugins/auth.js';
+import { createRequirePermission } from '../../../plugins/permissions.js';
 import type { AuthenticatedRequest } from '../../../fastify.js';
 import type { AuthService } from '../../auth/auth.service.js';
 import { PessoasService, savePessoaSchema } from '../pessoas.service.js';
@@ -14,6 +15,9 @@ export function createPessoasRoutes(authService: AuthService, pessoasService: Pe
   return async (app) => {
     const authenticate = createAuthenticate(authService);
     const requireTenantAccess = createRequireTenantAccess();
+    const requireIncluir = createRequirePermission(authService, 'Recursos', 'Pessoas', 'incluir');
+    const requireAlterar = createRequirePermission(authService, 'Recursos', 'Pessoas', 'alterar');
+    const requireExcluir = createRequirePermission(authService, 'Recursos', 'Pessoas', 'excluir');
 
     app.get('/pessoas', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
@@ -32,20 +36,20 @@ export function createPessoasRoutes(authService: AuthService, pessoasService: Pe
       return reply.status(200).send(await pessoasService.listGravacoes(user, params.id));
     });
 
-    app.post('/pessoas', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+    app.post('/pessoas', { preHandler: [authenticate, requireTenantAccess, requireIncluir] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const body = savePessoaSchema.parse(request.body);
       return reply.status(200).send(await pessoasService.save(user, body));
     });
 
-    app.put('/pessoas/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+    app.put('/pessoas/:id', { preHandler: [authenticate, requireTenantAccess, requireAlterar] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const params = request.params as { id: string };
       const body = savePessoaSchema.parse({ ...(request.body as object), id: params.id });
       return reply.status(200).send(await pessoasService.save(user, body));
     });
 
-    app.delete('/pessoas/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+    app.delete('/pessoas/:id', { preHandler: [authenticate, requireTenantAccess, requireExcluir] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const params = request.params as { id: string };
       await pessoasService.remove(user, params.id);
