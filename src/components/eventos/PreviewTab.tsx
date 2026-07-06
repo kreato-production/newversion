@@ -1,7 +1,6 @@
 'use client';
 
 import { Calendar, Clock, Check, ChevronRight } from 'lucide-react';
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import type {
   AgendaDia,
   AgendaAtividade,
@@ -130,8 +129,6 @@ function DayTimeline({ dia }: { dia: AgendaDia }) {
   }, 0);
   const concluidas = sorted.filter((a) => a.executada).length;
 
-  const totalW = sorted.length * STEP_W + (sorted.length - 1) * ARROW_W;
-
   return (
     <div className="rounded-xl border bg-background shadow-sm overflow-hidden">
       {/* Cabeçalho do dia */}
@@ -149,9 +146,11 @@ function DayTimeline({ dia }: { dia: AgendaDia }) {
         </span>
       </div>
 
-      {/* Scroll horizontal */}
-      <ScrollArea className="w-full whitespace-nowrap">
-        <div className="flex items-stretch p-5" style={{ minWidth: totalW }}>
+      {/* Scroll horizontal — overflow-x-auto nativo, largura sempre limitada ao
+          pai (w-full) para nunca "empurrar" o modal; barra de rolagem
+          estilizada para ficar sempre visível, não depender do tema do SO. */}
+      <div className="w-full overflow-x-auto p-5 [scrollbar-width:thin] [scrollbar-color:hsl(var(--border))_transparent] [&::-webkit-scrollbar]:h-2.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border">
+        <div className="flex items-stretch" style={{ width: 'max-content' }}>
           {sorted.map((atv, i) => (
             <div key={atv.id} className="flex items-stretch flex-shrink-0">
               <StepCard atv={atv} index={i} />
@@ -161,8 +160,7 @@ function DayTimeline({ dia }: { dia: AgendaDia }) {
             </div>
           ))}
         </div>
-        <ScrollBar orientation="horizontal" />
-      </ScrollArea>
+      </div>
     </div>
   );
 }

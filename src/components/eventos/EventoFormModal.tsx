@@ -302,7 +302,11 @@ L.marker([${form.latitude},${form.longitude}],{icon:redIcon}).addTo(map);
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit}>
+        {/* min-w-0: DialogContent usa `grid`; sem isso, o item de grid herda
+            min-width:auto e cresce para acomodar conteudo largo (ex.: a
+            timeline horizontal do Preview) em vez de conter/rolar dentro do
+            modal, mesmo com overflow-x-hidden no container. */}
+        <form onSubmit={handleSubmit} className="min-w-0">
           <Tabs defaultValue="geral">
             <TabsList className="w-full">
               <TabsTrigger value="geral" className="flex-1">
