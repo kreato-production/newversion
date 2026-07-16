@@ -171,9 +171,9 @@ interface PreviewTabProps {
 }
 
 export function PreviewTab({ agenda }: PreviewTabProps) {
-  const diasValidos = agenda.filter((d) =>
-    d.atividades.some((a) => (a.horarioInicio ?? '') !== ''),
-  );
+  const diasValidos = agenda
+    .filter((d) => d.atividades.some((a) => (a.horarioInicio ?? '') !== ''))
+    .sort((a, b) => a.data.localeCompare(b.data));
 
   if (!diasValidos.length) {
     return (

@@ -10,18 +10,14 @@ echo    Kreato Production - Iniciando aplicacao
 echo  ============================================
 echo.
 
-:: --- 1. PostgreSQL via Docker (opcional) ---
-echo  [1/3] Verificando PostgreSQL (Docker)...
-where docker >nul 2>&1
+:: --- 1. PostgreSQL (servico nativo do Windows) ---
+echo  [1/3] Verificando PostgreSQL...
+net start | findstr /i "postgresql" >nul 2>&1
 if %ERRORLEVEL% EQU 0 (
-    docker compose -f "%PROJECT_DIR%docker-compose.yml" up postgres -d >nul 2>&1
-    if %ERRORLEVEL% EQU 0 (
-        echo  PostgreSQL Docker OK
-    ) else (
-        echo  AVISO: Docker nao iniciou o PostgreSQL - assumindo que ja esta rodando.
-    )
+    echo  PostgreSQL ja esta em execucao.
 ) else (
-    echo  Docker nao encontrado - assumindo PostgreSQL ja esta rodando.
+    echo  AVISO: nenhum servico PostgreSQL em execucao foi encontrado.
+    echo  Inicie-o em services.msc ou com "net start postgresql-x64-16" antes de continuar.
 )
 echo.
 
@@ -36,8 +32,8 @@ echo.
 
 timeout /t 2 /nobreak > nul
 
-:: --- 3. Frontend (porta 3000) ---
-echo  [3/3] Iniciando Frontend (porta 3000)...
+:: --- 3. Frontend (porta 3001) ---
+echo  [3/3] Iniciando Frontend (porta 3001)...
 start "Kreato - Frontend" cmd /k "cd /d "%PROJECT_DIR%" && npm run dev"
 echo  Frontend iniciado em nova janela.
 echo.
@@ -46,7 +42,7 @@ echo  ============================================
 echo    Aplicacao no ar!
 echo.
 echo    Backend:  http://localhost:3333
-echo    Frontend: http://localhost:3000
+echo    Frontend: http://localhost:3001
 echo  ============================================
 echo.
 pause

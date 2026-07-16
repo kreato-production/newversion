@@ -66,6 +66,8 @@ export function AgendaTab({ value: dias, onChange, readOnly, disabled }: AgendaT
   const [addingAtvDiaId, setAddingAtvDiaId] = useState<string | null>(null);
   const [newAtv, setNewAtv] = useState(emptyAtv);
   const [editing, setEditing] = useState<EditState | null>(null);
+  const [editingDiaId, setEditingDiaId] = useState<string | null>(null);
+  const [editingDiaData, setEditingDiaData] = useState('');
 
   const totalAtividades = dias.reduce((s, d) => s + d.atividades.length, 0);
   const totalExecutadas = dias.reduce(
@@ -86,6 +88,29 @@ export function AgendaTab({ value: dias, onChange, readOnly, disabled }: AgendaT
   };
 
   const removeDia = (id: string) => onChange(dias.filter((d) => d.id !== id));
+
+  const startEditDia = (dia: AgendaDia) => {
+    setAddingDia(false);
+    setAddingAtvDiaId(null);
+    setEditing(null);
+    setEditingDiaId(dia.id);
+    setEditingDiaData(dia.data);
+  };
+
+  const cancelEditDia = () => {
+    setEditingDiaId(null);
+    setEditingDiaData('');
+  };
+
+  const saveEditDia = () => {
+    if (!editingDiaId || !editingDiaData) return;
+    if (dias.some((d) => d.id !== editingDiaId && d.data === editingDiaData)) return;
+    const sorted = dias
+      .map((d) => (d.id === editingDiaId ? { ...d, data: editingDiaData } : d))
+      .sort((a, b) => a.data.localeCompare(b.data));
+    onChange(sorted);
+    cancelEditDia();
+  };
 
   const sortAtv = (arr: AgendaAtividade[]) =>
     [...arr].sort((a, b) => (a.horarioInicio ?? '').localeCompare(b.horarioInicio ?? ''));
@@ -350,32 +375,84 @@ export function AgendaTab({ value: dias, onChange, readOnly, disabled }: AgendaT
         return (
           <div key={dia.id} className="rounded-lg border overflow-hidden">
             {/* Cabeçalho do dia */}
-            <div className="flex items-center justify-between bg-muted/50 px-4 py-2.5">
-              <div className="flex items-center gap-2 flex-wrap">
-                <Calendar className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                <span className="font-semibold text-sm capitalize">{fmtData(dia.data)}</span>
-                {dia.atividades.length > 0 && (
-                  <span className="text-xs text-muted-foreground">
-                    ({dia.atividades.filter((a) => a.executada).length}/{dia.atividades.length})
-                  </span>
-                )}
-                {totalDia && (
-                  <span className="flex items-center gap-1 text-xs text-muted-foreground border rounded-full px-2 py-0.5">
-                    <Clock className="h-3 w-3" />
-                    {totalDia} total
-                  </span>
-                )}
-              </div>
-              {!readOnly && (
-                <button
-                  type="button"
-                  onClick={() => removeDia(dia.id)}
-                  disabled={disabled}
-                  className="h-7 w-7 rounded hover:bg-destructive/10 flex items-center justify-center flex-shrink-0"
-                  title="Remover dia"
-                >
-                  <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                </button>
+            <div className="flex items-center justify-between bg-muted/50 px-4 py-2.5 gap-2">
+              {editingDiaId === dia.id ? (
+                /* ── Modo edição da data ── */
+                <div className="flex items-center gap-2 flex-wrap flex-1">
+                  <Calendar className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                  <Input
+                    type="date"
+                    value={editingDiaData}
+                    onChange={(e) => setEditingDiaData(e.target.value)}
+                    disabled={disabled}
+                    className="h-8 w-auto"
+                    autoFocus
+                  />
+                  {dias.some((d) => d.id !== editingDiaId && d.data === editingDiaData) && (
+                    <span className="text-xs text-destructive">Já existe um dia com esta data</span>
+                  )}
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="h-8"
+                    onClick={saveEditDia}
+                    disabled={
+                      disabled ||
+                      !editingDiaData ||
+                      dias.some((d) => d.id !== editingDiaId && d.data === editingDiaData)
+                    }
+                  >
+                    Salvar
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8"
+                    onClick={cancelEditDia}
+                    disabled={disabled}
+                  >
+                    Cancelar
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Calendar className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                  <span className="font-semibold text-sm capitalize">{fmtData(dia.data)}</span>
+                  {dia.atividades.length > 0 && (
+                    <span className="text-xs text-muted-foreground">
+                      ({dia.atividades.filter((a) => a.executada).length}/{dia.atividades.length})
+                    </span>
+                  )}
+                  {totalDia && (
+                    <span className="flex items-center gap-1 text-xs text-muted-foreground border rounded-full px-2 py-0.5">
+                      <Clock className="h-3 w-3" />
+                      {totalDia} total
+                    </span>
+                  )}
+                </div>
+              )}
+              {!readOnly && editingDiaId !== dia.id && (
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => startEditDia(dia)}
+                    disabled={disabled}
+                    className="h-7 w-7 rounded hover:bg-muted flex items-center justify-center"
+                    title="Alterar data"
+                  >
+                    <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => removeDia(dia.id)}
+                    disabled={disabled}
+                    className="h-7 w-7 rounded hover:bg-destructive/10 flex items-center justify-center"
+                    title="Remover dia"
+                  >
+                    <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                  </button>
+                </div>
               )}
             </div>
 

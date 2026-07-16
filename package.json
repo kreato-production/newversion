@@ -119,5 +119,14 @@
     "*.{json,md,yml,yaml}": [
       "prettier --write"
     ]
+  },
+  "allowScripts": {
+    "@prisma/engines@7.6.0": true,
+    "@swc/core@1.13.2": true,
+    "core-js@3.47.0": true,
+    "esbuild@0.21.5": true,
+    "prisma@7.6.0": true,
+    "sharp@0.34.5": true,
+    "ssh2@1.17.0": true
   }
 }
