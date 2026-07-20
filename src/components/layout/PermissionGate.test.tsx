@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { PermissionGate } from './PermissionGate';
 import { usePermissions } from '@/hooks/usePermissions';
+import type { PermissionItem } from '@/modules/auth/auth.types';
 
 vi.mock('@/hooks/usePermissions');
 
@@ -16,7 +17,7 @@ function buildPermissions(hasPermission: boolean) {
     canAlterar: vi.fn().mockReturnValue(hasPermission),
     canExcluir: vi.fn().mockReturnValue(hasPermission),
     getFieldPermission: vi.fn().mockReturnValue(null),
-    permissions: [],
+    permissions: [] as PermissionItem[],
     enabledModules: new Set<string>(),
   };
 }

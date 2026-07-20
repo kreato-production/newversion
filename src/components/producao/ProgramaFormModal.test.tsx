@@ -39,6 +39,8 @@ describe('ProgramaFormModal', () => {
       nome: 'Programa A',
       descricao: '',
       unidadeNegocioId: '',
+      unidadeNegocio: '',
+      dataCadastro: '2026-01-01T00:00:00.000Z',
     };
     render(<ProgramaFormModal {...defaultProps} data={programa} />);
     await waitFor(() => expect(screen.getByText('Editar Programa')).toBeInTheDocument());
@@ -51,6 +53,8 @@ describe('ProgramaFormModal', () => {
       nome: 'Programa Existente',
       descricao: '',
       unidadeNegocioId: '',
+      unidadeNegocio: '',
+      dataCadastro: '2026-01-01T00:00:00.000Z',
     };
     render(<ProgramaFormModal {...defaultProps} data={programa} />);
     await waitFor(() => {

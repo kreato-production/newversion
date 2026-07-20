@@ -26,18 +26,20 @@ describe('programas.repository', () => {
   });
 
   it('normaliza payload para api quando unidade de negocio nao foi preenchida', () => {
-    expect(normalizeProgramaInput({
-      codigoExterno: '  PG-2  ',
-      nome: 'Programa B',
-      descricao: '   ',
-      unidadeNegocioId: '',
-      tenantId: 'tenant-1',
-    })).toEqual({
+    expect(
+      normalizeProgramaInput({
+        codigoExterno: '  PG-2  ',
+        nome: 'Programa B',
+        descricao: '   ',
+        unidadeNegocioId: '',
+        tenantId: 'tenant-1',
+      }),
+    ).toEqual({
       codigoExterno: 'PG-2',
       nome: 'Programa B',
       descricao: '',
+      cor: null,
       unidadeNegocioId: null,
-      tenantId: 'tenant-1',
     });
   });
 });

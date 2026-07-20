@@ -36,7 +36,7 @@ type PaginatedDepartamentosResponse = {
   data: DepartamentoApiItem[];
 };
 
-type DepartamentoFuncoesResponse = {
+export type DepartamentoFuncoesResponse = {
   associadas: DepartamentoFuncaoApiItem[];
   cadastradas: FuncaoApiItem[];
 };

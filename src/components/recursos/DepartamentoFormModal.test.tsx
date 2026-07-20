@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { DepartamentoFormModal } from './DepartamentoFormModal';
+import type { DepartamentoFuncoesResponse } from '@/modules/departamentos/departamentos.api.repository';
 
 vi.mock('@/contexts/AuthContext', () => ({
   useAuth: () => ({
@@ -24,13 +25,13 @@ vi.mock('@/hooks/use-toast', () => ({
 
 vi.mock('@/modules/departamentos/departamentos.api.repository', () => ({
   ApiDepartamentosRepository: class {
-    async listFuncoes() {
+    async listFuncoes(): Promise<DepartamentoFuncoesResponse> {
       return { associadas: [], cadastradas: [] };
     }
     async addFuncao() {
       return { id: 'assoc-1', funcaoId: 'funcao-1', dataAssociacao: new Date().toISOString() };
     }
-    async removeFuncao() {
+    async removeFuncao(): Promise<void> {
       return undefined;
     }
   },

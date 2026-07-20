@@ -32,28 +32,28 @@ describe('TurnoFormModal', () => {
     const onClose = vi.fn();
     render(<TurnoFormModal {...defaultProps} onSave={onSave} onClose={onClose} />);
 
-    await waitFor(() => screen.getByRole('textbox', { name: /common\.name/i }));
+    await waitFor(() => screen.getByLabelText(/Nome do Turno/i));
 
-    fireEvent.change(screen.getByRole('textbox', { name: /common\.name/i }), {
+    fireEvent.change(screen.getByLabelText(/Nome do Turno/i), {
       target: { value: '  Turno Manhã  ' },
     });
-    fireEvent.change(screen.getByLabelText(/turns\.abbreviation/i), {
+    fireEvent.change(screen.getByLabelText(/^Sigla$/i), {
       target: { value: ' TM ' },
     });
     fireEvent.change(screen.getByLabelText(/common\.description/i), {
       target: { value: '  Operacao diurna  ' },
     });
-    fireEvent.change(screen.getByLabelText(/common\.startTime/i), {
+    fireEvent.change(screen.getByLabelText(/Início do Turno/i), {
       target: { value: '08:30' },
     });
-    fireEvent.change(screen.getByLabelText(/common\.endTime/i), {
+    fireEvent.change(screen.getByLabelText(/Fim do Turno/i), {
       target: { value: '17:15' },
     });
 
-    fireEvent.click(screen.getAllByRole('switch')[1]);
-    const peopleInput = document.getElementById('turno-pessoas-seg');
-    expect(peopleInput).not.toBeNull();
-    fireEvent.change(peopleInput!, { target: { value: '4' } });
+    // 'seg' é o primeiro dia em displayOrder — mesmo índice usado no checkbox e no spinbutton de pessoas.
+    fireEvent.click(screen.getAllByRole('checkbox')[0]);
+    const peopleInput = screen.getAllByRole('spinbutton')[0];
+    fireEvent.change(peopleInput, { target: { value: '4' } });
 
     fireEvent.click(screen.getByText('common.save'));
 
@@ -77,7 +77,7 @@ describe('TurnoFormModal', () => {
 
     await waitFor(() => {
       expect(screen.queryByText('common.save')).not.toBeInTheDocument();
-      expect(screen.getByRole('textbox', { name: /common\.name/i })).toBeDisabled();
+      expect(screen.getByLabelText(/Nome do Turno/i)).toBeDisabled();
     });
   });
 });

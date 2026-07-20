@@ -3,6 +3,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import Turnos, { TURNOS_PERMISSION_SCOPE } from './Turnos';
 import { usePermissions } from '@/hooks/usePermissions';
+import type { ColumnConfig } from '@/components/listing/useListingView';
+import { TooltipProvider } from '@/components/ui/tooltip';
 
 vi.mock('@/hooks/usePermissions');
 vi.mock('@/hooks/use-toast', () => ({
@@ -69,7 +71,7 @@ vi.mock('@/components/listing', () => ({
     visibleColumnKeys: ['nome', 'actions'],
     toggleColumn: vi.fn(),
     resetColumns: vi.fn(),
-    optionalColumns: [],
+    optionalColumns: [] as ColumnConfig[],
   }),
   ViewSwitcher: () => <div>switcher</div>,
   ColumnSelector: () => <div>columns</div>,
@@ -77,7 +79,7 @@ vi.mock('@/components/listing', () => ({
   MasterDetail: () => <div>detail</div>,
 }));
 vi.mock('@/components/recursos/TurnoFormModal', () => ({
-  TurnoFormModal: () => null,
+  TurnoFormModal: (): null => null,
 }));
 
 const mockUsePermissions = vi.mocked(usePermissions);
@@ -104,7 +106,11 @@ describe('Turnos view', () => {
       enabledModules: new Set<string>(),
     });
 
-    render(<Turnos />);
+    render(
+      <TooltipProvider>
+        <Turnos />
+      </TooltipProvider>,
+    );
 
     await waitFor(() => expect(screen.getByText('turns.title')).toBeInTheDocument());
 

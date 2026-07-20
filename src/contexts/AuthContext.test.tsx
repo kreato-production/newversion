@@ -1,6 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, act, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import type { ReactNode } from 'react';
 import { AuthProvider, useAuth } from './AuthContext';
+
+function renderWithProviders(ui: ReactNode) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
+}
 
 const mockSignIn = vi.fn();
 const mockSignOut = vi.fn();
@@ -39,7 +48,7 @@ describe('AuthContext', () => {
   it('estado loading enquanto useSession retorna loading', () => {
     mockSessionData = { data: null, status: 'loading' };
 
-    render(
+    renderWithProviders(
       <AuthProvider>
         <TestConsumer />
       </AuthProvider>,
@@ -51,7 +60,7 @@ describe('AuthContext', () => {
   it('estado nao-autenticado quando sem sessao', async () => {
     mockSessionData = { data: null, status: 'unauthenticated' };
 
-    render(
+    renderWithProviders(
       <AuthProvider>
         <TestConsumer />
       </AuthProvider>,
@@ -81,7 +90,7 @@ describe('AuthContext', () => {
       },
     };
 
-    render(
+    renderWithProviders(
       <AuthProvider>
         <TestConsumer />
       </AuthProvider>,
@@ -102,7 +111,7 @@ describe('AuthContext', () => {
       return null;
     }
 
-    render(
+    renderWithProviders(
       <AuthProvider>
         <CaptureLogin />
       </AuthProvider>,
@@ -130,7 +139,7 @@ describe('AuthContext', () => {
       return null;
     }
 
-    render(
+    renderWithProviders(
       <AuthProvider>
         <CaptureLogin />
       </AuthProvider>,
@@ -156,7 +165,7 @@ describe('AuthContext', () => {
       return null;
     }
 
-    render(
+    renderWithProviders(
       <AuthProvider>
         <CaptureLogout />
       </AuthProvider>,
@@ -166,6 +175,8 @@ describe('AuthContext', () => {
       await logoutFn();
     });
 
-    expect(mockSignOut).toHaveBeenCalledWith({ callbackUrl: '/login' });
+    expect(mockSignOut).toHaveBeenCalledWith({
+      callbackUrl: `${window.location.origin}/login`,
+    });
   });
 });
