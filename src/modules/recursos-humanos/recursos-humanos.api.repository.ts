@@ -55,6 +55,10 @@ export class ApiRecursosHumanosRepository {
     return response.data;
   }
 
+  async getById(id: string): Promise<RecursoHumano> {
+    return apiRequest<RecursoHumano>(`/recursos-humanos/${id}`);
+  }
+
   async listOptions(): Promise<RecursoHumanoOptions> {
     return apiRequest<RecursoHumanoOptions>('/recursos-humanos/options');
   }

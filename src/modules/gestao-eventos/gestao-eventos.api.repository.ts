@@ -93,6 +93,10 @@ export class ApiEventosRepository {
     return apiRequest(`/gestao-eventos${qs ? `?${qs}` : ''}`);
   }
 
+  getById(id: string): Promise<Evento> {
+    return apiRequest(`/gestao-eventos/${id}`);
+  }
+
   save(input: SaveEventoInput): Promise<Evento> {
     const path = input.id ? `/gestao-eventos/${input.id}` : '/gestao-eventos';
     const method = input.id ? 'PUT' : 'POST';

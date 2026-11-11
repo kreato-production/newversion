@@ -1,7 +1,12 @@
 import { z } from 'zod';
 import type { SessionUser } from '../auth/auth.types.js';
 import { ensureSameTenant, resolveTenantId } from '../common/access.js';
-import type { EventosRepository, EventoExpositor, AgendaDia, OrcamentoEventoItem } from './gestao-eventos.repository.js';
+import type {
+  EventosRepository,
+  EventoExpositor,
+  AgendaDia,
+  OrcamentoEventoItem,
+} from './gestao-eventos.repository.js';
 import type { ContasPagarRepository } from '../contas-pagar/contas-pagar.repository.js';
 
 const emptyToNull = (v: unknown) => (typeof v === 'string' && v.trim() === '' ? null : v);
@@ -79,6 +84,12 @@ export class EventosService {
     return { total, data: data.map(mapEvento) };
   }
 
+  async getById(actor: SessionUser, id: string) {
+    const tenantId = resolveTenantId(actor, actor.tenantId);
+    const record = await this.repository.findById(id, tenantId);
+    return record ? mapEvento(record) : null;
+  }
+
   async save(actor: SessionUser, input: SaveEventoDto) {
     const tenantId = resolveTenantId(actor, actor.tenantId);
 
@@ -144,7 +155,11 @@ export class EventosService {
   }
 }
 
-function mapEvento(item: Awaited<ReturnType<EventosRepository['findById']>> extends infer T ? Exclude<T, null> : never) {
+function mapEvento(
+  item: Awaited<ReturnType<EventosRepository['findById']>> extends infer T
+    ? Exclude<T, null>
+    : never,
+) {
   return {
     id: item.id,
     codigoExterno: item.codigoExterno ?? '',

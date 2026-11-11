@@ -30,17 +30,12 @@ import { CalendarRange, Edit, Loader2, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { usePermissions } from '@/hooks/usePermissions';
-import { EscalaFormModal } from '@/components/recursos/EscalaFormModal';
+import { useRecordList } from '@/hooks/useRecordNavigation';
+import { ESCALAS_PERMISSION_SCOPE, ESCALAS_ROUTES } from '@/modules/escalas/escalas.navigation';
 import { escalasRepository } from '@/modules/escalas/escalas.repository.provider';
-import type { Escala, EscalaInput } from '@/modules/escalas/escalas.types';
+import type { Escala } from '@/modules/escalas/escalas.types';
 
 const STORAGE_KEY = 'kreato_escalas';
-
-export const ESCALAS_PERMISSION_SCOPE = {
-  modulo: 'Recursos',
-  subModulo1: 'Parametrizações',
-  subModulo2: 'Escalas',
-} as const;
 
 const COLUMN_CONFIG: ColumnConfig[] = [
   { key: 'numerador', label: 'Nº', required: true },
@@ -224,8 +219,13 @@ export default function Escalas() {
   const [items, setItems] = useState<Escala[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<Escala | null>(null);
+  const { openNew, openRecord } = useRecordList(ESCALAS_ROUTES);
+  // Keeps the filtered order so the form page can navigate previous/next.
+  const openEdit = (item: { id: string }) =>
+    openRecord(
+      item.id,
+      filtered.map((i) => i.id),
+    );
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<Escala | null>(null);
 
@@ -257,21 +257,6 @@ export default function Escalas() {
         i.codigoExterno.toLowerCase().includes(q),
     );
   }, [items, search]);
-
-  const handleSave = async (input: EscalaInput) => {
-    try {
-      const saved = await escalasRepository.save(input);
-      toast({ title: input.id ? t('scales.updated') : t('scales.created') });
-      await loadData();
-      setIsModalOpen(false);
-      setEditingItem(null);
-      setSelectedItem(saved);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      toast({ variant: 'destructive', title: t('scales.saveError'), description: msg });
-      throw err;
-    }
-  };
 
   const handleDeleteConfirm = async () => {
     if (!deletingId) return;
@@ -333,10 +318,7 @@ export default function Escalas() {
             size="icon"
             variant="ghost"
             className="h-7 w-7"
-            onClick={() => {
-              setEditingItem(item);
-              setIsModalOpen(true);
-            }}
+            onClick={() => openEdit(item)}
             disabled={!podeAlterar}
           >
             <Edit className="h-3.5 w-3.5" />
@@ -363,15 +345,7 @@ export default function Escalas() {
       <PageHeader title={t('scales.title')} description={t('scales.description')} />
 
       <ListActionBar>
-        {podeIncluir && (
-          <NewButton
-            tooltip={t('scales.new')}
-            onClick={() => {
-              setEditingItem(null);
-              setIsModalOpen(true);
-            }}
-          />
-        )}
+        {podeIncluir && <NewButton tooltip={t('scales.new')} onClick={openNew} />}
         <div className="flex-1" />
         <SearchBar
           value={search}
@@ -400,7 +374,7 @@ export default function Escalas() {
               title={t('common.noResults')}
               description={t('scales.empty')}
               icon={CalendarRange}
-              onAction={podeIncluir ? () => setIsModalOpen(true) : undefined}
+              onAction={podeIncluir ? openNew : undefined}
               actionLabel={t('scales.new')}
             />
           ) : (
@@ -418,17 +392,14 @@ export default function Escalas() {
             getRowKey={(item) => item.id}
             emptyTitle={t('common.noResults')}
             emptyDescription={t('scales.empty')}
-            onEmptyAction={podeIncluir ? () => setIsModalOpen(true) : undefined}
+            onEmptyAction={podeIncluir ? openNew : undefined}
             emptyActionLabel={t('scales.new')}
             renderCard={(item) => (
               <EscalaCard
                 item={item}
                 canEdit={podeAlterar}
                 canDelete={podeExcluir}
-                onEdit={() => {
-                  setEditingItem(item);
-                  setIsModalOpen(true);
-                }}
+                onEdit={() => openEdit(item)}
                 onDelete={() => setDeletingId(item.id)}
               />
             )}
@@ -458,27 +429,13 @@ export default function Escalas() {
                 item={item}
                 canEdit={podeAlterar}
                 canDelete={podeExcluir}
-                onEdit={() => {
-                  setEditingItem(item);
-                  setIsModalOpen(true);
-                }}
+                onEdit={() => openEdit(item)}
                 onDelete={() => setDeletingId(item.id)}
               />
             )}
           />
         )}
       </DataCard>
-
-      <EscalaFormModal
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setEditingItem(null);
-        }}
-        onSave={handleSave}
-        data={editingItem}
-        readOnly={!!editingItem && !podeAlterar}
-      />
 
       <AlertDialog open={!!deletingId} onOpenChange={() => setDeletingId(null)}>
         <AlertDialogContent>

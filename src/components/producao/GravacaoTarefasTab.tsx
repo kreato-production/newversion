@@ -68,7 +68,7 @@ export const GravacaoTarefasTab = ({ gravacaoId }: GravacaoTarefasTabProps) => {
     return (
       <div className="flex flex-col items-center justify-center py-8 text-center">
         <ClipboardList className="w-12 h-12 text-muted-foreground mb-2" />
-        <p className="text-muted-foreground">Nenhuma tarefa cadastrada para esta gravaÃ§Ã£o.</p>
+        <p className="text-muted-foreground">Nenhuma tarefa cadastrada para esta gravação.</p>
       </div>
     );
   }
@@ -78,8 +78,8 @@ export const GravacaoTarefasTab = ({ gravacaoId }: GravacaoTarefasTabProps) => {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>TÃ­tulo</TableHead>
-            <TableHead>ResponsÃ¡vel</TableHead>
+            <TableHead>Título</TableHead>
+            <TableHead>Responsável</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>Data Limite</TableHead>
           </TableRow>

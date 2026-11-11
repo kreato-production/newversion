@@ -8,6 +8,10 @@ export class ApiConteudosRepository implements ConteudosRepository {
     return response.data;
   }
 
+  async getById(id: string): Promise<Conteudo> {
+    return apiRequest<Conteudo>(`/conteudos/${id}`);
+  }
+
   async save(input: ConteudoInput, _userId?: string): Promise<void> {
     const path = input.id ? `/conteudos/${input.id}` : '/conteudos';
     const method = input.id ? 'PUT' : 'POST';

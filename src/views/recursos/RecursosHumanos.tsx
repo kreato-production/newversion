@@ -19,7 +19,8 @@ import { ListActionBar } from '@/components/shared/ListActionBar';
 import { SortableTable, Column } from '@/components/shared/SortableTable';
 import { NewButton } from '@/components/shared/NewButton';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { RecursoHumanoFormModal } from '@/components/recursos/RecursoHumanoFormModal';
+import { useRecordList } from '@/hooks/useRecordNavigation';
+import { RECURSOS_HUMANOS_ROUTES } from '@/modules/recursos-humanos/recursos-humanos.navigation';
 import { MapaEscalasModal } from '@/components/recursos/MapaEscalasModal';
 import { MapaOciosidadeModal } from '@/components/recursos/MapaOciosidadeModal';
 import { useToast } from '@/hooks/use-toast';
@@ -283,10 +284,15 @@ const RecursosHumanos = () => {
   const podeAlterar = canAlterar('Recursos', 'Recursos Humanos');
   const podeExcluir = canExcluir('Recursos', 'Recursos Humanos');
   const [search, setSearch] = useState('');
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [isMapaOpen, setIsMapaOpen] = useState(false);
   const [isMapaOciosidadeOpen, setIsMapaOciosidadeOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<RecursoHumano | null>(null);
+  const { openNew, openRecord } = useRecordList(RECURSOS_HUMANOS_ROUTES);
+  // Keeps the filtered order so the form page can navigate previous/next.
+  const openEdit = (item: { id: string }) =>
+    openRecord(
+      item.id,
+      filteredItems.map((i) => i.id),
+    );
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<RecursoHumano | null>(null);
   const [items, setItems] = useState<RecursoHumano[]>([]);
@@ -323,7 +329,7 @@ const RecursosHumanos = () => {
     void fetchRecursosHumanos();
   }, [fetchRecursosHumanos]);
 
-  const handleSave = async (data: RecursoHumanoInput) => {
+  const handleMapaUpdate = async (data: RecursoHumanoInput) => {
     try {
       await recursosHumanosRepository.save({
         ...data,
@@ -331,10 +337,9 @@ const RecursosHumanos = () => {
       });
       toast({
         title: t('common.success'),
-        description: editingItem ? 'Colaborador atualizado!' : 'Colaborador criado!',
+        description: 'Colaborador atualizado!',
       });
       await fetchRecursosHumanos();
-      setEditingItem(null);
     } catch (error) {
       console.error('Error saving recurso humano:', error);
       toast({
@@ -494,8 +499,7 @@ const RecursosHumanos = () => {
             disabled={!podeAlterar}
             onClick={(e) => {
               e.stopPropagation();
-              setEditingItem(item);
-              setIsModalOpen(true);
+              openEdit(item);
             }}
           >
             <Edit className="w-4 h-4" />
@@ -523,15 +527,7 @@ const RecursosHumanos = () => {
       <PageHeader title={t('humanResources.title')} description={t('field.manageCollaborators')} />
 
       <ListActionBar>
-        {podeIncluir && (
-          <NewButton
-            tooltip={t('field.newCollaborator')}
-            onClick={() => {
-              setEditingItem(null);
-              setIsModalOpen(true);
-            }}
-          />
-        )}
+        {podeIncluir && <NewButton tooltip={t('field.newCollaborator')} onClick={openNew} />}
         <div className="flex-1" />
         <SearchBar value={search} onChange={setSearch} />
         <ListFilterPanel
@@ -618,7 +614,7 @@ const RecursosHumanos = () => {
               title={t('field.noCollaboratorRegistered')}
               description={t('field.manageCollaboratorsTeam')}
               icon={Users}
-              onAction={podeIncluir ? () => setIsModalOpen(true) : undefined}
+              onAction={podeIncluir ? openNew : undefined}
               actionLabel={t('field.addCollaborator')}
             />
           ) : (
@@ -636,17 +632,14 @@ const RecursosHumanos = () => {
             getRowKey={(item) => item.id}
             emptyTitle={t('field.noCollaboratorRegistered')}
             emptyDescription={t('field.manageCollaboratorsTeam')}
-            onEmptyAction={podeIncluir ? () => setIsModalOpen(true) : undefined}
+            onEmptyAction={podeIncluir ? openNew : undefined}
             emptyActionLabel={t('field.addCollaborator')}
             renderCard={(item) => (
               <RecursoHumanoCard
                 item={item}
                 podeAlterar={podeAlterar}
                 podeExcluir={podeExcluir}
-                onEdit={() => {
-                  setEditingItem(item);
-                  setIsModalOpen(true);
-                }}
+                onEdit={() => openEdit(item)}
                 onDelete={() => setDeletingId(item.id)}
               />
             )}
@@ -694,10 +687,7 @@ const RecursosHumanos = () => {
                 item={item}
                 podeAlterar={podeAlterar}
                 podeExcluir={podeExcluir}
-                onEdit={() => {
-                  setEditingItem(item);
-                  setIsModalOpen(true);
-                }}
+                onEdit={() => openEdit(item)}
                 onDelete={() => setDeletingId(item.id)}
               />
             )}
@@ -705,35 +695,11 @@ const RecursosHumanos = () => {
         )}
       </DataCard>
 
-      <RecursoHumanoFormModal
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setEditingItem(null);
-        }}
-        onSave={handleSave}
-        data={editingItem}
-        readOnly={!!editingItem && !podeAlterar}
-        navigation={(() => {
-          const navIndex = editingItem
-            ? filteredItems.findIndex((i) => i.id === editingItem.id)
-            : -1;
-          return navIndex >= 0
-            ? {
-                currentIndex: navIndex,
-                total: filteredItems.length,
-                onPrevious: () => setEditingItem(filteredItems[navIndex - 1]),
-                onNext: () => setEditingItem(filteredItems[navIndex + 1]),
-              }
-            : undefined;
-        })()}
-      />
-
       <MapaEscalasModal
         isOpen={isMapaOpen}
         onClose={() => setIsMapaOpen(false)}
         recursos={items}
-        onUpdateRecurso={podeAlterar ? handleSave : undefined}
+        onUpdateRecurso={podeAlterar ? handleMapaUpdate : undefined}
       />
 
       <MapaOciosidadeModal

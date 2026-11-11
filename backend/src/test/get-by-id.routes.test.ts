@@ -3,12 +3,19 @@
  * SPRINT-20 — feriados, recursos-tecnicos, satops/estados-evento, satops/alertas;
  * SPRINT-21 — departamentos, equipes, espacos, figurinos, fornecedores, turnos, recursos-fisicos;
  * SPRINT-22 — unidades, users, contas-pagar, parametrizacoes/centros-lucro (tenants: see below);
- * SPRINT-23 — programas, tarefas, tabelas-preco, incidencias-gravacao (+ templates, already existing).
+ * SPRINT-23 — programas, tarefas, tabelas-preco, incidencias-gravacao (+ templates, already existing);
+ * SPRINT-24 — recursos-humanos, escalas, gestao-eventos, expositores, satops/satelites, satops/janelas;
+ * SPRINT-25 — conteudos (gravacoes already existing).
  */
 import type { FastifyInstance } from 'fastify';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { buildApp } from '../app.js';
-import { OTHER_TENANT_ID, TEST_TENANT_ID, createRouteAuthService, loginHeaders } from './route-auth.js';
+import {
+  OTHER_TENANT_ID,
+  TEST_TENANT_ID,
+  createRouteAuthService,
+  loginHeaders,
+} from './route-auth.js';
 import { FeriadosService } from '../modules/feriados/feriados.service.js';
 import type { FeriadoRecord, FeriadosRepository } from '../modules/feriados/feriados.repository.js';
 import { RecursosTecnicosService } from '../modules/recursos-tecnicos/recursos-tecnicos.service.js';
@@ -17,7 +24,10 @@ import type {
   RecursosTecnicosRepository,
 } from '../modules/recursos-tecnicos/recursos-tecnicos.repository.js';
 import { EstadosEventoService } from '../modules/satops/satops.service.js';
-import type { EstadoEventoRecord, EstadosEventoRepository } from '../modules/satops/satops.repository.js';
+import type {
+  EstadoEventoRecord,
+  EstadosEventoRepository,
+} from '../modules/satops/satops.repository.js';
 import { AlertasService } from '../modules/satops/alertas.service.js';
 import type { AlertaRecord, AlertasRepository } from '../modules/satops/alertas.repository.js';
 import { DepartamentosService } from '../modules/departamentos/departamentos.service.js';
@@ -53,6 +63,20 @@ import { IncidenciasGravacaoService } from '../modules/incidencias-gravacao/inci
 import type { IncidenciasGravacaoRepository } from '../modules/incidencias-gravacao/incidencias-gravacao.repository.js';
 import { TemplatesService } from '../modules/templates/templates.service.js';
 import type { TemplatesRepository } from '../modules/templates/templates.repository.js';
+import { ConteudosService } from '../modules/conteudos/conteudos.service.js';
+import type { ConteudosRepository } from '../modules/conteudos/conteudos.repository.js';
+import { RecursosHumanosService } from '../modules/recursos-humanos/recursos-humanos.service.js';
+import type { RecursosHumanosRepository } from '../modules/recursos-humanos/recursos-humanos.repository.js';
+import { EscalasService } from '../modules/escalas/escalas.service.js';
+import type { EscalasRepository } from '../modules/escalas/escalas.repository.js';
+import { EventosService } from '../modules/gestao-eventos/gestao-eventos.service.js';
+import type { EventosRepository } from '../modules/gestao-eventos/gestao-eventos.repository.js';
+import { ExpositoresService } from '../modules/gestao-eventos/expositores.service.js';
+import type { ExpositoresRepository } from '../modules/gestao-eventos/expositores.repository.js';
+import { SatelitesService } from '../modules/satops/satops.service.js';
+import type { SatelitesRepository } from '../modules/satops/satops.repository.js';
+import { JanelasService } from '../modules/satops/janelas.service.js';
+import type { JanelasRepository } from '../modules/satops/janelas.repository.js';
 import type { PrismaParametrizacoesRepository } from '../modules/parametrizacoes/parametrizacoes.repository.js';
 
 const OWN = '44444444-4444-4444-4444-444444444444';
@@ -61,7 +85,10 @@ const MISSING = '66666666-6666-6666-6666-666666666666';
 const CREATED_AT = new Date('2026-11-10T12:00:00.000Z');
 
 /** Only `findById` is exercised by these routes; tenant-scoped finders receive the tenant. */
-function fakeRepository<T extends { id: string; tenantId: string }>(records: T[], tenantScoped = false) {
+function fakeRepository<T extends { id: string; tenantId: string }>(
+  records: T[],
+  tenantScoped = false,
+) {
   return {
     findById: async (id: string, tenantId?: string) =>
       records.find((r) => r.id === id && (!tenantScoped || r.tenantId === tenantId)) ?? null,
@@ -123,6 +150,9 @@ const generic = (id: string, tenantId: string) => ({
   faixasDisponibilidade: [],
   diasSemana: {},
   pessoasPorDia: {},
+  anexos: [],
+  ausencias: [],
+  escalas: [],
   email: 'registro@kreato.app',
   usuario: 'registro',
   status: 'ATIVO',
@@ -135,6 +165,12 @@ const genericRepo = <T>(extra: Record<string, unknown> = {}) =>
     ...extra,
   }) as unknown as T;
 
+const scopedRepo = <T>() =>
+  fakeRepository(
+    [generic(OWN, TEST_TENANT_ID), generic(FOREIGN, OTHER_TENANT_ID)],
+    true,
+  ) as unknown as T;
+
 let app: FastifyInstance;
 let headers: Record<string, string>;
 
@@ -143,7 +179,10 @@ beforeAll(async () => {
   app = await buildApp({
     authService: createRouteAuthService(),
     feriadosService: new FeriadosService(
-      fakeRepository([feriado(OWN, TEST_TENANT_ID), feriado(FOREIGN, OTHER_TENANT_ID)]) as unknown as FeriadosRepository,
+      fakeRepository([
+        feriado(OWN, TEST_TENANT_ID),
+        feriado(FOREIGN, OTHER_TENANT_ID),
+      ]) as unknown as FeriadosRepository,
     ),
     recursosTecnicosService: new RecursosTecnicosService(
       fakeRepository([
@@ -152,7 +191,10 @@ beforeAll(async () => {
       ]) as unknown as RecursosTecnicosRepository,
     ),
     estadosEventoService: new EstadosEventoService(
-      fakeRepository([estado(OWN, TEST_TENANT_ID), estado(FOREIGN, OTHER_TENANT_ID)], true) as unknown as EstadosEventoRepository,
+      fakeRepository(
+        [estado(OWN, TEST_TENANT_ID), estado(FOREIGN, OTHER_TENANT_ID)],
+        true,
+      ) as unknown as EstadosEventoRepository,
     ),
     departamentosService: new DepartamentosService(genericRepo<DepartamentosRepository>()),
     equipesService: new EquipesService(
@@ -166,7 +208,10 @@ beforeAll(async () => {
     unidadesService: new UnidadesService(genericRepo<UnidadesRepository>()),
     usersService: new UsersService(genericRepo<UsersRepository>()),
     contasPagarService: new ContasPagarService(
-      fakeRepository([generic(OWN, TEST_TENANT_ID), generic(FOREIGN, OTHER_TENANT_ID)], true) as unknown as ContasPagarRepository,
+      fakeRepository(
+        [generic(OWN, TEST_TENANT_ID), generic(FOREIGN, OTHER_TENANT_ID)],
+        true,
+      ) as unknown as ContasPagarRepository,
     ),
     parametrizacoesService: new ParametrizacoesService({
       findCentroLucro: async (id: string) =>
@@ -188,10 +233,23 @@ beforeAll(async () => {
     programasService: new ProgramasService(genericRepo<ProgramasRepository>()),
     tarefasService: new TarefasService(genericRepo<TarefasRepository>()),
     tabelasPrecoService: new TabelasPrecoService(genericRepo<TabelasPrecoRepository>()),
-    incidenciasGravacaoService: new IncidenciasGravacaoService(genericRepo<IncidenciasGravacaoRepository>()),
+    incidenciasGravacaoService: new IncidenciasGravacaoService(
+      genericRepo<IncidenciasGravacaoRepository>(),
+    ),
     templatesService: new TemplatesService(genericRepo<TemplatesRepository>()),
+    recursosHumanosService: new RecursosHumanosService(genericRepo<RecursosHumanosRepository>()),
+    escalasService: new EscalasService(genericRepo<EscalasRepository>()),
+    conteudosService: new ConteudosService(genericRepo<ConteudosRepository>()),
+    // Tenant-scoped finders (findById(id, tenantId)).
+    eventosService: new EventosService(scopedRepo<EventosRepository>()),
+    expositoresService: new ExpositoresService(scopedRepo<ExpositoresRepository>()),
+    satelitesService: new SatelitesService(scopedRepo<SatelitesRepository>()),
+    janelasService: new JanelasService(scopedRepo<JanelasRepository>()),
     alertasService: new AlertasService(
-      fakeRepository([alerta(OWN, TEST_TENANT_ID), alerta(FOREIGN, OTHER_TENANT_ID)], true) as unknown as AlertasRepository,
+      fakeRepository(
+        [alerta(OWN, TEST_TENANT_ID), alerta(FOREIGN, OTHER_TENANT_ID)],
+        true,
+      ) as unknown as AlertasRepository,
     ),
   });
   headers = await loginHeaders(app);
@@ -213,7 +271,11 @@ const CASES: Array<{ path: string; expected: Record<string, unknown>; foreignSta
     foreignStatus: 403,
   },
   // SatOps finders are tenant-scoped: another tenant's record is simply not found.
-  { path: '/satops/estados-evento', expected: { codigoExterno: 'AT', nome: 'Ativo' }, foreignStatus: 404 },
+  {
+    path: '/satops/estados-evento',
+    expected: { codigoExterno: 'AT', nome: 'Ativo' },
+    foreignStatus: 404,
+  },
   {
     path: '/satops/alertas',
     expected: { nome: 'Fecho em 30 min', regra: 'Antes', campoReferencia: 'fechoPrevisto' },
@@ -225,17 +287,32 @@ const CASES: Array<{ path: string; expected: Record<string, unknown>; foreignSta
   { path: '/figurinos', expected: { imagens: [] }, foreignStatus: 403 },
   { path: '/fornecedores', expected: {}, foreignStatus: 403 },
   { path: '/turnos', expected: {}, foreignStatus: 403 },
-  { path: '/recursos-fisicos', expected: { estoqueItens: [], estoqueCount: 0 }, foreignStatus: 403 },
+  {
+    path: '/recursos-fisicos',
+    expected: { estoqueItens: [], estoqueCount: 0 },
+    foreignStatus: 403,
+  },
   { path: '/unidades', expected: {}, foreignStatus: 403 },
   { path: '/users', expected: { usuario: 'registro', senha: '' }, foreignStatus: 403 },
   // Tenant-scoped finder: another tenant's conta is simply not found.
   { path: '/contas-pagar', expected: {}, foreignStatus: 404 },
-  { path: '/parametrizacoes/centros-lucro', expected: { codigoExterno: 'CL1', nome: 'Centro' }, foreignStatus: 403 },
+  {
+    path: '/parametrizacoes/centros-lucro',
+    expected: { codigoExterno: 'CL1', nome: 'Centro' },
+    foreignStatus: 403,
+  },
   { path: '/programas', expected: { nome: 'Registro' }, foreignStatus: 403 },
   { path: '/tarefas', expected: {}, foreignStatus: 403 },
   { path: '/tabelas-preco', expected: { nome: 'Registro' }, foreignStatus: 403 },
   { path: '/incidencias-gravacao', expected: {}, foreignStatus: 403 },
   { path: '/templates', expected: {}, foreignStatus: 403 },
+  { path: '/recursos-humanos', expected: { anexos: [], ausencias: [] }, foreignStatus: 403 },
+  { path: '/escalas', expected: {}, foreignStatus: 403 },
+  { path: '/gestao-eventos', expected: {}, foreignStatus: 404 },
+  { path: '/expositores', expected: {}, foreignStatus: 404 },
+  { path: '/satops/satelites', expected: {}, foreignStatus: 404 },
+  { path: '/satops/janelas', expected: {}, foreignStatus: 404 },
+  { path: '/conteudos', expected: { descricao: 'Registro de teste' }, foreignStatus: 403 },
 ];
 
 describe.each(CASES)('GET $path/:id', ({ path, expected, foreignStatus }) => {
@@ -260,7 +337,15 @@ describe('GET /tenants/:id (restrita ao admin global)', () => {
   const tenantsRepo = {
     findById: async (id: string) =>
       id === OWN
-        ? { id: OWN, nome: 'Câmara de Alcanena', plano: 'Mensal', status: 'ATIVO', notas: null, createdAt: CREATED_AT, licencaFim: null }
+        ? {
+            id: OWN,
+            nome: 'Câmara de Alcanena',
+            plano: 'Mensal',
+            status: 'ATIVO',
+            notas: null,
+            createdAt: CREATED_AT,
+            licencaFim: null,
+          }
         : null,
   } as unknown as TenantsRepository;
   const usersRepo = {
@@ -274,8 +359,16 @@ describe('GET /tenants/:id (restrita ao admin global)', () => {
     });
     const globalHeaders = await loginHeaders(globalApp);
 
-    const found = await globalApp.inject({ method: 'GET', url: `/tenants/${OWN}`, headers: globalHeaders });
-    const missing = await globalApp.inject({ method: 'GET', url: `/tenants/${MISSING}`, headers: globalHeaders });
+    const found = await globalApp.inject({
+      method: 'GET',
+      url: `/tenants/${OWN}`,
+      headers: globalHeaders,
+    });
+    const missing = await globalApp.inject({
+      method: 'GET',
+      url: `/tenants/${MISSING}`,
+      headers: globalHeaders,
+    });
 
     expect(found.statusCode).toBe(200);
     expect(found.json()).toEqual(

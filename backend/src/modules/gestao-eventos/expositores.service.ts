@@ -40,6 +40,12 @@ export class ExpositoresService {
     return { total, data: data.map(mapExpositor) };
   }
 
+  async getById(actor: SessionUser, id: string) {
+    const tenantId = resolveTenantId(actor, actor.tenantId);
+    const record = await this.repository.findById(id, tenantId);
+    return record ? mapExpositor(record) : null;
+  }
+
   async save(actor: SessionUser, input: SaveExpositorDto) {
     const tenantId = resolveTenantId(actor, actor.tenantId);
 
@@ -77,7 +83,11 @@ export class ExpositoresService {
   }
 }
 
-function mapExpositor(item: Awaited<ReturnType<ExpositoresRepository['findById']>> extends infer T ? Exclude<T, null> : never) {
+function mapExpositor(
+  item: Awaited<ReturnType<ExpositoresRepository['findById']>> extends infer T
+    ? Exclude<T, null>
+    : never,
+) {
   return {
     id: item.id,
     codigoExterno: item.codigoExterno ?? '',

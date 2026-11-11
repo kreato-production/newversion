@@ -1,6 +1,10 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
-import { createAuthenticate, createRequireRole, createRequireTenantAccess } from '../../../plugins/auth.js';
+import {
+  createAuthenticate,
+  createRequireRole,
+  createRequireTenantAccess,
+} from '../../../plugins/auth.js';
 import type { AuthenticatedRequest } from '../../../fastify.js';
 import type { AuthService } from '../../auth/auth.service.js';
 import { EscalasService, saveEscalaSchema, saveColaboradoresSchema } from '../escalas.service.js';
@@ -18,69 +22,129 @@ export function createEscalasRoutes(
     const authenticate = createAuthenticate(authService);
     const requireTenantAccess = createRequireTenantAccess();
 
-    app.get('/escalas', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
-      const { user } = request as AuthenticatedRequest;
-      const opts = listQuerySchema.parse(request.query);
-      return reply.status(200).send(await escalasService.list(user, opts));
-    });
+    app.get(
+      '/escalas',
+      { preHandler: [authenticate, requireTenantAccess] },
+      async (request, reply) => {
+        const { user } = request as AuthenticatedRequest;
+        const opts = listQuerySchema.parse(request.query);
+        return reply.status(200).send(await escalasService.list(user, opts));
+      },
+    );
 
-    app.post('/escalas', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
-      const { user } = request as AuthenticatedRequest;
-      const body = saveEscalaSchema.parse(request.body);
-      return reply.status(200).send(await escalasService.save(user, body));
-    });
+    app.get(
+      '/escalas/:id',
+      { preHandler: [authenticate, requireTenantAccess] },
+      async (request, reply) => {
+        const { user } = request as AuthenticatedRequest;
+        const params = request.params as { id: string };
+        const item = await escalasService.getById(user, params.id);
+        if (!item) return reply.status(404).send({ message: 'Escala não encontrada' });
+        return reply.status(200).send(item);
+      },
+    );
 
-    app.put('/escalas/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
-      const { user } = request as AuthenticatedRequest;
-      const params = request.params as { id: string };
-      const body = saveEscalaSchema.parse({ ...(request.body as object), id: params.id });
-      return reply.status(200).send(await escalasService.save(user, body));
-    });
+    app.post(
+      '/escalas',
+      { preHandler: [authenticate, requireTenantAccess] },
+      async (request, reply) => {
+        const { user } = request as AuthenticatedRequest;
+        const body = saveEscalaSchema.parse(request.body);
+        return reply.status(200).send(await escalasService.save(user, body));
+      },
+    );
 
-    app.delete('/escalas/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
-      const { user } = request as AuthenticatedRequest;
-      const params = request.params as { id: string };
-      await escalasService.remove(user, params.id);
-      return reply.status(204).send();
-    });
+    app.put(
+      '/escalas/:id',
+      { preHandler: [authenticate, requireTenantAccess] },
+      async (request, reply) => {
+        const { user } = request as AuthenticatedRequest;
+        const params = request.params as { id: string };
+        const body = saveEscalaSchema.parse({ ...(request.body as object), id: params.id });
+        return reply.status(200).send(await escalasService.save(user, body));
+      },
+    );
 
-    app.get('/escalas/:id/colaboradores', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
-      const { user } = request as AuthenticatedRequest;
-      const params = request.params as { id: string };
-      return reply.status(200).send(await escalasService.getColaboradores(user, params.id));
-    });
+    app.delete(
+      '/escalas/:id',
+      { preHandler: [authenticate, requireTenantAccess] },
+      async (request, reply) => {
+        const { user } = request as AuthenticatedRequest;
+        const params = request.params as { id: string };
+        await escalasService.remove(user, params.id);
+        return reply.status(204).send();
+      },
+    );
 
-    app.put('/escalas/:id/colaboradores', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
-      const { user } = request as AuthenticatedRequest;
-      const params = request.params as { id: string };
-      const body = saveColaboradoresSchema.parse(request.body);
-      return reply.status(200).send(await escalasService.saveColaboradores(user, params.id, body));
-    });
+    app.get(
+      '/escalas/:id/colaboradores',
+      { preHandler: [authenticate, requireTenantAccess] },
+      async (request, reply) => {
+        const { user } = request as AuthenticatedRequest;
+        const params = request.params as { id: string };
+        return reply.status(200).send(await escalasService.getColaboradores(user, params.id));
+      },
+    );
 
-    app.get('/escalas/opcoes/funcoes', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
-      const { user } = request as AuthenticatedRequest;
-      return reply.status(200).send(await escalasService.listFuncoes(user));
-    });
+    app.put(
+      '/escalas/:id/colaboradores',
+      { preHandler: [authenticate, requireTenantAccess] },
+      async (request, reply) => {
+        const { user } = request as AuthenticatedRequest;
+        const params = request.params as { id: string };
+        const body = saveColaboradoresSchema.parse(request.body);
+        return reply
+          .status(200)
+          .send(await escalasService.saveColaboradores(user, params.id, body));
+      },
+    );
 
-    app.get('/escalas/opcoes/colaboradores', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
-      const { user } = request as AuthenticatedRequest;
-      const { funcaoId, equipeId } = request.query as { funcaoId?: string; equipeId?: string };
-      if (equipeId) return reply.status(200).send(await escalasService.listColaboradoresByEquipe(user, equipeId));
-      if (funcaoId) return reply.status(200).send(await escalasService.listColaboradoresByFuncao(user, funcaoId));
-      return reply.status(200).send([]);
-    });
+    app.get(
+      '/escalas/opcoes/funcoes',
+      { preHandler: [authenticate, requireTenantAccess] },
+      async (request, reply) => {
+        const { user } = request as AuthenticatedRequest;
+        return reply.status(200).send(await escalasService.listFuncoes(user));
+      },
+    );
 
-    app.get('/escalas/opcoes/equipes', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
-      const { user } = request as AuthenticatedRequest;
-      return reply.status(200).send(await escalasService.listEquipes(user));
-    });
+    app.get(
+      '/escalas/opcoes/colaboradores',
+      { preHandler: [authenticate, requireTenantAccess] },
+      async (request, reply) => {
+        const { user } = request as AuthenticatedRequest;
+        const { funcaoId, equipeId } = request.query as { funcaoId?: string; equipeId?: string };
+        if (equipeId)
+          return reply
+            .status(200)
+            .send(await escalasService.listColaboradoresByEquipe(user, equipeId));
+        if (funcaoId)
+          return reply
+            .status(200)
+            .send(await escalasService.listColaboradoresByFuncao(user, funcaoId));
+        return reply.status(200).send([]);
+      },
+    );
 
-    app.get('/escalas/mapa', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
-      const { user } = request as AuthenticatedRequest;
-      const { ano, mes } = request.query as { ano?: string; mes?: string };
-      const year = parseInt(ano ?? String(new Date().getFullYear()), 10);
-      const month = parseInt(mes ?? String(new Date().getMonth() + 1), 10);
-      return reply.status(200).send(await escalasService.getMapaMes(user, year, month));
-    });
+    app.get(
+      '/escalas/opcoes/equipes',
+      { preHandler: [authenticate, requireTenantAccess] },
+      async (request, reply) => {
+        const { user } = request as AuthenticatedRequest;
+        return reply.status(200).send(await escalasService.listEquipes(user));
+      },
+    );
+
+    app.get(
+      '/escalas/mapa',
+      { preHandler: [authenticate, requireTenantAccess] },
+      async (request, reply) => {
+        const { user } = request as AuthenticatedRequest;
+        const { ano, mes } = request.query as { ano?: string; mes?: string };
+        const year = parseInt(ano ?? String(new Date().getFullYear()), 10);
+        const month = parseInt(mes ?? String(new Date().getMonth() + 1), 10);
+        return reply.status(200).send(await escalasService.getMapaMes(user, year, month));
+      },
+    );
   };
 }

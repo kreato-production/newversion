@@ -32,7 +32,6 @@ import { NewButton } from '@/components/shared/NewButton';
 import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { usePermissions } from '@/hooks/usePermissions';
 import {
   ListFilterPanel,
   FilterSection,
@@ -40,11 +39,11 @@ import {
   SORT_OPTIONS_NOME_DATA,
   sortSubtitle,
 } from '@/components/shared/ListFilter';
-import { ExpositorFormModal } from '@/components/eventos/ExpositorFormModal';
+import { useRecordList } from '@/hooks/useRecordNavigation';
+import { EXPOSITORES_ROUTES } from '@/modules/gestao-eventos/expositores.navigation';
 import {
   ApiExpositoresRepository,
   type Expositor,
-  type SaveExpositorInput,
 } from '@/modules/gestao-eventos/expositores.api.repository';
 import {
   ApiParametrosRepository,
@@ -281,7 +280,6 @@ const Expositores = () => {
   const { toast } = useToast();
   const { t } = useLanguage();
   const { session } = useAuth();
-  const { canAlterar } = usePermissions();
 
   const [search, setSearch] = useState('');
   const [filterSortBy, setFilterSortBy] = useState('');
@@ -289,8 +287,13 @@ const Expositores = () => {
   const [tiposExpositor, setTiposExpositor] = useState<ParametroApiItem[]>([]);
   const [items, setItems] = useState<Expositor[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<Expositor | null>(null);
+  const { openNew, openRecord } = useRecordList(EXPOSITORES_ROUTES);
+  // Keeps the filtered order so the form page can navigate previous/next.
+  const openEdit = (item: { id: string }) =>
+    openRecord(
+      item.id,
+      filteredItems.map((i) => i.id),
+    );
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<Expositor | null>(null);
 
@@ -333,21 +336,7 @@ const Expositores = () => {
     fetchData();
   }, [fetchData]);
 
-  const openEdit = (item: Expositor) => {
-    setEditingItem(item);
-    setIsModalOpen(true);
-  };
   const openDelete = (id: string) => setDeletingId(id);
-
-  const handleSave = async (input: SaveExpositorInput) => {
-    await apiRepo.save({ ...input, id: editingItem?.id });
-    toast({
-      title: t('common.success'),
-      description: `Expositor ${editingItem ? t('common.updated').toLowerCase() : 'salvo'}!`,
-    });
-    await fetchData();
-    setEditingItem(null);
-  };
 
   const handleDeleteConfirm = async () => {
     if (!deletingId) return;
@@ -482,13 +471,7 @@ const Expositores = () => {
       />
 
       <ListActionBar>
-        <NewButton
-          tooltip="Novo Expositor"
-          onClick={() => {
-            setEditingItem(null);
-            setIsModalOpen(true);
-          }}
-        />
+        <NewButton tooltip="Novo Expositor" onClick={openNew} />
         <div className="flex-1" />
         <SearchBar value={search} onChange={setSearch} placeholder={t('common.search')} />
         <ListFilterPanel
@@ -566,7 +549,7 @@ const Expositores = () => {
               title={t('common.noResults')}
               description="Adicione um novo expositor."
               icon={Users}
-              onAction={() => setIsModalOpen(true)}
+              onAction={openNew}
               actionLabel="Novo Expositor"
             />
           ) : (
@@ -584,7 +567,7 @@ const Expositores = () => {
             getRowKey={(i) => i.id}
             emptyTitle={t('common.noResults')}
             emptyDescription="Adicione um novo expositor."
-            onEmptyAction={() => setIsModalOpen(true)}
+            onEmptyAction={openNew}
             emptyActionLabel="Novo Expositor"
             renderCard={(item) => (
               <ExpositorCard
@@ -628,30 +611,6 @@ const Expositores = () => {
           />
         )}
       </DataCard>
-
-      <ExpositorFormModal
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setEditingItem(null);
-        }}
-        onSave={handleSave}
-        data={editingItem}
-        readOnly={!!editingItem && !canAlterar('Gestão de Eventos', 'Expositores', '-')}
-        navigation={(() => {
-          const navIndex = editingItem
-            ? filteredItems.findIndex((i) => i.id === editingItem.id)
-            : -1;
-          return navIndex >= 0
-            ? {
-                currentIndex: navIndex,
-                total: filteredItems.length,
-                onPrevious: () => setEditingItem(filteredItems[navIndex - 1]),
-                onNext: () => setEditingItem(filteredItems[navIndex + 1]),
-              }
-            : undefined;
-        })()}
-      />
 
       <AlertDialog open={!!deletingId} onOpenChange={(open) => !open && setDeletingId(null)}>
         <AlertDialogContent>

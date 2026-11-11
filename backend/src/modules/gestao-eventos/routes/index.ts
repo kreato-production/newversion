@@ -18,39 +18,84 @@ export function createEventosRoutes(
   return async (app) => {
     const authenticate = createAuthenticate(authService);
     const requireTenantAccess = createRequireTenantAccess();
-    const requireIncluir = createRequirePermission(authService, 'Gestão de Eventos', 'Eventos', 'incluir');
-    const requireAlterar = createRequirePermission(authService, 'Gestão de Eventos', 'Eventos', 'alterar');
-    const requireExcluir = createRequirePermission(authService, 'Gestão de Eventos', 'Eventos', 'excluir');
+    const requireIncluir = createRequirePermission(
+      authService,
+      'Gestão de Eventos',
+      'Eventos',
+      'incluir',
+    );
+    const requireAlterar = createRequirePermission(
+      authService,
+      'Gestão de Eventos',
+      'Eventos',
+      'alterar',
+    );
+    const requireExcluir = createRequirePermission(
+      authService,
+      'Gestão de Eventos',
+      'Eventos',
+      'excluir',
+    );
 
-    app.get('/gestao-eventos', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
-      const { user } = request as AuthenticatedRequest;
-      const query = listQuerySchema.parse(request.query);
-      return reply.status(200).send(await eventosService.list(user, query));
-    });
+    app.get(
+      '/gestao-eventos',
+      { preHandler: [authenticate, requireTenantAccess] },
+      async (request, reply) => {
+        const { user } = request as AuthenticatedRequest;
+        const query = listQuerySchema.parse(request.query);
+        return reply.status(200).send(await eventosService.list(user, query));
+      },
+    );
 
-    app.post('/gestao-eventos', { preHandler: [authenticate, requireTenantAccess, requireIncluir] }, async (request, reply) => {
-      const { user } = request as AuthenticatedRequest;
-      return reply.status(200).send(
-        await eventosService.save(user, saveEventoSchema.parse(request.body)),
-      );
-    });
+    app.get(
+      '/gestao-eventos/:id',
+      { preHandler: [authenticate, requireTenantAccess] },
+      async (request, reply) => {
+        const { user } = request as AuthenticatedRequest;
+        const params = request.params as { id: string };
+        const item = await eventosService.getById(user, params.id);
+        if (!item) return reply.status(404).send({ message: 'Evento não encontrado' });
+        return reply.status(200).send(item);
+      },
+    );
 
-    app.put('/gestao-eventos/:id', { preHandler: [authenticate, requireTenantAccess, requireAlterar] }, async (request, reply) => {
-      const { user } = request as AuthenticatedRequest;
-      const params = request.params as { id: string };
-      return reply.status(200).send(
-        await eventosService.save(
-          user,
-          saveEventoSchema.parse({ ...(request.body as object), id: params.id }),
-        ),
-      );
-    });
+    app.post(
+      '/gestao-eventos',
+      { preHandler: [authenticate, requireTenantAccess, requireIncluir] },
+      async (request, reply) => {
+        const { user } = request as AuthenticatedRequest;
+        return reply
+          .status(200)
+          .send(await eventosService.save(user, saveEventoSchema.parse(request.body)));
+      },
+    );
 
-    app.delete('/gestao-eventos/:id', { preHandler: [authenticate, requireTenantAccess, requireExcluir] }, async (request, reply) => {
-      const { user } = request as AuthenticatedRequest;
-      const params = request.params as { id: string };
-      await eventosService.remove(user, params.id);
-      return reply.status(204).send();
-    });
+    app.put(
+      '/gestao-eventos/:id',
+      { preHandler: [authenticate, requireTenantAccess, requireAlterar] },
+      async (request, reply) => {
+        const { user } = request as AuthenticatedRequest;
+        const params = request.params as { id: string };
+        return reply
+          .status(200)
+          .send(
+            await eventosService.save(
+              user,
+              saveEventoSchema.parse({ ...(request.body as object), id: params.id }),
+            ),
+          );
+      },
+    );
+
+    app.delete(
+      '/gestao-eventos/:id',
+      { preHandler: [authenticate, requireTenantAccess, requireExcluir] },
+      async (request, reply) => {
+        const { user } = request as AuthenticatedRequest;
+        const params = request.params as { id: string };
+        await eventosService.remove(user, params.id);
+        return reply.status(204).send();
+      },
+    );
   };
 }

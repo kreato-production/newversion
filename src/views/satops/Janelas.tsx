@@ -31,14 +31,14 @@ import {
   SORT_OPTIONS_DATA,
 } from '@/components/shared/ListFilter';
 import { useToast } from '@/hooks/use-toast';
-import { JanelaFormModal } from '@/components/satops/JanelaFormModal';
+import { useRecordList } from '@/hooks/useRecordNavigation';
+import { JANELAS_ROUTES } from '@/modules/satops/janelas.navigation';
 import { JanelaResponsaveisModal } from '@/components/satops/JanelaResponsaveisModal';
 import {
   ApiSatOpsRepository,
   type JanelaApiItem,
   type SateliteApiItem,
 } from '@/modules/satops/satops.api.repository';
-import { usePermissions } from '@/hooks/usePermissions';
 import {
   useListingView,
   ViewSwitcher,
@@ -304,10 +304,14 @@ function JanelaDetailPanel({
 
 const Janelas = () => {
   const { toast } = useToast();
-  const { canAlterar } = usePermissions();
   const [search, setSearch] = useState('');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<JanelaApiItem | null>(null);
+  const { openNew, openRecord } = useRecordList(JANELAS_ROUTES);
+  // Keeps the filtered order so the form page can navigate previous/next.
+  const openEdit = (item: { id: string }) =>
+    openRecord(
+      item.id,
+      filteredItems.map((i) => i.id),
+    );
   const [items, setItems] = useState<JanelaApiItem[]>([]);
   const [sateliteMap, setSateliteMap] = useState<SateliteMap>(new Map());
   const [isLoading, setIsLoading] = useState(true);
@@ -344,39 +348,6 @@ const Janelas = () => {
   useEffect(() => {
     void fetchItems();
   }, [fetchItems]);
-
-  const handleSave = async (data: JanelaApiItem) => {
-    try {
-      await repository.saveJanela({
-        ...(editingItem ? { id: data.id } : {}),
-        sateliteId: data.sateliteId,
-        sateliteNome: data.sateliteNome,
-        dataEvento: data.dataEvento,
-        tipoEvento: data.tipoEvento,
-        canal: data.canal,
-        tituloEvento: data.tituloEvento,
-        programaId: data.programaId,
-        programaNome: data.programaNome,
-        aberturaPrevia: data.aberturaPrevia,
-        aberturaReal: data.aberturaReal,
-        confirmacaoNocId: data.confirmacaoNocId,
-        confirmacaoNocNome: data.confirmacaoNocNome,
-        fechoPrevisto: data.fechoPrevisto,
-        fechoReal: data.fechoReal,
-        responsaveis: data.responsaveis,
-        simulacao: data.simulacao,
-      });
-      toast({
-        title: 'Sucesso',
-        description: editingItem ? 'Janela atualizada!' : 'Janela cadastrada!',
-      });
-      await fetchItems();
-      setEditingItem(null);
-    } catch {
-      toast({ title: 'Erro', description: 'Erro ao salvar janela', variant: 'destructive' });
-      throw new Error('save failed');
-    }
-  };
 
   const handleDeleteConfirm = async () => {
     if (!deletingId) return;
@@ -606,15 +577,7 @@ const Janelas = () => {
           >
             <Users className="w-3.5 h-3.5" />
           </Button>
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-7 w-7"
-            onClick={() => {
-              setEditingItem(item);
-              setIsModalOpen(true);
-            }}
-          >
+          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(item)}>
             <Edit className="w-3.5 h-3.5" />
           </Button>
           <Button
@@ -635,13 +598,7 @@ const Janelas = () => {
       <PageHeader title="Janelas" description="Gerencie as janelas de transmissão via satélite" />
 
       <ListActionBar>
-        <NewButton
-          tooltip="Nova Janela"
-          onClick={() => {
-            setEditingItem(null);
-            setIsModalOpen(true);
-          }}
-        />
+        <NewButton tooltip="Nova Janela" onClick={openNew} />
         <div className="flex-1" />
         <SearchBar value={search} onChange={setSearch} />
 
@@ -715,7 +672,7 @@ const Janelas = () => {
               title="Nenhuma janela cadastrada"
               description="Comece adicionando janelas de transmissão via satélite."
               icon={CalendarDays}
-              onAction={() => setIsModalOpen(true)}
+              onAction={openNew}
               actionLabel="Adicionar Janela"
             />
           ) : (
@@ -733,15 +690,12 @@ const Janelas = () => {
             getRowKey={(item) => item.id}
             emptyTitle="Nenhuma janela cadastrada"
             emptyDescription="Comece adicionando janelas de transmissão via satélite."
-            onEmptyAction={() => setIsModalOpen(true)}
+            onEmptyAction={openNew}
             emptyActionLabel="Adicionar Janela"
             renderCard={(item) => (
               <JanelaCard
                 item={item}
-                onEdit={() => {
-                  setEditingItem(item);
-                  setIsModalOpen(true);
-                }}
+                onEdit={() => openEdit(item)}
                 onDelete={() => setDeletingId(item.id)}
                 onResponsaveis={() => setResponsaveisJanela(item)}
               />
@@ -772,10 +726,7 @@ const Janelas = () => {
               <JanelaDetailPanel
                 item={item}
                 sateliteMap={sateliteMap}
-                onEdit={() => {
-                  setEditingItem(item);
-                  setIsModalOpen(true);
-                }}
+                onEdit={() => openEdit(item)}
                 onDelete={() => setDeletingId(item.id)}
                 onResponsaveis={() => setResponsaveisJanela(item)}
               />
@@ -783,30 +734,6 @@ const Janelas = () => {
           />
         )}
       </DataCard>
-
-      <JanelaFormModal
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setEditingItem(null);
-        }}
-        onSave={handleSave}
-        data={editingItem}
-        readOnly={!!editingItem && !canAlterar('SatOps', 'Janelas', '-')}
-        navigation={(() => {
-          const navIndex = editingItem
-            ? filteredItems.findIndex((i) => i.id === editingItem.id)
-            : -1;
-          return navIndex >= 0
-            ? {
-                currentIndex: navIndex,
-                total: filteredItems.length,
-                onPrevious: () => setEditingItem(filteredItems[navIndex - 1]),
-                onNext: () => setEditingItem(filteredItems[navIndex + 1]),
-              }
-            : undefined;
-        })()}
-      />
 
       <JanelaResponsaveisModal
         janela={responsaveisJanela}

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import type { SessionUser } from '../auth/auth.types.js';
 import { ensureSameTenant, resolveTenantId } from '../common/access.js';
-import type { EscalasRepository } from './escalas.repository.js';
+import type { EscalaRecord, EscalasRepository } from './escalas.repository.js';
 
 export const saveEscalaSchema = z.object({
   id: z.string().min(1).optional(),
@@ -25,6 +25,20 @@ export const saveColaboradoresSchema = z.object({
 export type SaveEscalaDto = z.infer<typeof saveEscalaSchema>;
 export type SaveColaboradoresDto = z.infer<typeof saveColaboradoresSchema>;
 
+function toEscalaDto(item: EscalaRecord) {
+  return {
+    id: item.id,
+    numerador: item.numerador,
+    codigoExterno: item.codigoExterno ?? '',
+    titulo: item.titulo,
+    equipeId: item.equipeId ?? '',
+    equipeNome: item.equipeNome ?? '',
+    dataInicio: item.dataInicio,
+    dataCadastro: item.createdAt.toISOString(),
+    usuarioCadastro: item.createdBy ?? '',
+  };
+}
+
 export class EscalasService {
   constructor(private readonly repository: EscalasRepository) {}
 
@@ -34,18 +48,18 @@ export class EscalasService {
 
     return {
       total,
-      data: data.map((item) => ({
-        id: item.id,
-        numerador: item.numerador,
-        codigoExterno: item.codigoExterno ?? '',
-        titulo: item.titulo,
-        equipeId: item.equipeId ?? '',
-        equipeNome: item.equipeNome ?? '',
-        dataInicio: item.dataInicio,
-        dataCadastro: item.createdAt.toISOString(),
-        usuarioCadastro: item.createdBy ?? '',
-      })),
+      data: data.map(toEscalaDto),
     };
+  }
+
+  async getById(actor: SessionUser, id: string) {
+    const existing = await this.repository.findById(id);
+    if (!existing) {
+      return null;
+    }
+
+    ensureSameTenant(actor, existing.tenantId);
+    return toEscalaDto(existing);
   }
 
   async save(actor: SessionUser, input: SaveEscalaDto) {
@@ -74,17 +88,7 @@ export class EscalasService {
       createdBy: actor.nome,
     });
 
-    return {
-      id: item.id,
-      numerador: item.numerador,
-      codigoExterno: item.codigoExterno ?? '',
-      titulo: item.titulo,
-      equipeId: item.equipeId ?? '',
-      equipeNome: item.equipeNome ?? '',
-      dataInicio: item.dataInicio,
-      dataCadastro: item.createdAt.toISOString(),
-      usuarioCadastro: item.createdBy ?? '',
-    };
+    return toEscalaDto(item);
   }
 
   async remove(actor: SessionUser, id: string) {

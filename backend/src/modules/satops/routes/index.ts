@@ -26,81 +26,148 @@ export function createSatOpsRoutes(
   return async (app) => {
     const authenticate = createAuthenticate(authService);
     const requireTenantAccess = createRequireTenantAccess();
-    const requireSatelitesIncluir = createRequirePermission(authService, 'SatOps', 'Satélites', 'incluir');
-    const requireSatelitesAlterar = createRequirePermission(authService, 'SatOps', 'Satélites', 'alterar');
-    const requireSatelitesExcluir = createRequirePermission(authService, 'SatOps', 'Satélites', 'excluir');
+    const requireSatelitesIncluir = createRequirePermission(
+      authService,
+      'SatOps',
+      'Satélites',
+      'incluir',
+    );
+    const requireSatelitesAlterar = createRequirePermission(
+      authService,
+      'SatOps',
+      'Satélites',
+      'alterar',
+    );
+    const requireSatelitesExcluir = createRequirePermission(
+      authService,
+      'SatOps',
+      'Satélites',
+      'excluir',
+    );
 
     // ── Estados de Evento ────────────────────────────────────────────────────
 
-    app.get('/satops/estados-evento', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
-      const { user } = request as AuthenticatedRequest;
-      return reply.status(200).send(await estadosEventoService.list(user));
-    });
+    app.get(
+      '/satops/estados-evento',
+      { preHandler: [authenticate, requireTenantAccess] },
+      async (request, reply) => {
+        const { user } = request as AuthenticatedRequest;
+        return reply.status(200).send(await estadosEventoService.list(user));
+      },
+    );
 
-    app.get('/satops/estados-evento/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
-      const { user } = request as AuthenticatedRequest;
-      const params = request.params as { id: string };
-      const item = await estadosEventoService.getById(user, params.id);
-      if (!item) return reply.status(404).send({ message: 'Estado de evento não encontrado' });
-      return reply.status(200).send(item);
-    });
+    app.get(
+      '/satops/estados-evento/:id',
+      { preHandler: [authenticate, requireTenantAccess] },
+      async (request, reply) => {
+        const { user } = request as AuthenticatedRequest;
+        const params = request.params as { id: string };
+        const item = await estadosEventoService.getById(user, params.id);
+        if (!item) return reply.status(404).send({ message: 'Estado de evento não encontrado' });
+        return reply.status(200).send(item);
+      },
+    );
 
-    app.post('/satops/estados-evento', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
-      const { user } = request as AuthenticatedRequest;
-      return reply.status(200).send(
-        await estadosEventoService.save(user, saveEstadoEventoSchema.parse(request.body)),
-      );
-    });
+    app.post(
+      '/satops/estados-evento',
+      { preHandler: [authenticate, requireTenantAccess] },
+      async (request, reply) => {
+        const { user } = request as AuthenticatedRequest;
+        return reply
+          .status(200)
+          .send(await estadosEventoService.save(user, saveEstadoEventoSchema.parse(request.body)));
+      },
+    );
 
-    app.put('/satops/estados-evento/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
-      const { user } = request as AuthenticatedRequest;
-      const params = request.params as { id: string };
-      return reply.status(200).send(
-        await estadosEventoService.save(
-          user,
-          saveEstadoEventoSchema.parse({ ...(request.body as object), id: params.id }),
-        ),
-      );
-    });
+    app.put(
+      '/satops/estados-evento/:id',
+      { preHandler: [authenticate, requireTenantAccess] },
+      async (request, reply) => {
+        const { user } = request as AuthenticatedRequest;
+        const params = request.params as { id: string };
+        return reply
+          .status(200)
+          .send(
+            await estadosEventoService.save(
+              user,
+              saveEstadoEventoSchema.parse({ ...(request.body as object), id: params.id }),
+            ),
+          );
+      },
+    );
 
-    app.delete('/satops/estados-evento/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
-      const { user } = request as AuthenticatedRequest;
-      const params = request.params as { id: string };
-      await estadosEventoService.remove(user, params.id);
-      return reply.status(204).send();
-    });
+    app.delete(
+      '/satops/estados-evento/:id',
+      { preHandler: [authenticate, requireTenantAccess] },
+      async (request, reply) => {
+        const { user } = request as AuthenticatedRequest;
+        const params = request.params as { id: string };
+        await estadosEventoService.remove(user, params.id);
+        return reply.status(204).send();
+      },
+    );
 
     // ── Satélites ────────────────────────────────────────────────────────────
 
-    app.get('/satops/satelites', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
-      const { user } = request as AuthenticatedRequest;
-      return reply.status(200).send(await satelitesService.list(user));
-    });
+    app.get(
+      '/satops/satelites',
+      { preHandler: [authenticate, requireTenantAccess] },
+      async (request, reply) => {
+        const { user } = request as AuthenticatedRequest;
+        return reply.status(200).send(await satelitesService.list(user));
+      },
+    );
 
-    app.post('/satops/satelites', { preHandler: [authenticate, requireTenantAccess, requireSatelitesIncluir] }, async (request, reply) => {
-      const { user } = request as AuthenticatedRequest;
-      return reply.status(200).send(
-        await satelitesService.save(user, saveSateliteSchema.parse(request.body)),
-      );
-    });
+    app.get(
+      '/satops/satelites/:id',
+      { preHandler: [authenticate, requireTenantAccess] },
+      async (request, reply) => {
+        const { user } = request as AuthenticatedRequest;
+        const params = request.params as { id: string };
+        const item = await satelitesService.getById(user, params.id);
+        if (!item) return reply.status(404).send({ message: 'Satélite não encontrado' });
+        return reply.status(200).send(item);
+      },
+    );
 
-    app.put('/satops/satelites/:id', { preHandler: [authenticate, requireTenantAccess, requireSatelitesAlterar] }, async (request, reply) => {
-      const { user } = request as AuthenticatedRequest;
-      const params = request.params as { id: string };
-      return reply.status(200).send(
-        await satelitesService.save(
-          user,
-          saveSateliteSchema.parse({ ...(request.body as object), id: params.id }),
-        ),
-      );
-    });
+    app.post(
+      '/satops/satelites',
+      { preHandler: [authenticate, requireTenantAccess, requireSatelitesIncluir] },
+      async (request, reply) => {
+        const { user } = request as AuthenticatedRequest;
+        return reply
+          .status(200)
+          .send(await satelitesService.save(user, saveSateliteSchema.parse(request.body)));
+      },
+    );
 
-    app.delete('/satops/satelites/:id', { preHandler: [authenticate, requireTenantAccess, requireSatelitesExcluir] }, async (request, reply) => {
-      const { user } = request as AuthenticatedRequest;
-      const params = request.params as { id: string };
-      await satelitesService.remove(user, params.id);
-      return reply.status(204).send();
-    });
+    app.put(
+      '/satops/satelites/:id',
+      { preHandler: [authenticate, requireTenantAccess, requireSatelitesAlterar] },
+      async (request, reply) => {
+        const { user } = request as AuthenticatedRequest;
+        const params = request.params as { id: string };
+        return reply
+          .status(200)
+          .send(
+            await satelitesService.save(
+              user,
+              saveSateliteSchema.parse({ ...(request.body as object), id: params.id }),
+            ),
+          );
+      },
+    );
+
+    app.delete(
+      '/satops/satelites/:id',
+      { preHandler: [authenticate, requireTenantAccess, requireSatelitesExcluir] },
+      async (request, reply) => {
+        const { user } = request as AuthenticatedRequest;
+        const params = request.params as { id: string };
+        await satelitesService.remove(user, params.id);
+        return reply.status(204).send();
+      },
+    );
   };
 }
 
@@ -112,43 +179,65 @@ export function createAlertasRoutes(
     const authenticate = createAuthenticate(authService);
     const requireTenantAccess = createRequireTenantAccess();
 
-    app.get('/satops/alertas', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
-      const { user } = request as AuthenticatedRequest;
-      return reply.status(200).send(await alertasService.list(user));
-    });
+    app.get(
+      '/satops/alertas',
+      { preHandler: [authenticate, requireTenantAccess] },
+      async (request, reply) => {
+        const { user } = request as AuthenticatedRequest;
+        return reply.status(200).send(await alertasService.list(user));
+      },
+    );
 
-    app.get('/satops/alertas/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
-      const { user } = request as AuthenticatedRequest;
-      const params = request.params as { id: string };
-      const item = await alertasService.getById(user, params.id);
-      if (!item) return reply.status(404).send({ message: 'Alerta não encontrado' });
-      return reply.status(200).send(item);
-    });
+    app.get(
+      '/satops/alertas/:id',
+      { preHandler: [authenticate, requireTenantAccess] },
+      async (request, reply) => {
+        const { user } = request as AuthenticatedRequest;
+        const params = request.params as { id: string };
+        const item = await alertasService.getById(user, params.id);
+        if (!item) return reply.status(404).send({ message: 'Alerta não encontrado' });
+        return reply.status(200).send(item);
+      },
+    );
 
-    app.post('/satops/alertas', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
-      const { user } = request as AuthenticatedRequest;
-      return reply.status(200).send(
-        await alertasService.save(user, saveAlertaSchema.parse(request.body)),
-      );
-    });
+    app.post(
+      '/satops/alertas',
+      { preHandler: [authenticate, requireTenantAccess] },
+      async (request, reply) => {
+        const { user } = request as AuthenticatedRequest;
+        return reply
+          .status(200)
+          .send(await alertasService.save(user, saveAlertaSchema.parse(request.body)));
+      },
+    );
 
-    app.put('/satops/alertas/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
-      const { user } = request as AuthenticatedRequest;
-      const params = request.params as { id: string };
-      return reply.status(200).send(
-        await alertasService.save(
-          user,
-          saveAlertaSchema.parse({ ...(request.body as object), id: params.id }),
-        ),
-      );
-    });
+    app.put(
+      '/satops/alertas/:id',
+      { preHandler: [authenticate, requireTenantAccess] },
+      async (request, reply) => {
+        const { user } = request as AuthenticatedRequest;
+        const params = request.params as { id: string };
+        return reply
+          .status(200)
+          .send(
+            await alertasService.save(
+              user,
+              saveAlertaSchema.parse({ ...(request.body as object), id: params.id }),
+            ),
+          );
+      },
+    );
 
-    app.delete('/satops/alertas/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
-      const { user } = request as AuthenticatedRequest;
-      const params = request.params as { id: string };
-      await alertasService.remove(user, params.id);
-      return reply.status(204).send();
-    });
+    app.delete(
+      '/satops/alertas/:id',
+      { preHandler: [authenticate, requireTenantAccess] },
+      async (request, reply) => {
+        const { user } = request as AuthenticatedRequest;
+        const params = request.params as { id: string };
+        await alertasService.remove(user, params.id);
+        return reply.status(204).send();
+      },
+    );
   };
 }
 
@@ -165,47 +254,85 @@ export function createJanelasRoutes(
 
     // ── Helpers de Grelha ────────────────────────────────────────────────────
 
-    app.get('/satops/janelas/canais', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
-      const { user } = request as AuthenticatedRequest;
-      return reply.status(200).send(await janelasService.listCanais(user));
-    });
+    app.get(
+      '/satops/janelas/canais',
+      { preHandler: [authenticate, requireTenantAccess] },
+      async (request, reply) => {
+        const { user } = request as AuthenticatedRequest;
+        return reply.status(200).send(await janelasService.listCanais(user));
+      },
+    );
 
-    app.get('/satops/janelas/programas', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
-      const { user } = request as AuthenticatedRequest;
-      const { canal, data } = grelhaQuerySchema.parse(request.query);
-      return reply.status(200).send(await janelasService.listProgramas(user, canal, data));
-    });
+    app.get(
+      '/satops/janelas/programas',
+      { preHandler: [authenticate, requireTenantAccess] },
+      async (request, reply) => {
+        const { user } = request as AuthenticatedRequest;
+        const { canal, data } = grelhaQuerySchema.parse(request.query);
+        return reply.status(200).send(await janelasService.listProgramas(user, canal, data));
+      },
+    );
 
     // ── CRUD Janelas ─────────────────────────────────────────────────────────
 
-    app.get('/satops/janelas', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
-      const { user } = request as AuthenticatedRequest;
-      return reply.status(200).send(await janelasService.list(user));
-    });
+    app.get(
+      '/satops/janelas',
+      { preHandler: [authenticate, requireTenantAccess] },
+      async (request, reply) => {
+        const { user } = request as AuthenticatedRequest;
+        return reply.status(200).send(await janelasService.list(user));
+      },
+    );
 
-    app.post('/satops/janelas', { preHandler: [authenticate, requireTenantAccess, requireIncluir] }, async (request, reply) => {
-      const { user } = request as AuthenticatedRequest;
-      return reply.status(200).send(
-        await janelasService.save(user, saveJanelaSchema.parse(request.body)),
-      );
-    });
+    app.get(
+      '/satops/janelas/:id',
+      { preHandler: [authenticate, requireTenantAccess] },
+      async (request, reply) => {
+        const { user } = request as AuthenticatedRequest;
+        const params = request.params as { id: string };
+        const item = await janelasService.getById(user, params.id);
+        if (!item) return reply.status(404).send({ message: 'Janela não encontrada' });
+        return reply.status(200).send(item);
+      },
+    );
 
-    app.put('/satops/janelas/:id', { preHandler: [authenticate, requireTenantAccess, requireAlterar] }, async (request, reply) => {
-      const { user } = request as AuthenticatedRequest;
-      const params = request.params as { id: string };
-      return reply.status(200).send(
-        await janelasService.save(
-          user,
-          saveJanelaSchema.parse({ ...(request.body as object), id: params.id }),
-        ),
-      );
-    });
+    app.post(
+      '/satops/janelas',
+      { preHandler: [authenticate, requireTenantAccess, requireIncluir] },
+      async (request, reply) => {
+        const { user } = request as AuthenticatedRequest;
+        return reply
+          .status(200)
+          .send(await janelasService.save(user, saveJanelaSchema.parse(request.body)));
+      },
+    );
 
-    app.delete('/satops/janelas/:id', { preHandler: [authenticate, requireTenantAccess, requireExcluir] }, async (request, reply) => {
-      const { user } = request as AuthenticatedRequest;
-      const params = request.params as { id: string };
-      await janelasService.remove(user, params.id);
-      return reply.status(204).send();
-    });
+    app.put(
+      '/satops/janelas/:id',
+      { preHandler: [authenticate, requireTenantAccess, requireAlterar] },
+      async (request, reply) => {
+        const { user } = request as AuthenticatedRequest;
+        const params = request.params as { id: string };
+        return reply
+          .status(200)
+          .send(
+            await janelasService.save(
+              user,
+              saveJanelaSchema.parse({ ...(request.body as object), id: params.id }),
+            ),
+          );
+      },
+    );
+
+    app.delete(
+      '/satops/janelas/:id',
+      { preHandler: [authenticate, requireTenantAccess, requireExcluir] },
+      async (request, reply) => {
+        const { user } = request as AuthenticatedRequest;
+        const params = request.params as { id: string };
+        await janelasService.remove(user, params.id);
+        return reply.status(204).send();
+      },
+    );
   };
 }

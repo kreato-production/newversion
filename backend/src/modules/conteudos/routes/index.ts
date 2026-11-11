@@ -1,6 +1,10 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
-import { createAuthenticate, createRequireRole, createRequireTenantAccess } from '../../../plugins/auth.js';
+import {
+  createAuthenticate,
+  createRequireRole,
+  createRequireTenantAccess,
+} from '../../../plugins/auth.js';
 import type { AuthenticatedRequest } from '../../../fastify.js';
 import type { AuthService } from '../../auth/auth.service.js';
 import {
@@ -23,7 +27,10 @@ const listQuerySchema = z.object({
   offset: z.coerce.number().int().min(0).default(0),
 });
 
-export function createConteudosRoutes(authService: AuthService, conteudosService: ConteudosService): FastifyPluginAsync {
+export function createConteudosRoutes(
+  authService: AuthService,
+  conteudosService: ConteudosService,
+): FastifyPluginAsync {
   return async (app) => {
     const authenticate = createAuthenticate(authService);
     const requireTenantAccess = createRequireTenantAccess();
@@ -32,164 +39,303 @@ export function createConteudosRoutes(authService: AuthService, conteudosService
       tabelaPrecoId: z.string().optional(),
     });
 
-    app.get('/conteudos', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
-      const { user } = request as AuthenticatedRequest;
-      const opts = listQuerySchema.parse(request.query);
-      return reply.status(200).send(await conteudosService.list(user, opts));
-    });
+    app.get(
+      '/conteudos',
+      { preHandler: [authenticate, requireTenantAccess] },
+      async (request, reply) => {
+        const { user } = request as AuthenticatedRequest;
+        const opts = listQuerySchema.parse(request.query);
+        return reply.status(200).send(await conteudosService.list(user, opts));
+      },
+    );
 
-    app.get('/conteudos/options', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
-      const { user } = request as AuthenticatedRequest;
-      return reply.status(200).send(await conteudosService.listOptions(user));
-    });
+    app.get(
+      '/conteudos/options',
+      { preHandler: [authenticate, requireTenantAccess] },
+      async (request, reply) => {
+        const { user } = request as AuthenticatedRequest;
+        return reply.status(200).send(await conteudosService.listOptions(user));
+      },
+    );
 
-    app.post('/conteudos', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
-      const { user } = request as AuthenticatedRequest;
-      const body = saveConteudoSchema.parse(request.body);
-      return reply.status(200).send(await conteudosService.save(user, body));
-    });
+    app.get(
+      '/conteudos/:id',
+      { preHandler: [authenticate, requireTenantAccess] },
+      async (request, reply) => {
+        const { user } = request as AuthenticatedRequest;
+        const params = request.params as { id: string };
+        const item = await conteudosService.getById(user, params.id);
+        if (!item) return reply.status(404).send({ error: 'Não encontrado' });
+        return reply.status(200).send(item);
+      },
+    );
 
-    app.put('/conteudos/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
-      const { user } = request as AuthenticatedRequest;
-      const params = request.params as { id: string };
-      const body = saveConteudoSchema.parse({ ...(request.body as object), id: params.id });
-      return reply.status(200).send(await conteudosService.save(user, body));
-    });
+    app.post(
+      '/conteudos',
+      { preHandler: [authenticate, requireTenantAccess] },
+      async (request, reply) => {
+        const { user } = request as AuthenticatedRequest;
+        const body = saveConteudoSchema.parse(request.body);
+        return reply.status(200).send(await conteudosService.save(user, body));
+      },
+    );
 
-    app.delete('/conteudos/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
-      const { user } = request as AuthenticatedRequest;
-      const params = request.params as { id: string };
-      await conteudosService.remove(user, params.id);
-      return reply.status(204).send();
-    });
+    app.put(
+      '/conteudos/:id',
+      { preHandler: [authenticate, requireTenantAccess] },
+      async (request, reply) => {
+        const { user } = request as AuthenticatedRequest;
+        const params = request.params as { id: string };
+        const body = saveConteudoSchema.parse({ ...(request.body as object), id: params.id });
+        return reply.status(200).send(await conteudosService.save(user, body));
+      },
+    );
 
-    app.get('/conteudos/:id/recursos', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
-      const { user } = request as AuthenticatedRequest;
-      const params = request.params as { id: string };
-      const query = resourceQuerySchema.parse(request.query);
-      return reply.status(200).send(await conteudosService.listResources(user, params.id, query.tipo, query.tabelaPrecoId));
-    });
+    app.delete(
+      '/conteudos/:id',
+      { preHandler: [authenticate, requireTenantAccess] },
+      async (request, reply) => {
+        const { user } = request as AuthenticatedRequest;
+        const params = request.params as { id: string };
+        await conteudosService.remove(user, params.id);
+        return reply.status(204).send();
+      },
+    );
 
-    app.post('/conteudos/:id/recursos', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
-      const { user } = request as AuthenticatedRequest;
-      const params = request.params as { id: string };
-      const query = z.object({ tipo: conteudoResourceTypeSchema }).parse(request.query);
-      const body = saveConteudoResourceSchema.parse(request.body);
-      return reply.status(200).send(await conteudosService.addResource(user, params.id, query.tipo, body));
-    });
+    app.get(
+      '/conteudos/:id/recursos',
+      { preHandler: [authenticate, requireTenantAccess] },
+      async (request, reply) => {
+        const { user } = request as AuthenticatedRequest;
+        const params = request.params as { id: string };
+        const query = resourceQuerySchema.parse(request.query);
+        return reply
+          .status(200)
+          .send(
+            await conteudosService.listResources(user, params.id, query.tipo, query.tabelaPrecoId),
+          );
+      },
+    );
 
-    app.put('/conteudos/:id/recursos/:itemId', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
-      const { user } = request as AuthenticatedRequest;
-      const params = request.params as { id: string; itemId: string };
-      const query = z.object({ tipo: conteudoResourceTypeSchema }).parse(request.query);
-      const body = updateConteudoResourceSchema.parse(request.body);
-      return reply.status(200).send(await conteudosService.updateResource(user, params.itemId, query.tipo, body));
-    });
+    app.post(
+      '/conteudos/:id/recursos',
+      { preHandler: [authenticate, requireTenantAccess] },
+      async (request, reply) => {
+        const { user } = request as AuthenticatedRequest;
+        const params = request.params as { id: string };
+        const query = z.object({ tipo: conteudoResourceTypeSchema }).parse(request.query);
+        const body = saveConteudoResourceSchema.parse(request.body);
+        return reply
+          .status(200)
+          .send(await conteudosService.addResource(user, params.id, query.tipo, body));
+      },
+    );
 
-    app.delete('/conteudos/:id/recursos/:itemId', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
-      const { user } = request as AuthenticatedRequest;
-      const params = request.params as { id: string; itemId: string };
-      const query = z.object({ tipo: conteudoResourceTypeSchema }).parse(request.query);
-      await conteudosService.removeResource(user, params.itemId, query.tipo);
-      return reply.status(204).send();
-    });
+    app.put(
+      '/conteudos/:id/recursos/:itemId',
+      { preHandler: [authenticate, requireTenantAccess] },
+      async (request, reply) => {
+        const { user } = request as AuthenticatedRequest;
+        const params = request.params as { id: string; itemId: string };
+        const query = z.object({ tipo: conteudoResourceTypeSchema }).parse(request.query);
+        const body = updateConteudoResourceSchema.parse(request.body);
+        return reply
+          .status(200)
+          .send(await conteudosService.updateResource(user, params.itemId, query.tipo, body));
+      },
+    );
 
-    app.get('/conteudos/:id/terceiros', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
-      const { user } = request as AuthenticatedRequest;
-      const params = request.params as { id: string };
-      return reply.status(200).send(await conteudosService.listTerceiros(user, params.id));
-    });
+    app.delete(
+      '/conteudos/:id/recursos/:itemId',
+      { preHandler: [authenticate, requireTenantAccess] },
+      async (request, reply) => {
+        const { user } = request as AuthenticatedRequest;
+        const params = request.params as { id: string; itemId: string };
+        const query = z.object({ tipo: conteudoResourceTypeSchema }).parse(request.query);
+        await conteudosService.removeResource(user, params.itemId, query.tipo);
+        return reply.status(204).send();
+      },
+    );
 
-    app.post('/conteudos/:id/terceiros', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
-      const { user } = request as AuthenticatedRequest;
-      const params = request.params as { id: string };
-      const body = saveConteudoTerceiroSchema.parse(request.body);
-      return reply.status(200).send(await conteudosService.addTerceiro(user, params.id, body));
-    });
+    app.get(
+      '/conteudos/:id/terceiros',
+      { preHandler: [authenticate, requireTenantAccess] },
+      async (request, reply) => {
+        const { user } = request as AuthenticatedRequest;
+        const params = request.params as { id: string };
+        return reply.status(200).send(await conteudosService.listTerceiros(user, params.id));
+      },
+    );
 
-    app.put('/conteudos/:id/terceiros/:itemId', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
-      const { user } = request as AuthenticatedRequest;
-      const params = request.params as { id: string; itemId: string };
-      const body = updateConteudoTerceiroSchema.parse(request.body);
-      return reply.status(200).send(await conteudosService.updateTerceiro(user, params.itemId, body));
-    });
+    app.post(
+      '/conteudos/:id/terceiros',
+      { preHandler: [authenticate, requireTenantAccess] },
+      async (request, reply) => {
+        const { user } = request as AuthenticatedRequest;
+        const params = request.params as { id: string };
+        const body = saveConteudoTerceiroSchema.parse(request.body);
+        return reply.status(200).send(await conteudosService.addTerceiro(user, params.id, body));
+      },
+    );
 
-    app.delete('/conteudos/:id/terceiros/:itemId', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
-      const { user } = request as AuthenticatedRequest;
-      const params = request.params as { id: string; itemId: string };
-      await conteudosService.removeTerceiro(user, params.itemId);
-      return reply.status(204).send();
-    });
+    app.put(
+      '/conteudos/:id/terceiros/:itemId',
+      { preHandler: [authenticate, requireTenantAccess] },
+      async (request, reply) => {
+        const { user } = request as AuthenticatedRequest;
+        const params = request.params as { id: string; itemId: string };
+        const body = updateConteudoTerceiroSchema.parse(request.body);
+        return reply
+          .status(200)
+          .send(await conteudosService.updateTerceiro(user, params.itemId, body));
+      },
+    );
 
-    app.get('/conteudos/espacos-disponiveis', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
-      const { user } = request as AuthenticatedRequest;
-      return reply.status(200).send(await conteudosService.listAvailableEspacos(user));
-    });
+    app.delete(
+      '/conteudos/:id/terceiros/:itemId',
+      { preHandler: [authenticate, requireTenantAccess] },
+      async (request, reply) => {
+        const { user } = request as AuthenticatedRequest;
+        const params = request.params as { id: string; itemId: string };
+        await conteudosService.removeTerceiro(user, params.itemId);
+        return reply.status(204).send();
+      },
+    );
 
-    app.get('/conteudos/:id/espacos', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
-      const { user } = request as AuthenticatedRequest;
-      const params = request.params as { id: string };
-      return reply.status(200).send(await conteudosService.listEspacos(user, params.id));
-    });
+    app.get(
+      '/conteudos/espacos-disponiveis',
+      { preHandler: [authenticate, requireTenantAccess] },
+      async (request, reply) => {
+        const { user } = request as AuthenticatedRequest;
+        return reply.status(200).send(await conteudosService.listAvailableEspacos(user));
+      },
+    );
 
-    app.post('/conteudos/:id/espacos', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
-      const { user } = request as AuthenticatedRequest;
-      const params = request.params as { id: string };
-      const body = saveConteudoEspacoSchema.parse(request.body);
-      return reply.status(200).send(await conteudosService.addEspaco(user, params.id, body));
-    });
+    app.get(
+      '/conteudos/:id/espacos',
+      { preHandler: [authenticate, requireTenantAccess] },
+      async (request, reply) => {
+        const { user } = request as AuthenticatedRequest;
+        const params = request.params as { id: string };
+        return reply.status(200).send(await conteudosService.listEspacos(user, params.id));
+      },
+    );
 
-    app.put('/conteudos/:id/espacos/:itemId', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
-      const { user } = request as AuthenticatedRequest;
-      const params = request.params as { id: string; itemId: string };
-      const body = updateConteudoEspacoSchema.parse(request.body);
-      return reply.status(200).send(await conteudosService.updateEspaco(user, params.itemId, body));
-    });
+    app.post(
+      '/conteudos/:id/espacos',
+      { preHandler: [authenticate, requireTenantAccess] },
+      async (request, reply) => {
+        const { user } = request as AuthenticatedRequest;
+        const params = request.params as { id: string };
+        const body = saveConteudoEspacoSchema.parse(request.body);
+        return reply.status(200).send(await conteudosService.addEspaco(user, params.id, body));
+      },
+    );
 
-    app.delete('/conteudos/:id/espacos/:itemId', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
-      const { user } = request as AuthenticatedRequest;
-      const params = request.params as { id: string; itemId: string };
-      await conteudosService.removeEspaco(user, params.itemId);
-      return reply.status(204).send();
-    });
+    app.put(
+      '/conteudos/:id/espacos/:itemId',
+      { preHandler: [authenticate, requireTenantAccess] },
+      async (request, reply) => {
+        const { user } = request as AuthenticatedRequest;
+        const params = request.params as { id: string; itemId: string };
+        const body = updateConteudoEspacoSchema.parse(request.body);
+        return reply
+          .status(200)
+          .send(await conteudosService.updateEspaco(user, params.itemId, body));
+      },
+    );
+
+    app.delete(
+      '/conteudos/:id/espacos/:itemId',
+      { preHandler: [authenticate, requireTenantAccess] },
+      async (request, reply) => {
+        const { user } = request as AuthenticatedRequest;
+        const params = request.params as { id: string; itemId: string };
+        await conteudosService.removeEspaco(user, params.itemId);
+        return reply.status(204).send();
+      },
+    );
 
     const espacoResourceQuerySchema = z.object({ tipo: conteudoEspacoResourceTypeSchema });
 
-    app.get('/conteudos/:id/espacos/:espacoItemId/recursos', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
-      const { user } = request as AuthenticatedRequest;
-      const params = request.params as { id: string; espacoItemId: string };
-      const query = espacoResourceQuerySchema.parse(request.query);
-      return reply.status(200).send(await conteudosService.listEspacoResources(user, params.espacoItemId, query.tipo));
-    });
+    app.get(
+      '/conteudos/:id/espacos/:espacoItemId/recursos',
+      { preHandler: [authenticate, requireTenantAccess] },
+      async (request, reply) => {
+        const { user } = request as AuthenticatedRequest;
+        const params = request.params as { id: string; espacoItemId: string };
+        const query = espacoResourceQuerySchema.parse(request.query);
+        return reply
+          .status(200)
+          .send(await conteudosService.listEspacoResources(user, params.espacoItemId, query.tipo));
+      },
+    );
 
-    app.post('/conteudos/:id/espacos/:espacoItemId/recursos', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
-      const { user } = request as AuthenticatedRequest;
-      const params = request.params as { id: string; espacoItemId: string };
-      const query = espacoResourceQuerySchema.parse(request.query);
-      const body = saveConteudoEspacoResourceSchema.parse(request.body);
-      return reply.status(200).send(await conteudosService.addEspacoResource(user, params.espacoItemId, query.tipo, body));
-    });
+    app.post(
+      '/conteudos/:id/espacos/:espacoItemId/recursos',
+      { preHandler: [authenticate, requireTenantAccess] },
+      async (request, reply) => {
+        const { user } = request as AuthenticatedRequest;
+        const params = request.params as { id: string; espacoItemId: string };
+        const query = espacoResourceQuerySchema.parse(request.query);
+        const body = saveConteudoEspacoResourceSchema.parse(request.body);
+        return reply
+          .status(200)
+          .send(
+            await conteudosService.addEspacoResource(user, params.espacoItemId, query.tipo, body),
+          );
+      },
+    );
 
-    app.put('/conteudos/:id/espacos/:espacoItemId/recursos/:recursoItemId', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
-      const { user } = request as AuthenticatedRequest;
-      const params = request.params as { id: string; espacoItemId: string; recursoItemId: string };
-      const query = espacoResourceQuerySchema.parse(request.query);
-      const body = updateConteudoEspacoResourceSchema.parse(request.body);
-      return reply.status(200).send(await conteudosService.updateEspacoResource(user, params.recursoItemId, query.tipo, body));
-    });
+    app.put(
+      '/conteudos/:id/espacos/:espacoItemId/recursos/:recursoItemId',
+      { preHandler: [authenticate, requireTenantAccess] },
+      async (request, reply) => {
+        const { user } = request as AuthenticatedRequest;
+        const params = request.params as {
+          id: string;
+          espacoItemId: string;
+          recursoItemId: string;
+        };
+        const query = espacoResourceQuerySchema.parse(request.query);
+        const body = updateConteudoEspacoResourceSchema.parse(request.body);
+        return reply
+          .status(200)
+          .send(
+            await conteudosService.updateEspacoResource(
+              user,
+              params.recursoItemId,
+              query.tipo,
+              body,
+            ),
+          );
+      },
+    );
 
-    app.delete('/conteudos/:id/espacos/:espacoItemId/recursos/:recursoItemId', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
-      const { user } = request as AuthenticatedRequest;
-      const params = request.params as { id: string; espacoItemId: string; recursoItemId: string };
-      const query = espacoResourceQuerySchema.parse(request.query);
-      await conteudosService.removeEspacoResource(user, params.recursoItemId, query.tipo);
-      return reply.status(204).send();
-    });
+    app.delete(
+      '/conteudos/:id/espacos/:espacoItemId/recursos/:recursoItemId',
+      { preHandler: [authenticate, requireTenantAccess] },
+      async (request, reply) => {
+        const { user } = request as AuthenticatedRequest;
+        const params = request.params as {
+          id: string;
+          espacoItemId: string;
+          recursoItemId: string;
+        };
+        const query = espacoResourceQuerySchema.parse(request.query);
+        await conteudosService.removeEspacoResource(user, params.recursoItemId, query.tipo);
+        return reply.status(204).send();
+      },
+    );
 
-    app.post('/conteudos/:id/gerar-gravacoes', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
-      const { user } = request as AuthenticatedRequest;
-      const params = request.params as { id: string };
-      return reply.status(200).send(await conteudosService.generateGravacoes(user, params.id));
-    });
+    app.post(
+      '/conteudos/:id/gerar-gravacoes',
+      { preHandler: [authenticate, requireTenantAccess] },
+      async (request, reply) => {
+        const { user } = request as AuthenticatedRequest;
+        const params = request.params as { id: string };
+        return reply.status(200).send(await conteudosService.generateGravacoes(user, params.id));
+      },
+    );
   };
 }

@@ -18,39 +18,84 @@ export function createExpositoresRoutes(
   return async (app) => {
     const authenticate = createAuthenticate(authService);
     const requireTenantAccess = createRequireTenantAccess();
-    const requireIncluir = createRequirePermission(authService, 'Gestão de Eventos', 'Expositores', 'incluir');
-    const requireAlterar = createRequirePermission(authService, 'Gestão de Eventos', 'Expositores', 'alterar');
-    const requireExcluir = createRequirePermission(authService, 'Gestão de Eventos', 'Expositores', 'excluir');
+    const requireIncluir = createRequirePermission(
+      authService,
+      'Gestão de Eventos',
+      'Expositores',
+      'incluir',
+    );
+    const requireAlterar = createRequirePermission(
+      authService,
+      'Gestão de Eventos',
+      'Expositores',
+      'alterar',
+    );
+    const requireExcluir = createRequirePermission(
+      authService,
+      'Gestão de Eventos',
+      'Expositores',
+      'excluir',
+    );
 
-    app.get('/expositores', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
-      const { user } = request as AuthenticatedRequest;
-      const query = listQuerySchema.parse(request.query);
-      return reply.status(200).send(await expositoresService.list(user, query));
-    });
+    app.get(
+      '/expositores',
+      { preHandler: [authenticate, requireTenantAccess] },
+      async (request, reply) => {
+        const { user } = request as AuthenticatedRequest;
+        const query = listQuerySchema.parse(request.query);
+        return reply.status(200).send(await expositoresService.list(user, query));
+      },
+    );
 
-    app.post('/expositores', { preHandler: [authenticate, requireTenantAccess, requireIncluir] }, async (request, reply) => {
-      const { user } = request as AuthenticatedRequest;
-      return reply.status(200).send(
-        await expositoresService.save(user, saveExpositorSchema.parse(request.body)),
-      );
-    });
+    app.get(
+      '/expositores/:id',
+      { preHandler: [authenticate, requireTenantAccess] },
+      async (request, reply) => {
+        const { user } = request as AuthenticatedRequest;
+        const params = request.params as { id: string };
+        const item = await expositoresService.getById(user, params.id);
+        if (!item) return reply.status(404).send({ message: 'Expositor não encontrado' });
+        return reply.status(200).send(item);
+      },
+    );
 
-    app.put('/expositores/:id', { preHandler: [authenticate, requireTenantAccess, requireAlterar] }, async (request, reply) => {
-      const { user } = request as AuthenticatedRequest;
-      const params = request.params as { id: string };
-      return reply.status(200).send(
-        await expositoresService.save(
-          user,
-          saveExpositorSchema.parse({ ...(request.body as object), id: params.id }),
-        ),
-      );
-    });
+    app.post(
+      '/expositores',
+      { preHandler: [authenticate, requireTenantAccess, requireIncluir] },
+      async (request, reply) => {
+        const { user } = request as AuthenticatedRequest;
+        return reply
+          .status(200)
+          .send(await expositoresService.save(user, saveExpositorSchema.parse(request.body)));
+      },
+    );
 
-    app.delete('/expositores/:id', { preHandler: [authenticate, requireTenantAccess, requireExcluir] }, async (request, reply) => {
-      const { user } = request as AuthenticatedRequest;
-      const params = request.params as { id: string };
-      await expositoresService.remove(user, params.id);
-      return reply.status(204).send();
-    });
+    app.put(
+      '/expositores/:id',
+      { preHandler: [authenticate, requireTenantAccess, requireAlterar] },
+      async (request, reply) => {
+        const { user } = request as AuthenticatedRequest;
+        const params = request.params as { id: string };
+        return reply
+          .status(200)
+          .send(
+            await expositoresService.save(
+              user,
+              saveExpositorSchema.parse({ ...(request.body as object), id: params.id }),
+            ),
+          );
+      },
+    );
+
+    app.delete(
+      '/expositores/:id',
+      { preHandler: [authenticate, requireTenantAccess, requireExcluir] },
+      async (request, reply) => {
+        const { user } = request as AuthenticatedRequest;
+        const params = request.params as { id: string };
+        await expositoresService.remove(user, params.id);
+        return reply.status(204).send();
+      },
+    );
   };
 }

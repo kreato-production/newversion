@@ -96,7 +96,7 @@ backend/src/
 
 **Data fetching**: Frontend modules use `apiRequest()` from `src/lib/api/http.ts` with `credentials: 'include'` (cookie-based auth) and route browser traffic through `/api/proxy`.
 
-**Cadastro form pages (not modals)**: cadastro screens open the form as a page, not a `Dialog`. Reference implementation: Pessoas. Migration plan for the remaining screens: `docs/formularios-em-pagina-inventario.md` (sprints 18-25).
+**Cadastro form pages (not modals)**: cadastro screens open the form as a page, not a `Dialog`. Reference implementation: Pessoas. Migration done (sprints 18-25): `docs/formularios-em-pagina-inventario.md` lists every screen and the modals kept on purpose (embedded consumers such as `GravacaoBackendFormModal` for the Grelha, wrapping the same `XxxFormBody`).
 
 - Routes: `<basePath>` (list), `<basePath>/novo` (create), `<basePath>/[id]` (edit/view); the `[id]` page reads the id with `useParams()` and renders the form with `key={id}`.
 - `RecordRouteConfig` (`basePath`, `navStorageKey`) per module, e.g. `src/modules/pessoas/pessoas.navigation.ts`.

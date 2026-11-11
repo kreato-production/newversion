@@ -60,7 +60,7 @@ export const ConteudoRecursosTab = ({
   const [isLoading, setIsLoading] = useState(true);
   const [selectedResourceId, setSelectedResourceId] = useState('');
 
-  const label = tipo === 'tecnico' ? 'Recurso TÃ©cnico' : 'Recurso FÃ­sico';
+  const label = tipo === 'tecnico' ? 'Recurso Técnico' : 'Recurso Físico';
 
   const fetchData = async () => {
     setIsLoading(true);
@@ -95,7 +95,7 @@ export const ConteudoRecursosTab = ({
       console.error('Error fetching conteudo resources:', error);
       toast({
         title: 'Erro',
-        description: 'Erro ao carregar recursos do conteÃºdo',
+        description: 'Erro ao carregar recursos do conteúdo',
         variant: 'destructive',
       });
     } finally {
@@ -239,7 +239,7 @@ export const ConteudoRecursosTab = ({
   if (!tabelaPrecoId) {
     return (
       <p className="text-xs text-muted-foreground text-center py-4">
-        Selecione uma Tabela de PreÃ§o para visualizar os recursos.
+        Selecione uma Tabela de Preço para visualizar os recursos.
       </p>
     );
   }

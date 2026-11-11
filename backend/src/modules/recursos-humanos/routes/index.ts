@@ -1,6 +1,10 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
-import { createAuthenticate, createRequireRole, createRequireTenantAccess } from '../../../plugins/auth.js';
+import {
+  createAuthenticate,
+  createRequireRole,
+  createRequireTenantAccess,
+} from '../../../plugins/auth.js';
 import { createRequirePermission } from '../../../plugins/permissions.js';
 import type { AuthenticatedRequest } from '../../../fastify.js';
 import type { AuthService } from '../../auth/auth.service.js';
@@ -16,54 +20,115 @@ const ocupacaoQuerySchema = z.object({
   dataFim: z.string().min(1),
 });
 
-export function createRecursosHumanosRoutes(authService: AuthService, recursosHumanosService: RecursosHumanosService): FastifyPluginAsync {
+export function createRecursosHumanosRoutes(
+  authService: AuthService,
+  recursosHumanosService: RecursosHumanosService,
+): FastifyPluginAsync {
   return async (app) => {
     const authenticate = createAuthenticate(authService);
     const requireTenantAccess = createRequireTenantAccess();
-    const requireIncluir = createRequirePermission(authService, 'Recursos', 'Recursos Humanos', 'incluir');
-    const requireAlterar = createRequirePermission(authService, 'Recursos', 'Recursos Humanos', 'alterar');
-    const requireExcluir = createRequirePermission(authService, 'Recursos', 'Recursos Humanos', 'excluir');
+    const requireIncluir = createRequirePermission(
+      authService,
+      'Recursos',
+      'Recursos Humanos',
+      'incluir',
+    );
+    const requireAlterar = createRequirePermission(
+      authService,
+      'Recursos',
+      'Recursos Humanos',
+      'alterar',
+    );
+    const requireExcluir = createRequirePermission(
+      authService,
+      'Recursos',
+      'Recursos Humanos',
+      'excluir',
+    );
 
-    app.get('/recursos-humanos', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
-      const { user } = request as AuthenticatedRequest;
-      const opts = listQuerySchema.parse(request.query);
-      return reply.status(200).send(await recursosHumanosService.list(user, opts));
-    });
+    app.get(
+      '/recursos-humanos',
+      { preHandler: [authenticate, requireTenantAccess] },
+      async (request, reply) => {
+        const { user } = request as AuthenticatedRequest;
+        const opts = listQuerySchema.parse(request.query);
+        return reply.status(200).send(await recursosHumanosService.list(user, opts));
+      },
+    );
 
-    app.get('/recursos-humanos/options', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
-      const { user } = request as AuthenticatedRequest;
-      return reply.status(200).send(await recursosHumanosService.listOptions(user));
-    });
+    app.get(
+      '/recursos-humanos/options',
+      { preHandler: [authenticate, requireTenantAccess] },
+      async (request, reply) => {
+        const { user } = request as AuthenticatedRequest;
+        return reply.status(200).send(await recursosHumanosService.listOptions(user));
+      },
+    );
 
-    app.get('/recursos-humanos/ocupacao', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
-      const { user } = request as AuthenticatedRequest;
-      const query = ocupacaoQuerySchema.parse(request.query);
-      try {
-        return reply.status(200).send(await recursosHumanosService.listOcupacoes(user, query.dataInicio, query.dataFim));
-      } catch (err) {
-        request.log.error({ err, dataInicio: query.dataInicio, dataFim: query.dataFim }, 'listOcupacoes_error');
-        return reply.status(200).send([]);
-      }
-    });
+    app.get(
+      '/recursos-humanos/ocupacao',
+      { preHandler: [authenticate, requireTenantAccess] },
+      async (request, reply) => {
+        const { user } = request as AuthenticatedRequest;
+        const query = ocupacaoQuerySchema.parse(request.query);
+        try {
+          return reply
+            .status(200)
+            .send(
+              await recursosHumanosService.listOcupacoes(user, query.dataInicio, query.dataFim),
+            );
+        } catch (err) {
+          request.log.error(
+            { err, dataInicio: query.dataInicio, dataFim: query.dataFim },
+            'listOcupacoes_error',
+          );
+          return reply.status(200).send([]);
+        }
+      },
+    );
 
-    app.post('/recursos-humanos', { preHandler: [authenticate, requireTenantAccess, requireIncluir] }, async (request, reply) => {
-      const { user } = request as AuthenticatedRequest;
-      const body = saveRecursoHumanoSchema.parse(request.body);
-      return reply.status(200).send(await recursosHumanosService.save(user, body));
-    });
+    app.get(
+      '/recursos-humanos/:id',
+      { preHandler: [authenticate, requireTenantAccess] },
+      async (request, reply) => {
+        const { user } = request as AuthenticatedRequest;
+        const params = request.params as { id: string };
+        const item = await recursosHumanosService.getById(user, params.id);
+        if (!item) return reply.status(404).send({ message: 'Recurso humano não encontrado' });
+        return reply.status(200).send(item);
+      },
+    );
 
-    app.put('/recursos-humanos/:id', { preHandler: [authenticate, requireTenantAccess, requireAlterar] }, async (request, reply) => {
-      const { user } = request as AuthenticatedRequest;
-      const params = request.params as { id: string };
-      const body = saveRecursoHumanoSchema.parse({ ...(request.body as object), id: params.id });
-      return reply.status(200).send(await recursosHumanosService.save(user, body));
-    });
+    app.post(
+      '/recursos-humanos',
+      { preHandler: [authenticate, requireTenantAccess, requireIncluir] },
+      async (request, reply) => {
+        const { user } = request as AuthenticatedRequest;
+        const body = saveRecursoHumanoSchema.parse(request.body);
+        return reply.status(200).send(await recursosHumanosService.save(user, body));
+      },
+    );
 
-    app.delete('/recursos-humanos/:id', { preHandler: [authenticate, requireTenantAccess, requireExcluir] }, async (request, reply) => {
-      const { user } = request as AuthenticatedRequest;
-      const params = request.params as { id: string };
-      await recursosHumanosService.remove(user, params.id);
-      return reply.status(204).send();
-    });
+    app.put(
+      '/recursos-humanos/:id',
+      { preHandler: [authenticate, requireTenantAccess, requireAlterar] },
+      async (request, reply) => {
+        const { user } = request as AuthenticatedRequest;
+        const params = request.params as { id: string };
+        const body = saveRecursoHumanoSchema.parse({ ...(request.body as object), id: params.id });
+        return reply.status(200).send(await recursosHumanosService.save(user, body));
+      },
+    );
+
+    app.delete(
+      '/recursos-humanos/:id',
+      { preHandler: [authenticate, requireTenantAccess, requireExcluir] },
+      async (request, reply) => {
+        const { user } = request as AuthenticatedRequest;
+        const params = request.params as { id: string };
+        await recursosHumanosService.remove(user, params.id);
+        return reply.status(204).send();
+      },
+    );
   };
 }

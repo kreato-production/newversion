@@ -8,7 +8,8 @@ import { Edit, Trash2, Film, Tag, Calendar } from 'lucide-react';
 import { NewButton } from '@/components/shared/NewButton';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ConteudoBackendFormModal } from '@/components/producao/ConteudoBackendFormModal';
+import { useRecordList } from '@/hooks/useRecordNavigation';
+import { CONTEUDOS_ROUTES } from '@/modules/conteudos/conteudos.navigation';
 import { SortableTable, type Column } from '@/components/shared/SortableTable';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useAuth } from '@/contexts/AuthContext';
@@ -24,7 +25,7 @@ import {
   chipsSubtitle,
   sortSubtitle,
 } from '@/components/shared/ListFilter';
-import type { Conteudo as ConteudoItem, ConteudoInput } from '@/modules/conteudos/conteudos.types';
+import type { Conteudo as ConteudoItem } from '@/modules/conteudos/conteudos.types';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -196,7 +197,7 @@ function ConteudoDetailPanel({
 const Conteudo = () => {
   const { toast } = useToast();
   const { t } = useLanguage();
-  const { user, session } = useAuth();
+  const { session } = useAuth();
   const { canIncluir, canAlterar, canExcluir } = usePermissions();
 
   const podeIncluir = canIncluir('Produção', 'Conteúdo');
@@ -204,8 +205,13 @@ const Conteudo = () => {
   const podeExcluir = canExcluir('Produção', 'Conteúdo');
 
   const [search, setSearch] = useState('');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<ConteudoItem | null>(null);
+  const { openNew, openRecord } = useRecordList(CONTEUDOS_ROUTES);
+  // Keeps the filtered order so the form page can navigate previous/next.
+  const openEdit = (item: { id: string }) =>
+    openRecord(
+      item.id,
+      filteredItems.map((i) => i.id),
+    );
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<ConteudoItem | null>(null);
   const [items, setItems] = useState<ConteudoItem[]>([]);
@@ -242,34 +248,6 @@ const Conteudo = () => {
   useEffect(() => {
     void fetchConteudos();
   }, [fetchConteudos]);
-
-  const handleSave = async (data: ConteudoInput) => {
-    try {
-      await conteudosRepository.save(
-        {
-          ...data,
-          tenantId: user?.tenantId ?? null,
-        },
-        user?.id,
-      );
-
-      toast({
-        title: t('common.success'),
-        description: editingItem ? t('field.contentUpdated') : t('field.contentCreated'),
-      });
-
-      await fetchConteudos();
-      setEditingItem(null);
-    } catch (error) {
-      console.error('Error saving conteudo:', error);
-      toast({
-        title: t('common.error'),
-        description: `Erro ao salvar conteúdo: ${(error as Error).message}`,
-        variant: 'destructive',
-      });
-      throw error;
-    }
-  };
 
   const handleDeleteConfirm = async () => {
     if (!deletingId) return;
@@ -362,8 +340,7 @@ const Conteudo = () => {
             variant="ghost"
             onClick={(event) => {
               event.stopPropagation();
-              setEditingItem(item);
-              setIsModalOpen(true);
+              openEdit(item);
             }}
           >
             <Edit className="w-4 h-4" />
@@ -399,15 +376,7 @@ const Conteudo = () => {
       <PageHeader title={t('content.title')} description={t('content.description')} />
 
       <ListActionBar>
-        {podeIncluir && (
-          <NewButton
-            tooltip={t('content.new')}
-            onClick={() => {
-              setEditingItem(null);
-              setIsModalOpen(true);
-            }}
-          />
-        )}
+        {podeIncluir && <NewButton tooltip={t('content.new')} onClick={openNew} />}
         <div className="flex-1" />
         <SearchBar value={search} onChange={setSearch} />
         <ListFilterPanel
@@ -474,7 +443,7 @@ const Conteudo = () => {
               title={t('content.empty')}
               description={t('content.emptyDescription')}
               icon={Film}
-              onAction={() => setIsModalOpen(true)}
+              onAction={openNew}
               actionLabel={t('content.new')}
             />
           ) : (
@@ -492,17 +461,14 @@ const Conteudo = () => {
             getRowKey={(item) => item.id}
             emptyTitle={t('content.empty')}
             emptyDescription={t('content.emptyDescription')}
-            onEmptyAction={() => setIsModalOpen(true)}
+            onEmptyAction={openNew}
             emptyActionLabel={t('content.new')}
             renderCard={(item) => (
               <ConteudoCard
                 item={item}
                 podeAlterar={podeAlterar}
                 podeExcluir={podeExcluir}
-                onEdit={() => {
-                  setEditingItem(item);
-                  setIsModalOpen(true);
-                }}
+                onEdit={() => openEdit(item)}
                 onDelete={() => setDeletingId(item.id)}
               />
             )}
@@ -531,40 +497,13 @@ const Conteudo = () => {
                 item={item}
                 podeAlterar={podeAlterar}
                 podeExcluir={podeExcluir}
-                onEdit={() => {
-                  setEditingItem(item);
-                  setIsModalOpen(true);
-                }}
+                onEdit={() => openEdit(item)}
                 onDelete={() => setDeletingId(item.id)}
               />
             )}
           />
         )}
       </DataCard>
-
-      <ConteudoBackendFormModal
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setEditingItem(null);
-        }}
-        onSave={handleSave}
-        data={editingItem}
-        readOnly={!!editingItem && !podeAlterar}
-        navigation={(() => {
-          const navIndex = editingItem
-            ? filteredItems.findIndex((i) => i.id === editingItem.id)
-            : -1;
-          return navIndex >= 0
-            ? {
-                currentIndex: navIndex,
-                total: filteredItems.length,
-                onPrevious: () => setEditingItem(filteredItems[navIndex - 1]),
-                onNext: () => setEditingItem(filteredItems[navIndex + 1]),
-              }
-            : undefined;
-        })()}
-      />
 
       <AlertDialog open={!!deletingId} onOpenChange={(open) => !open && setDeletingId(null)}>
         <AlertDialogContent>

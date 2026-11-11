@@ -73,7 +73,7 @@ export const ConteudoTerceirosTab = ({
       console.error('Error fetching conteudo terceiros:', error);
       toast({
         title: 'Erro',
-        description: 'Erro ao carregar serviÃ§os do conteÃºdo.',
+        description: 'Erro ao carregar serviços do conteúdo.',
         variant: 'destructive',
       });
     }
@@ -113,10 +113,10 @@ export const ConteudoTerceirosTab = ({
       setSelectedServicoId('');
       setValorPrevisto('');
       setIsAdding(false);
-      toast({ title: 'ServiÃ§o adicionado', description: `${servico.nome} foi adicionado.` });
+      toast({ title: 'Serviço adicionado', description: `${servico.nome} foi adicionado.` });
     } catch (error) {
       console.error(error);
-      toast({ title: 'Erro', description: 'Erro ao adicionar serviÃ§o.', variant: 'destructive' });
+      toast({ title: 'Erro', description: 'Erro ao adicionar serviço.', variant: 'destructive' });
     }
   };
 
@@ -124,10 +124,10 @@ export const ConteudoTerceirosTab = ({
     try {
       await conteudosRelacionamentosApi.removeTerceiro(conteudoId, id);
       setTerceiros((prev) => prev.filter((item) => item.id !== id));
-      toast({ title: 'ServiÃ§o removido', description: 'O serviÃ§o foi removido.' });
+      toast({ title: 'Serviço removido', description: 'O serviço foi removido.' });
     } catch (error) {
       console.error(error);
-      toast({ title: 'Erro', description: 'Erro ao remover serviÃ§o.', variant: 'destructive' });
+      toast({ title: 'Erro', description: 'Erro ao remover serviço.', variant: 'destructive' });
     }
   };
 
@@ -162,16 +162,16 @@ export const ConteudoTerceirosTab = ({
           {!isAdding ? (
             <Button onClick={() => setIsAdding(true)} className="gradient-primary hover:opacity-90">
               <Plus className="h-4 w-4 mr-2" />
-              Adicionar ServiÃ§o
+              Adicionar Serviço
             </Button>
           ) : (
             <div className="w-full p-4 border rounded-lg bg-muted/30 space-y-3">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
                 <div className="space-y-2">
-                  <Label>ServiÃ§o</Label>
+                  <Label>Serviço</Label>
                   <Select value={selectedServicoId} onValueChange={setSelectedServicoId}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Selecione um serviÃ§o..." />
+                      <SelectValue placeholder="Selecione um serviço..." />
                     </SelectTrigger>
                     <SelectContent>
                       {servicosNaoSelecionados.map((servico) => (
@@ -222,17 +222,17 @@ export const ConteudoTerceirosTab = ({
             <Building2 className="w-8 h-8 text-muted-foreground" />
           </div>
           <h3 className="text-lg font-semibold text-foreground mb-1">
-            Nenhum serviÃ§o de terceiro adicionado
+            Nenhum serviço de terceiro adicionado
           </h3>
           <p className="text-xs text-muted-foreground max-w-sm">
-            Adicione serviÃ§os de terceiros com valor previsto para este conteÃºdo.
+            Adicione serviços de terceiros com valor previsto para este conteúdo.
           </p>
         </div>
       ) : (
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
-              ServiÃ§os de Terceiros
+              Serviços de Terceiros
               <Badge variant="secondary" className="ml-2">
                 {terceiros.length} item(s)
               </Badge>
@@ -242,7 +242,7 @@ export const ConteudoTerceirosTab = ({
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>ServiÃ§o</TableHead>
+                  <TableHead>Serviço</TableHead>
                   <TableHead className="text-right w-[200px]">Valor Previsto</TableHead>
                   {!readOnly && <TableHead className="w-[80px]" />}
                 </TableRow>
@@ -300,7 +300,7 @@ export const ConteudoTerceirosTab = ({
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Total Previsto com Terceiros</p>
-                  <p className="text-xs text-muted-foreground">{terceiros.length} serviÃ§o(s)</p>
+                  <p className="text-xs text-muted-foreground">{terceiros.length} serviço(s)</p>
                 </div>
               </div>
               <div className="text-right">

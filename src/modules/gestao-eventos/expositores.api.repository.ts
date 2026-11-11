@@ -53,6 +53,10 @@ export class ApiExpositoresRepository {
     return apiRequest(`/expositores${qs ? `?${qs}` : ''}`);
   }
 
+  getById(id: string): Promise<Expositor> {
+    return apiRequest(`/expositores/${id}`);
+  }
+
   save(input: SaveExpositorInput): Promise<Expositor> {
     const path = input.id ? `/expositores/${input.id}` : '/expositores';
     const method = input.id ? 'PUT' : 'POST';

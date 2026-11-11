@@ -15,7 +15,7 @@ Referencia de implementacao (piloto):
 - `src/modules/pessoas/pessoas.navigation.ts` - rota base + chave da navegacao anterior/proximo
 - `backend/src/modules/pessoas/routes/index.ts` - `GET /pessoas/:id` (404 / 403 por tenant)
 
-Este documento lista todas as telas que ainda abrem por modal e as distribui nas sprints 18 a 25.
+Este documento lista as telas que abriam por modal e as distribui nas sprints 18 a 25. **Iniciativa concluida na SPRINT-25**: todas as telas de cadastro principais abrem como pagina; as modais restantes sao as da secao "Fora do escopo" e os consumidores embutidos documentados em "Pontos de atencao".
 
 ## Padrao a aplicar em cada tela (definicao de pronto)
 
@@ -72,8 +72,8 @@ Legenda de complexidade, pelo tamanho do formulario e dependencias: **P** (peque
 | Fornecedores              | `/recursos/fornecedores` e `/eventos/fornecedores`         | FornecedorFormModal (282) + aba Arquivos   | M      | 21 - concluida         |
 | Turnos                    | `/recursos/turnos`                                         | TurnoFormModal (463)                       | M      | 21 - concluida         |
 | Recursos Fisicos          | `/recursos/fisicos`                                        | RecursoFisicoFormModal (505) + aba Estoque | M      | 21 - concluida         |
-| Recursos Humanos          | `/recursos/humanos`                                        | RecursoHumanoFormModal (967)               | G      | 24                     |
-| Escalas                   | `/recursos/escalas`                                        | EscalaFormModal (943)                      | G      | 24                     |
+| Recursos Humanos          | `/recursos/humanos`                                        | RecursoHumanoFormModal (967)               | G      | 24 - concluida         |
+| Escalas                   | `/recursos/escalas`                                        | EscalaFormModal (943)                      | G      | 24 - concluida         |
 
 ### Producao
 
@@ -92,8 +92,8 @@ Legenda de complexidade, pelo tamanho do formulario e dependencias: **P** (peque
 | Tabelas de Preco          | `/producao/tabelas-preco`          | TabelaPrecoFormModal (356)                                          | M      | 23 - concluida |
 | Tarefas                   | `/producao/tarefas`                | TarefaFormModal (533)                                               | M      | 23 - concluida |
 | Incidencias               | `/producao/incidencias`            | IncidenciaGravacaoFormModal (666)                                   | G      | 23 - concluida |
-| Conteudo                  | `/producao/conteudo`               | ConteudoBackendFormModal (1009) + abas                              | G      | 25             |
-| Gravacao                  | `/producao/gravacao`               | GravacaoBackendFormModal (566) + RecursosTab (1498) + Espacos (956) | G      | 25             |
+| Conteudo                  | `/producao/conteudo`               | ConteudoBackendFormModal (1009) + abas                              | G      | 25 - concluida |
+| Gravacao                  | `/producao/gravacao`               | GravacaoBackendFormModal (566) + RecursosTab (1498) + Espacos (956) | G      | 25 - concluida |
 
 ### Eventos
 
@@ -101,8 +101,8 @@ Legenda de complexidade, pelo tamanho do formulario e dependencias: **P** (peque
 | ----------------- | ----------------------------------------- | ------------------------ | ------ | -------------- |
 | Tipo de Evento    | `/eventos/parametrizacoes/tipo-evento`    | ParametroFormModal       | P      | 19 - concluida |
 | Tipo de Expositor | `/eventos/parametrizacoes/tipo-expositor` | ParametroFormModal       | P      | 19 - concluida |
-| Expositores       | `/eventos/expositores`                    | ExpositorFormModal (558) | M      | 24             |
-| Eventos           | `/eventos`                                | EventoFormModal (821)    | G      | 24             |
+| Expositores       | `/eventos/expositores`                    | ExpositorFormModal (558) | M      | 24 - concluida |
+| Eventos           | `/eventos`                                | EventoFormModal (821)    | G      | 24 - concluida |
 
 ### Financeiro
 
@@ -122,8 +122,8 @@ Legenda de complexidade, pelo tamanho do formulario e dependencias: **P** (peque
 | ----------------- | ------------------------ | --------------------------- | ------ | -------------- |
 | Estados de Evento | `/satops/estados-evento` | EstadoEventoFormModal (185) | P      | 20 - concluida |
 | Alertas           | `/satops/alertas`        | AlertaFormModal (217)       | P      | 20 - concluida |
-| Satelites         | `/satops/satelites`      | SateliteFormModal (308)     | M      | 24             |
-| Janelas           | `/satops/janelas`        | JanelaFormModal (983)       | G      | 24             |
+| Satelites         | `/satops/satelites`      | SateliteFormModal (308)     | M      | 24 - concluida |
+| Janelas           | `/satops/janelas`        | JanelaFormModal (983)       | G      | 24 - concluida |
 
 ### Administracao e Global
 
@@ -147,8 +147,8 @@ Legenda de complexidade, pelo tamanho do formulario e dependencias: **P** (peque
 | 21        | Recursos (cadastros medios)                                       | 7 - **concluida**                |
 | 22        | Administracao e Financeiro                                        | 9 - **concluida**                |
 | 23        | Producao operacional                                              | 5 - **concluida**                |
-| 24        | Cadastros complexos (RH, Escalas, Eventos, SatOps)                | 6                                |
-| 25        | Nucleo de producao (Conteudo e Gravacao) + fechamento             | 2                                |
+| 24        | Cadastros complexos (RH, Escalas, Eventos, SatOps)                | 6 - **concluida**                |
+| 25        | Nucleo de producao (Conteudo e Gravacao) + fechamento             | 2 - **concluida**                |
 | **Total** |                                                                   | **55** (+ Pessoas, ja concluida) |
 
 ## Pontos de atencao
@@ -156,10 +156,13 @@ Legenda de complexidade, pelo tamanho do formulario e dependencias: **P** (peque
 - **Parametrizacoes genericas (SPRINT-19)**: a configuracao das 11 telas fica em `src/modules/parametros/parametros.config.ts`; as rotas `novo`/`[id]` usam `ParametroFormRoute`, que deduz a lista de origem pela URL (Servicos funciona em Recursos e em Eventos). Os 5 parametros financeiros usam `TituloFormPage` com configuracoes em `src/modules/parametrizacoes/financeiro.forms.ts`.
 - **Formulario generico de parametros (SPRINT-20)**: `TituloFormPage` (`src/components/shared/TituloFormPage.tsx`) atende status, severidades, impactos, categorias, estados de evento e os parametros financeiros. As opcoes (rotulos, codigo obrigatorio, cor, descricao, traducao, flags, abas extras) ficam em configs: `src/modules/parametrizacoes/{financeiro,producao}.forms`, `src/modules/satops/estados-evento.form.ts`. Feriados, Recursos Tecnicos e Alertas tem formulario proprio em `src/views`.
 - **Formularios complexos (SPRINT-21)**: telas com sub-listas, calculos ou validacoes proprias usam `RecordFormPage` (`src/components/shared/RecordFormPage.tsx`), que carrega, salva, aplica permissao e navega; os campos ficam num `XxxFormBody` (ex.: `src/components/recursos/TurnoFormBody.tsx`) que guarda o proprio estado, inicializado do registro carregado. Os bodies foram obtidos removendo Dialog e rodape dos modais antigos, preservando a logica testada. Atencao: se o `<form>` estiver dentro de uma aba, use `forceMount` nessa aba (ver `FornecedorFormBody`), senao o Salvar da pagina nao encontra o formulario quando outra aba esta aberta.
-- **Texto corrompido (mojibake) em 8 arquivos**: `ConteudoBackendFormModal`, `ConteudoRecursosTab`, `ConteudoTerceirosTab`, `GravacaoTarefasTab` e `Mapas` tem strings como "ProduÃ§Ã£o". Alem do texto quebrado na tela, caminhos de permissao assim nunca casam. Corrigido em Status de Tarefa e Impactos de Incidencia (SPRINT-20), Contas a Pagar (SPRINT-22) e Tarefas (SPRINT-23); os demais estao na sprint 25. Em Tarefas a correcao ativou as permissoes por campo (Titulo, Status, Responsavel...), que antes nunca casavam.
+- **Texto corrompido (mojibake) em 8 arquivos**: `ConteudoBackendFormModal`, `ConteudoRecursosTab`, `ConteudoTerceirosTab`, `GravacaoTarefasTab` e `Mapas` tem strings como "ProduÃ§Ã£o". Alem do texto quebrado na tela, caminhos de permissao assim nunca casam. Corrigido em Status de Tarefa e Impactos de Incidencia (SPRINT-20), Contas a Pagar (SPRINT-22), Tarefas (SPRINT-23) e nos demais na SPRINT-25 (Conteudo, ConteudoRecursosTab, ConteudoTerceirosTab, GravacaoTarefasTab, Mapas). Nos caminhos de permissao do Conteudo a correcao e so cosmetica: `normalizePermissionKey` ja decodificava o mojibake. Em Tarefas a correcao ativou as permissoes por campo (Titulo, Status, Responsavel...), que antes nunca casavam.
 - **Administracao e Financeiro (SPRINT-22)**: Usuarios e Usuarios Globais usam o mesmo `UsuarioFormBody` com paginas distintas (`UsuarioForm` / `GlobalUsuarioForm`); a pagina global continua forcando `role: GLOBAL_ADMIN`. `UnidadeNegocioFormModal` virou um wrapper do `UnidadeNegocioFormBody`, mantido so para Tenant > Unidades. O Orcamento foi dividido: `OrcamentoFormBody` (cabecalho) + `OrcamentoItensPanel` (itens por categoria, antes um dialogo de detalhe).
 - **Itens do Orcamento sem somente leitura**: as linhas de itens (`ItemRow` / `NewItemRow` em `OrcamentoItensPanel`) salvam sozinhas e nao respeitam `readOnly` — ja era assim no dialogo antigo. No backend, as rotas `/orcamento/:id/itens` checam so o tenant (sem `alterar`), ao contrario de `POST/PUT /orcamento`; tratar junto com o item abaixo.
 - **Producao operacional (SPRINT-23)**: `IncidenciaGravacaoFormModal` virou um wrapper do `IncidenciaGravacaoFormBody` com as mesmas props de antes, mantido para Gravacao > Incidencias, SatOps Janela e Dashboard Operacional (esses consumidores nao mudaram). A exclusao de Tarefa passou para a pagina (`TarefaForm`), com confirmacao.
+- **Cadastros complexos (SPRINT-24)**: Recursos Humanos tem o `<form>` na aba "Dados" (com `forceMount`); as abas Ausencias e Escalas tinham botoes Salvar proprios, agora e o Salvar da pagina. O Mapa de Escalas da lista continua salvando o colaborador pela propria lista (`handleMapaUpdate`). Em Escalas, ao editar, a grade de colaboradores e salva antes da escala (se falhar, a escala nao e salva); `ESCALAS_PERMISSION_SCOPE` passou para `src/modules/escalas/escalas.navigation.ts`. Em Eventos o botao "Imprimir PDF" ficou no topo do formulario (imprime o estado atual, mesmo sem salvar). Na Janela, o cadastro de incidencias continua num dialogo sobre a pagina.
+- **Nucleo de producao (SPRINT-25)**: `GravacaoBackendFormModal` virou um wrapper do `GravacaoFormBody` com as mesmas props (sem `navigation`), mantido para a Grelha de programacao (`GrelhaPlanearModal` planeja com `initialValues`; `GrelhaProgramacao` abre a gravacao da grade). Os wrappers mortos `ConteudoFormModal` e `GravacaoFormModal` foram removidos. Botoes que ficavam no cabecalho/rodape das modais passaram para o topo do formulario: "Plano de Producao" (Conteudo) e o gerador de relatorio (Gravacao). Nova gravacao passa a iniciar com o status "Planejada" quando ele existe (antes a lista de status ainda nao estava carregada ao abrir a modal e o valor ficava vazio). `GET /conteudos/:id` aplica a mesma restricao por unidade de negocio da lista (fora das unidades do usuario: 404).
+- **Varredura final (SPRINT-25)**: os unicos `XxxFormModal` restantes sao `UnidadeNegocioFormModal` (Tenant > Unidades), `IncidenciaGravacaoFormModal` (Gravacao > Incidencias, SatOps Janela, Dashboard Operacional) e `GravacaoBackendFormModal` (Grelha). Os demais `<Dialog>` sao acoes auxiliares (mapas, relatorios, pickers, responsaveis, plano de producao) ou sub-registros dentro de formularios.
 - **Armadilha do Select (Radix)**: se o valor de um `<Select>` for alterado por codigo depois da montagem enquanto as opcoes ainda carregam, o Radix emite `onValueChange('')` e apaga o valor. Aconteceu com o status inicial da Tarefa (corrigido ignorando `''` no `onValueChange`). Nos demais formularios o valor vem do registro na montagem e nao muda depois, entao nao ha risco.
 - **Permissoes nao aplicadas no backend**: as rotas `/parametros/:storageKey` nao verificam incluir/alterar/excluir (apenas tenant), e os parametros financeiros nao tem caminho de permissao no frontend (o backend exige TENANT_ADMIN). Mantido como estava; tratar a parte.
 

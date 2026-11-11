@@ -41,7 +41,6 @@ import {
   Clock,
   Film,
   User,
-  DollarSign,
   Building2,
   Briefcase,
   Wrench,
@@ -68,8 +67,7 @@ import {
   isWithinInterval,
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { getDateLocale, getDayAbbreviations } from '@/lib/dateLocale';
-import type jsPDF from 'jspdf';
+import { getDateLocale } from '@/lib/dateLocale';
 import { useWeatherForecast } from '@/hooks/useWeatherForecast';
 import { useRecursoFisicoDisponibilidade } from '@/hooks/useRecursoFisicoDisponibilidade';
 import { ApiAlocacoesRepository } from '@/modules/alocacoes/alocacoes.api';
@@ -233,24 +231,24 @@ const Mapas = () => {
   // Weather forecast hook
   const { getWeatherForDate, loading: weatherLoading } = useWeatherForecast(16);
 
-  // Hook de disponibilidade de recursos fÃ­sicos
+  // Hook de disponibilidade de recursos físicos
   const { getFaixasDisponiveis } = useRecursoFisicoDisponibilidade();
 
-  // Helper para verificar se dia estÃ¡ dentro do range de previsÃ£o (prÃ³ximos 15 dias)
+  // Helper para verificar se dia está dentro do range de previsão (próximos 15 dias)
   const isWithinForecastRange = (dia: Date): boolean => {
     const today = new Date();
     const maxDate = addDays(today, 15);
     return dia >= today && dia <= maxDate;
   };
-  // Filtros para apropriaÃ§Ã£o de custos
+  // Filtros para apropriação de custos
   const [filtroCentroLucro, setFiltroCentroLucro] = useState('Todos');
   const [filtroUnidadeNegocio, setFiltroUnidadeNegocio] = useState('Todas');
 
-  // Estado para controlar expansÃ£o das linhas de Centro de Lucro
+  // Estado para controlar expansão das linhas de Centro de Lucro
   const [expandedCentrosLucro, setExpandedCentrosLucro] = useState<Set<string>>(new Set());
   const [filtroAno, setFiltroAno] = useState(new Date().getFullYear().toString());
 
-  // Refs para exportaÃ§Ã£o PDF
+  // Refs para exportação PDF
   const fisicosRef = useRef<HTMLDivElement>(null);
   const humanosRef = useRef<HTMLDivElement>(null);
   const espacosFiltroRef = useRef<HTMLDivElement>(null);
@@ -454,7 +452,7 @@ const Mapas = () => {
     recarregarDados();
   }, [activeTab, recarregarDados]);
 
-  // TambÃ©m recarregar quando o componente ganhar foco
+  // Também recarregar quando o componente ganhar foco
   useEffect(() => {
     const handleFocus = () => recarregarDados();
     window.addEventListener('focus', handleFocus);
@@ -558,14 +556,14 @@ const Mapas = () => {
 
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(currentWeekStart, i));
 
-  // Dias do mÃªs
+  // Dias do mês
   const monthDays = useMemo(() => {
     const start = startOfMonth(currentMonth);
     const end = endOfMonth(currentMonth);
     return eachDayOfInterval({ start, end });
   }, [currentMonth]);
 
-  // Dias a exibir baseado no modo de visualizaÃ§Ã£o
+  // Dias a exibir baseado no modo de visualização
   const displayDays = viewMode === 'week' ? weekDays : monthDays;
 
   // Sincronizar alocacaoDate com o período exibido quando o usuário navega semana/mês
@@ -711,7 +709,7 @@ const Mapas = () => {
 
     if (faixas.length === 0) return null;
 
-    // Ordenar por hora de inÃ­cio
+    // Ordenar por hora de início
     faixas.sort((a, b) => a.horaInicio.localeCompare(b.horaInicio));
     const totalMinutos = faixas.reduce((sum, f) => sum + f.minutos, 0);
 
@@ -855,7 +853,7 @@ const Mapas = () => {
     return ocupacoes;
   }, [gravacoes, gravacaoRecursos]);
 
-  // Obter tipos Ãºnicos de recursos fÃ­sicos
+  // Obter tipos únicos de recursos físicos
   const tiposRecursoFisico = useMemo(() => {
     const tipos = new Set<string>();
     tipos.add('Todos');
@@ -865,7 +863,7 @@ const Mapas = () => {
     return Array.from(tipos);
   }, [recursosFisicosCadastro]);
 
-  // Obter funÃ§Ãµes Ãºnicas de recursos humanos
+  // Obter funções únicas de recursos humanos
   const funcoesRecursoHumano = useMemo(() => {
     const funcoes = new Set<string>();
     funcoes.add('Todas');
@@ -875,7 +873,7 @@ const Mapas = () => {
     return Array.from(funcoes);
   }, [recursosHumanos]);
 
-  // Anos disponÃ­veis para filtro de apropriaÃ§Ã£o de custos
+  // Anos disponíveis para filtro de apropriação de custos
   const anosDisponiveis = useMemo(() => {
     const anos = new Set<number>();
     gravacoes.forEach((g) => {
@@ -886,7 +884,7 @@ const Mapas = () => {
             anos.add(getYear(parsed));
           }
         } catch {
-          // Ignora datas invÃ¡lidas
+          // Ignora datas inválidas
         }
       }
     });
@@ -904,7 +902,7 @@ const Mapas = () => {
     total: number;
   }
 
-  // Dados de apropriaÃ§Ã£o de custos por Centro de Lucro com breakdown de recursos
+  // Dados de apropriação de custos por Centro de Lucro com breakdown de recursos
   const apropriacaoPorCentroLucro = useMemo(() => {
     const anoSelecionado = parseInt(filtroAno);
     const resultado: Record<
@@ -920,7 +918,7 @@ const Mapas = () => {
     gravacoes.forEach((gravacao) => {
       if (!gravacao.dataPrevista || !gravacao.centroLucro) return;
 
-      // Filtrar por unidade de negÃ³cio se selecionada
+      // Filtrar por unidade de negócio se selecionada
       if (filtroUnidadeNegocio !== 'Todas' && gravacao.unidadeNegocio !== filtroUnidadeNegocio)
         return;
 
@@ -963,7 +961,7 @@ const Mapas = () => {
 
             const custoRecurso = totalHoras * custoHora;
             if (custoRecurso > 0) {
-              // Verificar se jÃ¡ existe esse recurso nos detalhes
+              // Verificar se já existe esse recurso nos detalhes
               let detalheExistente = resultado[gravacao.centroLucro].detalhes.find(
                 (d) => d.nome === nomeRecurso && d.tipo === 'fisico',
               );
@@ -980,7 +978,7 @@ const Mapas = () => {
               detalheExistente.total += custoRecurso;
             }
           } else if (recurso.tipo === 'tecnico') {
-            // Recursos humanos vinculados a recursos tÃ©cnicos
+            // Recursos humanos vinculados a recursos técnicos
             Object.entries(recurso.recursosHumanos || {}).forEach(
               ([, rhList]: [string, RecursoHumanoAlocado[]]) => {
                 if (Array.isArray(rhList)) {
@@ -1073,12 +1071,12 @@ const Mapas = () => {
           }
         });
 
-        // Calcular custo total da gravaÃ§Ã£o para o centro de lucro
+        // Calcular custo total da gravação para o centro de lucro
         const custoTotal = calcularCustoGravacao(gravacao.id);
         resultado[gravacao.centroLucro].custosMensais[mesIndex] += custoTotal;
         resultado[gravacao.centroLucro].total += custoTotal;
       } catch {
-        // Ignora gravaÃ§Ãµes com datas invÃ¡lidas
+        // Ignora gravações com datas inválidas
       }
     });
 
@@ -1104,7 +1102,7 @@ const Mapas = () => {
     recursosHumanosCadastro,
   ]);
 
-  // FunÃ§Ã£o para alternar expansÃ£o de centro de lucro
+  // Função para alternar expansão de centro de lucro
   const toggleCentroLucroExpansion = (centroLucroId: string) => {
     setExpandedCentrosLucro((prev) => {
       const newSet = new Set(prev);
@@ -1117,7 +1115,7 @@ const Mapas = () => {
     });
   };
 
-  // Dados de apropriaÃ§Ã£o de custos por Unidade de NegÃ³cio
+  // Dados de apropriação de custos por Unidade de Negócio
   const apropriacaoPorUnidadeNegocio = useMemo(() => {
     const anoSelecionado = parseInt(filtroAno);
     const resultado: Record<string, { nome: string; custosMensais: number[]; total: number }> = {};
@@ -1135,7 +1133,7 @@ const Mapas = () => {
         const mesIndex = getMonth(data);
         const custo = calcularCustoGravacao(gravacao.id);
 
-        // Buscar o nome da unidade de negÃ³cio pelo ID
+        // Buscar o nome da unidade de negócio pelo ID
         const unidadeObj = unidadesNegocio.find((u) => u.id === gravacao.unidadeNegocio);
         const unidadeNome = unidadeObj?.nome || gravacao.unidadeNegocio;
 
@@ -1150,11 +1148,11 @@ const Mapas = () => {
         resultado[gravacao.unidadeNegocio].custosMensais[mesIndex] += custo;
         resultado[gravacao.unidadeNegocio].total += custo;
       } catch {
-        // Ignora gravaÃ§Ãµes com datas invÃ¡lidas
+        // Ignora gravações com datas inválidas
       }
     });
 
-    // Filtrar por unidade de negÃ³cio se selecionada
+    // Filtrar por unidade de negócio se selecionada
     if (filtroUnidadeNegocio !== 'Todas') {
       const filtrado: typeof resultado = {};
       if (resultado[filtroUnidadeNegocio]) {
@@ -1166,7 +1164,7 @@ const Mapas = () => {
     return resultado;
   }, [gravacoes, filtroAno, filtroCentroLucro, filtroUnidadeNegocio, unidadesNegocio]);
 
-  // Totais gerais de apropriaÃ§Ã£o
+  // Totais gerais de apropriação
   const totaisApropriacao = useMemo(() => {
     const custosMensais = Array(12).fill(0);
     let total = 0;
@@ -1181,7 +1179,7 @@ const Mapas = () => {
     return { custosMensais, total };
   }, [apropriacaoPorCentroLucro]);
 
-  // Lista Ãºnica de centros de lucro e unidades para filtros (agora usando objetos com id e nome)
+  // Lista única de centros de lucro e unidades para filtros (agora usando objetos com id e nome)
   const centrosLucroUnicos = useMemo(() => {
     const centrosIds = new Set<string>();
     const centrosResult: { id: string; nome: string }[] = [];
@@ -1223,19 +1221,19 @@ const Mapas = () => {
     'Dez',
   ];
 
-  // Determinar a moeda para formataÃ§Ã£o com base no filtro de Unidade de NegÃ³cio
+  // Determinar a moeda para formatação com base no filtro de Unidade de Negócio
   const moedaSelecionada = useMemo(() => {
     if (filtroUnidadeNegocio !== 'Todas') {
       const unidade = unidadesNegocio.find((u) => u.id === filtroUnidadeNegocio);
       return unidade?.moeda || 'BRL';
     }
-    // Se "Todas", verificar se hÃ¡ apenas uma unidade na listagem
+    // Se "Todas", verificar se há apenas uma unidade na listagem
     const unidadesEmUso = Object.keys(apropriacaoPorUnidadeNegocio);
     if (unidadesEmUso.length === 1) {
       const unidade = unidadesNegocio.find((u) => u.id === unidadesEmUso[0]);
       return unidade?.moeda || 'BRL';
     }
-    // MÃºltiplas unidades ou nenhuma - usar BRL como padrÃ£o
+    // Múltiplas unidades ou nenhuma - usar BRL como padrão
     return 'BRL';
   }, [filtroUnidadeNegocio, unidadesNegocio, apropriacaoPorUnidadeNegocio]);
 
@@ -1254,7 +1252,7 @@ const Mapas = () => {
     const dataStr = format(data, 'yyyy-MM-dd');
     let items = ocupacoes[recursoId]?.[dataStr] || [];
 
-    // Filtrar por gravaÃ§Ã£o se selecionado
+    // Filtrar por gravação se selecionado
     if (filtroGravacao !== 'Todas') {
       items = items.filter((item) => item.gravacaoId === filtroGravacao);
     }
@@ -1299,7 +1297,7 @@ const Mapas = () => {
     });
   }, [recursosHumanos, ocupacoesHumanas, displayDays, filtroFuncaoHumano, filtroNomeHumano]);
 
-  // Agrupar recursos humanos por funÃ§Ã£o
+  // Agrupar recursos humanos por função
   const recursosHumanosAgrupados = useMemo(() => {
     const grupos: Record<string, RecursoHumano[]> = {};
     filteredRecursosHumanos.forEach((r) => {
@@ -1334,13 +1332,13 @@ const Mapas = () => {
       const margin = 10;
       let y = margin;
 
-      // TÃ­tulo
+      // Título
       doc.setFontSize(16);
       doc.setFont('helvetica', 'bold');
       doc.text(titulo, pageWidth / 2, y, { align: 'center' });
       y += 8;
 
-      // PerÃ­odo
+      // Período
       doc.setFontSize(10);
       doc.setFont('helvetica', 'normal');
       doc.text(`Período: ${periodo}`, pageWidth / 2, y, { align: 'center' });
@@ -1350,7 +1348,7 @@ const Mapas = () => {
       const recursos = activeTab === 'fisicos' ? filteredRecursosFisicos : filteredRecursosHumanos;
       const ocupacoes = activeTab === 'fisicos' ? ocupacoesFisicas : ocupacoesHumanas;
 
-      // FunÃ§Ã£o auxiliar para desenhar tabela no PDF
+      // Função auxiliar para desenhar tabela no PDF
       const drawTable = (recursosList: { id: string; nome: string }[], startY: number): number => {
         const colWidth = viewMode === 'week' ? 35 : 22;
         const firstColWidth = 45;
@@ -1365,7 +1363,7 @@ const Mapas = () => {
           return currentY + 20;
         }
 
-        // Calcular quantas colunas cabem por pÃ¡gina
+        // Calcular quantas colunas cabem por página
         const availableWidth = pageWidth - margin * 2 - firstColWidth;
         const colsPerPage = Math.floor(availableWidth / colWidth);
         const totalCols = displayDays.length;
@@ -1381,7 +1379,7 @@ const Mapas = () => {
             currentY = margin + 20;
           }
 
-          // CabeÃ§alho da tabela
+          // Cabeçalho da tabela
           doc.setFillColor(240, 240, 240);
           doc.rect(margin, currentY, firstColWidth + pageDays.length * colWidth, headerHeight, 'F');
           doc.setDrawColor(200, 200, 200);
@@ -1405,12 +1403,12 @@ const Mapas = () => {
 
           // Linhas de recursos
           recursosList.forEach((recurso) => {
-            // Verificar se precisa de nova pÃ¡gina
+            // Verificar se precisa de nova página
             if (currentY > pageHeight - 20) {
               doc.addPage();
               currentY = margin;
 
-              // Redesenhar cabeÃ§alho
+              // Redesenhar cabeçalho
               doc.setFillColor(240, 240, 240);
               doc.rect(
                 margin,
@@ -1442,7 +1440,7 @@ const Mapas = () => {
               currentY += headerHeight;
             }
 
-            // Calcular altura da linha baseado no conteÃºdo
+            // Calcular altura da linha baseado no conteúdo
             let maxOcupacoes = 1;
             pageDays.forEach((day) => {
               const dataStr = format(day, 'yyyy-MM-dd');
@@ -1472,7 +1470,7 @@ const Mapas = () => {
               recurso.nome.length > 18 ? recurso.nome.substring(0, 18) + '...' : recurso.nome;
             doc.text(nomeRecurso, margin + 2, currentY + currentRowHeight / 2 + 1);
 
-            // CÃ©lulas de ocupaÃ§Ã£o
+            // Células de ocupação
             pageDays.forEach((day, i) => {
               const x = margin + firstColWidth + i * colWidth;
               doc.line(x, currentY, x, currentY + currentRowHeight);
@@ -1490,7 +1488,7 @@ const Mapas = () => {
                   const gravNome =
                     oc.gravacao.length > 12 ? oc.gravacao.substring(0, 12) + '..' : oc.gravacao;
 
-                  // Aplicar cor do status se disponÃ­vel (para recursos humanos)
+                  // Aplicar cor do status se disponível (para recursos humanos)
                   if (oc.statusCor) {
                     // Converter hex para RGB
                     const hex = oc.statusCor.replace('#', '');
@@ -1529,7 +1527,7 @@ const Mapas = () => {
         return currentY;
       };
 
-      // Se for recursos humanos, desenhar agrupado por funÃ§Ã£o
+      // Se for recursos humanos, desenhar agrupado por função
       if (activeTab === 'humanos') {
         const grupoKeys = Object.keys(recursosHumanosAgrupados).sort();
 
@@ -1539,7 +1537,7 @@ const Mapas = () => {
           doc.text('Nenhum recurso humano encontrado', margin, y + 10);
         } else {
           grupoKeys.forEach((grupo) => {
-            // Verificar se precisa de nova pÃ¡gina
+            // Verificar se precisa de nova página
             if (y > pageHeight - 40) {
               doc.addPage();
               y = margin;
@@ -1558,11 +1556,11 @@ const Mapas = () => {
           });
         }
       } else {
-        // Recursos fÃ­sicos - tabela Ãºnica
+        // Recursos físicos - tabela única
         y = drawTable(recursos, y);
       }
 
-      // RodapÃ©
+      // Rodapé
       const totalPages = doc.getNumberOfPages();
       for (let i = 1; i <= totalPages; i++) {
         doc.setPage(i);
@@ -1663,7 +1661,7 @@ const Mapas = () => {
                                 {weatherData.weatherIcon}
                               </span>
                               <span className="text-[10px] text-muted-foreground font-medium">
-                                {weatherData.temperature}Â°
+                                {weatherData.temperature}°
                               </span>
                             </div>
                           )}
@@ -1677,7 +1675,7 @@ const Mapas = () => {
                           {showWeather && weatherData && (
                             <div className="mt-1 text-xs">
                               <span className="text-lg mr-1">{weatherData.weatherIcon}</span>
-                              {weatherData.weatherDescription} - {weatherData.temperature}Â°C
+                              {weatherData.weatherDescription} - {weatherData.temperature}°C
                             </div>
                           )}
                           {showWeather &&
@@ -1723,7 +1721,7 @@ const Mapas = () => {
                   const isWeekend = getDay(day) === 0 || getDay(day) === 6;
                   const dataStr = format(day, 'yyyy-MM-dd');
 
-                  // Obter informaÃ§Ãµes de disponibilidade para recursos fÃ­sicos
+                  // Obter informações de disponibilidade para recursos físicos
                   const faixasDisponiveis = showWeather
                     ? getFaixasDisponiveis(recurso.id, dataStr)
                     : [];
@@ -1734,7 +1732,7 @@ const Mapas = () => {
                   }, 0);
                   const temFaixas = totalDisponivelMinutos > 0;
 
-                  // Calcular duraÃ§Ã£o total ocupada neste dia baseado nas ocupaÃ§Ãµes reais
+                  // Calcular duração total ocupada neste dia baseado nas ocupações reais
                   const duracaoTotalMinutos = ocupacoesDia.reduce(
                     (sum, oc) => sum + (oc.duracaoMinutos || 0),
                     0,
@@ -1748,7 +1746,7 @@ const Mapas = () => {
                       ? Math.round((duracaoTotalMinutos / totalDisponivelMinutos) * 100)
                       : 0;
 
-                  // Criar objeto de ocupaÃ§Ã£o detalhada com dados reais
+                  // Criar objeto de ocupação detalhada com dados reais
                   const ocupacaoDetalhada = temFaixas
                     ? {
                         totalDisponivel: totalDisponivelMinutos,
@@ -1843,7 +1841,7 @@ const Mapas = () => {
                                       <p className="text-sm">{recurso.nome}</p>
                                     </div>
 
-                                    {/* InformaÃ§Ã£o de ocupaÃ§Ã£o do dia */}
+                                    {/* Informação de ocupação do dia */}
                                     {showWeather && ocupacaoDetalhada && temFaixas && (
                                       <div className="pt-2 border-t space-y-2">
                                         <div className="flex items-center justify-between text-xs">
@@ -1893,7 +1891,7 @@ const Mapas = () => {
                             );
                           })}
 
-                          {/* Barra de ocupaÃ§Ã£o do dia (apenas para recursos fÃ­sicos com faixas) */}
+                          {/* Barra de ocupação do dia (apenas para recursos físicos com faixas) */}
                           {showWeather &&
                             ocupacaoDetalhada &&
                             temFaixas &&
@@ -2033,7 +2031,7 @@ const Mapas = () => {
                                   );
                                   const dataStr = format(day, 'yyyy-MM-dd');
 
-                                  // Calcular tempo de escala e ocupaÃ§Ã£o
+                                  // Calcular tempo de escala e ocupação
                                   const escalas = getEscalasParaDia(recurso.id, dataStr);
                                   const todasOcupacoesDia = ocupacoes[recurso.id]?.[dataStr] || [];
                                   const tempoTotalOcupadoMinutos = todasOcupacoesDia.reduce(
@@ -2151,7 +2149,7 @@ const Mapas = () => {
                                             </div>
                                           )}
 
-                                          {/* InformaÃ§Ãµes de tempo/ociosidade */}
+                                          {/* Informações de tempo/ociosidade */}
                                           {escalas && (
                                             <div className="border-t pt-3 mt-3 space-y-2">
                                               <div className="text-sm">
@@ -2894,7 +2892,7 @@ const Mapas = () => {
                   filteredRecursosFisicos,
                   ocupacoesFisicas,
                   'Nenhum recurso físico encontrado. Cadastre recursos físicos e aloque-os em gravações.',
-                  true, // showWeather - mostrar previsÃ£o do tempo para recursos fÃ­sicos
+                  true, // showWeather - mostrar previsão do tempo para recursos físicos
                 )}
               </CardContent>
             </Card>
@@ -2967,7 +2965,7 @@ const Mapas = () => {
         </TabsContent>
 
         <TabsContent value="custos" className="space-y-4">
-          {/* Filtros de ApropriaÃ§Ã£o de Custos */}
+          {/* Filtros de Apropriação de Custos */}
           <Card>
             <CardHeader className="py-3">
               <CardTitle className="text-sm flex items-center gap-2">
@@ -3028,7 +3026,7 @@ const Mapas = () => {
             </CardContent>
           </Card>
 
-          {/* Tabela por Unidade de NegÃ³cio - MOVIDA PARA CIMA */}
+          {/* Tabela por Unidade de Negócio - MOVIDA PARA CIMA */}
           <Card>
             <CardHeader className="py-3">
               <CardTitle className="text-sm flex items-center gap-2">

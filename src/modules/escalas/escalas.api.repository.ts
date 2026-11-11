@@ -20,6 +20,10 @@ export class ApiEscalasRepository {
     return response.data;
   }
 
+  async getById(id: string): Promise<Escala> {
+    return apiRequest<Escala>(`/escalas/${id}`);
+  }
+
   async save(input: EscalaInput): Promise<Escala> {
     const path = input.id ? `/escalas/${input.id}` : '/escalas';
     const method = input.id ? 'PUT' : 'POST';

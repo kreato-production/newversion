@@ -1,7 +1,10 @@
 import { z } from 'zod';
 import type { SessionUser } from '../auth/auth.types.js';
 import { ensureSameTenant, resolveTenantId } from '../common/access.js';
-import type { RecursosHumanosRepository } from './recursos-humanos.repository.js';
+import type {
+  RecursoHumanoRecord,
+  RecursosHumanosRepository,
+} from './recursos-humanos.repository.js';
 
 const optionalUuid = z.preprocess(
   (value) => (value === '' || value === undefined ? null : value),
@@ -56,6 +59,51 @@ export const saveRecursoHumanoSchema = z.object({
 
 export type SaveRecursoHumanoDto = z.infer<typeof saveRecursoHumanoSchema>;
 
+function toRecursoHumanoDto(item: RecursoHumanoRecord) {
+  return {
+    id: item.id,
+    codigoExterno: item.codigoExterno || '',
+    nome: item.nome,
+    sobrenome: item.sobrenome,
+    foto: item.foto || '',
+    dataNascimento: item.dataNascimento || '',
+    sexo: item.sexo || '',
+    telefone: item.telefone || '',
+    email: item.email || '',
+    departamento: item.departamento || '',
+    departamentoId: item.departamentoId || '',
+    funcao: item.funcao || '',
+    funcaoId: item.funcaoId || '',
+    custoHora: item.custoHora,
+    dataContratacao: item.dataContratacao || '',
+    status: item.status === 'Inativo' ? 'Inativo' : 'Ativo',
+    dataCadastro: item.createdAt?.toISOString() || '',
+    usuarioCadastro: item.createdByNome || '',
+    anexos: item.anexos.map((anexo) => ({
+      id: anexo.id,
+      nome: anexo.nome,
+      tipo: anexo.tipo || '',
+      tamanho: anexo.tamanho,
+      dataUrl: anexo.dataUrl,
+    })),
+    ausencias: item.ausencias.map((ausencia) => ({
+      id: ausencia.id,
+      motivo: ausencia.motivo,
+      dataInicio: ausencia.dataInicio,
+      dataFim: ausencia.dataFim,
+      dias: ausencia.dias,
+    })),
+    escalas: item.escalas.map((escala) => ({
+      id: escala.id,
+      dataInicio: escala.dataInicio,
+      horaInicio: escala.horaInicio,
+      dataFim: escala.dataFim,
+      horaFim: escala.horaFim,
+      diasSemana: escala.diasSemana,
+    })),
+  };
+}
+
 export class RecursosHumanosService {
   constructor(private readonly repository: RecursosHumanosRepository) {}
 
@@ -65,48 +113,7 @@ export class RecursosHumanosService {
 
     return {
       total,
-      data: data.map((item) => ({
-        id: item.id,
-        codigoExterno: item.codigoExterno || '',
-        nome: item.nome,
-        sobrenome: item.sobrenome,
-        foto: item.foto || '',
-        dataNascimento: item.dataNascimento || '',
-        sexo: item.sexo || '',
-        telefone: item.telefone || '',
-        email: item.email || '',
-        departamento: item.departamento || '',
-        departamentoId: item.departamentoId || '',
-        funcao: item.funcao || '',
-        funcaoId: item.funcaoId || '',
-        custoHora: item.custoHora,
-        dataContratacao: item.dataContratacao || '',
-        status: item.status === 'Inativo' ? 'Inativo' : 'Ativo',
-        dataCadastro: item.createdAt?.toISOString() || '',
-        usuarioCadastro: item.createdByNome || '',
-        anexos: item.anexos.map((anexo) => ({
-          id: anexo.id,
-          nome: anexo.nome,
-          tipo: anexo.tipo || '',
-          tamanho: anexo.tamanho,
-          dataUrl: anexo.dataUrl,
-        })),
-        ausencias: item.ausencias.map((ausencia) => ({
-          id: ausencia.id,
-          motivo: ausencia.motivo,
-          dataInicio: ausencia.dataInicio,
-          dataFim: ausencia.dataFim,
-          dias: ausencia.dias,
-        })),
-        escalas: item.escalas.map((escala) => ({
-          id: escala.id,
-          dataInicio: escala.dataInicio,
-          horaInicio: escala.horaInicio,
-          dataFim: escala.dataFim,
-          horaFim: escala.horaFim,
-          diasSemana: escala.diasSemana,
-        })),
-      })),
+      data: data.map(toRecursoHumanoDto),
     };
   }
 
@@ -123,6 +130,16 @@ export class RecursosHumanosService {
       funcoes,
       departamentoFuncoes,
     };
+  }
+
+  async getById(actor: SessionUser, id: string) {
+    const existing = await this.repository.findById(id);
+    if (!existing) {
+      return null;
+    }
+
+    ensureSameTenant(actor, existing.tenantId);
+    return toRecursoHumanoDto(existing);
   }
 
   async save(actor: SessionUser, input: SaveRecursoHumanoDto) {
@@ -177,48 +194,7 @@ export class RecursosHumanosService {
       })),
     });
 
-    return {
-      id: item.id,
-      codigoExterno: item.codigoExterno || '',
-      nome: item.nome,
-      sobrenome: item.sobrenome,
-      foto: item.foto || '',
-      dataNascimento: item.dataNascimento || '',
-      sexo: item.sexo || '',
-      telefone: item.telefone || '',
-      email: item.email || '',
-      departamento: item.departamento || '',
-      departamentoId: item.departamentoId || '',
-      funcao: item.funcao || '',
-      funcaoId: item.funcaoId || '',
-      custoHora: item.custoHora,
-      dataContratacao: item.dataContratacao || '',
-      status: item.status === 'Inativo' ? 'Inativo' : 'Ativo',
-      dataCadastro: item.createdAt?.toISOString() || '',
-      usuarioCadastro: item.createdByNome || '',
-      anexos: item.anexos.map((anexo) => ({
-        id: anexo.id,
-        nome: anexo.nome,
-        tipo: anexo.tipo || '',
-        tamanho: anexo.tamanho,
-        dataUrl: anexo.dataUrl,
-      })),
-      ausencias: item.ausencias.map((ausencia) => ({
-        id: ausencia.id,
-        motivo: ausencia.motivo,
-        dataInicio: ausencia.dataInicio,
-        dataFim: ausencia.dataFim,
-        dias: ausencia.dias,
-      })),
-      escalas: item.escalas.map((escala) => ({
-        id: escala.id,
-        dataInicio: escala.dataInicio,
-        horaInicio: escala.horaInicio,
-        dataFim: escala.dataFim,
-        horaFim: escala.horaFim,
-        diasSemana: escala.diasSemana,
-      })),
-    };
+    return toRecursoHumanoDto(item);
   }
 
   async remove(actor: SessionUser, id: string) {

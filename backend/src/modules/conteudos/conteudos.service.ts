@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import type { SessionUser } from '../auth/auth.types.js';
 import { ensureSameTenant, resolveTenantId } from '../common/access.js';
-import type { ConteudosRepository } from './conteudos.repository.js';
+import type { ConteudoRecord, ConteudosRepository } from './conteudos.repository.js';
 
 export const saveConteudoSchema = z.object({
   id: z.string().optional(),
@@ -99,6 +99,35 @@ function formatDate(date: Date | null): string {
   return date ? date.toISOString() : '';
 }
 
+function toConteudoDto(item: ConteudoRecord) {
+  return {
+    id: item.id,
+    codigoExterno: item.codigoExterno || '',
+    descricao: item.descricao,
+    quantidadeEpisodios: item.quantidadeEpisodios || 0,
+    centroLucroId: item.centroLucroId || '',
+    centroLucro: item.centroLucroNome || '',
+    unidadeNegocioId: item.unidadeNegocioId || '',
+    unidadeNegocio: item.unidadeNegocioNome || '',
+    programaId: item.programaId || '',
+    programaNome: item.programaNome || '',
+    tipoConteudoId: item.tipoConteudoId || '',
+    tipoConteudo: item.tipoConteudoNome || '',
+    classificacaoId: item.classificacaoId || '',
+    classificacao: item.classificacaoNome || '',
+    anoProducao: item.anoProducao || '',
+    sinopse: item.sinopse || '',
+    usuarioCadastro: item.createdBy || '',
+    dataCadastro: formatDate(item.createdAt),
+    tabelaPrecoId: item.tabelaPrecoId || '',
+    tabelaPrecoNome: item.tabelaPrecoNome || '',
+    frequenciaDataInicio: item.frequenciaDataInicio || '',
+    frequenciaDataFim: item.frequenciaDataFim || '',
+    frequenciaDiasSemana: item.frequenciaDiasSemana || [],
+    orcamento: item.orcamento,
+  };
+}
+
 export class ConteudosService {
   constructor(private readonly repository: ConteudosRepository) {}
 
@@ -111,33 +140,26 @@ export class ConteudosService {
 
     return {
       total,
-      data: data.map((item) => ({
-        id: item.id,
-        codigoExterno: item.codigoExterno || '',
-        descricao: item.descricao,
-        quantidadeEpisodios: item.quantidadeEpisodios || 0,
-        centroLucroId: item.centroLucroId || '',
-        centroLucro: item.centroLucroNome || '',
-        unidadeNegocioId: item.unidadeNegocioId || '',
-        unidadeNegocio: item.unidadeNegocioNome || '',
-        programaId: item.programaId || '',
-        programaNome: item.programaNome || '',
-        tipoConteudoId: item.tipoConteudoId || '',
-        tipoConteudo: item.tipoConteudoNome || '',
-        classificacaoId: item.classificacaoId || '',
-        classificacao: item.classificacaoNome || '',
-        anoProducao: item.anoProducao || '',
-        sinopse: item.sinopse || '',
-        usuarioCadastro: item.createdBy || '',
-        dataCadastro: formatDate(item.createdAt),
-        tabelaPrecoId: item.tabelaPrecoId || '',
-        tabelaPrecoNome: item.tabelaPrecoNome || '',
-        frequenciaDataInicio: item.frequenciaDataInicio || '',
-        frequenciaDataFim: item.frequenciaDataFim || '',
-        frequenciaDiasSemana: item.frequenciaDiasSemana || [],
-        orcamento: item.orcamento,
-      })),
+      data: data.map(toConteudoDto),
     };
+  }
+
+  async getById(actor: SessionUser, id: string) {
+    const existing = await this.repository.findById(id);
+    if (!existing) {
+      return null;
+    }
+
+    ensureSameTenant(actor, existing.tenantId);
+    // Same unit restriction as the list: a conteudo of another unidade is not found.
+    const unidadeIds = actor.unidadeIds ?? [];
+    if (
+      unidadeIds.length > 0 &&
+      (!existing.unidadeNegocioId || !unidadeIds.includes(existing.unidadeNegocioId))
+    ) {
+      return null;
+    }
+    return toConteudoDto(existing);
   }
 
   async save(actor: SessionUser, input: SaveConteudoDto) {
@@ -171,32 +193,7 @@ export class ConteudosService {
       createdBy: actor.id,
     });
 
-    return {
-      id: item.id,
-      codigoExterno: item.codigoExterno || '',
-      descricao: item.descricao,
-      quantidadeEpisodios: item.quantidadeEpisodios || 0,
-      centroLucroId: item.centroLucroId || '',
-      centroLucro: item.centroLucroNome || '',
-      unidadeNegocioId: item.unidadeNegocioId || '',
-      unidadeNegocio: item.unidadeNegocioNome || '',
-      programaId: item.programaId || '',
-      programaNome: item.programaNome || '',
-      tipoConteudoId: item.tipoConteudoId || '',
-      tipoConteudo: item.tipoConteudoNome || '',
-      classificacaoId: item.classificacaoId || '',
-      classificacao: item.classificacaoNome || '',
-      anoProducao: item.anoProducao || '',
-      sinopse: item.sinopse || '',
-      usuarioCadastro: item.createdBy || '',
-      dataCadastro: formatDate(item.createdAt),
-      tabelaPrecoId: item.tabelaPrecoId || '',
-      tabelaPrecoNome: item.tabelaPrecoNome || '',
-      frequenciaDataInicio: item.frequenciaDataInicio || '',
-      frequenciaDataFim: item.frequenciaDataFim || '',
-      frequenciaDiasSemana: item.frequenciaDiasSemana || [],
-      orcamento: item.orcamento,
-    };
+    return toConteudoDto(item);
   }
 
   async remove(actor: SessionUser, id: string) {
@@ -231,7 +228,12 @@ export class ConteudosService {
     }
 
     ensureSameTenant(actor, existing.tenantId);
-    return this.repository.listResources(existing.tenantId ?? resolveTenantId(actor, actor.tenantId), conteudoId, tipo, tabelaPrecoId);
+    return this.repository.listResources(
+      existing.tenantId ?? resolveTenantId(actor, actor.tenantId),
+      conteudoId,
+      tipo,
+      tabelaPrecoId,
+    );
   }
 
   async addResource(
@@ -286,7 +288,11 @@ export class ConteudosService {
     );
   }
 
-  async removeResource(actor: SessionUser, itemId: string, tipo: z.infer<typeof conteudoResourceTypeSchema>) {
+  async removeResource(
+    actor: SessionUser,
+    itemId: string,
+    tipo: z.infer<typeof conteudoResourceTypeSchema>,
+  ) {
     const existing = await this.repository.findResourceById(itemId, tipo);
     if (!existing) {
       throw new Error('Recurso do conteudo nao encontrado');
@@ -303,10 +309,17 @@ export class ConteudosService {
     }
 
     ensureSameTenant(actor, existing.tenantId);
-    return this.repository.listTerceiros(existing.tenantId ?? resolveTenantId(actor, actor.tenantId), conteudoId);
+    return this.repository.listTerceiros(
+      existing.tenantId ?? resolveTenantId(actor, actor.tenantId),
+      conteudoId,
+    );
   }
 
-  async addTerceiro(actor: SessionUser, conteudoId: string, input: z.infer<typeof saveConteudoTerceiroSchema>) {
+  async addTerceiro(
+    actor: SessionUser,
+    conteudoId: string,
+    input: z.infer<typeof saveConteudoTerceiroSchema>,
+  ) {
     const existing = await this.repository.findById(conteudoId);
     if (!existing) {
       throw new Error('Conteudo nao encontrado');
@@ -322,7 +335,11 @@ export class ConteudosService {
     });
   }
 
-  async updateTerceiro(actor: SessionUser, itemId: string, input: z.infer<typeof updateConteudoTerceiroSchema>) {
+  async updateTerceiro(
+    actor: SessionUser,
+    itemId: string,
+    input: z.infer<typeof updateConteudoTerceiroSchema>,
+  ) {
     const existing = await this.repository.findTerceiroById(itemId);
     if (!existing) {
       throw new Error('Terceiro do conteudo nao encontrado');
@@ -349,24 +366,37 @@ export class ConteudosService {
     const existing = await this.repository.findById(conteudoId);
     if (!existing) throw new Error('Conteudo nao encontrado');
     ensureSameTenant(actor, existing.tenantId);
-    return this.repository.listEspacos(existing.tenantId ?? resolveTenantId(actor, actor.tenantId), conteudoId);
+    return this.repository.listEspacos(
+      existing.tenantId ?? resolveTenantId(actor, actor.tenantId),
+      conteudoId,
+    );
   }
 
   async listAvailableEspacos(actor: SessionUser) {
     return this.repository.listAvailableEspacos(resolveTenantId(actor, actor.tenantId));
   }
 
-  private async validateEspacoAvailability(espacoId: string, horaInicio: string | null | undefined, horaFim: string | null | undefined): Promise<void> {
+  private async validateEspacoAvailability(
+    espacoId: string,
+    horaInicio: string | null | undefined,
+    horaFim: string | null | undefined,
+  ): Promise<void> {
     if (!horaInicio || !horaFim) return;
     const faixas = await this.repository.findEspacoAvailability(espacoId);
     if (faixas.length === 0) return;
     const isWithin = faixas.some((f) => f.horaInicio <= horaInicio && f.horaFim >= horaFim);
     if (!isWithin) {
-      throw new Error(`Horário ${horaInicio}–${horaFim} está fora da disponibilidade cadastrada para este espaço.`);
+      throw new Error(
+        `Horário ${horaInicio}–${horaFim} está fora da disponibilidade cadastrada para este espaço.`,
+      );
     }
   }
 
-  async addEspaco(actor: SessionUser, conteudoId: string, input: z.infer<typeof saveConteudoEspacoSchema>) {
+  async addEspaco(
+    actor: SessionUser,
+    conteudoId: string,
+    input: z.infer<typeof saveConteudoEspacoSchema>,
+  ) {
     const existing = await this.repository.findById(conteudoId);
     if (!existing) throw new Error('Conteudo nao encontrado');
     ensureSameTenant(actor, existing.tenantId);
@@ -383,7 +413,11 @@ export class ConteudosService {
     });
   }
 
-  async updateEspaco(actor: SessionUser, itemId: string, input: z.infer<typeof updateConteudoEspacoSchema>) {
+  async updateEspaco(
+    actor: SessionUser,
+    itemId: string,
+    input: z.infer<typeof updateConteudoEspacoSchema>,
+  ) {
     const existing = await this.repository.findEspacoById(itemId);
     if (!existing) throw new Error('Espaco do conteudo nao encontrado');
     ensureSameTenant(actor, existing.tenantId);
@@ -450,16 +484,19 @@ export class ConteudosService {
     const existing = await this.repository.findEspacoResourceById(recursoItemId, tipo);
     if (!existing) throw new Error('Recurso do espaco nao encontrado');
     ensureSameTenant(actor, existing.tenantId);
-    return this.repository.updateEspacoResource({
-      id: recursoItemId,
-      quantidade: input.quantidade,
-      horaInicio: input.horaInicio ?? null,
-      horaFim: input.horaFim ?? null,
-      data: input.data ?? null,
-      valorTotal: input.valorTotal,
-      descontoPercentual: input.descontoPercentual,
-      valorComDesconto: input.valorComDesconto,
-    }, tipo);
+    return this.repository.updateEspacoResource(
+      {
+        id: recursoItemId,
+        quantidade: input.quantidade,
+        horaInicio: input.horaInicio ?? null,
+        horaFim: input.horaFim ?? null,
+        data: input.data ?? null,
+        valorTotal: input.valorTotal,
+        descontoPercentual: input.descontoPercentual,
+        valorComDesconto: input.valorComDesconto,
+      },
+      tipo,
+    );
   }
 
   async removeEspacoResource(

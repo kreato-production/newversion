@@ -23,7 +23,8 @@ import { SortableTable, type Column } from '@/components/shared/SortableTable';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useAuth } from '@/contexts/AuthContext';
-import { GravacaoBackendFormModal } from './GravacaoBackendFormModal';
+import { useRecordList } from '@/hooks/useRecordNavigation';
+import { GRAVACOES_ROUTES } from '@/modules/gravacoes/gravacoes.navigation';
 import {
   GravacaoFilterPanel,
   type GravacaoFilters,
@@ -31,7 +32,7 @@ import {
   countActiveFilters,
 } from './GravacaoFilterPanel';
 import { gravacoesRepository } from '@/modules/gravacoes/gravacoes.repository.provider';
-import type { Gravacao, GravacaoInput } from '@/modules/gravacoes/gravacoes.types';
+import type { Gravacao } from '@/modules/gravacoes/gravacoes.types';
 import {
   useListingView,
   ViewSwitcher,
@@ -252,8 +253,13 @@ export const BackendGravacaoList = () => {
 
   const [search, setSearch] = useState('');
   const [filters, setFilters] = useState<GravacaoFilters>(EMPTY_FILTERS);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<Gravacao | null>(null);
+  const { openNew, openRecord } = useRecordList(GRAVACOES_ROUTES);
+  // Keeps the filtered order so the form page can navigate previous/next.
+  const openEdit = (item: { id: string }) =>
+    openRecord(
+      item.id,
+      filteredItems.map((i) => i.id),
+    );
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<Gravacao | null>(null);
   const [items, setItems] = useState<Gravacao[]>([]);
@@ -296,31 +302,7 @@ export const BackendGravacaoList = () => {
 
   // ── Mutations ──────────────────────────────────────────────────────────────
 
-  const openEdit = (item: Gravacao) => {
-    setEditingItem(item);
-    setIsModalOpen(true);
-  };
-
   const openDelete = (id: string) => setDeletingId(id);
-
-  const handleSave = async (input: GravacaoInput) => {
-    try {
-      await gravacoesRepository.save(input, user?.id);
-      toast({
-        title: t('common.success'),
-        description: editingItem ? 'Gravação atualizada!' : 'Gravação criada!',
-      });
-      await fetchData();
-      setEditingItem(null);
-    } catch (error) {
-      toast({
-        title: t('common.error'),
-        description: `Erro ao salvar: ${(error as Error).message}`,
-        variant: 'destructive',
-      });
-      throw error;
-    }
-  };
 
   const handleDeleteConfirm = async () => {
     if (!deletingId) return;
@@ -514,15 +496,7 @@ export const BackendGravacaoList = () => {
       />
 
       <ListActionBar>
-        {podeIncluir && (
-          <NewButton
-            tooltip={t('recordings.new')}
-            onClick={() => {
-              setEditingItem(null);
-              setIsModalOpen(true);
-            }}
-          />
-        )}
+        {podeIncluir && <NewButton tooltip={t('recordings.new')} onClick={openNew} />}
         <div className="flex-1" />
         <SearchBar value={search} onChange={setSearch} placeholder={t('common.search')} />
         <GravacaoFilterPanel
@@ -551,7 +525,7 @@ export const BackendGravacaoList = () => {
               title={t('recordings.empty')}
               description="Adicione uma gravação usando o backend próprio."
               icon={Video}
-              onAction={() => setIsModalOpen(true)}
+              onAction={openNew}
               actionLabel={t('recordings.new')}
             />
           ) : (
@@ -569,7 +543,7 @@ export const BackendGravacaoList = () => {
             getRowKey={(item) => item.id}
             emptyTitle={t('recordings.empty')}
             emptyDescription="Adicione uma gravação usando o backend próprio."
-            onEmptyAction={() => setIsModalOpen(true)}
+            onEmptyAction={openNew}
             emptyActionLabel={t('recordings.new')}
             renderCard={(item) => (
               <GravacaoCard
@@ -630,28 +604,6 @@ export const BackendGravacaoList = () => {
           />
         )}
       </DataCard>
-
-      <GravacaoBackendFormModal
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setEditingItem(null);
-        }}
-        onSave={handleSave}
-        data={editingItem}
-        readOnly={!!editingItem && !podeAlterar}
-        navigation={(() => {
-          const idx = editingItem ? filteredItems.findIndex((i) => i.id === editingItem.id) : -1;
-          return idx >= 0
-            ? {
-                currentIndex: idx,
-                total: filteredItems.length,
-                onPrevious: () => setEditingItem(filteredItems[idx - 1]),
-                onNext: () => setEditingItem(filteredItems[idx + 1]),
-              }
-            : undefined;
-        })()}
-      />
 
       <AlertDialog open={!!deletingId} onOpenChange={(open) => !open && setDeletingId(null)}>
         <AlertDialogContent>

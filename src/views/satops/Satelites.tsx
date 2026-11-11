@@ -29,9 +29,9 @@ import {
   SORT_OPTIONS_NOME,
 } from '@/components/shared/ListFilter';
 import { useToast } from '@/hooks/use-toast';
-import { SateliteFormModal } from '@/components/satops/SateliteFormModal';
+import { useRecordList } from '@/hooks/useRecordNavigation';
+import { SATELITES_ROUTES } from '@/modules/satops/satelites.navigation';
 import { ApiSatOpsRepository } from '@/modules/satops/satops.api.repository';
-import { usePermissions } from '@/hooks/usePermissions';
 import {
   useListingView,
   ViewSwitcher,
@@ -228,10 +228,14 @@ function SateliteDetailPanel({
 
 const Satelites = () => {
   const { toast } = useToast();
-  const { canAlterar } = usePermissions();
   const [search, setSearch] = useState('');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<SateliteItem | null>(null);
+  const { openNew, openRecord } = useRecordList(SATELITES_ROUTES);
+  // Keeps the filtered order so the form page can navigate previous/next.
+  const openEdit = (item: { id: string }) =>
+    openRecord(
+      item.id,
+      filteredItems.map((i) => i.id),
+    );
   const [items, setItems] = useState<SateliteItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -259,32 +263,6 @@ const Satelites = () => {
   useEffect(() => {
     void fetchItems();
   }, [fetchItems]);
-
-  const handleSave = async (data: SateliteItem) => {
-    try {
-      await repository.saveSatelite({
-        ...(editingItem ? { id: data.id } : {}),
-        codigoExterno: data.codigoExterno,
-        nome: data.nome,
-        transponder: data.transponder,
-        frequenciaUplink: data.frequenciaUplink,
-        polarizacao: data.polarizacao,
-        symbolRate: data.symbolRate,
-        fec: data.fec,
-        checklist: data.checklist,
-        traducoes: data.traducoes,
-      });
-      toast({
-        title: 'Sucesso',
-        description: editingItem ? 'Satélite atualizado!' : 'Satélite cadastrado!',
-      });
-      await fetchItems();
-      setEditingItem(null);
-    } catch {
-      toast({ title: 'Erro', description: 'Erro ao salvar satélite', variant: 'destructive' });
-      throw new Error('save failed');
-    }
-  };
 
   const handleDeleteConfirm = async () => {
     if (!deletingId) return;
@@ -417,15 +395,7 @@ const Satelites = () => {
       sortable: false,
       render: (item) => (
         <div className="flex justify-end gap-1">
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-7 w-7"
-            onClick={() => {
-              setEditingItem(item);
-              setIsModalOpen(true);
-            }}
-          >
+          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(item)}>
             <Edit className="w-3.5 h-3.5" />
           </Button>
           <Button
@@ -449,13 +419,7 @@ const Satelites = () => {
       />
 
       <ListActionBar>
-        <NewButton
-          tooltip="Novo Satélite"
-          onClick={() => {
-            setEditingItem(null);
-            setIsModalOpen(true);
-          }}
-        />
+        <NewButton tooltip="Novo Satélite" onClick={openNew} />
         <div className="flex-1" />
         <SearchBar value={search} onChange={setSearch} />
 
@@ -514,7 +478,7 @@ const Satelites = () => {
               title="Nenhum satélite cadastrado"
               description="Comece adicionando satélites para configurar as transmissões."
               icon={Satellite}
-              onAction={() => setIsModalOpen(true)}
+              onAction={openNew}
               actionLabel="Adicionar Satélite"
             />
           ) : (
@@ -532,15 +496,12 @@ const Satelites = () => {
             getRowKey={(item) => item.id}
             emptyTitle="Nenhum satélite cadastrado"
             emptyDescription="Comece adicionando satélites para configurar as transmissões."
-            onEmptyAction={() => setIsModalOpen(true)}
+            onEmptyAction={openNew}
             emptyActionLabel="Adicionar Satélite"
             renderCard={(item) => (
               <SateliteCard
                 item={item}
-                onEdit={() => {
-                  setEditingItem(item);
-                  setIsModalOpen(true);
-                }}
+                onEdit={() => openEdit(item)}
                 onDelete={() => setDeletingId(item.id)}
               />
             )}
@@ -569,40 +530,13 @@ const Satelites = () => {
             renderDetail={(item) => (
               <SateliteDetailPanel
                 item={item}
-                onEdit={() => {
-                  setEditingItem(item);
-                  setIsModalOpen(true);
-                }}
+                onEdit={() => openEdit(item)}
                 onDelete={() => setDeletingId(item.id)}
               />
             )}
           />
         )}
       </DataCard>
-
-      <SateliteFormModal
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setEditingItem(null);
-        }}
-        onSave={handleSave}
-        data={editingItem}
-        readOnly={!!editingItem && !canAlterar('SatOps', 'Satélites', '-')}
-        navigation={(() => {
-          const navIndex = editingItem
-            ? filteredItems.findIndex((i) => i.id === editingItem.id)
-            : -1;
-          return navIndex >= 0
-            ? {
-                currentIndex: navIndex,
-                total: filteredItems.length,
-                onPrevious: () => setEditingItem(filteredItems[navIndex - 1]),
-                onNext: () => setEditingItem(filteredItems[navIndex + 1]),
-              }
-            : undefined;
-        })()}
-      />
 
       <AlertDialog open={!!deletingId} onOpenChange={(open) => !open && setDeletingId(null)}>
         <AlertDialogContent>

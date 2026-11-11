@@ -32,7 +32,6 @@ import { NewButton } from '@/components/shared/NewButton';
 import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { usePermissions } from '@/hooks/usePermissions';
 import {
   ListFilterPanel,
   FilterSection,
@@ -40,11 +39,11 @@ import {
   SORT_OPTIONS_NOME_DATA,
   sortSubtitle,
 } from '@/components/shared/ListFilter';
-import { EventoFormModal } from '@/components/eventos/EventoFormModal';
+import { useRecordList } from '@/hooks/useRecordNavigation';
+import { EVENTOS_ROUTES } from '@/modules/gestao-eventos/eventos.navigation';
 import {
   ApiEventosRepository,
   type Evento,
-  type SaveEventoInput,
 } from '@/modules/gestao-eventos/gestao-eventos.api.repository';
 import {
   ApiParametrosRepository,
@@ -258,7 +257,6 @@ const Eventos = () => {
   const { toast } = useToast();
   const { t } = useLanguage();
   const { session } = useAuth();
-  const { canAlterar } = usePermissions();
 
   const [search, setSearch] = useState('');
   const [filterSortBy, setFilterSortBy] = useState('');
@@ -266,8 +264,13 @@ const Eventos = () => {
   const [tiposEvento, setTiposEvento] = useState<ParametroApiItem[]>([]);
   const [items, setItems] = useState<Evento[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<Evento | null>(null);
+  const { openNew, openRecord } = useRecordList(EVENTOS_ROUTES);
+  // Keeps the filtered order so the form page can navigate previous/next.
+  const openEdit = (item: { id: string }) =>
+    openRecord(
+      item.id,
+      filteredItems.map((i) => i.id),
+    );
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<Evento | null>(null);
 
@@ -310,21 +313,7 @@ const Eventos = () => {
     fetchData();
   }, [fetchData]);
 
-  const openEdit = (item: Evento) => {
-    setEditingItem(item);
-    setIsModalOpen(true);
-  };
   const openDelete = (id: string) => setDeletingId(id);
-
-  const handleSave = async (input: SaveEventoInput) => {
-    await apiRepo.save({ ...input, id: editingItem?.id });
-    toast({
-      title: t('common.success'),
-      description: `Evento ${editingItem ? t('common.updated').toLowerCase() : 'salvo'}!`,
-    });
-    await fetchData();
-    setEditingItem(null);
-  };
 
   const handleDeleteConfirm = async () => {
     if (!deletingId) return;
@@ -489,13 +478,7 @@ const Eventos = () => {
       <PageHeader title="Eventos" description="Gerencie os eventos cadastrados no sistema" />
 
       <ListActionBar>
-        <NewButton
-          tooltip="Novo Evento"
-          onClick={() => {
-            setEditingItem(null);
-            setIsModalOpen(true);
-          }}
-        />
+        <NewButton tooltip="Novo Evento" onClick={openNew} />
         <div className="flex-1" />
         <SearchBar value={search} onChange={setSearch} placeholder={t('common.search')} />
         <ListFilterPanel
@@ -565,7 +548,7 @@ const Eventos = () => {
               title={t('common.noResults')}
               description="Adicione um novo evento."
               icon={CalendarDays}
-              onAction={() => setIsModalOpen(true)}
+              onAction={openNew}
               actionLabel="Novo Evento"
             />
           ) : (
@@ -583,7 +566,7 @@ const Eventos = () => {
             getRowKey={(i) => i.id}
             emptyTitle={t('common.noResults')}
             emptyDescription="Adicione um novo evento."
-            onEmptyAction={() => setIsModalOpen(true)}
+            onEmptyAction={openNew}
             emptyActionLabel="Novo Evento"
             renderCard={(item) => (
               <EventoCard
@@ -626,30 +609,6 @@ const Eventos = () => {
           />
         )}
       </DataCard>
-
-      <EventoFormModal
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setEditingItem(null);
-        }}
-        onSave={handleSave}
-        data={editingItem}
-        readOnly={!!editingItem && !canAlterar('Gestão de Eventos', 'Eventos', '-')}
-        navigation={(() => {
-          const navIndex = editingItem
-            ? filteredItems.findIndex((i) => i.id === editingItem.id)
-            : -1;
-          return navIndex >= 0
-            ? {
-                currentIndex: navIndex,
-                total: filteredItems.length,
-                onPrevious: () => setEditingItem(filteredItems[navIndex - 1]),
-                onNext: () => setEditingItem(filteredItems[navIndex + 1]),
-              }
-            : undefined;
-        })()}
-      />
 
       <AlertDialog open={!!deletingId} onOpenChange={(open) => !open && setDeletingId(null)}>
         <AlertDialogContent>

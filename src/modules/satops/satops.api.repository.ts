@@ -113,6 +113,10 @@ export class ApiSatOpsRepository {
     return apiRequest('/satops/satelites');
   }
 
+  getSatelite(id: string): Promise<SateliteApiItem> {
+    return apiRequest(`/satops/satelites/${id}`);
+  }
+
   saveSatelite(input: Partial<SateliteApiItem> & { nome: string }): Promise<SateliteApiItem> {
     const path = input.id ? `/satops/satelites/${input.id}` : '/satops/satelites';
     const method = input.id ? 'PUT' : 'POST';
@@ -127,6 +131,10 @@ export class ApiSatOpsRepository {
 
   listJanelas(): Promise<ListResponse<JanelaApiItem>> {
     return apiRequest('/satops/janelas');
+  }
+
+  getJanela(id: string): Promise<JanelaApiItem> {
+    return apiRequest(`/satops/janelas/${id}`);
   }
 
   saveJanela(input: Partial<JanelaApiItem> & Record<string, unknown>): Promise<JanelaApiItem> {

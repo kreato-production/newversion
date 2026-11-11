@@ -87,6 +87,12 @@ export class JanelasService {
     return { total, data: data.map(mapJanela) };
   }
 
+  async getById(actor: SessionUser, id: string) {
+    const tenantId = resolveTenantId(actor, actor.tenantId);
+    const record = await this.repository.findById(id, tenantId);
+    return record ? mapJanela(record) : null;
+  }
+
   async save(actor: SessionUser, input: SaveJanelaData) {
     const tenantId = resolveTenantId(actor, actor.tenantId);
     if (input.id) {
