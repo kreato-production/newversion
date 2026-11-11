@@ -209,9 +209,9 @@ const GlobalUsers = () => {
       className: 'w-16',
       sortable: false,
       render: (item) => (
-        <Avatar className="h-9 w-9 border-2 border-kreato-cyan">
+        <Avatar className="h-6 w-6 border border-kreato-cyan">
           <AvatarImage src={item.foto || undefined} alt={item.nome} />
-          <AvatarFallback className="text-xs bg-kreato-cyan/10 text-kreato-cyan">
+          <AvatarFallback className="text-[10px] bg-kreato-cyan/10 text-kreato-cyan">
             {item.nome.charAt(0)}
           </AvatarFallback>
         </Avatar>

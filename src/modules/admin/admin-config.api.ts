@@ -1,12 +1,17 @@
 import { apiRequest } from '@/lib/api/http';
 import type { PermissionItem } from '@/modules/auth/auth.types';
+import { DEFAULT_LISTA_CONFIG, type FormularioListaConfig } from '@/data/listStripeColors';
 
 export type FieldValidationType = 'obrigatorio' | 'sugerido' | null;
+
+/** Rótulo de um campo por idioma do sistema (só os traduzidos). */
+export type FieldTraducoes = Record<string, string>;
 
 export interface FullFieldConfig {
   tipoValidacao: FieldValidationType;
   tamanho: string | null;
   posicao: number | null;
+  traducoes: FieldTraducoes | null;
 }
 
 export class ApiAdminConfigRepository {
@@ -47,6 +52,7 @@ export class ApiAdminConfigRepository {
         tipoValidacao: FieldValidationType;
         tamanho: string | null;
         posicao: number | null;
+        traducoes?: FieldTraducoes | null;
       }[];
     }>(`/admin-config/formularios/${formularioId}/campos${qs}`);
 
@@ -55,9 +61,25 @@ export class ApiAdminConfigRepository {
         tipoValidacao: item.tipoValidacao,
         tamanho: item.tamanho ?? null,
         posicao: item.posicao ?? null,
+        traducoes: item.traducoes ?? null,
       };
       return acc;
     }, {});
+  }
+
+  /** Aparência da lista do módulo (tabulador Lista); sem configuração: sem zebra. */
+  async getFormularioLista(
+    formularioId: string,
+    tenantId?: string,
+  ): Promise<FormularioListaConfig> {
+    const qs = tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : '';
+    const response = await apiRequest<{ lista?: FormularioListaConfig | null }>(
+      `/admin-config/formularios/${formularioId}/campos${qs}`,
+    );
+    return {
+      zebrado: Boolean(response.lista?.zebrado),
+      corZebra: response.lista?.corZebra ?? DEFAULT_LISTA_CONFIG.corZebra,
+    };
   }
 
   async saveFormularioCampos(
@@ -82,13 +104,16 @@ export class ApiAdminConfigRepository {
       tipoValidacao: FieldValidationType;
       tamanho: string | null;
       posicao: number | null;
+      traducoes: FieldTraducoes | null;
     }>,
     tenantId?: string,
+    /** Aparência da lista; omitida, a gravada não muda. */
+    lista?: FormularioListaConfig,
   ): Promise<void> {
     const qs = tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : '';
     await apiRequest(`/admin-config/formularios/${formularioId}/campos${qs}`, {
       method: 'PUT',
-      body: JSON.stringify({ campos: fields }),
+      body: JSON.stringify(lista ? { campos: fields, lista } : { campos: fields }),
     });
   }
 }

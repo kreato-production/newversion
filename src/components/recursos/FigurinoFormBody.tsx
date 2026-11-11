@@ -5,6 +5,11 @@ import { Label } from '@/components/ui/label';
 import { Trash2, Star, Upload } from 'lucide-react';
 import { ColorPicker } from '@/components/shared/ColorPicker';
 import { SearchableSelect } from '@/components/shared/SearchableSelect';
+import {
+  FieldAsterisk,
+  useFormFieldConfig,
+  ConfigurableFieldGrid,
+} from '@/hooks/useFormFieldConfig';
 import { figurinosRepository } from '@/modules/figurinos/figurinos.repository.provider';
 import type { RecordFormBodyProps } from '@/components/shared/RecordFormPage';
 import type {
@@ -59,6 +64,7 @@ export const FigurinoFormBody = ({
 
   const [formData, setFormData] = useState<FigurinoInput>(() => toFormData(data));
   const [imagens, setImagens] = useState<FigurinoImagem[]>(() => data?.imagens || []);
+  const { getAsterisk, validate, fieldLabel, fieldLayout } = useFormFieldConfig('figurino');
 
   const fetchDropdownData = useCallback(async () => {
     try {
@@ -112,6 +118,17 @@ export const FigurinoFormBody = ({
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
+    const camposValidos = validate({
+      codigoExterno: formData.codigoExterno,
+      codigoFigurino: formData.codigoFigurino,
+      descricao: formData.descricao,
+      tipoFigurino: formData.tipoFigurinoId || formData.tipoFigurino,
+      material: formData.materialId || formData.material,
+      tamanhoPeca: formData.tamanhoPeca,
+      corPredominante: formData.corPredominante,
+      corSecundaria: formData.corSecundaria,
+    });
+    if (!camposValidos) return;
     await onSubmit({
       ...formData,
       imagens,
@@ -120,9 +137,12 @@ export const FigurinoFormBody = ({
 
   return (
     <form id={formId} onSubmit={handleSubmit} className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="codigoExterno">Código Externo</Label>
+      <ConfigurableFieldGrid>
+        <div className="space-y-1.5" {...fieldLayout('codigoExterno')}>
+          <Label htmlFor="codigoExterno">
+            {fieldLabel('codigoExterno', 'Código Externo')}{' '}
+            <FieldAsterisk type={getAsterisk('codigoExterno')} />
+          </Label>
           <Input
             id="codigoExterno"
             value={formData.codigoExterno}
@@ -131,8 +151,11 @@ export const FigurinoFormBody = ({
             placeholder="Código externo"
           />
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="codigoFigurino">Código do Figurino</Label>
+        <div className="space-y-1.5" {...fieldLayout('codigoFigurino')}>
+          <Label htmlFor="codigoFigurino">
+            {fieldLabel('codigoFigurino', 'Código do Figurino')}{' '}
+            <FieldAsterisk type={getAsterisk('codigoFigurino', true)} />
+          </Label>
           <Input
             id="codigoFigurino"
             value={formData.codigoFigurino}
@@ -142,23 +165,27 @@ export const FigurinoFormBody = ({
             required
           />
         </div>
-      </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="descricao">Descrição</Label>
-        <Input
-          id="descricao"
-          value={formData.descricao}
-          disabled={readOnly}
-          onChange={(e) => handleChange('descricao', e.target.value)}
-          placeholder="Descrição do figurino"
-          required
-        />
-      </div>
+        <div className="space-y-1.5" {...fieldLayout('descricao')}>
+          <Label htmlFor="descricao">
+            {fieldLabel('descricao', 'Descrição')}{' '}
+            <FieldAsterisk type={getAsterisk('descricao', true)} />
+          </Label>
+          <Input
+            id="descricao"
+            value={formData.descricao}
+            disabled={readOnly}
+            onChange={(e) => handleChange('descricao', e.target.value)}
+            placeholder="Descrição do figurino"
+            required
+          />
+        </div>
 
-      <div className="grid grid-cols-3 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="tipoFigurino">Tipo de Figurino</Label>
+        <div className="space-y-1.5" {...fieldLayout('tipoFigurino')}>
+          <Label htmlFor="tipoFigurino">
+            {fieldLabel('tipoFigurino', 'Tipo de Figurino')}{' '}
+            <FieldAsterisk type={getAsterisk('tipoFigurino')} />
+          </Label>
           <SearchableSelect
             options={tiposFigurino.map((item) => ({ value: item.id, label: item.nome }))}
             value={formData.tipoFigurinoId || ''}
@@ -175,8 +202,10 @@ export const FigurinoFormBody = ({
             disabled={readOnly}
           />
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="material">Material</Label>
+        <div className="space-y-1.5" {...fieldLayout('material')}>
+          <Label htmlFor="material">
+            {fieldLabel('material', 'Material')} <FieldAsterisk type={getAsterisk('material')} />
+          </Label>
           <SearchableSelect
             options={materiais.map((item) => ({ value: item.id, label: item.nome }))}
             value={formData.materialId || ''}
@@ -193,8 +222,11 @@ export const FigurinoFormBody = ({
             disabled={readOnly}
           />
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="tamanhoPeca">Tamanho da Peça</Label>
+        <div className="space-y-1.5" {...fieldLayout('tamanhoPeca')}>
+          <Label htmlFor="tamanhoPeca">
+            {fieldLabel('tamanhoPeca', 'Tamanho da Peça')}{' '}
+            <FieldAsterisk type={getAsterisk('tamanhoPeca')} />
+          </Label>
           <Input
             id="tamanhoPeca"
             value={formData.tamanhoPeca}
@@ -203,25 +235,31 @@ export const FigurinoFormBody = ({
             placeholder="P, M, G, GG, 38, 40..."
           />
         </div>
-      </div>
 
-      <div className="space-y-2">
-        <Label>Cor Predominante</Label>
-        <ColorPicker
-          value={formData.corPredominante}
-          onChange={(cor) => handleChange('corPredominante', cor)}
-          disabled={readOnly}
-        />
-      </div>
+        <div className="space-y-1.5" {...fieldLayout('corPredominante')}>
+          <Label>
+            {fieldLabel('corPredominante', 'Cor Predominante')}{' '}
+            <FieldAsterisk type={getAsterisk('corPredominante')} />
+          </Label>
+          <ColorPicker
+            value={formData.corPredominante}
+            onChange={(cor) => handleChange('corPredominante', cor)}
+            disabled={readOnly}
+          />
+        </div>
 
-      <div className="space-y-2">
-        <Label>Cor Secundária</Label>
-        <ColorPicker
-          value={formData.corSecundaria}
-          onChange={(cor) => handleChange('corSecundaria', cor)}
-          disabled={readOnly}
-        />
-      </div>
+        <div className="space-y-1.5" {...fieldLayout('corSecundaria')}>
+          <Label>
+            {fieldLabel('corSecundaria', 'Cor Secundária')}{' '}
+            <FieldAsterisk type={getAsterisk('corSecundaria')} />
+          </Label>
+          <ColorPicker
+            value={formData.corSecundaria}
+            onChange={(cor) => handleChange('corSecundaria', cor)}
+            disabled={readOnly}
+          />
+        </div>
+      </ConfigurableFieldGrid>
 
       <div className="space-y-2">
         <Label>Imagens</Label>

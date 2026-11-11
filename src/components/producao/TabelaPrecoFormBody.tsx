@@ -12,7 +12,11 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { useFormFieldConfig, FieldAsterisk } from '@/hooks/useFormFieldConfig';
+import {
+  useFormFieldConfig,
+  FieldAsterisk,
+  ConfigurableFieldGrid,
+} from '@/hooks/useFormFieldConfig';
 import { TabelaPrecoRecursosTecnicosTab } from '@/components/producao/TabelaPrecoRecursosTecnicosTab';
 import { TabelaPrecoRecursosFisicosTab } from '@/components/producao/TabelaPrecoRecursosFisicosTab';
 import { ApiTabelasPrecoRepository } from '@/modules/tabelas-preco/tabelas-preco.api.repository';
@@ -34,7 +38,8 @@ export const TabelaPrecoFormBody = ({
 }: RecordFormBodyProps<TabelaPrecoItem, TabelaPrecoInput>) => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const { getAsterisk, validateRequired, showValidationError } = useFormFieldConfig('tabelaPreco');
+  const { getAsterisk, validateRequired, showValidationError, fieldLabel, fieldLayout } =
+    useFormFieldConfig('tabelaPreco');
   const [unidades, setUnidades] = useState<UnidadeNegocioOption[]>([]);
   const [formData, setFormData] = useState(() => ({
     codigoExterno: data?.codigoExterno || '',
@@ -116,10 +121,11 @@ export const TabelaPrecoFormBody = ({
 
   return (
     <form id={formId} onSubmit={handleSubmit} className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
+      <ConfigurableFieldGrid>
+        <div className="space-y-1.5" {...fieldLayout('codigoExterno')}>
           <Label htmlFor="codigoExterno">
-            Código Externo <FieldAsterisk type={getAsterisk('codigoExterno')} />
+            {fieldLabel('codigoExterno', 'Código Externo')}{' '}
+            <FieldAsterisk type={getAsterisk('codigoExterno')} />
           </Label>
           <Input
             id="codigoExterno"
@@ -130,9 +136,9 @@ export const TabelaPrecoFormBody = ({
             disabled={readOnly}
           />
         </div>
-        <div className="space-y-2">
+        <div className="space-y-1.5" {...fieldLayout('nome')}>
           <Label htmlFor="nome">
-            Nome <FieldAsterisk type={getAsterisk('nome')} />
+            {fieldLabel('nome', 'Nome')} <FieldAsterisk type={getAsterisk('nome')} />
           </Label>
           <Input
             id="nome"
@@ -143,12 +149,11 @@ export const TabelaPrecoFormBody = ({
             disabled={readOnly}
           />
         </div>
-      </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
+        <div className="space-y-1.5" {...fieldLayout('unidadeNegocio')}>
           <Label htmlFor="unidadeNegocio">
-            Unidade de Negócio <FieldAsterisk type={getAsterisk('unidadeNegocio')} />
+            {fieldLabel('unidadeNegocio', 'Unidade de Negócio')}{' '}
+            <FieldAsterisk type={getAsterisk('unidadeNegocio')} />
           </Label>
           <Select
             value={formData.unidadeNegocioId}
@@ -167,9 +172,9 @@ export const TabelaPrecoFormBody = ({
             </SelectContent>
           </Select>
         </div>
-        <div className="space-y-2">
+        <div className="space-y-1.5" {...fieldLayout('status')}>
           <Label htmlFor="status">
-            Status <FieldAsterisk type={getAsterisk('status')} />
+            {fieldLabel('status', 'Status')} <FieldAsterisk type={getAsterisk('status')} />
           </Label>
           <Select
             value={formData.status}
@@ -185,12 +190,11 @@ export const TabelaPrecoFormBody = ({
             </SelectContent>
           </Select>
         </div>
-      </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
+        <div className="space-y-1.5" {...fieldLayout('vigenciaInicio')}>
           <Label htmlFor="vigenciaInicio">
-            Vigência De <FieldAsterisk type={getAsterisk('vigenciaInicio')} />
+            {fieldLabel('vigenciaInicio', 'Vigência De')}{' '}
+            <FieldAsterisk type={getAsterisk('vigenciaInicio')} />
           </Label>
           <Input
             id="vigenciaInicio"
@@ -200,9 +204,10 @@ export const TabelaPrecoFormBody = ({
             disabled={readOnly}
           />
         </div>
-        <div className="space-y-2">
+        <div className="space-y-1.5" {...fieldLayout('vigenciaFim')}>
           <Label htmlFor="vigenciaFim">
-            Vigência Até <FieldAsterisk type={getAsterisk('vigenciaFim')} />
+            {fieldLabel('vigenciaFim', 'Vigência Até')}{' '}
+            <FieldAsterisk type={getAsterisk('vigenciaFim')} />
           </Label>
           <Input
             id="vigenciaFim"
@@ -212,21 +217,21 @@ export const TabelaPrecoFormBody = ({
             disabled={readOnly}
           />
         </div>
-      </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="descricao">
-          Descrição <FieldAsterisk type={getAsterisk('descricao')} />
-        </Label>
-        <Textarea
-          id="descricao"
-          value={formData.descricao}
-          onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
-          rows={3}
-          placeholder="Descrição da tabela de preço..."
-          disabled={readOnly}
-        />
-      </div>
+        <div className="space-y-1.5" {...fieldLayout('descricao')}>
+          <Label htmlFor="descricao">
+            {fieldLabel('descricao', 'Descrição')} <FieldAsterisk type={getAsterisk('descricao')} />
+          </Label>
+          <Textarea
+            id="descricao"
+            value={formData.descricao}
+            onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
+            rows={3}
+            placeholder="Descrição da tabela de preço..."
+            disabled={readOnly}
+          />
+        </div>
+      </ConfigurableFieldGrid>
 
       {data?.usuarioCadastro && (
         <div className="space-y-2">

@@ -6,6 +6,7 @@ const repository = new ApiParametrosRepository();
 const STORAGE_KEY = 'kreato_perfis_acesso';
 
 export const PERFIS_ACESSO_FORM: TituloFormConfig = {
+  formularioId: 'perfilAcesso',
   routes: { basePath: '/admin/perfis', navStorageKey: 'kreato_perfis_acesso_nav_ids' },
   newTitle: 'Novo Perfil de Acesso',
   editTitle: 'Editar Perfil de Acesso',

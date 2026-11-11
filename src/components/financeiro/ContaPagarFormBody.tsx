@@ -10,6 +10,11 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import type { RecordFormBodyProps } from '@/components/shared/RecordFormPage';
+import {
+  ConfigurableFieldGrid,
+  FieldAsterisk,
+  useFormFieldConfig,
+} from '@/hooks/useFormFieldConfig';
 import { ApiParametrizacoesRepository } from '@/modules/parametrizacoes/parametrizacoes.api.repository';
 import { ApiFornecedoresRepository } from '@/modules/fornecedores/fornecedores.api.repository';
 import type { ContaPagar, SaveContaPagarInput } from '@/modules/financeiro/contas-pagar.api';
@@ -64,6 +69,14 @@ export const ContaPagarFormBody = ({
 }: RecordFormBodyProps<ContaPagar, SaveContaPagarInput>) => {
   const [formData, setFormData] = useState<SaveContaPagarInput>(() => toFormData(data));
   const [isSaving, setIsSaving] = useState(false);
+  const { getAsterisk, validate, fieldLabel, fieldLayout } = useFormFieldConfig('contaPagar');
+  /** Label of a field: translation configured in Formulários + required/suggested asterisk. */
+  const label = (campo: string, text: string, alwaysRequired = false) => (
+    <>
+      {fieldLabel(campo, text)}
+      <FieldAsterisk type={getAsterisk(campo, alwaysRequired)} />
+    </>
+  );
 
   const [statusList, setStatusList] = useState<{ id: string; titulo: string; cor: string }[]>([]);
   const [categoriaList, setCategoriaList] = useState<{ id: string; titulo: string }[]>([]);
@@ -98,6 +111,24 @@ export const ContaPagarFormBody = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (readOnly || isSaving) return;
+    if (
+      !validate({
+        numeroDocumento: formData.numeroDocumento,
+        fornecedorId: formData.fornecedorId,
+        descricao: formData.descricao,
+        dataEmissao: formData.dataEmissao,
+        dataVencimento: formData.dataVencimento,
+        dataPagamento: formData.dataPagamento,
+        valor: formData.valor,
+        valorPago: formData.valorPago,
+        statusId: formData.statusId,
+        categoriaId: formData.categoriaId,
+        formaPagamentoId: formData.formaPagamentoId,
+        tipoDocumentoId: formData.tipoDocumentoId,
+        observacoes: formData.observacoes,
+      })
+    )
+      return;
     setIsSaving(true);
     try {
       await onSubmit(formData);
@@ -108,10 +139,9 @@ export const ContaPagarFormBody = ({
 
   return (
     <form id={formId} onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
-      {/* Row 1: Numero + Fornecedor */}
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-1">
-          <Label htmlFor="numeroDocumento">Nº Documento</Label>
+      <ConfigurableFieldGrid>
+        <div className="space-y-1" {...fieldLayout('numeroDocumento')}>
+          <Label htmlFor="numeroDocumento">{label('numeroDocumento', 'Nº Documento')}</Label>
           <Input
             id="numeroDocumento"
             value={formData.numeroDocumento ?? ''}
@@ -120,8 +150,8 @@ export const ContaPagarFormBody = ({
             placeholder="Ex.: NF-001"
           />
         </div>
-        <div className="space-y-1">
-          <Label>Fornecedor</Label>
+        <div className="space-y-1" {...fieldLayout('fornecedorId')}>
+          <Label>{label('fornecedorId', 'Fornecedor')}</Label>
           <Select
             value={formData.fornecedorId ?? NONE}
             onValueChange={(v) => set('fornecedorId', v === NONE ? null : v)}
@@ -140,27 +170,21 @@ export const ContaPagarFormBody = ({
             </SelectContent>
           </Select>
         </div>
-      </div>
 
-      {/* Descrição */}
-      <div className="space-y-1">
-        <Label htmlFor="descricao">
-          Descrição <span className="text-destructive">*</span>
-        </Label>
-        <Input
-          id="descricao"
-          value={formData.descricao}
-          onChange={(e) => set('descricao', e.target.value)}
-          disabled={readOnly}
-          required
-          placeholder="Descrição da conta a pagar"
-        />
-      </div>
+        <div className="space-y-1" {...fieldLayout('descricao')}>
+          <Label htmlFor="descricao">{label('descricao', 'Descrição', true)}</Label>
+          <Input
+            id="descricao"
+            value={formData.descricao}
+            onChange={(e) => set('descricao', e.target.value)}
+            disabled={readOnly}
+            required
+            placeholder="Descrição da conta a pagar"
+          />
+        </div>
 
-      {/* Row 2: Datas */}
-      <div className="grid grid-cols-3 gap-4">
-        <div className="space-y-1">
-          <Label htmlFor="dataEmissao">Data Emissão</Label>
+        <div className="space-y-1" {...fieldLayout('dataEmissao')}>
+          <Label htmlFor="dataEmissao">{label('dataEmissao', 'Data Emissão')}</Label>
           <Input
             id="dataEmissao"
             type="date"
@@ -169,10 +193,8 @@ export const ContaPagarFormBody = ({
             disabled={readOnly}
           />
         </div>
-        <div className="space-y-1">
-          <Label htmlFor="dataVencimento">
-            Vencimento <span className="text-destructive">*</span>
-          </Label>
+        <div className="space-y-1" {...fieldLayout('dataVencimento')}>
+          <Label htmlFor="dataVencimento">{label('dataVencimento', 'Vencimento', true)}</Label>
           <Input
             id="dataVencimento"
             type="date"
@@ -182,8 +204,8 @@ export const ContaPagarFormBody = ({
             required
           />
         </div>
-        <div className="space-y-1">
-          <Label htmlFor="dataPagamento">Data Pagamento</Label>
+        <div className="space-y-1" {...fieldLayout('dataPagamento')}>
+          <Label htmlFor="dataPagamento">{label('dataPagamento', 'Data Pagamento')}</Label>
           <Input
             id="dataPagamento"
             type="date"
@@ -192,14 +214,9 @@ export const ContaPagarFormBody = ({
             disabled={readOnly}
           />
         </div>
-      </div>
 
-      {/* Row 3: Valores */}
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-1">
-          <Label htmlFor="valor">
-            Valor (R$) <span className="text-destructive">*</span>
-          </Label>
+        <div className="space-y-1" {...fieldLayout('valor')}>
+          <Label htmlFor="valor">{label('valor', 'Valor (R$)', true)}</Label>
           <Input
             id="valor"
             type="number"
@@ -212,8 +229,8 @@ export const ContaPagarFormBody = ({
             placeholder="0,00"
           />
         </div>
-        <div className="space-y-1">
-          <Label htmlFor="valorPago">Valor Pago (R$)</Label>
+        <div className="space-y-1" {...fieldLayout('valorPago')}>
+          <Label htmlFor="valorPago">{label('valorPago', 'Valor Pago (R$)')}</Label>
           <Input
             id="valorPago"
             type="number"
@@ -225,12 +242,9 @@ export const ContaPagarFormBody = ({
             placeholder="0,00"
           />
         </div>
-      </div>
 
-      {/* Row 4: Status + Categoria */}
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-1">
-          <Label>Status</Label>
+        <div className="space-y-1" {...fieldLayout('statusId')}>
+          <Label>{label('statusId', 'Status')}</Label>
           <Select
             value={formData.statusId ?? NONE}
             onValueChange={(v) => set('statusId', v === NONE ? null : v)}
@@ -249,8 +263,8 @@ export const ContaPagarFormBody = ({
             </SelectContent>
           </Select>
         </div>
-        <div className="space-y-1">
-          <Label>Categoria de Despesa</Label>
+        <div className="space-y-1" {...fieldLayout('categoriaId')}>
+          <Label>{label('categoriaId', 'Categoria de Despesa')}</Label>
           <Select
             value={formData.categoriaId ?? NONE}
             onValueChange={(v) => set('categoriaId', v === NONE ? null : v)}
@@ -269,12 +283,9 @@ export const ContaPagarFormBody = ({
             </SelectContent>
           </Select>
         </div>
-      </div>
 
-      {/* Row 5: Forma Pagamento + Tipo Documento */}
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-1">
-          <Label>Forma de Pagamento</Label>
+        <div className="space-y-1" {...fieldLayout('formaPagamentoId')}>
+          <Label>{label('formaPagamentoId', 'Forma de Pagamento')}</Label>
           <Select
             value={formData.formaPagamentoId ?? NONE}
             onValueChange={(v) => set('formaPagamentoId', v === NONE ? null : v)}
@@ -293,8 +304,8 @@ export const ContaPagarFormBody = ({
             </SelectContent>
           </Select>
         </div>
-        <div className="space-y-1">
-          <Label>Tipo de Documento</Label>
+        <div className="space-y-1" {...fieldLayout('tipoDocumentoId')}>
+          <Label>{label('tipoDocumentoId', 'Tipo de Documento')}</Label>
           <Select
             value={formData.tipoDocumentoId ?? NONE}
             onValueChange={(v) => set('tipoDocumentoId', v === NONE ? null : v)}
@@ -313,20 +324,19 @@ export const ContaPagarFormBody = ({
             </SelectContent>
           </Select>
         </div>
-      </div>
 
-      {/* Observações */}
-      <div className="space-y-1">
-        <Label htmlFor="observacoes">Observações</Label>
-        <Textarea
-          id="observacoes"
-          value={formData.observacoes ?? ''}
-          onChange={(e) => set('observacoes', e.target.value)}
-          disabled={readOnly}
-          rows={3}
-          placeholder="Observações adicionais..."
-        />
-      </div>
+        <div className="space-y-1" {...fieldLayout('observacoes')}>
+          <Label htmlFor="observacoes">{label('observacoes', 'Observações')}</Label>
+          <Textarea
+            id="observacoes"
+            value={formData.observacoes ?? ''}
+            onChange={(e) => set('observacoes', e.target.value)}
+            disabled={readOnly}
+            rows={3}
+            placeholder="Observações adicionais..."
+          />
+        </div>
+      </ConfigurableFieldGrid>
     </form>
   );
 };

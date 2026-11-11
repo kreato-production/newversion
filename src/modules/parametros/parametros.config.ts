@@ -12,6 +12,8 @@ export interface ParametroPageConfig {
   permissionPath?: [string, string, string?];
   showExportImport?: boolean;
   showCor?: boolean;
+  /** Id do formulário em Administração > Formulários (`src/data/formsRegistry.ts`). */
+  formularioId: string;
 }
 
 export const PARAMETROS = {
@@ -20,6 +22,7 @@ export const PARAMETROS = {
     description: 'Gerencie os cargos dos recursos humanos',
     entityName: 'Cargo',
     storageKey: 'kreato_cargos',
+    formularioId: 'cargo',
     permissionPath: ['Recursos', 'Parametrizações', 'Cargos'],
   },
   categoriaFornecedores: {
@@ -27,6 +30,7 @@ export const PARAMETROS = {
     description: 'Gerencie as categorias de fornecedores',
     entityName: 'Categoria',
     storageKey: 'kreato_categoria_fornecedores',
+    formularioId: 'categoriaFornecedor',
     permissionPath: ['Recursos', 'Parametrizações', 'Categoria Fornecedores'],
   },
   classificacaoPessoas: {
@@ -34,6 +38,7 @@ export const PARAMETROS = {
     description: 'Gerencie as classificações de pessoas (Jogador de Futebol, Atriz, Ator, etc.)',
     entityName: 'Classificação',
     storageKey: 'kreato_classificacao_pessoas',
+    formularioId: 'classificacaoPessoa',
     permissionPath: ['Recursos', 'Parametrizações', 'Classificação Pessoas'],
   },
   funcoes: {
@@ -41,6 +46,7 @@ export const PARAMETROS = {
     description: 'Gerencie as funções disponíveis',
     entityName: 'Função',
     storageKey: 'kreato_funcoes',
+    formularioId: 'funcao',
     permissionPath: ['Recursos', 'Parametrizações', 'Funções'],
   },
   material: {
@@ -48,6 +54,7 @@ export const PARAMETROS = {
     description: 'Gerencie os materiais disponíveis para os figurinos',
     entityName: 'Material',
     storageKey: 'kreato_material',
+    formularioId: 'material',
     permissionPath: ['Recursos', 'Parametrizações', 'Material'],
   },
   servicos: {
@@ -55,6 +62,7 @@ export const PARAMETROS = {
     description: 'Gerencie os serviços oferecidos',
     entityName: 'Serviço',
     storageKey: 'kreato_servicos',
+    formularioId: 'servico',
     permissionPath: ['Recursos', 'Parametrizações', 'Serviços'],
   },
   tipoFigurino: {
@@ -62,6 +70,7 @@ export const PARAMETROS = {
     description: 'Gerencie os tipos de figurino disponíveis no sistema',
     entityName: 'Tipo de Figurino',
     storageKey: 'kreato_tipo_figurino',
+    formularioId: 'tipoFigurino',
     permissionPath: ['Recursos', 'Parametrizações', 'Tipo Figurino'],
   },
   classificacao: {
@@ -69,6 +78,7 @@ export const PARAMETROS = {
     description: 'Gerencie as classificações de conteúdo',
     entityName: 'Classificação',
     storageKey: 'kreato_classificacao',
+    formularioId: 'classificacao',
     permissionPath: ['Produção', 'Parametrizações', 'Classificação'],
     showCor: true,
   },
@@ -77,6 +87,7 @@ export const PARAMETROS = {
     description: 'Gerencie os tipos de gravação disponíveis no sistema',
     entityName: 'Tipo de Gravação',
     storageKey: 'kreato_tipos_gravacao',
+    formularioId: 'tipoGravacao',
     permissionPath: ['Produção', 'Parametrizações', 'Tipos Gravação'],
     showCor: true,
   },
@@ -85,6 +96,7 @@ export const PARAMETROS = {
     description: 'Gerencie os tipos de evento disponíveis no sistema',
     entityName: 'Tipo de Evento',
     storageKey: 'kreato_tipo_evento',
+    formularioId: 'tipoEvento',
     permissionPath: ['Gestão de Eventos', 'Parametrizações', 'Tipo de Evento'],
     showCor: true,
   },
@@ -93,6 +105,7 @@ export const PARAMETROS = {
     description: 'Gerencie os tipos de expositor disponíveis no sistema',
     entityName: 'Tipo de Expositor',
     storageKey: 'kreato_tipo_expositor',
+    formularioId: 'tipoExpositor',
     permissionPath: ['Gestão de Eventos', 'Parametrizações', 'Tipo de Expositor'],
     showCor: true,
   },

@@ -22,6 +22,11 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useToast } from '@/hooks/use-toast';
 import { usePermissions } from '@/hooks/usePermissions';
+import {
+  FieldAsterisk,
+  useFormFieldConfig,
+  ConfigurableFieldGrid,
+} from '@/hooks/useFormFieldConfig';
 import { Badge } from '@/components/ui/badge';
 import {
   Table,
@@ -150,6 +155,7 @@ export const ConteudoFormBody = ({
   const { t } = useLanguage();
   const { toast } = useToast();
   const { isVisible } = usePermissions();
+  const { getAsterisk, validate, fieldLabel, fieldLayout } = useFormFieldConfig('conteudo');
   const [isGenerating, setIsGenerating] = useState(false);
   const [showNoEspacoAlert, setShowNoEspacoAlert] = useState(false);
   const [etapas, setEtapas] = useState<Etapa[]>([]);
@@ -297,6 +303,26 @@ export const ConteudoFormBody = ({
       });
       return;
     }
+
+    const camposValidos = validate({
+      codigoExterno: formData.codigoExterno,
+      descricao: formData.descricao,
+      // Numeric fields start at 0/empty: zero counts as not filled in when required.
+      quantidadeEpisodios: parseInt(formData.quantidadeEpisodios, 10) || null,
+      unidadeNegocio: formData.unidadeNegocioId,
+      programaId: formData.programaId,
+      centroLucro: formData.centroLucroId,
+      tipoConteudo: formData.tipoConteudo,
+      classificacao: formData.classificacao,
+      anoProducao: formData.anoProducao,
+      sinopse: formData.sinopse,
+      orcamento: parseFloat(formData.orcamento) || null,
+      tabelaPrecoId: formData.tabelaPrecoId,
+      frequenciaDataInicio: formData.frequenciaDataInicio,
+      frequenciaDataFim: formData.frequenciaDataFim,
+      frequenciaDiasSemana: formData.frequenciaDiasSemana,
+    });
+    if (!camposValidos) return;
 
     const payload: ConteudoInput = {
       id: data?.id,
@@ -474,9 +500,12 @@ export const ConteudoFormBody = ({
           </TabsList>
 
           <TabsContent value="dadosGerais" className="mt-4 space-y-4">
-            <div className="grid grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="codigoExterno">{t('common.externalCode')}</Label>
+            <ConfigurableFieldGrid>
+              <div className="space-y-1.5" {...fieldLayout('codigoExterno')}>
+                <Label htmlFor="codigoExterno">
+                  {fieldLabel('codigoExterno', t('common.externalCode'))}{' '}
+                  <FieldAsterisk type={getAsterisk('codigoExterno')} />
+                </Label>
                 <Input
                   id="codigoExterno"
                   value={formData.codigoExterno}
@@ -490,8 +519,11 @@ export const ConteudoFormBody = ({
                   disabled={readOnly}
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="descricao">{t('common.description')}</Label>
+              <div className="space-y-1.5" {...fieldLayout('descricao')}>
+                <Label htmlFor="descricao">
+                  {fieldLabel('descricao', t('common.description'))}{' '}
+                  <FieldAsterisk type={getAsterisk('descricao', true)} />
+                </Label>
                 <Input
                   id="descricao"
                   value={formData.descricao}
@@ -506,8 +538,11 @@ export const ConteudoFormBody = ({
                   required
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="quantidadeEpisodios">{t('content.episodes')}</Label>
+              <div className="space-y-1.5" {...fieldLayout('quantidadeEpisodios')}>
+                <Label htmlFor="quantidadeEpisodios">
+                  {fieldLabel('quantidadeEpisodios', t('content.episodes'))}{' '}
+                  <FieldAsterisk type={getAsterisk('quantidadeEpisodios')} />
+                </Label>
                 <Input
                   id="quantidadeEpisodios"
                   type="number"
@@ -522,11 +557,12 @@ export const ConteudoFormBody = ({
                   className={frequencyDates.length > 0 ? 'bg-muted' : ''}
                 />
               </div>
-            </div>
 
-            <div className="grid grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label>{t('recordings.businessUnit')}</Label>
+              <div className="space-y-1.5" {...fieldLayout('unidadeNegocio')}>
+                <Label>
+                  {fieldLabel('unidadeNegocio', t('recordings.businessUnit'))}{' '}
+                  <FieldAsterisk type={getAsterisk('unidadeNegocio')} />
+                </Label>
                 <SearchableSelect
                   options={unidades.map((item) => ({ value: item.id, label: item.nome }))}
                   value={formData.unidadeNegocioId}
@@ -544,8 +580,11 @@ export const ConteudoFormBody = ({
                   disabled={readOnly}
                 />
               </div>
-              <div className="space-y-2">
-                <Label>{t('recordings.profitCenter')}</Label>
+              <div className="space-y-1.5" {...fieldLayout('centroLucro')}>
+                <Label>
+                  {fieldLabel('centroLucro', t('recordings.profitCenter'))}{' '}
+                  <FieldAsterisk type={getAsterisk('centroLucro')} />
+                </Label>
                 <SearchableSelect
                   options={hierarchicalCentros.map((item) => ({
                     value: item.id,
@@ -563,8 +602,11 @@ export const ConteudoFormBody = ({
                   disabled={!formData.unidadeNegocioId || readOnly}
                 />
               </div>
-              <div className="space-y-2">
-                <Label>Tabela de Preco</Label>
+              <div className="space-y-1.5" {...fieldLayout('tabelaPrecoId')}>
+                <Label>
+                  {fieldLabel('tabelaPrecoId', 'Tabela de Preco')}{' '}
+                  <FieldAsterisk type={getAsterisk('tabelaPrecoId')} />
+                </Label>
                 <SearchableSelect
                   options={filteredTabelasPreco.map((item) => ({
                     value: item.id,
@@ -581,11 +623,12 @@ export const ConteudoFormBody = ({
                   disabled={!formData.unidadeNegocioId || readOnly}
                 />
               </div>
-            </div>
 
-            <div className="grid grid-cols-4 gap-4">
-              <div className="space-y-2">
-                <Label>Programa</Label>
+              <div className="space-y-1.5" {...fieldLayout('programaId')}>
+                <Label>
+                  {fieldLabel('programaId', 'Programa')}{' '}
+                  <FieldAsterisk type={getAsterisk('programaId')} />
+                </Label>
                 <SearchableSelect
                   options={filteredProgramas.map((item) => ({
                     value: item.id,
@@ -600,8 +643,11 @@ export const ConteudoFormBody = ({
                   disabled={!formData.unidadeNegocioId || readOnly}
                 />
               </div>
-              <div className="space-y-2">
-                <Label>{t('content.contentType')}</Label>
+              <div className="space-y-1.5" {...fieldLayout('tipoConteudo')}>
+                <Label>
+                  {fieldLabel('tipoConteudo', t('content.contentType'))}{' '}
+                  <FieldAsterisk type={getAsterisk('tipoConteudo')} />
+                </Label>
                 <SearchableSelect
                   options={tipos.map((item) => ({ value: item.nome, label: item.nome }))}
                   value={formData.tipoConteudo}
@@ -613,8 +659,11 @@ export const ConteudoFormBody = ({
                   disabled={readOnly}
                 />
               </div>
-              <div className="space-y-2">
-                <Label>{t('content.classification')}</Label>
+              <div className="space-y-1.5" {...fieldLayout('classificacao')}>
+                <Label>
+                  {fieldLabel('classificacao', t('content.classification'))}{' '}
+                  <FieldAsterisk type={getAsterisk('classificacao')} />
+                </Label>
                 <SearchableSelect
                   options={classificacoes.map((item) => ({
                     value: item.nome,
@@ -629,8 +678,11 @@ export const ConteudoFormBody = ({
                   disabled={readOnly}
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="anoProducao">{t('content.productionYear')}</Label>
+              <div className="space-y-1.5" {...fieldLayout('anoProducao')}>
+                <Label htmlFor="anoProducao">
+                  {fieldLabel('anoProducao', t('content.productionYear'))}{' '}
+                  <FieldAsterisk type={getAsterisk('anoProducao')} />
+                </Label>
                 <Input
                   id="anoProducao"
                   value={formData.anoProducao}
@@ -644,11 +696,12 @@ export const ConteudoFormBody = ({
                   disabled={readOnly}
                 />
               </div>
-            </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="sinopse">{t('content.synopsis')}</Label>
+              <div className="space-y-1.5" {...fieldLayout('sinopse')}>
+                <Label htmlFor="sinopse">
+                  {fieldLabel('sinopse', t('content.synopsis'))}{' '}
+                  <FieldAsterisk type={getAsterisk('sinopse')} />
+                </Label>
                 <Textarea
                   id="sinopse"
                   value={formData.sinopse}
@@ -659,10 +712,11 @@ export const ConteudoFormBody = ({
                   disabled={readOnly}
                 />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-1.5" {...fieldLayout('orcamento')}>
                 <Label htmlFor="orcamento">
-                  {t('field.budget')} (
+                  {fieldLabel('orcamento', t('field.budget'))} (
                   {getCurrencyByCode(selectedCurrency)?.symbol || selectedCurrency})
+                  <FieldAsterisk type={getAsterisk('orcamento')} />
                 </Label>
                 <Input
                   id="orcamento"
@@ -676,13 +730,16 @@ export const ConteudoFormBody = ({
                   min="0"
                 />
               </div>
-            </div>
+            </ConfigurableFieldGrid>
 
             <div className="space-y-3 pt-4 border-t">
               <Label className="text-xs font-semibold">Frequencia Semanal</Label>
-              <div className="grid grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label className="text-xs">Data Inicio</Label>
+              <ConfigurableFieldGrid>
+                <div className="space-y-1.5" {...fieldLayout('frequenciaDataInicio')}>
+                  <Label className="text-xs">
+                    {fieldLabel('frequenciaDataInicio', 'Data Inicio')}{' '}
+                    <FieldAsterisk type={getAsterisk('frequenciaDataInicio')} />
+                  </Label>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button
@@ -721,8 +778,11 @@ export const ConteudoFormBody = ({
                     </PopoverContent>
                   </Popover>
                 </div>
-                <div className="space-y-2">
-                  <Label className="text-xs">Data Fim</Label>
+                <div className="space-y-1.5" {...fieldLayout('frequenciaDataFim')}>
+                  <Label className="text-xs">
+                    {fieldLabel('frequenciaDataFim', 'Data Fim')}{' '}
+                    <FieldAsterisk type={getAsterisk('frequenciaDataFim')} />
+                  </Label>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button
@@ -766,8 +826,11 @@ export const ConteudoFormBody = ({
                     </PopoverContent>
                   </Popover>
                 </div>
-                <div className="space-y-2">
-                  <Label className="text-xs">Dias da Semana</Label>
+                <div className="space-y-1.5" {...fieldLayout('frequenciaDiasSemana')}>
+                  <Label className="text-xs">
+                    {fieldLabel('frequenciaDiasSemana', 'Dias da Semana')}{' '}
+                    <FieldAsterisk type={getAsterisk('frequenciaDiasSemana')} />
+                  </Label>
                   <div className="flex gap-2 flex-wrap pt-1">
                     {DAY_LABELS.map((day) => (
                       <label key={day.value} className="flex items-center gap-1 cursor-pointer">
@@ -789,7 +852,7 @@ export const ConteudoFormBody = ({
                     ))}
                   </div>
                 </div>
-              </div>
+              </ConfigurableFieldGrid>
               {frequencyDates.length > 0 && (
                 <p className="text-xs text-muted-foreground">
                   {frequencyDates.length} episodio(s) calculado(s) no periodo selecionado

@@ -9,6 +9,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
+import { formsRegistry } from '@/data/formsRegistry';
 
 // ─── Label maps ──────────────────────────────────────────────────────────────
 
@@ -138,6 +139,12 @@ interface Crumb {
   href?: string;
 }
 
+/** Label of a non-UUID record id, e.g. /admin/formularios/programa → "Programa". */
+function detailLabel(sub: string, part: string): string | undefined {
+  if (sub === 'formularios') return formsRegistry.find((form) => form.id === part)?.nome;
+  return undefined;
+}
+
 // ─── Builder ─────────────────────────────────────────────────────────────────
 
 function buildCrumbs(pathname: string): Crumb[] {
@@ -185,7 +192,7 @@ function buildCrumbs(pathname: string): Crumb[] {
     // Try to resolve as a label; if it looks like a UUID/ID, show "Detalhe"
     const isId = /^[0-9a-f-]{8,}$/i.test(part);
     crumbs.push({
-      label: isId ? 'Detalhe' : (SUB_LABELS[part] ?? part),
+      label: isId ? 'Detalhe' : (detailLabel(sub, part) ?? SUB_LABELS[part] ?? part),
       href: isLast ? undefined : `/${[module, sub, ...rest.slice(0, i + 1)].join('/')}`,
     });
   });

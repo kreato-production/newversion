@@ -92,6 +92,8 @@ export interface GroupedTableProps<T> {
   /** Controlled collapse state — when set, the component is semi-controlled */
   externalCollapsedIds?: Set<string>;
   onCollapsedIdsChange?: (ids: Set<string>) => void;
+  /** Linhas baixas (padrão do sistema). */
+  compact?: boolean;
 }
 
 export function GroupedTable<T>({
@@ -102,6 +104,7 @@ export function GroupedTable<T>({
   visibleColumnKeys,
   externalCollapsedIds,
   onCollapsedIdsChange,
+  compact = true,
 }: GroupedTableProps<T>) {
   const [internalCollapsedIds, setInternalCollapsedIds] = useState<Set<string>>(new Set());
 
@@ -190,11 +193,11 @@ export function GroupedTable<T>({
               }
 
               return (
-                <TableRow key={getRowKey(row.item)} className="h-10">
+                <TableRow key={getRowKey(row.item)} className={compact ? 'h-8' : 'h-10'}>
                   {renderedColumns.map((column, colIdx) => (
                     <TableCell
                       key={column.key}
-                      className={cn('py-2', column.className)}
+                      className={cn(compact ? 'py-1' : 'py-2', column.className)}
                       style={colIdx === 0 ? { paddingLeft: `${8 + row.depth * 20}px` } : undefined}
                     >
                       {column.render

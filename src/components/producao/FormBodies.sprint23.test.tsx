@@ -36,11 +36,17 @@ vi.mock('@/hooks/useFormFieldConfig', () => ({
   useFormFieldConfig: () => ({
     getAsterisk: (): null => null,
     validateRequired: (): string[] => [],
+    validate: (): boolean => true,
     showValidationError: vi.fn(),
     getColSpan: (_c: string, d: number) => d,
     getPosicao: (): null => null,
+    fieldLabel: (campo: string, fallback?: string) => fallback ?? campo,
+    fieldLayout: (campo: string) => ({ 'data-campo': campo, style: {} }),
   }),
   FieldAsterisk: (): null => null,
+  ConfigurableFieldGrid: ({ children }: { children?: import('react').ReactNode }) => (
+    <div>{children}</div>
+  ),
 }));
 vi.mock('@/components/shared/SearchableSelect', () => ({
   SearchableSelect: () => <div>select</div>,

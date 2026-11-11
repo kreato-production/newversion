@@ -4,6 +4,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { FormPage } from '@/components/shared/FormPage';
 import { TraducaoTab, type Traducoes } from '@/components/shared/TraducaoTab';
+import {
+  ConfigurableFieldGrid,
+  FieldAsterisk,
+  useFormFieldConfig,
+} from '@/hooks/useFormFieldConfig';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useRecordForm } from '@/hooks/useRecordForm';
 import { useRecordNavigation } from '@/hooks/useRecordNavigation';
@@ -31,6 +36,7 @@ const FeriadoForm = ({ id }: { id?: string }) => {
   const { canIncluir, canAlterar } = usePermissions();
   const { goBack, navigation } = useRecordNavigation(FERIADOS_ROUTES, id);
   const readOnly = id ? !canAlterar(...PERMISSION) : !canIncluir(...PERMISSION);
+  const { getAsterisk, validate, fieldLabel, fieldLayout } = useFormFieldConfig('feriado');
 
   const form = useRecordForm<Feriado, FeriadoInput>({
     id,
@@ -47,6 +53,8 @@ const FeriadoForm = ({ id }: { id?: string }) => {
       }),
     onSaved: goBack,
     readOnly,
+    validate: (values) =>
+      validate({ data: values.data, feriado: values.feriado, observacoes: values.observacoes }),
     messages: { created: 'Feriado salvo!', updated: 'Feriado atualizado!' },
   });
   const { isEditing, record, formData, update, handleSubmit } = form;
@@ -77,10 +85,11 @@ const FeriadoForm = ({ id }: { id?: string }) => {
           </TabsList>
 
           <TabsContent value="dados" className="space-y-4 mt-4">
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-              <div className="space-y-2">
+            <ConfigurableFieldGrid>
+              <div className="space-y-2" {...fieldLayout('data')}>
                 <Label htmlFor="data">
-                  Data <span className="text-destructive">*</span>
+                  {fieldLabel('data', 'Data')}
+                  <FieldAsterisk type={getAsterisk('data', true)} />
                 </Label>
                 <Input
                   id="data"
@@ -91,9 +100,10 @@ const FeriadoForm = ({ id }: { id?: string }) => {
                   disabled={disabled}
                 />
               </div>
-              <div className="space-y-2 md:col-span-2">
+              <div className="space-y-2" {...fieldLayout('feriado')}>
                 <Label htmlFor="feriado">
-                  Feriado <span className="text-destructive">*</span>
+                  {fieldLabel('feriado', 'Feriado')}
+                  <FieldAsterisk type={getAsterisk('feriado', true)} />
                 </Label>
                 <Input
                   id="feriado"
@@ -104,17 +114,20 @@ const FeriadoForm = ({ id }: { id?: string }) => {
                   disabled={disabled}
                 />
               </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="observacoes">Observações</Label>
-              <Textarea
-                id="observacoes"
-                value={formData.observacoes || ''}
-                onChange={(e) => update('observacoes', e.target.value)}
-                rows={4}
-                disabled={disabled}
-              />
-            </div>
+              <div className="space-y-2" {...fieldLayout('observacoes')}>
+                <Label htmlFor="observacoes">
+                  {fieldLabel('observacoes', 'Observações')}
+                  <FieldAsterisk type={getAsterisk('observacoes')} />
+                </Label>
+                <Textarea
+                  id="observacoes"
+                  value={formData.observacoes || ''}
+                  onChange={(e) => update('observacoes', e.target.value)}
+                  rows={4}
+                  disabled={disabled}
+                />
+              </div>
+            </ConfigurableFieldGrid>
           </TabsContent>
 
           <TabsContent value="traducao">

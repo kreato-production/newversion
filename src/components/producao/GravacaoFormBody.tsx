@@ -6,6 +6,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { SearchableSelect } from '@/components/shared/SearchableSelect';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { usePermissions } from '@/hooks/usePermissions';
+import {
+  FieldAsterisk,
+  useFormFieldConfig,
+  ConfigurableFieldGrid,
+} from '@/hooks/useFormFieldConfig';
 import { conteudosRepository } from '@/modules/conteudos/conteudos.repository.provider';
 import { ApiParametrizacoesRepository } from '@/modules/parametrizacoes/parametrizacoes.api.repository';
 import type { Gravacao, GravacaoInput } from '@/modules/gravacoes/gravacoes.types';
@@ -104,6 +109,7 @@ export const GravacaoFormBody = ({
 }: GravacaoFormBodyProps) => {
   const { t } = useLanguage();
   const { isVisible } = usePermissions();
+  const { getAsterisk, validate, fieldLabel, fieldLayout } = useFormFieldConfig('gravacao');
   const [formData, setFormData] = useState<GravacaoInput>(() => toFormData(data, initialValues));
 
   // Option lists
@@ -193,6 +199,22 @@ export const GravacaoFormBody = ({
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (readOnly) return;
+    const camposValidos = validate({
+      codigoExterno: formData.codigoExterno,
+      nome: formData.nome,
+      unidadeNegocio: formData.unidadeNegocioId,
+      programaId: formData.programaId,
+      centroLucro: formData.centroLucro,
+      tipoConteudo: formData.tipoConteudo,
+      classificacao: formData.classificacao,
+      status: formData.status,
+      conteudoId: formData.conteudoId,
+      dataPrevista: formData.dataPrevista,
+      descricao: formData.descricao,
+      // Orçamento starts at 0: zero counts as not filled in when the field is required.
+      orcamento: formData.orcamento ? formData.orcamento : null,
+    });
+    if (!camposValidos) return;
     await onSubmit(formData);
   };
 
@@ -253,21 +275,27 @@ export const GravacaoFormBody = ({
 
         <TabsContent value="dadosGerais" className="mt-4 space-y-4">
           {/* Row 1: Código | Código Externo | Nome */}
-          <div className="grid grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label>{t('common.code')}</Label>
+          <ConfigurableFieldGrid>
+            <div className="space-y-1.5" {...fieldLayout('codigo')}>
+              <Label>{fieldLabel('codigo', t('common.code'))}</Label>
               <Input value={formData.codigo} readOnly className="bg-muted font-mono" />
             </div>
-            <div className="space-y-2">
-              <Label>{t('common.externalCode')}</Label>
+            <div className="space-y-1.5" {...fieldLayout('codigoExterno')}>
+              <Label>
+                {fieldLabel('codigoExterno', t('common.externalCode'))}{' '}
+                <FieldAsterisk type={getAsterisk('codigoExterno')} />
+              </Label>
               <Input
                 value={formData.codigoExterno}
                 onChange={(e) => setFormData({ ...formData, codigoExterno: e.target.value })}
                 disabled={readOnly}
               />
             </div>
-            <div className="space-y-2">
-              <Label>{t('common.name')}</Label>
+            <div className="space-y-1.5" {...fieldLayout('nome')}>
+              <Label>
+                {fieldLabel('nome', t('common.name'))}{' '}
+                <FieldAsterisk type={getAsterisk('nome', true)} />
+              </Label>
               <Input
                 value={formData.nome}
                 onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
@@ -275,12 +303,13 @@ export const GravacaoFormBody = ({
                 disabled={readOnly}
               />
             </div>
-          </div>
 
-          {/* Row 2: Unidade | Centro de Custos | Programa | Tipo de Conteúdo */}
-          <div className="grid grid-cols-4 gap-4">
-            <div className="space-y-2">
-              <Label>Unidade de Negócio</Label>
+            {/* Row 2: Unidade | Centro de Custos | Programa | Tipo de Conteúdo */}
+            <div className="space-y-1.5" {...fieldLayout('unidadeNegocio')}>
+              <Label>
+                {fieldLabel('unidadeNegocio', 'Unidade de Negócio')}{' '}
+                <FieldAsterisk type={getAsterisk('unidadeNegocio')} />
+              </Label>
               <SearchableSelect
                 options={unidades.map((u) => ({ value: u.id, label: u.nome }))}
                 value={formData.unidadeNegocioId || ''}
@@ -298,8 +327,11 @@ export const GravacaoFormBody = ({
                 disabled={readOnly}
               />
             </div>
-            <div className="space-y-2">
-              <Label>Centro de Custos</Label>
+            <div className="space-y-1.5" {...fieldLayout('centroLucro')}>
+              <Label>
+                {fieldLabel('centroLucro', 'Centro de Custos')}{' '}
+                <FieldAsterisk type={getAsterisk('centroLucro')} />
+              </Label>
               <SearchableSelect
                 options={hierarchicalCentros.map((c) => ({
                   value: c.nome,
@@ -313,8 +345,11 @@ export const GravacaoFormBody = ({
                 disabled={readOnly}
               />
             </div>
-            <div className="space-y-2">
-              <Label>Programa</Label>
+            <div className="space-y-1.5" {...fieldLayout('programaId')}>
+              <Label>
+                {fieldLabel('programaId', 'Programa')}{' '}
+                <FieldAsterisk type={getAsterisk('programaId')} />
+              </Label>
               <SearchableSelect
                 options={filteredProgramas.map((p) => ({ value: p.id, label: p.nome }))}
                 value={formData.programaId || ''}
@@ -324,8 +359,11 @@ export const GravacaoFormBody = ({
                 disabled={readOnly}
               />
             </div>
-            <div className="space-y-2">
-              <Label>Tipo de Conteúdo</Label>
+            <div className="space-y-1.5" {...fieldLayout('tipoConteudo')}>
+              <Label>
+                {fieldLabel('tipoConteudo', 'Tipo de Conteúdo')}{' '}
+                <FieldAsterisk type={getAsterisk('tipoConteudo')} />
+              </Label>
               <SearchableSelect
                 options={tipos.map((tp) => ({ value: tp.nome, label: tp.nome }))}
                 value={formData.tipoConteudo || ''}
@@ -335,12 +373,13 @@ export const GravacaoFormBody = ({
                 disabled={readOnly}
               />
             </div>
-          </div>
 
-          {/* Row 3: Classificação | Status | Conteúdo | Data Prevista */}
-          <div className="grid grid-cols-4 gap-4">
-            <div className="space-y-2">
-              <Label>Classificação</Label>
+            {/* Row 3: Classificação | Status | Conteúdo | Data Prevista */}
+            <div className="space-y-1.5" {...fieldLayout('classificacao')}>
+              <Label>
+                {fieldLabel('classificacao', 'Classificação')}{' '}
+                <FieldAsterisk type={getAsterisk('classificacao')} />
+              </Label>
               <SearchableSelect
                 options={classificacoes.map((c) => ({ value: c.nome, label: c.nome }))}
                 value={formData.classificacao || ''}
@@ -350,8 +389,10 @@ export const GravacaoFormBody = ({
                 disabled={readOnly}
               />
             </div>
-            <div className="space-y-2">
-              <Label>Status</Label>
+            <div className="space-y-1.5" {...fieldLayout('status')}>
+              <Label>
+                {fieldLabel('status', 'Status')} <FieldAsterisk type={getAsterisk('status')} />
+              </Label>
               <SearchableSelect
                 options={statusOptions.map((s) => ({ value: s.nome, label: s.nome }))}
                 value={formData.status || ''}
@@ -361,8 +402,11 @@ export const GravacaoFormBody = ({
                 disabled={readOnly}
               />
             </div>
-            <div className="space-y-2">
-              <Label>Conteúdo</Label>
+            <div className="space-y-1.5" {...fieldLayout('conteudoId')}>
+              <Label>
+                {fieldLabel('conteudoId', 'Conteúdo')}{' '}
+                <FieldAsterisk type={getAsterisk('conteudoId')} />
+              </Label>
               <SearchableSelect
                 options={filteredConteudos.map((c) => ({ value: c.id, label: c.descricao }))}
                 value={formData.conteudoId || ''}
@@ -372,8 +416,11 @@ export const GravacaoFormBody = ({
                 disabled={readOnly}
               />
             </div>
-            <div className="space-y-2">
-              <Label>{t('recordings.expectedDate')}</Label>
+            <div className="space-y-1.5" {...fieldLayout('dataPrevista')}>
+              <Label>
+                {fieldLabel('dataPrevista', t('recordings.expectedDate'))}{' '}
+                <FieldAsterisk type={getAsterisk('dataPrevista')} />
+              </Label>
               <Input
                 type="date"
                 value={formData.dataPrevista}
@@ -381,12 +428,13 @@ export const GravacaoFormBody = ({
                 disabled={readOnly}
               />
             </div>
-          </div>
 
-          {/* Row 4: Orçamento | Descrição */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>{t('field.budget') || 'Orçamento'}</Label>
+            {/* Row 4: Orçamento | Descrição */}
+            <div className="space-y-1.5" {...fieldLayout('orcamento')}>
+              <Label>
+                {fieldLabel('orcamento', t('field.budget') || 'Orçamento')}{' '}
+                <FieldAsterisk type={getAsterisk('orcamento')} />
+              </Label>
               <Input
                 type="number"
                 min="0"
@@ -396,8 +444,11 @@ export const GravacaoFormBody = ({
                 disabled={readOnly}
               />
             </div>
-            <div className="space-y-2">
-              <Label>{t('common.description')}</Label>
+            <div className="space-y-1.5" {...fieldLayout('descricao')}>
+              <Label>
+                {fieldLabel('descricao', t('common.description'))}{' '}
+                <FieldAsterisk type={getAsterisk('descricao')} />
+              </Label>
               <Textarea
                 value={formData.descricao}
                 onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
@@ -405,7 +456,7 @@ export const GravacaoFormBody = ({
                 disabled={readOnly}
               />
             </div>
-          </div>
+          </ConfigurableFieldGrid>
 
           {/* Row 5 (read-only, only when editing): Data de Cadastro */}
           {data && (

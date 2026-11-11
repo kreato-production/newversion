@@ -32,6 +32,7 @@ import {
 } from '@/components/listing';
 import { useRecordList } from '@/hooks/useRecordNavigation';
 import { CATEGORIAS_DESPESA_FORM } from '@/modules/parametrizacoes/financeiro.forms';
+import { useFormListStyle } from '@/hooks/useFormListStyle';
 
 export interface CategoriaDespesaItem {
   id: string;
@@ -193,6 +194,7 @@ function CategoriaDespesaDetailPanel({
 }
 
 const CategoriasDespesa = () => {
+  const { stripeColor } = useFormListStyle('categoriaDespesa');
   const { toast } = useToast();
   const importFileRef = useRef<HTMLInputElement>(null);
   const [isImporting, setIsImporting] = useState(false);
@@ -506,6 +508,7 @@ const CategoriasDespesa = () => {
             />
           ) : (
             <SortableTable
+              stripeColor={stripeColor}
               data={filteredItems}
               columns={columns}
               getRowKey={(item) => item.id}

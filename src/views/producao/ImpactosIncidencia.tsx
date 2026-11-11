@@ -30,6 +30,7 @@ import {
   MasterDetail,
   type ColumnConfig,
 } from '@/components/listing';
+import { useFormListStyle } from '@/hooks/useFormListStyle';
 
 export interface ImpactoIncidencia {
   id: string;
@@ -172,6 +173,7 @@ function ImpactoDetailPanel({
 // ─── Main component ───────────────────────────────────────────────────────────
 
 const ImpactosIncidencia = () => {
+  const { stripeColor } = useFormListStyle('impactoIncidencia');
   const { toast } = useToast();
   const { t } = useLanguage();
   const [search, setSearch] = useState('');
@@ -337,6 +339,7 @@ const ImpactosIncidencia = () => {
             />
           ) : (
             <SortableTable
+              stripeColor={stripeColor}
               data={filteredItems}
               columns={columns}
               getRowKey={(item) => item.id}

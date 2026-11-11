@@ -37,6 +37,7 @@ import type { Turno, WeekdayKey } from '@/modules/turnos/turnos.types';
 import { weekdayKeys } from '@/modules/turnos/turnos.types';
 
 import { TURNOS_PERMISSION_SCOPE, TURNOS_ROUTES } from '@/modules/turnos/turnos.navigation';
+import { useFormListStyle } from '@/hooks/useFormListStyle';
 
 const STORAGE_KEY = 'kreato_turnos';
 
@@ -272,6 +273,7 @@ function TurnoDetailPanel({
 }
 
 const Turnos = () => {
+  const { stripeColor } = useFormListStyle('turno');
   const { toast } = useToast();
   const { t } = useLanguage();
   const { canIncluir, canAlterar, canExcluir } = usePermissions();
@@ -630,6 +632,7 @@ const Turnos = () => {
             />
           ) : (
             <SortableTable
+              stripeColor={stripeColor}
               data={filteredItems}
               columns={columns}
               getRowKey={(item) => item.id}

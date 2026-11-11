@@ -8,6 +8,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ColorPicker } from '@/components/shared/ColorPicker';
 import { FormPage } from '@/components/shared/FormPage';
 import { TraducaoTab, type Traducoes } from '@/components/shared/TraducaoTab';
+import {
+  ConfigurableFieldGrid,
+  FieldAsterisk,
+  useFormFieldConfig,
+} from '@/hooks/useFormFieldConfig';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useRecordForm } from '@/hooks/useRecordForm';
 import { useRecordNavigation } from '@/hooks/useRecordNavigation';
@@ -57,6 +62,11 @@ export const TituloFormPage = ({ config, id }: TituloFormPageProps) => {
       : !canIncluir(permission[0], permission[1], permission[2] || '-')
     : false;
 
+  // Validação, tamanho, posição e rótulos configurados em Administração > Formulários.
+  const { getAsterisk, validate, fieldLabel, fieldLayout } = useFormFieldConfig(
+    config.formularioId,
+  );
+
   const form = useRecordForm<TituloFormValues, TituloFormValues>({
     id,
     empty,
@@ -65,6 +75,16 @@ export const TituloFormPage = ({ config, id }: TituloFormPageProps) => {
     save: config.save,
     onSaved: goBack,
     readOnly,
+    validate: (values) =>
+      validate(
+        {
+          codigoExterno: values.codigoExterno,
+          titulo: values.titulo,
+          ...(showCor ? { cor: values.cor } : {}),
+          ...(showDescricao ? { descricao: values.descricao } : {}),
+        },
+        { codigoExterno: codigoLabel, titulo: nameLabel, cor: 'Cor', descricao: 'Descrição' },
+      ),
     messages: config.messages,
   });
   const { isEditing, record, formData, update, setFormData, handleSubmit } = form;
@@ -75,43 +95,45 @@ export const TituloFormPage = ({ config, id }: TituloFormPageProps) => {
   const title = isEditing ? record?.titulo || config.editTitle : config.newTitle;
 
   const dadosGerais = (
-    <div className="space-y-4">
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <div className="space-y-2">
-          <Label htmlFor="codigoExterno">
-            {codigoLabel}
-            {config.codigoRequired && <span className="text-destructive"> *</span>}
-          </Label>
-          <Input
-            id="codigoExterno"
-            form={FORM_ID}
-            value={formData.codigoExterno}
-            onChange={(event) => update('codigoExterno', event.target.value)}
-            maxLength={codigoMaxLength}
-            placeholder={config.codigoRequired ? undefined : 'Opcional'}
-            required={config.codigoRequired}
-            disabled={disabled}
-          />
-        </div>
-        <div className="space-y-2 md:col-span-2">
-          <Label htmlFor="titulo">
-            {nameLabel} <span className="text-destructive">*</span>
-          </Label>
-          <Input
-            id="titulo"
-            form={FORM_ID}
-            value={formData.titulo}
-            onChange={(event) => update('titulo', event.target.value)}
-            maxLength={config.nameMaxLength}
-            required
-            disabled={disabled}
-          />
-        </div>
+    <ConfigurableFieldGrid>
+      <div className="space-y-2" {...fieldLayout('codigoExterno')}>
+        <Label htmlFor="codigoExterno">
+          {fieldLabel('codigoExterno', codigoLabel)}
+          <FieldAsterisk type={getAsterisk('codigoExterno', config.codigoRequired)} />
+        </Label>
+        <Input
+          id="codigoExterno"
+          form={FORM_ID}
+          value={formData.codigoExterno}
+          onChange={(event) => update('codigoExterno', event.target.value)}
+          maxLength={codigoMaxLength}
+          placeholder={config.codigoRequired ? undefined : 'Opcional'}
+          required={config.codigoRequired}
+          disabled={disabled}
+        />
+      </div>
+      <div className="space-y-2" {...fieldLayout('titulo')}>
+        <Label htmlFor="titulo">
+          {fieldLabel('titulo', nameLabel)}
+          <FieldAsterisk type={getAsterisk('titulo', true)} />
+        </Label>
+        <Input
+          id="titulo"
+          form={FORM_ID}
+          value={formData.titulo}
+          onChange={(event) => update('titulo', event.target.value)}
+          maxLength={config.nameMaxLength}
+          required
+          disabled={disabled}
+        />
       </div>
 
       {showCor && (
-        <div className="space-y-2">
-          <Label>Cor</Label>
+        <div className="space-y-2" {...fieldLayout('cor')}>
+          <Label>
+            {fieldLabel('cor', 'Cor')}
+            <FieldAsterisk type={getAsterisk('cor')} />
+          </Label>
           <ColorPicker
             value={formData.cor}
             onChange={(cor) => update('cor', cor)}
@@ -121,35 +143,38 @@ export const TituloFormPage = ({ config, id }: TituloFormPageProps) => {
         </div>
       )}
 
-      {config.flags && config.flags.length > 0 && (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          {config.flags.map((flag) => (
-            <div key={flag.key} className="flex items-start gap-3 rounded-md border p-3">
-              <Checkbox
-                id={flag.key}
-                checked={formData.flags[flag.key] ?? false}
-                onCheckedChange={(checked) =>
-                  setFormData((current) => ({
-                    ...current,
-                    flags: { ...current.flags, [flag.key]: Boolean(checked) },
-                  }))
-                }
-                disabled={disabled}
-              />
-              <div className="space-y-1">
-                <Label htmlFor={flag.key} className="cursor-pointer">
-                  {flag.label}
-                </Label>
-                <p className="text-xs text-muted-foreground">{flag.description}</p>
-              </div>
-            </div>
-          ))}
+      {(config.flags ?? []).map((flag) => (
+        <div
+          key={flag.key}
+          className="flex items-start gap-3 rounded-md border p-3"
+          {...fieldLayout(flag.key)}
+        >
+          <Checkbox
+            id={flag.key}
+            checked={formData.flags[flag.key] ?? false}
+            onCheckedChange={(checked) =>
+              setFormData((current) => ({
+                ...current,
+                flags: { ...current.flags, [flag.key]: Boolean(checked) },
+              }))
+            }
+            disabled={disabled}
+          />
+          <div className="space-y-1">
+            <Label htmlFor={flag.key} className="cursor-pointer">
+              {fieldLabel(flag.key, flag.label)}
+            </Label>
+            <p className="text-xs text-muted-foreground">{flag.description}</p>
+          </div>
         </div>
-      )}
+      ))}
 
       {showDescricao && (
-        <div className="space-y-2">
-          <Label htmlFor="descricao">Descrição</Label>
+        <div className="space-y-2" {...fieldLayout('descricao')}>
+          <Label htmlFor="descricao">
+            {fieldLabel('descricao', 'Descrição')}
+            <FieldAsterisk type={getAsterisk('descricao')} />
+          </Label>
           <Textarea
             id="descricao"
             form={FORM_ID}
@@ -161,7 +186,7 @@ export const TituloFormPage = ({ config, id }: TituloFormPageProps) => {
           />
         </div>
       )}
-    </div>
+    </ConfigurableFieldGrid>
   );
 
   return (

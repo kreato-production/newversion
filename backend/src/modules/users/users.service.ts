@@ -121,17 +121,13 @@ export class UsersService {
       throw new AccessError('Somente administradores globais podem criar usuarios globais');
     }
 
-    // Regra 4: apenas GLOBAL_ADMIN pode criar/editar usuário com role TENANT_ADMIN
-    if (input.role === 'TENANT_ADMIN' && actor.role !== 'GLOBAL_ADMIN') {
-      throw new AccessError('Somente administradores globais podem atribuir role TENANT_ADMIN');
-    }
-
     if (actor.role === 'GLOBAL_ADMIN' && input.role !== 'GLOBAL_ADMIN' && !input.tenantId) {
       throw new AccessError('Tenant e obrigatorio para usuarios nao globais', 400);
     }
 
     const targetTenantId = input.role === 'GLOBAL_ADMIN' ? null : resolveTenantId(actor, input.tenantId ?? actor.tenantId);
 
+    let existingRole: UserRecord['role'] | undefined;
     if (!input.id) {
       const existingByEmail = await this.repository.findByEmail(input.email);
       if (existingByEmail) {
@@ -148,6 +144,17 @@ export class UsersService {
         throw new AccessError('Usuario nao encontrado', 404);
       }
       ensureSameTenant(actor, existing.tenantId);
+      existingRole = existing.role;
+    }
+
+    // Regra 4: apenas GLOBAL_ADMIN pode atribuir ou retirar o role TENANT_ADMIN.
+    // Editar um TENANT_ADMIN mantendo o role (ex.: o próprio admin) continua permitido.
+    if (actor.role !== 'GLOBAL_ADMIN') {
+      const nextRole = input.role ?? existingRole ?? 'USER';
+      const touchesTenantAdmin = nextRole === 'TENANT_ADMIN' || existingRole === 'TENANT_ADMIN';
+      if (touchesTenantAdmin && nextRole !== existingRole) {
+        throw new AccessError('Somente administradores globais podem atribuir role TENANT_ADMIN');
+      }
     }
 
     const item = await this.repository.save({
@@ -165,7 +172,7 @@ export class UsersService {
       status: mapStatus(input.status),
       tipoAcesso: input.tipoAcesso,
       recursoHumanoId: input.recursoHumanoId,
-      role: input.role ?? (actor.role === 'GLOBAL_ADMIN' ? 'TENANT_ADMIN' : 'USER'),
+      role: input.role ?? existingRole ?? (actor.role === 'GLOBAL_ADMIN' ? 'TENANT_ADMIN' : 'USER'),
     });
 
     return toUserDto(item);

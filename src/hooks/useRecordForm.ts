@@ -14,6 +14,8 @@ export interface UseRecordFormOptions<TRecord, TInput> {
   onSaved?: () => void;
   /** When true, submit is ignored. */
   readOnly?: boolean;
+  /** Runs before saving; return false to cancel the save (e.g. required fields missing). */
+  validate?: (input: TInput) => boolean;
   messages?: { created?: string; updated?: string };
 }
 
@@ -43,6 +45,7 @@ export function useRecordForm<TRecord, TInput>({
   save,
   onSaved,
   readOnly = false,
+  validate,
   messages,
 }: UseRecordFormOptions<TRecord, TInput>): UseRecordFormResult<TRecord, TInput> {
   const page = useRecordPage<TRecord, TInput>({ id, load, save, onSaved, readOnly, messages });
@@ -64,6 +67,7 @@ export function useRecordForm<TRecord, TInput>({
   const handleSubmit = async (event?: FormEvent) => {
     event?.preventDefault();
     if (isSubmitting) return;
+    if (!readOnly && validate && !validate(formData)) return;
     await submit(formData);
   };
 

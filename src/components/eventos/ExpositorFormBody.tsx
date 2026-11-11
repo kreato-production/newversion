@@ -9,6 +9,11 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { X, Plus, Trash2, ImageIcon } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
+import {
+  ConfigurableFieldGrid,
+  FieldAsterisk,
+  useFormFieldConfig,
+} from '@/hooks/useFormFieldConfig';
 import type { RecordFormBodyProps } from '@/components/shared/RecordFormPage';
 import {
   ApiParametrosRepository,
@@ -64,6 +69,14 @@ export const ExpositorFormBody = ({
   onSubmit,
 }: RecordFormBodyProps<Expositor, SaveExpositorInput>) => {
   const { t } = useLanguage();
+  const { getAsterisk, validate, fieldLabel, fieldLayout } = useFormFieldConfig('expositor');
+  /** Label of a field: translation configured in Formulários + required/suggested asterisk. */
+  const label = (campo: string, text: string, alwaysRequired = false) => (
+    <>
+      {fieldLabel(campo, text)}
+      <FieldAsterisk type={getAsterisk(campo, alwaysRequired)} />
+    </>
+  );
   const [form, setForm] = useState<SaveExpositorInput>(() => toFormData(data));
   const [tagInput, setTagInput] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -153,6 +166,25 @@ export const ExpositorFormBody = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (readOnly || isSubmitting) return;
+    if (
+      !validate(
+        {
+          logo: form.logo,
+          codigoExterno: form.codigoExterno,
+          nome: form.nome,
+          tipoExpositorId: form.tipoExpositorId,
+          descricao: form.descricao,
+          tags: form.tags ?? [],
+          contato: form.contato,
+          telefone: form.telefone,
+          email: form.email,
+          instagram: form.instagram,
+          facebook: form.facebook,
+        },
+        { codigoExterno: t('common.externalCode') },
+      )
+    )
+      return;
     setIsSubmitting(true);
     try {
       await onSubmit(form);
@@ -172,63 +204,63 @@ export const ExpositorFormBody = ({
 
         {/* ── Dados Gerais ── */}
         <TabsContent value="geral" className="space-y-4 mt-4">
-          {/* Logo */}
-          <div className="space-y-2">
-            <Label>Logo</Label>
-            <div className="flex items-start gap-4">
-              <div className="w-16 h-16 border rounded flex items-center justify-center bg-muted/30 shrink-0 overflow-hidden">
-                {form.logo ? (
-                  <img
-                    src={form.logo}
-                    className="w-full h-full object-contain"
-                    alt="Logo do expositor"
+          <ConfigurableFieldGrid>
+            <div className="space-y-2" {...fieldLayout('logo')}>
+              <Label>{label('logo', 'Logo')}</Label>
+              <div className="flex items-start gap-4">
+                <div className="w-16 h-16 border rounded flex items-center justify-center bg-muted/30 shrink-0 overflow-hidden">
+                  {form.logo ? (
+                    <img
+                      src={form.logo}
+                      className="w-full h-full object-contain"
+                      alt="Logo do expositor"
+                    />
+                  ) : (
+                    <ImageIcon className="h-7 w-7 text-muted-foreground opacity-50" />
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleLogoChange}
+                    disabled={readOnly || isSubmitting}
                   />
-                ) : (
-                  <ImageIcon className="h-7 w-7 text-muted-foreground opacity-50" />
-                )}
-              </div>
-              <div className="space-y-2">
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleLogoChange}
-                  disabled={readOnly || isSubmitting}
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={readOnly || isSubmitting}
-                >
-                  {form.logo ? 'Alterar Logo' : 'Selecionar Logo'}
-                </Button>
-                {form.logo && (
                   <Button
                     type="button"
-                    variant="ghost"
+                    variant="outline"
                     size="sm"
-                    className="text-destructive hover:text-destructive"
-                    onClick={() => set('logo', null)}
+                    onClick={() => fileInputRef.current?.click()}
                     disabled={readOnly || isSubmitting}
                   >
-                    <X className="h-3.5 w-3.5 mr-1" />
-                    Remover
+                    {form.logo ? 'Alterar Logo' : 'Selecionar Logo'}
                   </Button>
-                )}
-                <p className="text-xs text-muted-foreground">
-                  Máximo 500KB. Formatos: JPG, PNG, GIF, WebP.
-                </p>
+                  {form.logo && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => set('logo', null)}
+                      disabled={readOnly || isSubmitting}
+                    >
+                      <X className="h-3.5 w-3.5 mr-1" />
+                      Remover
+                    </Button>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    Máximo 500KB. Formatos: JPG, PNG, GIF, WebP.
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Código / Nome */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="codigoExterno">{t('common.externalCode')}</Label>
+            <div className="space-y-2" {...fieldLayout('codigoExterno')}>
+              <Label htmlFor="codigoExterno">
+                {label('codigoExterno', t('common.externalCode'))}
+              </Label>
               <Input
                 id="codigoExterno"
                 value={form.codigoExterno ?? ''}
@@ -237,10 +269,8 @@ export const ExpositorFormBody = ({
                 disabled={readOnly || isSubmitting}
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="nome">
-                Nome do Expositor <span className="text-destructive">*</span>
-              </Label>
+            <div className="space-y-2" {...fieldLayout('nome')}>
+              <Label htmlFor="nome">{label('nome', 'Nome do Expositor', true)}</Label>
               <Input
                 id="nome"
                 value={form.nome}
@@ -250,79 +280,80 @@ export const ExpositorFormBody = ({
                 disabled={readOnly || isSubmitting}
               />
             </div>
-          </div>
 
-          {/* Tipo de Expositor */}
-          <div className="space-y-2">
-            <Label htmlFor="tipoExpositorId">Tipo de Expositor</Label>
-            <select
-              id="tipoExpositorId"
-              value={form.tipoExpositorId ?? ''}
-              onChange={(e) => set('tipoExpositorId', e.target.value || null)}
-              disabled={readOnly || isSubmitting}
-              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <option value="">Selecione um tipo...</option>
-              {tiposExpositor.map((tipo) => (
-                <option key={tipo.id} value={tipo.id}>
-                  {tipo.nome}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Descrição */}
-          <div className="space-y-2">
-            <Label htmlFor="descricao">Descrição</Label>
-            <Textarea
-              id="descricao"
-              value={form.descricao ?? ''}
-              onChange={(e) => set('descricao', e.target.value)}
-              rows={3}
-              disabled={readOnly || isSubmitting}
-            />
-          </div>
-
-          {/* Tags */}
-          <div className="space-y-2">
-            <Label>Tags</Label>
-            <div className="flex gap-2">
-              <Input
-                value={tagInput}
-                onChange={(e) => setTagInput(e.target.value)}
-                onKeyDown={handleTagKeyDown}
-                placeholder="Digite uma tag e pressione Enter"
+            <div className="space-y-2" {...fieldLayout('tipoExpositorId')}>
+              <Label htmlFor="tipoExpositorId">
+                {label('tipoExpositorId', 'Tipo de Expositor')}
+              </Label>
+              <select
+                id="tipoExpositorId"
+                value={form.tipoExpositorId ?? ''}
+                onChange={(e) => set('tipoExpositorId', e.target.value || null)}
                 disabled={readOnly || isSubmitting}
-                className="flex-1"
-              />
-              <Button
-                type="button"
-                variant="outline"
-                onClick={addTag}
-                disabled={!tagInput.trim() || readOnly || isSubmitting}
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Adicionar
-              </Button>
-            </div>
-            {(form.tags ?? []).length > 0 && (
-              <div className="flex flex-wrap gap-1.5 pt-1">
-                {(form.tags ?? []).map((tag) => (
-                  <Badge key={tag} variant="secondary" className="gap-1 pr-1">
-                    {tag}
-                    {!readOnly && (
-                      <button
-                        type="button"
-                        onClick={() => removeTag(tag)}
-                        className="ml-0.5 rounded-full hover:bg-muted-foreground/20 p-0.5"
-                      >
-                        <X className="h-2.5 w-2.5" />
-                      </button>
-                    )}
-                  </Badge>
+                <option value="">Selecione um tipo...</option>
+                {tiposExpositor.map((tipo) => (
+                  <option key={tipo.id} value={tipo.id}>
+                    {tipo.nome}
+                  </option>
                 ))}
+              </select>
+            </div>
+
+            {/* Descrição */}
+            <div className="space-y-2" {...fieldLayout('descricao')}>
+              <Label htmlFor="descricao">{label('descricao', 'Descrição')}</Label>
+              <Textarea
+                id="descricao"
+                value={form.descricao ?? ''}
+                onChange={(e) => set('descricao', e.target.value)}
+                rows={3}
+                disabled={readOnly || isSubmitting}
+              />
+            </div>
+
+            {/* Tags */}
+            <div className="space-y-2" {...fieldLayout('tags')}>
+              <Label>{label('tags', 'Tags')}</Label>
+              <div className="flex gap-2">
+                <Input
+                  value={tagInput}
+                  onChange={(e) => setTagInput(e.target.value)}
+                  onKeyDown={handleTagKeyDown}
+                  placeholder="Digite uma tag e pressione Enter"
+                  disabled={readOnly || isSubmitting}
+                  className="flex-1"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={addTag}
+                  disabled={!tagInput.trim() || readOnly || isSubmitting}
+                >
+                  Adicionar
+                </Button>
               </div>
-            )}
-          </div>
+              {(form.tags ?? []).length > 0 && (
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {(form.tags ?? []).map((tag) => (
+                    <Badge key={tag} variant="secondary" className="gap-1 pr-1">
+                      {tag}
+                      {!readOnly && (
+                        <button
+                          type="button"
+                          onClick={() => removeTag(tag)}
+                          className="ml-0.5 rounded-full hover:bg-muted-foreground/20 p-0.5"
+                        >
+                          <X className="h-2.5 w-2.5" />
+                        </button>
+                      )}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </div>
+          </ConfigurableFieldGrid>
 
           {/* Dados de cadastro (somente leitura no modo edição) */}
           {isEditing && data && (
@@ -346,9 +377,9 @@ export const ExpositorFormBody = ({
 
         {/* ── Contato ── */}
         <TabsContent value="contato" className="space-y-4 mt-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="contato">Contato</Label>
+          <ConfigurableFieldGrid>
+            <div className="space-y-2" {...fieldLayout('contato')}>
+              <Label htmlFor="contato">{label('contato', 'Contato')}</Label>
               <Input
                 id="contato"
                 value={form.contato ?? ''}
@@ -357,8 +388,8 @@ export const ExpositorFormBody = ({
                 disabled={readOnly || isSubmitting}
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="telefone">Telefone</Label>
+            <div className="space-y-2" {...fieldLayout('telefone')}>
+              <Label htmlFor="telefone">{label('telefone', 'Telefone')}</Label>
               <Input
                 id="telefone"
                 value={form.telefone ?? ''}
@@ -367,11 +398,8 @@ export const ExpositorFormBody = ({
                 disabled={readOnly || isSubmitting}
               />
             </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">E-mail</Label>
+            <div className="space-y-2" {...fieldLayout('email')}>
+              <Label htmlFor="email">{label('email', 'E-mail')}</Label>
               <Input
                 id="email"
                 type="email"
@@ -381,34 +409,33 @@ export const ExpositorFormBody = ({
                 disabled={readOnly || isSubmitting}
               />
             </div>
-            <div />
-          </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="instagram">Instagram</Label>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">@</span>
+            <div className="space-y-2" {...fieldLayout('instagram')}>
+              <Label htmlFor="instagram">{label('instagram', 'Instagram')}</Label>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">@</span>
+                <Input
+                  id="instagram"
+                  value={form.instagram ?? ''}
+                  onChange={(e) => set('instagram', e.target.value.replace(/^@/, ''))}
+                  placeholder="usuario"
+                  disabled={readOnly || isSubmitting}
+                  className="flex-1"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2" {...fieldLayout('facebook')}>
+              <Label htmlFor="facebook">{label('facebook', 'Facebook')}</Label>
               <Input
-                id="instagram"
-                value={form.instagram ?? ''}
-                onChange={(e) => set('instagram', e.target.value.replace(/^@/, ''))}
-                placeholder="usuario"
+                id="facebook"
+                value={form.facebook ?? ''}
+                onChange={(e) => set('facebook', e.target.value)}
+                placeholder="facebook.com/pagina"
                 disabled={readOnly || isSubmitting}
-                className="flex-1"
               />
             </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="facebook">Facebook</Label>
-            <Input
-              id="facebook"
-              value={form.facebook ?? ''}
-              onChange={(e) => set('facebook', e.target.value)}
-              placeholder="facebook.com/pagina"
-              disabled={readOnly || isSubmitting}
-            />
-          </div>
+          </ConfigurableFieldGrid>
         </TabsContent>
 
         {/* ── Produtos ── */}

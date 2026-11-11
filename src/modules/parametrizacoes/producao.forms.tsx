@@ -59,6 +59,7 @@ const STATUS_BASE = {
 } satisfies Partial<TituloFormConfig>;
 
 export const STATUS_GRAVACAO_FORM: TituloFormConfig = {
+  formularioId: 'statusGravacao',
   ...STATUS_BASE,
   routes: routes('/producao/status', 'status_gravacao'),
   entityArticle: 'o status de gravação',
@@ -79,6 +80,7 @@ export const STATUS_GRAVACAO_FORM: TituloFormConfig = {
 };
 
 export const STATUS_PLANEAMENTO_FORM: TituloFormConfig = {
+  formularioId: 'statusPlaneamento',
   ...STATUS_BASE,
   routes: routes('/producao/status-planeamento', 'status_planeamento'),
   entityArticle: 'o status de planeamento',
@@ -96,6 +98,7 @@ export const STATUS_PLANEAMENTO_FORM: TituloFormConfig = {
 };
 
 export const STATUS_TAREFA_FORM: TituloFormConfig = {
+  formularioId: 'statusTarefa',
   ...STATUS_BASE,
   routes: routes('/producao/status-tarefa', 'status_tarefa'),
   entityArticle: 'o status de tarefa',
@@ -147,6 +150,7 @@ const INCIDENCIA_BASE = {
 } satisfies Partial<TituloFormConfig>;
 
 export const CATEGORIAS_INCIDENCIA_FORM: TituloFormConfig = {
+  formularioId: 'categoriaIncidencia',
   ...INCIDENCIA_BASE,
   routes: routes('/producao/categorias-incidencia', 'categorias_incidencia'),
   newTitle: 'Nova Categoria de Incidência',
@@ -172,6 +176,7 @@ export const CATEGORIAS_INCIDENCIA_FORM: TituloFormConfig = {
 };
 
 export const SEVERIDADES_INCIDENCIA_FORM: TituloFormConfig = {
+  formularioId: 'severidadeIncidencia',
   ...INCIDENCIA_BASE,
   routes: routes('/producao/severidades-incidencia', 'severidades_incidencia'),
   newTitle: 'Nova Severidade de Incidência',
@@ -194,6 +199,7 @@ export const SEVERIDADES_INCIDENCIA_FORM: TituloFormConfig = {
 };
 
 export const IMPACTOS_INCIDENCIA_FORM: TituloFormConfig = {
+  formularioId: 'impactoIncidencia',
   ...INCIDENCIA_BASE,
   routes: routes('/producao/impactos-incidencia', 'impactos_incidencia'),
   newTitle: 'Novo Impacto de Incidência',

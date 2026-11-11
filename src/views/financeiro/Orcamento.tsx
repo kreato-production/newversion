@@ -43,6 +43,7 @@ import { ApiUnidadesRepository } from '@/modules/unidades/unidades.api.repositor
 import type { UnidadeNegocio } from '@/modules/unidades/unidades.types';
 import { formatCurrency as fmtCurrency } from '@/lib/currencies';
 import { ApiOrcamentoRepository, type Orcamento } from '@/modules/financeiro/orcamento.api';
+import { useFormListStyle } from '@/hooks/useFormListStyle';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -180,6 +181,7 @@ function OrcamentoDetailPanel({
 // ─── Main view ────────────────────────────────────────────────────────────────
 
 const Orcamento = () => {
+  const { stripeColor } = useFormListStyle('orcamento');
   const { t } = useLanguage();
   const { toast } = useToast();
 
@@ -387,6 +389,7 @@ const Orcamento = () => {
               />
             ) : (
               <SortableTable
+                stripeColor={stripeColor}
                 data={filtered}
                 columns={columns}
                 getRowKey={(item) => item.id}

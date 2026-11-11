@@ -40,6 +40,7 @@ import {
 } from '@/components/listing';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
+import { useFormListStyle } from '@/hooks/useFormListStyle';
 
 const repository = new ApiSatOpsRepository();
 
@@ -179,6 +180,7 @@ function AlertaDetailPanel({
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 const Alertas = () => {
+  const { stripeColor } = useFormListStyle('alerta');
   const { toast } = useToast();
   const [search, setSearch] = useState('');
   const { openNew, openRecord } = useRecordList(ALERTAS_ROUTES);
@@ -392,6 +394,7 @@ const Alertas = () => {
             />
           ) : (
             <SortableTable
+              stripeColor={stripeColor}
               data={filteredItems}
               columns={columns}
               getRowKey={(item) => item.id}

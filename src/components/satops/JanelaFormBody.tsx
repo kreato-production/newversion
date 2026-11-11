@@ -14,6 +14,11 @@ import {
 } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  ConfigurableFieldGrid,
+  FieldAsterisk,
+  useFormFieldConfig,
+} from '@/hooks/useFormFieldConfig';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { AlertTriangle, Loader2, Plus, Trash2, UserCircle, FilePlus } from 'lucide-react';
@@ -129,6 +134,14 @@ export const JanelaFormBody = ({
   onSubmit,
 }: RecordFormBodyProps<JanelaApiItem, JanelaApiItem>) => {
   const { user } = useAuth();
+  const { getAsterisk, validate, fieldLabel, fieldLayout } = useFormFieldConfig('janela');
+  /** Label of a field: translation configured in Formulários + required/suggested asterisk. */
+  const label = (campo: string, text: string, alwaysRequired = false) => (
+    <>
+      {fieldLabel(campo, text)}
+      <FieldAsterisk type={getAsterisk(campo, alwaysRequired)} />
+    </>
+  );
 
   const [formData, setFormData] = useState<FormState>(() => toFormData(data));
   const [responsaveis, setResponsaveis] = useState<JanelaResponsavel[]>(
@@ -321,6 +334,24 @@ export const JanelaFormBody = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (readOnly) return;
+    const tipo = formData.tipoEvento;
+    if (
+      !validate({
+        sateliteId: formData.sateliteId,
+        dataEvento: formData.dataEvento,
+        tipoEvento: formData.tipoEvento,
+        // Campos condicionais: só são validados quando aparecem no formulário.
+        ...(tipo ? { canal: formData.canal } : {}),
+        ...(tipo === 'Grelha de Programas' ? { programaId: formData.programaId } : {}),
+        ...(tipo === 'Outro' ? { tituloEvento: formData.tituloEvento } : {}),
+        aberturaPrevia: formData.aberturaPrevia,
+        aberturaReal: formData.aberturaReal,
+        confirmacaoNocId: formData.confirmacaoNocId,
+        fechoPrevisto: formData.fechoPrevisto,
+        fechoReal: formData.fechoReal,
+      })
+    )
+      return;
     // No client-side id: the page decides create vs update from the URL.
     await onSubmit({
       id: data?.id || '',
@@ -377,11 +408,9 @@ export const JanelaFormBody = ({
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>
-                  Satélite <span className="text-destructive">*</span>
-                </Label>
+            <ConfigurableFieldGrid>
+              <div className="space-y-2" {...fieldLayout('sateliteId')}>
+                <Label>{label('sateliteId', 'Satélite', true)}</Label>
                 {loadingRef ? (
                   <div className="flex items-center gap-2 h-10 text-sm text-muted-foreground">
                     <Loader2 className="h-4 w-4 animate-spin" /> Carregando...
@@ -406,10 +435,8 @@ export const JanelaFormBody = ({
                 )}
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="dataEvento">
-                  Data do Evento <span className="text-destructive">*</span>
-                </Label>
+              <div className="space-y-2" {...fieldLayout('dataEvento')}>
+                <Label htmlFor="dataEvento">{label('dataEvento', 'Data do Evento', true)}</Label>
                 <Input
                   id="dataEvento"
                   type="date"
@@ -419,115 +446,115 @@ export const JanelaFormBody = ({
                   required
                 />
               </div>
-            </div>
 
-            <div className="space-y-2">
-              <Label>
-                Tipo de Evento <span className="text-destructive">*</span>
-              </Label>
-              <Select
-                value={formData.tipoEvento}
-                onValueChange={handleTipoEventoChange}
-                disabled={readOnly}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione o tipo..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {TIPO_EVENTO_OPTIONS.map((opt) => (
-                    <SelectItem key={opt} value={opt}>
-                      {opt}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Canal — sempre visível quando tipo selecionado */}
-            {formData.tipoEvento && (
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Canal</Label>
-                  <Select
-                    value={formData.canal}
-                    onValueChange={handleCanalChange}
-                    disabled={readOnly}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione o canal..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {canais.map((c) => (
-                        <SelectItem key={c} value={c}>
-                          {c}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Programa — só para Grelha de Programas */}
-                {isGrelha && (
-                  <div className="space-y-2">
-                    <Label>Programa</Label>
-                    {loadingProgramas ? (
-                      <div className="flex items-center gap-2 h-10 text-sm text-muted-foreground">
-                        <Loader2 className="h-4 w-4 animate-spin" /> Carregando...
-                      </div>
-                    ) : (
-                      <Select
-                        value={formData.programaId}
-                        onValueChange={handleProgramaChange}
-                        disabled={readOnly}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione o programa..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {programas.length === 0 ? (
-                            <SelectItem value="__none__" disabled>
-                              {formData.canal && formData.dataEvento
-                                ? 'Nenhum programa encontrado'
-                                : 'Selecione canal e data primeiro'}
-                            </SelectItem>
-                          ) : (
-                            programas.map((p) => (
-                              <SelectItem key={p.id} value={p.id}>
-                                <span className="font-medium">{p.programa ?? p.nome}</span>
-                                {p.episodio && (
-                                  <span className="ml-2 text-muted-foreground text-xs">
-                                    Ep. {p.episodio}
-                                  </span>
-                                )}
-                                {p.horarioInicio && (
-                                  <span className="ml-2 text-muted-foreground text-xs">
-                                    {p.horarioInicio}
-                                  </span>
-                                )}
-                              </SelectItem>
-                            ))
-                          )}
-                        </SelectContent>
-                      </Select>
-                    )}
-                  </div>
-                )}
-
-                {/* Título do Evento — só para Outro */}
-                {isOutro && (
-                  <div className="space-y-2">
-                    <Label htmlFor="tituloEvento">Título do Evento</Label>
-                    <Input
-                      id="tituloEvento"
-                      value={formData.tituloEvento}
-                      onChange={(e) => set('tituloEvento')(e.target.value)}
-                      maxLength={200}
-                      disabled={readOnly}
-                    />
-                  </div>
-                )}
+              <div className="space-y-2" {...fieldLayout('tipoEvento')}>
+                <Label>{label('tipoEvento', 'Tipo de Evento', true)}</Label>
+                <Select
+                  value={formData.tipoEvento}
+                  onValueChange={handleTipoEventoChange}
+                  disabled={readOnly}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o tipo..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TIPO_EVENTO_OPTIONS.map((opt) => (
+                      <SelectItem key={opt} value={opt}>
+                        {opt}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-            )}
+
+              {/* Canal — sempre visível quando tipo selecionado */}
+              {formData.tipoEvento && (
+                <>
+                  <div className="space-y-2" {...fieldLayout('canal')}>
+                    <Label>{label('canal', 'Canal')}</Label>
+                    <Select
+                      value={formData.canal}
+                      onValueChange={handleCanalChange}
+                      disabled={readOnly}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione o canal..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {canais.map((c) => (
+                          <SelectItem key={c} value={c}>
+                            {c}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Programa — só para Grelha de Programas */}
+                  {isGrelha && (
+                    <div className="space-y-2" {...fieldLayout('programaId')}>
+                      <Label>{label('programaId', 'Programa')}</Label>
+                      {loadingProgramas ? (
+                        <div className="flex items-center gap-2 h-10 text-sm text-muted-foreground">
+                          <Loader2 className="h-4 w-4 animate-spin" /> Carregando...
+                        </div>
+                      ) : (
+                        <Select
+                          value={formData.programaId}
+                          onValueChange={handleProgramaChange}
+                          disabled={readOnly}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione o programa..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {programas.length === 0 ? (
+                              <SelectItem value="__none__" disabled>
+                                {formData.canal && formData.dataEvento
+                                  ? 'Nenhum programa encontrado'
+                                  : 'Selecione canal e data primeiro'}
+                              </SelectItem>
+                            ) : (
+                              programas.map((p) => (
+                                <SelectItem key={p.id} value={p.id}>
+                                  <span className="font-medium">{p.programa ?? p.nome}</span>
+                                  {p.episodio && (
+                                    <span className="ml-2 text-muted-foreground text-xs">
+                                      Ep. {p.episodio}
+                                    </span>
+                                  )}
+                                  {p.horarioInicio && (
+                                    <span className="ml-2 text-muted-foreground text-xs">
+                                      {p.horarioInicio}
+                                    </span>
+                                  )}
+                                </SelectItem>
+                              ))
+                            )}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Título do Evento — só para Outro */}
+                  {isOutro && (
+                    <div className="space-y-2" {...fieldLayout('tituloEvento')}>
+                      <Label htmlFor="tituloEvento">
+                        {label('tituloEvento', 'Título do Evento')}
+                      </Label>
+                      <Input
+                        id="tituloEvento"
+                        value={formData.tituloEvento}
+                        onChange={(e) => set('tituloEvento')(e.target.value)}
+                        maxLength={200}
+                        disabled={readOnly}
+                      />
+                    </div>
+                  )}
+                </>
+              )}
+            </ConfigurableFieldGrid>
 
             {/* ── Abertura da Janela ──────────────────────────────────────── */}
 
@@ -540,9 +567,11 @@ export const JanelaFormBody = ({
                 <Separator className="flex-1" />
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="aberturaPrevia">Abertura Prevista (UTC)</Label>
+              <ConfigurableFieldGrid>
+                <div className="space-y-2" {...fieldLayout('aberturaPrevia')}>
+                  <Label htmlFor="aberturaPrevia">
+                    {label('aberturaPrevia', 'Abertura Prevista (UTC)')}
+                  </Label>
                   <Input
                     id="aberturaPrevia"
                     type="time"
@@ -551,8 +580,10 @@ export const JanelaFormBody = ({
                     disabled={readOnly}
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="aberturaReal">Abertura Real (UTC)</Label>
+                <div className="space-y-2" {...fieldLayout('aberturaReal')}>
+                  <Label htmlFor="aberturaReal">
+                    {label('aberturaReal', 'Abertura Real (UTC)')}
+                  </Label>
                   <Input
                     id="aberturaReal"
                     type="time"
@@ -565,8 +596,8 @@ export const JanelaFormBody = ({
                     disabled={readOnly}
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label>Confirmação NOC</Label>
+                <div className="space-y-2" {...fieldLayout('confirmacaoNocId')}>
+                  <Label>{label('confirmacaoNocId', 'Confirmação NOC')}</Label>
                   <Select
                     value={formData.confirmacaoNocId}
                     onValueChange={handleNocChange}
@@ -584,11 +615,10 @@ export const JanelaFormBody = ({
                     </SelectContent>
                   </Select>
                 </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="fechoPrevisto">Fecho Previsto (UTC)</Label>
+                <div className="space-y-2" {...fieldLayout('fechoPrevisto')}>
+                  <Label htmlFor="fechoPrevisto">
+                    {label('fechoPrevisto', 'Fecho Previsto (UTC)')}
+                  </Label>
                   <Input
                     id="fechoPrevisto"
                     type="time"
@@ -597,8 +627,8 @@ export const JanelaFormBody = ({
                     disabled={readOnly}
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="fechoReal">Fecho Real (UTC)</Label>
+                <div className="space-y-2" {...fieldLayout('fechoReal')}>
+                  <Label htmlFor="fechoReal">{label('fechoReal', 'Fecho Real (UTC)')}</Label>
                   <Input
                     id="fechoReal"
                     type="time"
@@ -610,7 +640,7 @@ export const JanelaFormBody = ({
                     disabled={readOnly}
                   />
                 </div>
-              </div>
+              </ConfigurableFieldGrid>
             </div>
 
             {/* ── Simul. flag ─────────────────────────────────────────────── */}

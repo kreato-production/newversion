@@ -20,6 +20,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useRecordList } from '@/hooks/useRecordNavigation';
 import { RECURSOS_TECNICOS_ROUTES } from '@/modules/recursos-tecnicos/recursos-tecnicos.navigation';
 import { SortableTable, Column } from '@/components/shared/SortableTable';
+import { useFormListStyle } from '@/hooks/useFormListStyle';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -179,6 +180,7 @@ function RecursoTecnicoDetailPanel({
 
 const RecursosTecnicos = () => {
   const { toast } = useToast();
+  const { stripeColor } = useFormListStyle('recursoTecnico');
   const { t } = useLanguage();
   const { session } = useAuth();
   const { canIncluir, canAlterar, canExcluir } = usePermissions();
@@ -406,6 +408,7 @@ const RecursosTecnicos = () => {
             />
           ) : (
             <SortableTable
+              stripeColor={stripeColor}
               data={filteredItems}
               columns={columns}
               getRowKey={(item) => item.id}

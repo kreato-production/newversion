@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, type CSSProperties } from 'react';
 import { Button } from '@/components/ui/button';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
 import { ListActionBar } from '@/components/shared/ListActionBar';
@@ -18,6 +18,7 @@ import { useRecordList } from '@/hooks/useRecordNavigation';
 import { CENTROS_LUCRO_ROUTES } from '@/modules/parametrizacoes/centros-lucro.navigation';
 import type { CentroLucro } from '@/components/admin/CentroLucroFormBody';
 import { cn } from '@/lib/utils';
+import { useFormListStyle } from '@/hooks/useFormListStyle';
 import { ApiParametrizacoesRepository } from '@/modules/parametrizacoes/parametrizacoes.api.repository';
 
 const repository = new ApiParametrizacoesRepository();
@@ -26,6 +27,7 @@ const CentrosLucro = () => {
   const { toast } = useToast();
   const [search, setSearch] = useState('');
   const { openNew, openRecord } = useRecordList(CENTROS_LUCRO_ROUTES);
+  const { stripeColor } = useFormListStyle('centroLucro');
   // Keeps the filtered order so the form page can navigate previous/next.
   const openEdit = (item: { id: string }) =>
     openRecord(
@@ -109,19 +111,34 @@ const CentrosLucro = () => {
     filteredItems.filter((item) => item.parentId === parentId);
   const hasChildren = (id: string): boolean => items.some((item) => item.parentId === id);
 
+  // Lista zebrada: alterna pelas linhas visíveis da árvore (os filhos só quando expandidos).
+  const visibleIndex = new Map<string, number>();
+  const collectVisible = (parentId: string | null) => {
+    for (const child of getChildren(parentId)) {
+      visibleIndex.set(child.id, visibleIndex.size);
+      if (expandedItems.has(child.id)) collectVisible(child.id);
+    }
+  };
+  if (stripeColor) collectVisible(null);
+
   const renderItem = (item: CentroLucro, level = 0) => {
     const children = getChildren(item.id);
     const isExpanded = expandedItems.has(item.id);
     const hasChildItems = hasChildren(item.id);
+    const striped = !!stripeColor && (visibleIndex.get(item.id) ?? 0) % 2 === 1;
 
     return (
       <div key={item.id}>
         <div
           className={cn(
-            'flex items-center gap-2 px-4 py-3 border-b hover:bg-muted/50 transition-colors',
+            'flex items-center gap-2 px-4 py-1.5 border-b hover:bg-muted/50 transition-colors',
             level > 0 && 'bg-muted/20',
+            striped && 'list-zebra-row',
           )}
-          style={{ paddingLeft: `${16 + level * 24}px` }}
+          style={{
+            paddingLeft: `${16 + level * 24}px`,
+            ...(striped ? ({ '--list-stripe': stripeColor } as CSSProperties) : {}),
+          }}
         >
           <div className="w-6 flex justify-center">
             {hasChildItems ? (

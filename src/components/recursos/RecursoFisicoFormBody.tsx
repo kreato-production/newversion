@@ -14,7 +14,11 @@ import type {
   FaixaDisponibilidade,
   EstoqueItem,
 } from '@/modules/recursos-fisicos/recursos-fisicos.types';
-import { useFormFieldConfig, FieldAsterisk } from '@/hooks/useFormFieldConfig';
+import {
+  useFormFieldConfig,
+  FieldAsterisk,
+  ConfigurableFieldGrid,
+} from '@/hooks/useFormFieldConfig';
 import type { RecordFormBodyProps } from '@/components/shared/RecordFormPage';
 
 const DIAS_SEMANA = [
@@ -36,7 +40,7 @@ export const RecursoFisicoFormBody = ({
 }: RecordFormBodyProps<RecursoFisico, RecursoFisicoInput>) => {
   const { isVisible } = usePermissions();
   const { toast } = useToast();
-  const { getAsterisk } = useFormFieldConfig('recursoFisico');
+  const { getAsterisk, validate, fieldLabel, fieldLayout } = useFormFieldConfig('recursoFisico');
   const [formData, setFormData] = useState(() =>
     data
       ? { codigoExterno: data.codigoExterno, nome: data.nome, custoHora: data.custoHora }
@@ -191,6 +195,17 @@ export const RecursoFisicoFormBody = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    const camposValidos = validate({
+      codigoExterno: formData.codigoExterno,
+      nome: formData.nome,
+      // Custo/hora starts at 0: zero counts as not filled in when the field is required.
+      custoHora: formData.custoHora > 0 ? formData.custoHora : null,
+    });
+    if (!camposValidos) {
+      setActiveTab('geral');
+      return;
+    }
+
     if (faixas.length > 0 && !validarFaixas()) {
       return;
     }
@@ -240,10 +255,11 @@ export const RecursoFisicoFormBody = ({
         </TabsList>
 
         <TabsContent value="geral" className="space-y-4 mt-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
+          <ConfigurableFieldGrid>
+            <div className="space-y-1.5" {...fieldLayout('codigoExterno')}>
               <Label htmlFor="codigoExterno">
-                Codigo Externo <FieldAsterisk type={getAsterisk('codigoExterno')} />
+                {fieldLabel('codigoExterno', 'Codigo Externo')}{' '}
+                <FieldAsterisk type={getAsterisk('codigoExterno')} />
               </Label>
               <Input
                 id="codigoExterno"
@@ -254,9 +270,10 @@ export const RecursoFisicoFormBody = ({
                 disabled={readOnly || isSubmitting}
               />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-1.5" {...fieldLayout('custoHora')}>
               <Label htmlFor="custoHora">
-                Custo/Hora <FieldAsterisk type={getAsterisk('custoHora')} />
+                {fieldLabel('custoHora', 'Custo/Hora')}{' '}
+                <FieldAsterisk type={getAsterisk('custoHora')} />
               </Label>
               <Input
                 id="custoHora"
@@ -270,20 +287,20 @@ export const RecursoFisicoFormBody = ({
                 disabled={readOnly || isSubmitting}
               />
             </div>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="nome">
-              Nome <FieldAsterisk type={getAsterisk('nome')} />
-            </Label>
-            <Input
-              id="nome"
-              value={formData.nome}
-              onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
-              maxLength={100}
-              required
-              disabled={readOnly || isSubmitting}
-            />
-          </div>
+            <div className="space-y-1.5" {...fieldLayout('nome')}>
+              <Label htmlFor="nome">
+                {fieldLabel('nome', 'Nome')} <FieldAsterisk type={getAsterisk('nome', true)} />
+              </Label>
+              <Input
+                id="nome"
+                value={formData.nome}
+                onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
+                maxLength={100}
+                required
+                disabled={readOnly || isSubmitting}
+              />
+            </div>
+          </ConfigurableFieldGrid>
         </TabsContent>
 
         {isVisible('Recursos', 'Recursos Físicos', '-', 'Tabulador "Disponibilidade"') && (

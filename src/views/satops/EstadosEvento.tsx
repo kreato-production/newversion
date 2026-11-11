@@ -39,6 +39,7 @@ import {
   MasterDetail,
   type ColumnConfig,
 } from '@/components/listing';
+import { useFormListStyle } from '@/hooks/useFormListStyle';
 
 export interface EstadoEventoItem {
   id: string;
@@ -198,6 +199,7 @@ function EstadoEventoDetailPanel({
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 const EstadosEvento = () => {
+  const { stripeColor } = useFormListStyle('estadoEvento');
   const { toast } = useToast();
   const [search, setSearch] = useState('');
   const { openNew, openRecord } = useRecordList(ESTADOS_EVENTO_FORM.routes);
@@ -402,6 +404,7 @@ const EstadosEvento = () => {
             />
           ) : (
             <SortableTable
+              stripeColor={stripeColor}
               data={filteredItems}
               columns={columns}
               getRowKey={(item) => item.id}

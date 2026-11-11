@@ -32,6 +32,15 @@ export type FormularioCampoRecord = {
   tipoValidacao: 'obrigatorio' | 'sugerido' | null;
   tamanho: string | null;
   posicao: number | null;
+  /** Rótulo do campo por idioma (só os traduzidos). */
+  traducoes: Record<string, string> | null;
+};
+
+/** Aparência da lista do módulo de um formulário (tabulador Lista). */
+export type FormularioListaRecord = {
+  zebrado: boolean;
+  /** Chave da cor pastel das linhas intercaladas (paleta do frontend). */
+  corZebra: string | null;
 };
 
 export interface AdminConfigRepository {
@@ -40,6 +49,8 @@ export interface AdminConfigRepository {
   replacePerfilPermissions(tenantId: string, perfilId: string, permissions: PermissionRecord[]): Promise<void>;
   listFormularioCampos(tenantId: string, formularioId: string): Promise<FormularioCampoRecord[]>;
   replaceFormularioCampos(tenantId: string, formularioId: string, campos: FormularioCampoRecord[]): Promise<void>;
+  getFormularioLista(tenantId: string, formularioId: string): Promise<FormularioListaRecord | null>;
+  saveFormularioLista(tenantId: string, formularioId: string, lista: FormularioListaRecord): Promise<void>;
 }
 
 type PerfilRow = {
@@ -73,7 +84,25 @@ type FormularioCampoRow = {
   tipo_validacao: 'obrigatorio' | 'sugerido' | null;
   tamanho: string | null;
   posicao: number | null;
+  traducoes: unknown;
 };
+
+/** jsonb comes back parsed; accept a JSON string too and drop anything that isn't a string map. */
+function parseTraducoes(value: unknown): Record<string, string> | null {
+  let parsed = value;
+  if (typeof parsed === 'string') {
+    try {
+      parsed = JSON.parse(parsed);
+    } catch {
+      return null;
+    }
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+  const entries = Object.entries(parsed as Record<string, unknown>).filter(
+    (entry): entry is [string, string] => typeof entry[1] === 'string' && entry[1] !== '',
+  );
+  return entries.length > 0 ? Object.fromEntries(entries) : null;
+}
 
 function generatePermissionId(modulo: string, subModulo1: string, subModulo2: string, campo: string): string {
   return `${modulo}_${subModulo1}_${subModulo2}_${campo}`.replace(/[^a-zA-Z0-9_]/g, '_').toLowerCase();
@@ -115,6 +144,7 @@ function mapPermission(row: PermissionRow): PermissionRecord {
 
 export class PrismaAdminConfigRepository implements AdminConfigRepository {
   private formularioCamposReady: Promise<void> | null = null;
+  private formularioListaReady: Promise<void> | null = null;
   private perfilPermissoesReady: Promise<void> | null = null;
 
   private async ensurePerfilPermissoesTable(): Promise<void> {
@@ -246,7 +276,7 @@ export class PrismaAdminConfigRepository implements AdminConfigRepository {
 
     const rows = await prisma.$queryRawUnsafe<FormularioCampoRow[]>(
       `
-        SELECT campo, tipo_validacao, tamanho, posicao
+        SELECT campo, tipo_validacao, tamanho, posicao, traducoes
         FROM formulario_campos
         WHERE tenant_id = $1 AND formulario = $2
         ORDER BY COALESCE(posicao, 9999) ASC, campo ASC
@@ -260,6 +290,7 @@ export class PrismaAdminConfigRepository implements AdminConfigRepository {
       tipoValidacao: row.tipo_validacao,
       tamanho: row.tamanho ?? null,
       posicao: row.posicao != null ? Number(row.posicao) : null,
+      traducoes: parseTraducoes(row.traducoes),
     }));
   }
 
@@ -277,7 +308,7 @@ export class PrismaAdminConfigRepository implements AdminConfigRepository {
       );
 
       for (const campo of campos) {
-        if (!campo.tipoValidacao && campo.tamanho == null && campo.posicao == null) {
+        if (!campo.tipoValidacao && campo.tamanho == null && campo.posicao == null && !campo.traducoes) {
           continue;
         }
 
@@ -291,10 +322,11 @@ export class PrismaAdminConfigRepository implements AdminConfigRepository {
               tipo_validacao,
               tamanho,
               posicao,
+              traducoes,
               created_at,
               updated_at
             )
-            VALUES ($1::uuid, $2, $3, $4, $5, $6, $7, NOW(), NOW())
+            VALUES ($1::uuid, $2, $3, $4, $5, $6, $7, $8::jsonb, NOW(), NOW())
           `,
           randomUUID(),
           tenantId,
@@ -303,9 +335,65 @@ export class PrismaAdminConfigRepository implements AdminConfigRepository {
           campo.tipoValidacao,
           campo.tamanho ?? null,
           campo.posicao ?? null,
+          campo.traducoes ? JSON.stringify(campo.traducoes) : null,
         );
       }
     });
+  }
+
+  async getFormularioLista(tenantId: string, formularioId: string): Promise<FormularioListaRecord | null> {
+    await this.ensureFormularioListaTable();
+    const rows = await prisma.$queryRawUnsafe<Array<{ zebrado: boolean; cor_zebra: string | null }>>(
+      `
+        SELECT zebrado, cor_zebra
+        FROM formulario_lista
+        WHERE tenant_id = $1 AND formulario = $2
+      `,
+      tenantId,
+      formularioId,
+    );
+    const row = rows[0];
+    return row ? { zebrado: Boolean(row.zebrado), corZebra: row.cor_zebra ?? null } : null;
+  }
+
+  async saveFormularioLista(tenantId: string, formularioId: string, lista: FormularioListaRecord): Promise<void> {
+    await this.ensureFormularioListaTable();
+    await prisma.$executeRawUnsafe(
+      `
+        INSERT INTO formulario_lista (tenant_id, formulario, zebrado, cor_zebra, updated_at)
+        VALUES ($1, $2, $3, $4, NOW())
+        ON CONFLICT (tenant_id, formulario)
+        DO UPDATE SET zebrado = EXCLUDED.zebrado, cor_zebra = EXCLUDED.cor_zebra, updated_at = NOW()
+      `,
+      tenantId,
+      formularioId,
+      lista.zebrado,
+      lista.corZebra,
+    );
+  }
+
+  private async ensureFormularioListaTable(): Promise<void> {
+    if (!this.formularioListaReady) {
+      this.formularioListaReady = prisma
+        .$executeRawUnsafe(
+          `
+            CREATE TABLE IF NOT EXISTS formulario_lista (
+              tenant_id text NOT NULL,
+              formulario text NOT NULL,
+              zebrado boolean NOT NULL DEFAULT false,
+              cor_zebra text NULL,
+              updated_at timestamptz NOT NULL DEFAULT NOW(),
+              PRIMARY KEY (tenant_id, formulario)
+            )
+          `,
+        )
+        .then(() => undefined)
+        .catch((error: unknown) => {
+          this.formularioListaReady = null;
+          throw error;
+        });
+    }
+    await this.formularioListaReady;
   }
 
   private async ensureFormularioCamposTable(): Promise<void> {
@@ -330,6 +418,9 @@ export class PrismaAdminConfigRepository implements AdminConfigRepository {
         `);
         await prisma.$executeRawUnsafe(`
           ALTER TABLE formulario_campos ADD COLUMN IF NOT EXISTS posicao integer NULL
+        `);
+        await prisma.$executeRawUnsafe(`
+          ALTER TABLE formulario_campos ADD COLUMN IF NOT EXISTS traducoes jsonb NULL
         `);
       })().catch((error: unknown) => {
         this.formularioCamposReady = null;

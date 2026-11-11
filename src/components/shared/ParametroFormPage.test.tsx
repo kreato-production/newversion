@@ -27,6 +27,14 @@ vi.mock('@/modules/parametros/parametros.api.repository', () => ({
     save = repo.save;
   },
 }));
+const fieldConfigs = vi.hoisted(() => ({
+  getFormularioCamposFull: vi.fn(),
+}));
+vi.mock('@/modules/admin/admin-config.api', () => ({
+  ApiAdminConfigRepository: class {
+    getFormularioCamposFull = fieldConfigs.getFormularioCamposFull;
+  },
+}));
 vi.mock('@/hooks/usePermissions');
 vi.mock('@/hooks/use-toast', () => ({ useToast: () => ({ toast: vi.fn() }) }));
 vi.mock('@/contexts/LanguageContext', () => ({
@@ -91,6 +99,7 @@ describe('ParametroFormPage', () => {
     repo.save.mockReset().mockResolvedValue(CARGO);
     sessionStorage.clear();
     mockPermissions();
+    fieldConfigs.getFormularioCamposFull.mockReset().mockResolvedValue({});
   });
 
   it('cadastra um novo parametro no storageKey da configuracao', async () => {
@@ -151,5 +160,32 @@ describe('ParametroFormPage', () => {
     at('/recursos/cargos/novo');
     render(<ParametroFormRoute config={PARAMETROS.cargos} />);
     expect(screen.queryByText('color-picker')).not.toBeInTheDocument();
+  });
+
+  it('aplica a configuração do módulo Formulários (obrigatório, rótulo e posição)', async () => {
+    fieldConfigs.getFormularioCamposFull.mockResolvedValue({
+      descricao: { tipoValidacao: 'obrigatorio', tamanho: '2', posicao: 1, traducoes: null },
+    });
+    at('/recursos/cargos/novo');
+    render(<ParametroFormRoute config={PARAMETROS.cargos} />);
+
+    await waitFor(() => expect(fieldConfigs.getFormularioCamposFull).toHaveBeenCalledWith('cargo'));
+    const descricao = await waitFor(() => {
+      const cell = document.querySelector('[data-campo="descricao"]') as HTMLElement;
+      expect(cell.style.order).toBe('1');
+      return cell;
+    });
+    expect(descricao.querySelector('.text-destructive')).not.toBeNull();
+
+    fireEvent.change(screen.getByLabelText(/Nome/), { target: { value: 'Editor' } });
+    fireEvent.click(screen.getByRole('button', { name: /Salvar/ }));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(repo.save).not.toHaveBeenCalled();
+
+    fireEvent.change(screen.getByLabelText(/common.description|Descrição/), {
+      target: { value: 'Editor de imagem' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Salvar/ }));
+    await waitFor(() => expect(repo.save).toHaveBeenCalled());
   });
 });

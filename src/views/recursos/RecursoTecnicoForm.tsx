@@ -4,7 +4,11 @@ import { Label } from '@/components/ui/label';
 import { FormPage } from '@/components/shared/FormPage';
 import { SearchableSelect } from '@/components/shared/SearchableSelect';
 import { useAuth } from '@/contexts/AuthContext';
-import { FieldAsterisk, useFormFieldConfig } from '@/hooks/useFormFieldConfig';
+import {
+  FieldAsterisk,
+  useFormFieldConfig,
+  ConfigurableFieldGrid,
+} from '@/hooks/useFormFieldConfig';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useRecordForm } from '@/hooks/useRecordForm';
 import { useRecordNavigation } from '@/hooks/useRecordNavigation';
@@ -39,7 +43,7 @@ function toInput(item: RecursoTecnico): RecursoTecnicoInput {
 
 const RecursoTecnicoForm = ({ id }: { id?: string }) => {
   const { user } = useAuth();
-  const { getAsterisk } = useFormFieldConfig('recursoTecnico');
+  const { getAsterisk, validate, fieldLabel, fieldLayout } = useFormFieldConfig('recursoTecnico');
   const { canIncluir, canAlterar } = usePermissions();
   const { goBack, navigation } = useRecordNavigation(RECURSOS_TECNICOS_ROUTES, id);
   const readOnly = id
@@ -58,6 +62,12 @@ const RecursoTecnicoForm = ({ id }: { id?: string }) => {
         tenantId: user?.tenantId ?? null,
       }),
     onSaved: goBack,
+    validate: (values) =>
+      validate({
+        codigoExterno: values.codigoExterno,
+        nome: values.nome,
+        funcaoOperador: values.funcaoOperadorId,
+      }),
     readOnly,
     messages: { created: 'Recurso técnico criado!', updated: 'Recurso técnico atualizado!' },
   });
@@ -94,10 +104,11 @@ const RecursoTecnicoForm = ({ id }: { id?: string }) => {
       createLabel="Salvar"
     >
       <form id="recurso-tecnico-form" onSubmit={handleSubmit} className="space-y-4">
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          <div className="space-y-2">
+        <ConfigurableFieldGrid>
+          <div className="space-y-1.5" {...fieldLayout('codigoExterno')}>
             <Label htmlFor="codigoExterno">
-              Código Externo <FieldAsterisk type={getAsterisk('codigoExterno')} />
+              {fieldLabel('codigoExterno', 'Código Externo')}{' '}
+              <FieldAsterisk type={getAsterisk('codigoExterno')} />
             </Label>
             <Input
               id="codigoExterno"
@@ -108,9 +119,9 @@ const RecursoTecnicoForm = ({ id }: { id?: string }) => {
               disabled={disabled}
             />
           </div>
-          <div className="space-y-2 md:col-span-2">
+          <div className="space-y-1.5" {...fieldLayout('nome')}>
             <Label htmlFor="nome">
-              Nome <FieldAsterisk type={getAsterisk('nome')} />
+              {fieldLabel('nome', 'Nome')} <FieldAsterisk type={getAsterisk('nome', true)} />
             </Label>
             <Input
               id="nome"
@@ -121,30 +132,31 @@ const RecursoTecnicoForm = ({ id }: { id?: string }) => {
               disabled={disabled}
             />
           </div>
-        </div>
-        <div className="space-y-2 md:max-w-md">
-          <Label htmlFor="funcaoOperador">
-            Função do Operador <FieldAsterisk type={getAsterisk('funcaoOperador')} />
-          </Label>
-          <SearchableSelect
-            options={funcoes.map((item) => ({ value: item.id, label: item.nome }))}
-            value={formData.funcaoOperadorId || ''}
-            onValueChange={(value) => {
-              const selecionada = funcoes.find((item) => item.id === value);
-              setFormData((current) => ({
-                ...current,
-                funcaoOperadorId: value,
-                funcaoOperador: selecionada?.nome || '',
-              }));
-            }}
-            placeholder="Selecione a função..."
-            searchPlaceholder="Pesquisar função..."
-            disabled={disabled || isLoadingFuncoes}
-          />
-          <p className="text-xs text-muted-foreground">
-            Define qual função pode operar este recurso
-          </p>
-        </div>
+          <div className="space-y-1.5" {...fieldLayout('funcaoOperador')}>
+            <Label htmlFor="funcaoOperador">
+              {fieldLabel('funcaoOperador', 'Função do Operador')}{' '}
+              <FieldAsterisk type={getAsterisk('funcaoOperador')} />
+            </Label>
+            <SearchableSelect
+              options={funcoes.map((item) => ({ value: item.id, label: item.nome }))}
+              value={formData.funcaoOperadorId || ''}
+              onValueChange={(value) => {
+                const selecionada = funcoes.find((item) => item.id === value);
+                setFormData((current) => ({
+                  ...current,
+                  funcaoOperadorId: value,
+                  funcaoOperador: selecionada?.nome || '',
+                }));
+              }}
+              placeholder="Selecione a função..."
+              searchPlaceholder="Pesquisar função..."
+              disabled={disabled || isLoadingFuncoes}
+            />
+            <p className="text-xs text-muted-foreground">
+              Define qual função pode operar este recurso
+            </p>
+          </div>
+        </ConfigurableFieldGrid>
       </form>
     </FormPage>
   );

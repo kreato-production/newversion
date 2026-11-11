@@ -12,8 +12,16 @@ vi.mock('@/modules/recursos-tecnicos/recursos-tecnicos.repository.provider', () 
 }));
 vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => ({ user: { tenantId: 't1' } }) }));
 vi.mock('@/hooks/useFormFieldConfig', () => ({
-  useFormFieldConfig: () => ({ getAsterisk: (): null => null }),
+  useFormFieldConfig: () => ({
+    getAsterisk: (): null => null,
+    validate: (): boolean => true,
+    fieldLabel: (campo: string, fallback?: string) => fallback ?? campo,
+    fieldLayout: (campo: string) => ({ 'data-campo': campo, style: {} }),
+  }),
   FieldAsterisk: (): null => null,
+  ConfigurableFieldGrid: ({ children }: { children?: import('react').ReactNode }) => (
+    <div>{children}</div>
+  ),
 }));
 vi.mock('@/hooks/usePermissions', () => ({
   usePermissions: () => ({ canIncluir: () => true, canAlterar: () => true }),

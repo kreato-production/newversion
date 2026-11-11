@@ -18,6 +18,7 @@ import { DataCard, EmptyState, PageHeader, SearchBar } from '@/components/shared
 import { ListActionBar } from '@/components/shared/ListActionBar';
 import { NewButton } from '@/components/shared/NewButton';
 import { SortableTable, type Column } from '@/components/shared/SortableTable';
+import { useFormListStyle } from '@/hooks/useFormListStyle';
 import { PESSOAS_ROUTES } from '@/modules/pessoas/pessoas.navigation';
 import { useRecordList } from '@/hooks/useRecordNavigation';
 import { useAuth } from '@/contexts/AuthContext';
@@ -252,6 +253,7 @@ function PessoaDetailPanel({
 
 const Pessoas = () => {
   const { toast } = useToast();
+  const { stripeColor } = useFormListStyle('pessoa');
   const { t } = useLanguage();
   const { openNew, openRecord } = useRecordList(PESSOAS_ROUTES);
   const { session } = useAuth();
@@ -380,9 +382,9 @@ const Pessoas = () => {
       className: 'w-12',
       sortable: false,
       render: (item) => (
-        <Avatar className="w-8 h-8">
+        <Avatar className="w-6 h-6">
           <AvatarImage src={item.foto} />
-          <AvatarFallback className="text-xs gradient-brand text-primary-foreground">
+          <AvatarFallback className="text-[10px] gradient-brand text-primary-foreground">
             {item.nome.charAt(0)}
             {item.sobrenome.charAt(0)}
           </AvatarFallback>
@@ -589,6 +591,7 @@ const Pessoas = () => {
             />
           ) : (
             <SortableTable
+              stripeColor={stripeColor}
               data={filteredItems}
               columns={columns}
               getRowKey={(item) => item.id}

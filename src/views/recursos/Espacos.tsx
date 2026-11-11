@@ -35,6 +35,7 @@ import { ESPACOS_ROUTES } from '@/modules/espacos/espacos.navigation';
 import { espacosRepository } from '@/modules/espacos/espacos.repository.provider';
 import { ESPACOS_PERMISSION_SCOPE } from '@/modules/espacos/espacos.navigation';
 import type { Espaco } from '@/modules/espacos/espacos.types';
+import { useFormListStyle } from '@/hooks/useFormListStyle';
 
 const STORAGE_KEY = 'kreato_espacos';
 
@@ -186,6 +187,7 @@ function EspacoDetailPanel({
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function Espacos() {
+  const { stripeColor } = useFormListStyle('espaco');
   const { t } = useLanguage();
   const { toast } = useToast();
   const { canIncluir, canAlterar, canExcluir } = usePermissions();
@@ -358,6 +360,7 @@ export default function Espacos() {
             />
           ) : (
             <SortableTable
+              stripeColor={stripeColor}
               data={filtered}
               columns={columns}
               getRowKey={(item) => item.id}

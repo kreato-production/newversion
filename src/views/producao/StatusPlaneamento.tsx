@@ -27,6 +27,7 @@ import {
   ColumnSelector,
   type ColumnConfig,
 } from '@/components/listing';
+import { useFormListStyle } from '@/hooks/useFormListStyle';
 
 export interface StatusPlaneamentoItem {
   id: string;
@@ -54,6 +55,7 @@ const COLUMN_CONFIG: ColumnConfig[] = [
 const STORAGE_KEY = 'kreato_status_planeamento_table';
 
 const StatusPlaneamento = () => {
+  const { stripeColor } = useFormListStyle('statusPlaneamento');
   const { toast } = useToast();
   const [search, setSearch] = useState('');
   const { openNew, openRecord } = useRecordList(STATUS_PLANEAMENTO_FORM.routes);
@@ -254,6 +256,7 @@ const StatusPlaneamento = () => {
           />
         ) : (
           <SortableTable
+            stripeColor={stripeColor}
             data={filteredItems}
             columns={columns}
             getRowKey={(item) => item.id}

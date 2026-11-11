@@ -13,6 +13,11 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useAuth } from '@/contexts/AuthContext';
+import {
+  FieldAsterisk,
+  useFormFieldConfig,
+  ConfigurableFieldGrid,
+} from '@/hooks/useFormFieldConfig';
 import type { RecordFormBodyProps } from '@/components/shared/RecordFormPage';
 import { CURRENCIES } from '@/lib/currencies';
 import type { UnidadeNegocio } from '@/modules/unidades/unidades.types';
@@ -53,6 +58,7 @@ export const UnidadeNegocioFormBody = ({
   const [formData, setFormData] = useState(() => toFormData(data));
   const [isSaving, setIsSaving] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const { getAsterisk, validate, fieldLabel, fieldLayout } = useFormFieldConfig('unidadeNegocio');
 
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -88,6 +94,13 @@ export const UnidadeNegocioFormBody = ({
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (readOnly || isSaving) return;
+    const camposValidos = validate({
+      codigoExterno: formData.codigoExterno,
+      nome: formData.nome,
+      moeda: formData.moeda,
+      descricao: formData.descricao,
+    });
+    if (!camposValidos) return;
     setIsSaving(true);
 
     try {
@@ -185,9 +198,12 @@ export const UnidadeNegocioFormBody = ({
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="codigoExterno">Codigo Externo</Label>
+            <ConfigurableFieldGrid>
+              <div className="space-y-1.5" {...fieldLayout('codigoExterno')}>
+                <Label htmlFor="codigoExterno">
+                  {fieldLabel('codigoExterno', 'Codigo Externo')}{' '}
+                  <FieldAsterisk type={getAsterisk('codigoExterno')} />
+                </Label>
                 <Input
                   id="codigoExterno"
                   value={formData.codigoExterno}
@@ -198,9 +214,9 @@ export const UnidadeNegocioFormBody = ({
                   placeholder="Max. 10 caracteres"
                 />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-1.5" {...fieldLayout('nome')}>
                 <Label htmlFor="nome">
-                  Nome <span className="text-destructive">*</span>
+                  {fieldLabel('nome', 'Nome')} <FieldAsterisk type={getAsterisk('nome', true)} />
                 </Label>
                 <Input
                   id="nome"
@@ -210,45 +226,53 @@ export const UnidadeNegocioFormBody = ({
                   required
                 />
               </div>
-            </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="descricao">Descricao</Label>
-              <Textarea
-                id="descricao"
-                value={formData.descricao}
-                onChange={(event) => setFormData({ ...formData, descricao: event.target.value })}
-                rows={3}
-                placeholder="Descricao da unidade de negocio..."
-              />
-            </div>
+              <div className="space-y-1.5" {...fieldLayout('descricao')}>
+                <Label htmlFor="descricao">
+                  {fieldLabel('descricao', 'Descricao')}{' '}
+                  <FieldAsterisk type={getAsterisk('descricao')} />
+                </Label>
+                <Textarea
+                  id="descricao"
+                  value={formData.descricao}
+                  onChange={(event) => setFormData({ ...formData, descricao: event.target.value })}
+                  rows={3}
+                  placeholder="Descricao da unidade de negocio..."
+                />
+              </div>
+            </ConfigurableFieldGrid>
           </div>
         </TabsContent>
 
         <TabsContent value="preferencias">
           <div className="space-y-4 mt-4">
-            <div className="space-y-2">
-              <Label htmlFor="moeda">Moeda Padrao</Label>
-              <Select
-                value={formData.moeda}
-                onValueChange={(value) => setFormData({ ...formData, moeda: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione a moeda..." />
-                </SelectTrigger>
-                <SelectContent className="max-h-[300px]">
-                  {CURRENCIES.map((currency) => (
-                    <SelectItem key={currency.code} value={currency.code}>
-                      {currency.code} - {currency.name} ({currency.symbol})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">
-                Esta moeda sera usada para exibir todos os valores de custos relacionados a esta
-                unidade de negocio.
-              </p>
-            </div>
+            <ConfigurableFieldGrid>
+              <div className="space-y-1.5" {...fieldLayout('moeda')}>
+                <Label htmlFor="moeda">
+                  {fieldLabel('moeda', 'Moeda Padrao')}{' '}
+                  <FieldAsterisk type={getAsterisk('moeda')} />
+                </Label>
+                <Select
+                  value={formData.moeda}
+                  onValueChange={(value) => setFormData({ ...formData, moeda: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione a moeda..." />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-[300px]">
+                    {CURRENCIES.map((currency) => (
+                      <SelectItem key={currency.code} value={currency.code}>
+                        {currency.code} - {currency.name} ({currency.symbol})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Esta moeda sera usada para exibir todos os valores de custos relacionados a esta
+                  unidade de negocio.
+                </p>
+              </div>
+            </ConfigurableFieldGrid>
           </div>
         </TabsContent>
       </Tabs>

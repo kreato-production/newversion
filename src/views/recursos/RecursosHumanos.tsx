@@ -17,6 +17,7 @@ import { Separator } from '@/components/ui/separator';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
 import { ListActionBar } from '@/components/shared/ListActionBar';
 import { SortableTable, Column } from '@/components/shared/SortableTable';
+import { useFormListStyle } from '@/hooks/useFormListStyle';
 import { NewButton } from '@/components/shared/NewButton';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useRecordList } from '@/hooks/useRecordNavigation';
@@ -277,6 +278,7 @@ function RecursoHumanoDetailPanel({
 
 const RecursosHumanos = () => {
   const { toast } = useToast();
+  const { stripeColor } = useFormListStyle('recursoHumano');
   const { t } = useLanguage();
   const { user, session } = useAuth();
   const { canIncluir, canAlterar, canExcluir } = usePermissions();
@@ -406,9 +408,9 @@ const RecursosHumanos = () => {
         const ausenciaHoje = getAusenciaHoje(item);
         return (
           <div className="relative">
-            <Avatar className="w-8 h-8">
+            <Avatar className="w-6 h-6">
               <AvatarImage src={item.foto} />
-              <AvatarFallback className="text-xs gradient-brand text-primary-foreground">
+              <AvatarFallback className="text-[10px] gradient-brand text-primary-foreground">
                 {item.nome.charAt(0)}
                 {item.sobrenome.charAt(0)}
               </AvatarFallback>
@@ -619,6 +621,7 @@ const RecursosHumanos = () => {
             />
           ) : (
             <SortableTable
+              stripeColor={stripeColor}
               data={filteredItems}
               columns={columns}
               getRowKey={(item) => item.id}

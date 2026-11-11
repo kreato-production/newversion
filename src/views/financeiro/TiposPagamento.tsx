@@ -32,6 +32,7 @@ import {
 } from '@/components/listing';
 import { useRecordList } from '@/hooks/useRecordNavigation';
 import { TIPOS_PAGAMENTO_FORM } from '@/modules/parametrizacoes/financeiro.forms';
+import { useFormListStyle } from '@/hooks/useFormListStyle';
 
 export interface TipoPagamentoItem {
   id: string;
@@ -193,6 +194,7 @@ function TipoPagamentoDetailPanel({
 }
 
 const TiposPagamento = () => {
+  const { stripeColor } = useFormListStyle('tipoPagamento');
   const { toast } = useToast();
   const importFileRef = useRef<HTMLInputElement>(null);
   const [isImporting, setIsImporting] = useState(false);
@@ -506,6 +508,7 @@ const TiposPagamento = () => {
             />
           ) : (
             <SortableTable
+              stripeColor={stripeColor}
               data={filteredItems}
               columns={columns}
               getRowKey={(item) => item.id}

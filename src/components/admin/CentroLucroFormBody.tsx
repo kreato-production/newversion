@@ -13,6 +13,11 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useAuth } from '@/contexts/AuthContext';
+import {
+  FieldAsterisk,
+  useFormFieldConfig,
+  ConfigurableFieldGrid,
+} from '@/hooks/useFormFieldConfig';
 import { useToast } from '@/hooks/use-toast';
 import type { RecordFormBodyProps } from '@/components/shared/RecordFormPage';
 import { Building2, Trash2, Loader2 } from 'lucide-react';
@@ -45,6 +50,7 @@ export const CentroLucroFormBody = ({
 }: RecordFormBodyProps<CentroLucro, CentroLucro>) => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { getAsterisk, validate, fieldLabel, fieldLayout } = useFormFieldConfig('centroLucro');
   const [formData, setFormData] = useState(() => ({
     codigoExterno: data?.codigoExterno || '',
     nome: data?.nome || '',
@@ -107,6 +113,14 @@ export const CentroLucroFormBody = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (readOnly) return;
+    const camposValidos = validate({
+      codigoExterno: formData.codigoExterno,
+      nome: formData.nome,
+      parentId: formData.parentId,
+      status: formData.status,
+      descricao: formData.descricao,
+    });
+    if (!camposValidos) return;
 
     const centroLucroData: CentroLucro = {
       id: data?.id || crypto.randomUUID(),
@@ -148,9 +162,12 @@ export const CentroLucroFormBody = ({
       {/* Kept mounted so the page Save button finds the form from any tab. */}
       <TabsContent value="dados" forceMount className="data-[state=inactive]:hidden">
         <form id={formId} onSubmit={(e) => void handleSubmit(e)} className="space-y-4 mt-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="codigoExterno">Codigo Externo</Label>
+          <ConfigurableFieldGrid>
+            <div className="space-y-1.5" {...fieldLayout('codigoExterno')}>
+              <Label htmlFor="codigoExterno">
+                {fieldLabel('codigoExterno', 'Codigo Externo')}{' '}
+                <FieldAsterisk type={getAsterisk('codigoExterno')} />
+              </Label>
               <Input
                 id="codigoExterno"
                 value={formData.codigoExterno}
@@ -159,8 +176,10 @@ export const CentroLucroFormBody = ({
                 disabled={readOnly}
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="status">Status</Label>
+            <div className="space-y-1.5" {...fieldLayout('status')}>
+              <Label htmlFor="status">
+                {fieldLabel('status', 'Status')} <FieldAsterisk type={getAsterisk('status')} />
+              </Label>
               <Select
                 value={formData.status}
                 onValueChange={(value: 'Ativo' | 'Inativo') =>
@@ -177,55 +196,61 @@ export const CentroLucroFormBody = ({
                 </SelectContent>
               </Select>
             </div>
-          </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="nome">
-              Nome <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              id="nome"
-              value={formData.nome}
-              onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
-              required
-              maxLength={100}
-              disabled={readOnly}
-            />
-          </div>
+            <div className="space-y-1.5" {...fieldLayout('nome')}>
+              <Label htmlFor="nome">
+                {fieldLabel('nome', 'Nome')} <FieldAsterisk type={getAsterisk('nome', true)} />
+              </Label>
+              <Input
+                id="nome"
+                value={formData.nome}
+                onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
+                required
+                maxLength={100}
+                disabled={readOnly}
+              />
+            </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="parentId">Centro de Custos Pai</Label>
-            <Select
-              value={formData.parentId}
-              onValueChange={(value) =>
-                setFormData({ ...formData, parentId: value === 'none' ? '' : value })
-              }
-              disabled={readOnly}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Nenhum (raiz)" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Nenhum (raiz)</SelectItem>
-                {availableParents.map((centro) => (
-                  <SelectItem key={centro.id} value={centro.id}>
-                    {centro.nome}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+            <div className="space-y-1.5" {...fieldLayout('parentId')}>
+              <Label htmlFor="parentId">
+                {fieldLabel('parentId', 'Centro de Custos Pai')}{' '}
+                <FieldAsterisk type={getAsterisk('parentId')} />
+              </Label>
+              <Select
+                value={formData.parentId}
+                onValueChange={(value) =>
+                  setFormData({ ...formData, parentId: value === 'none' ? '' : value })
+                }
+                disabled={readOnly}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Nenhum (raiz)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Nenhum (raiz)</SelectItem>
+                  {availableParents.map((centro) => (
+                    <SelectItem key={centro.id} value={centro.id}>
+                      {centro.nome}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="descricao">Descricao</Label>
-            <Textarea
-              id="descricao"
-              value={formData.descricao}
-              onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
-              rows={3}
-              disabled={readOnly}
-            />
-          </div>
+            <div className="space-y-1.5" {...fieldLayout('descricao')}>
+              <Label htmlFor="descricao">
+                {fieldLabel('descricao', 'Descricao')}{' '}
+                <FieldAsterisk type={getAsterisk('descricao')} />
+              </Label>
+              <Textarea
+                id="descricao"
+                value={formData.descricao}
+                onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
+                rows={3}
+                disabled={readOnly}
+              />
+            </div>
+          </ConfigurableFieldGrid>
         </form>
       </TabsContent>
 

@@ -47,6 +47,7 @@ import {
   MasterDetail,
   type ColumnConfig,
 } from '@/components/listing';
+import { useFormListStyle } from '@/hooks/useFormListStyle';
 
 const repository = new ApiSatOpsRepository();
 
@@ -303,6 +304,7 @@ function JanelaDetailPanel({
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 const Janelas = () => {
+  const { stripeColor } = useFormListStyle('janela');
   const { toast } = useToast();
   const [search, setSearch] = useState('');
   const { openNew, openRecord } = useRecordList(JANELAS_ROUTES);
@@ -677,6 +679,7 @@ const Janelas = () => {
             />
           ) : (
             <SortableTable
+              stripeColor={stripeColor}
               data={filteredItems}
               columns={columns}
               getRowKey={(item) => item.id}

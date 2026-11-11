@@ -16,7 +16,11 @@ import { useToast } from '@/hooks/use-toast';
 import type { RecordFormBodyProps } from '@/components/shared/RecordFormPage';
 import { SortableTable, type Column } from '@/components/shared/SortableTable';
 import { Plus, Trash2, Users, Loader2 } from 'lucide-react';
-import { useFormFieldConfig, FieldAsterisk } from '@/hooks/useFormFieldConfig';
+import {
+  useFormFieldConfig,
+  FieldAsterisk,
+  ConfigurableFieldGrid,
+} from '@/hooks/useFormFieldConfig';
 import { equipesRepository } from '@/modules/equipes/equipes.repository.provider';
 import type { Equipe, EquipeInput, Membro, RecursoHumano } from '@/modules/equipes/equipes.types';
 import { ApiParametrosRepository } from '@/modules/parametros/parametros.api.repository';
@@ -39,7 +43,7 @@ export const EquipeFormBody = ({
   const { t } = useLanguage();
   const { toast } = useToast();
   const { isVisible } = usePermissions();
-  const { getAsterisk } = useFormFieldConfig('equipe');
+  const { getAsterisk, validate, fieldLabel, fieldLayout } = useFormFieldConfig('equipe');
   const [formData, setFormData] = useState<EquipeInput>(() =>
     data ? { id: data.id, codigo: data.codigo, descricao: data.descricao } : { ...emptyFormData },
   );
@@ -175,6 +179,8 @@ export const EquipeFormBody = ({
       return;
     }
 
+    if (!validate({ codigo: formData.codigo, descricao: formData.descricao })) return;
+
     await onSubmit(formData);
   };
 
@@ -225,10 +231,11 @@ export const EquipeFormBody = ({
 
   return (
     <form id={formId} onSubmit={handleSubmit} className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
+      <ConfigurableFieldGrid>
+        <div className="space-y-1.5" {...fieldLayout('codigo')}>
           <Label htmlFor="codigo">
-            {t('common.code')} <FieldAsterisk type={getAsterisk('codigo')} />
+            {fieldLabel('codigo', t('common.code'))}{' '}
+            <FieldAsterisk type={getAsterisk('codigo', true)} />
           </Label>
           <Input
             id="codigo"
@@ -239,9 +246,10 @@ export const EquipeFormBody = ({
             disabled={readOnly}
           />
         </div>
-        <div className="space-y-2">
+        <div className="space-y-1.5" {...fieldLayout('descricao')}>
           <Label htmlFor="descricao">
-            {t('common.description')} <FieldAsterisk type={getAsterisk('descricao')} />
+            {fieldLabel('descricao', t('common.description'))}{' '}
+            <FieldAsterisk type={getAsterisk('descricao', true)} />
           </Label>
           <Input
             id="descricao"
@@ -252,7 +260,7 @@ export const EquipeFormBody = ({
             disabled={readOnly}
           />
         </div>
-      </div>
+      </ConfigurableFieldGrid>
 
       {data && (
         <div className="pt-4 border-t">

@@ -150,3 +150,54 @@
     background-color: hsl(var(--weekend-background));
   }
 }
+
+/* Formulários configuráveis (Tamanho / Posição em Admin > Formulários). In the components
+   layer so utilities (e.g. gap-y-6) can adjust a form. */
+@layer components {
+  .configurable-field-grid {
+    display: grid;
+    /* 10px between rows, 16px between fields side by side. */
+    gap: 0.625rem 1rem;
+    grid-template-columns: minmax(0, 1fr);
+  }
+  @media (min-width: 768px) {
+    .configurable-field-grid {
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+    }
+    .configurable-field-grid > [data-campo] {
+      grid-column: span var(--field-span, 12) / span var(--field-span, 12);
+    }
+  }
+}
+
+/* Espaçamento compacto dos formulários (o mesmo da Pessoa): 10px entre as linhas de campos e
+   6px entre o rótulo e o campo. Vale para todo formulário em página (FormPage), sem mexer no
+   espaço entre campos lado a lado. Seletores com .form-page-content para vencer as utilities. */
+.form-page-content .grid.gap-4 {
+  row-gap: 0.625rem;
+}
+.form-page-content form.space-y-4 > :not([hidden]) ~ :not([hidden]),
+.form-page-content .space-y-4 > .grid ~ :not([hidden]),
+.form-page-content .space-y-4 > :not([hidden]) ~ .grid {
+  margin-top: 0.625rem;
+}
+.form-page-content .space-y-2 > :not([hidden]) ~ :not([hidden]) {
+  margin-top: 0.375rem;
+}
+
+/* Lista zebrada (Administração > Formulários > Lista): linhas pares na cor pastel escolhida
+   (--list-stripe), alternando com o fundo. Em listas em árvore, cada linha listrada leva
+   .list-zebra-row. No tema escuro a cor fica bem suave para não ofuscar o texto. */
+.list-zebra > tr:nth-child(even),
+.list-zebra-row {
+  background-color: var(--list-stripe);
+}
+.dark .list-zebra > tr:nth-child(even),
+.dark .list-zebra-row {
+  background-color: color-mix(in srgb, var(--list-stripe) 14%, transparent);
+}
+.list-zebra > tr:hover,
+.list-zebra > tr:nth-child(even):hover,
+.list-zebra-row:hover {
+  background-color: hsl(var(--muted) / 0.5);
+}

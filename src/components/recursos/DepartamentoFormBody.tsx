@@ -14,6 +14,11 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useToast } from '@/hooks/use-toast';
+import {
+  ConfigurableFieldGrid,
+  FieldAsterisk,
+  useFormFieldConfig,
+} from '@/hooks/useFormFieldConfig';
 import type { RecordFormBodyProps } from '@/components/shared/RecordFormPage';
 import { SortableTable, type Column } from '@/components/shared/SortableTable';
 import { TraducaoTab, type Traducoes } from '@/components/shared/TraducaoTab';
@@ -85,6 +90,7 @@ export const DepartamentoFormBody = ({
   const { user } = useAuth();
   const { t } = useLanguage();
   const { toast } = useToast();
+  const { getAsterisk, validate, fieldLabel, fieldLayout } = useFormFieldConfig('departamento');
   const [formData, setFormData] = useState<Departamento>(() =>
     data
       ? { codigoExterno: data.codigoExterno, nome: data.nome, descricao: data.descricao }
@@ -206,6 +212,22 @@ export const DepartamentoFormBody = ({
       return;
     }
 
+    if (
+      !validate(
+        {
+          codigoExterno: formData.codigoExterno,
+          nome: formData.nome,
+          descricao: formData.descricao,
+        },
+        {
+          codigoExterno: t('common.externalCode'),
+          nome: t('common.name'),
+          descricao: t('common.description'),
+        },
+      )
+    )
+      return;
+
     await onSubmit({
       ...formData,
       traducoes,
@@ -269,9 +291,12 @@ export const DepartamentoFormBody = ({
 
   return (
     <form id={formId} onSubmit={(event) => void handleSubmit(event)} className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="codigoExterno">{t('common.externalCode')}</Label>
+      <ConfigurableFieldGrid>
+        <div className="space-y-2" {...fieldLayout('codigoExterno')}>
+          <Label htmlFor="codigoExterno">
+            {fieldLabel('codigoExterno', t('common.externalCode'))}
+            <FieldAsterisk type={getAsterisk('codigoExterno')} />
+          </Label>
           <Input
             id="codigoExterno"
             value={formData.codigoExterno}
@@ -281,9 +306,10 @@ export const DepartamentoFormBody = ({
             disabled={readOnly}
           />
         </div>
-        <div className="space-y-2">
+        <div className="space-y-2" {...fieldLayout('nome')}>
           <Label htmlFor="nome">
-            {t('common.name')} <span className="text-destructive">*</span>
+            {fieldLabel('nome', t('common.name'))}
+            <FieldAsterisk type={getAsterisk('nome', true)} />
           </Label>
           <Input
             id="nome"
@@ -294,17 +320,20 @@ export const DepartamentoFormBody = ({
             disabled={readOnly}
           />
         </div>
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="descricao">{t('common.description')}</Label>
-        <Textarea
-          id="descricao"
-          value={formData.descricao}
-          onChange={(event) => setFormData({ ...formData, descricao: event.target.value })}
-          rows={3}
-          disabled={readOnly}
-        />
-      </div>
+        <div className="space-y-2" {...fieldLayout('descricao')}>
+          <Label htmlFor="descricao">
+            {fieldLabel('descricao', t('common.description'))}
+            <FieldAsterisk type={getAsterisk('descricao')} />
+          </Label>
+          <Textarea
+            id="descricao"
+            value={formData.descricao}
+            onChange={(event) => setFormData({ ...formData, descricao: event.target.value })}
+            rows={3}
+            disabled={readOnly}
+          />
+        </div>
+      </ConfigurableFieldGrid>
 
       {data && (
         <div className="pt-4 border-t">

@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/table';
 import { ArrowUpDown, ArrowUp, ArrowDown, GripVertical } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { zebraBodyProps } from '@/lib/listZebra';
 import { TablePagination } from './TablePagination';
 import { GroupingBar } from './GroupingBar';
 import { GroupedTable } from './GroupedTable';
@@ -29,6 +30,13 @@ interface SortableTableProps<T> {
   defaultPageSize?: number;
   /** When provided, only columns whose key is in this array are rendered */
   visibleColumnKeys?: string[];
+  /**
+   * Color of every other row (zebra list, configured in Administração > Formulários > Lista);
+   * null/undefined = no stripes. See useFormListStyle.
+   */
+  stripeColor?: string | null;
+  /** Linhas baixas (padrão do sistema). false = linhas mais altas, como antes. */
+  compact?: boolean;
 }
 
 type SortDirection = 'asc' | 'desc' | null;
@@ -96,6 +104,8 @@ export function SortableTable<T>({
   paginated = true,
   defaultPageSize = 20,
   visibleColumnKeys,
+  stripeColor,
+  compact = true,
 }: SortableTableProps<T>) {
   // ── Column ordering (persisted) ───────────────────────────────────────────
   const [columnOrder, setColumnOrder] = useState<string[] | null>(() =>
@@ -370,6 +380,7 @@ export function SortableTable<T>({
       {groupByKeys.length > 0 ? (
         /* ── Grouped view ── */
         <GroupedTable
+          compact={compact}
           data={sortedData}
           columns={renderedColumns}
           groupByColumns={activeGroupColumns}
@@ -446,11 +457,14 @@ export function SortableTable<T>({
                   ))}
                 </TableRow>
               </TableHeader>
-              <TableBody>
+              <TableBody {...zebraBodyProps(stripeColor)}>
                 {paginatedData.map((item) => (
-                  <TableRow key={getRowKey(item)} className="h-10">
+                  <TableRow key={getRowKey(item)} className={compact ? 'h-8' : 'h-10'}>
                     {renderedColumns.map((column) => (
-                      <TableCell key={column.key} className={cn('py-2', column.className)}>
+                      <TableCell
+                        key={column.key}
+                        className={cn(compact ? 'py-1' : 'py-2', column.className)}
+                      >
                         {column.render
                           ? column.render(item)
                           : ((item as Record<string, unknown>)[column.key] as React.ReactNode) ||

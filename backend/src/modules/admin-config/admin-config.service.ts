@@ -28,9 +28,39 @@ export const saveFormularioCamposSchema = z.object({
       tipoValidacao: z.enum(['obrigatorio', 'sugerido']).nullable(),
       tamanho: z.string().nullable().optional(),
       posicao: z.number().int().nullable().optional(),
+      /** Rótulo do campo por idioma do sistema (pt, en, es...). */
+      traducoes: z
+        .record(z.string().regex(/^[a-z]{2}(-[A-Z]{2})?$/), z.string().max(120))
+        .nullable()
+        .optional(),
     }),
   ),
+  /** Aparência da lista do módulo (tabulador Lista); ausente = não muda. */
+  lista: z
+    .object({
+      zebrado: z.boolean(),
+      corZebra: z
+        .string()
+        .regex(/^[a-z][a-z0-9-]{0,29}$/)
+        .nullable()
+        .optional(),
+    })
+    .optional(),
 });
+
+/** Lista sem configuração: sem zebra. */
+export const DEFAULT_FORMULARIO_LISTA = { zebrado: false, corZebra: null } as const;
+
+/** Keeps only non-blank translations (trimmed); null when there is none. */
+export function normalizeTraducoes(
+  traducoes: Record<string, string> | null | undefined,
+): Record<string, string> | null {
+  if (!traducoes) return null;
+  const entries = Object.entries(traducoes)
+    .map(([idioma, label]) => [idioma, label.trim()] as const)
+    .filter(([, label]) => label !== '');
+  return entries.length > 0 ? Object.fromEntries(entries) : null;
+}
 
 export type SavePerfilPermissionsDto = z.infer<typeof savePerfilPermissionsSchema>;
 export type SaveFormularioCamposDto = z.infer<typeof saveFormularioCamposSchema>;
@@ -91,16 +121,21 @@ export class AdminConfigService {
       return { formulario: formularioId, tenantId: null, campos: [] };
     }
     const tenantId = resolveTenantId(actor, resolved);
-    const campos = await this.repository.listFormularioCampos(tenantId, formularioId);
+    const [campos, lista] = await Promise.all([
+      this.repository.listFormularioCampos(tenantId, formularioId),
+      this.repository.getFormularioLista(tenantId, formularioId),
+    ]);
 
     return {
       formulario: formularioId,
       tenantId,
+      lista: lista ?? { ...DEFAULT_FORMULARIO_LISTA },
       campos: campos.map((campo) => ({
         campo: campo.campo,
         tipoValidacao: campo.tipoValidacao,
         tamanho: campo.tamanho,
         posicao: campo.posicao,
+        traducoes: campo.traducoes,
       })),
     };
   }
@@ -116,7 +151,16 @@ export class AdminConfigService {
         tipoValidacao: campo.tipoValidacao,
         tamanho: campo.tamanho ?? null,
         posicao: campo.posicao ?? null,
+        traducoes: normalizeTraducoes(campo.traducoes),
       })),
     );
+
+    if (input.lista) {
+      await this.repository.saveFormularioLista(tenantId, formularioId, {
+        zebrado: input.lista.zebrado,
+        // Sem zebra, a cor não se aplica.
+        corZebra: input.lista.zebrado ? (input.lista.corZebra ?? null) : null,
+      });
+    }
   }
 }

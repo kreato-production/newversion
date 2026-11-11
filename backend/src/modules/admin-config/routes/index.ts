@@ -2,6 +2,7 @@ import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 import { createAuthenticate, createRequireRole, createRequireTenantAccess } from '../../../plugins/auth.js';
 import type { AuthenticatedRequest } from '../../../fastify.js';
+import { createRequireAdminOrPermission } from '../../../plugins/permissions.js';
 import type { AuthService } from '../../auth/auth.service.js';
 import { AdminConfigService, saveFormularioCamposSchema, savePerfilPermissionsSchema } from '../admin-config.service.js';
 
@@ -22,6 +23,13 @@ export function createAdminConfigRoutes(authService: AuthService, adminConfigSer
     const authenticate = createAuthenticate(authService);
     const requireTenantAccess = createRequireTenantAccess();
     const requireAdminRole = createRequireRole(['GLOBAL_ADMIN', 'TENANT_ADMIN']);
+    // Formulários: admins, or users whose profile grants alterar on Administração > Formulários.
+    const requireFormulariosAlterar = createRequireAdminOrPermission(
+      authService,
+      'Administração',
+      'Formulários',
+      'alterar',
+    );
 
     app.get(
       '/admin-config/perfis/:perfilId/permissoes',
@@ -61,11 +69,11 @@ export function createAdminConfigRoutes(authService: AuthService, adminConfigSer
       },
     );
 
-    // PUT is admin-only — only TENANT_ADMIN or GLOBAL_ADMIN may change field configs.
+    // PUT: admins, or users with "alterar" on Administração > Formulários in their profile.
     // GLOBAL_ADMIN must pass ?tenantId= to specify which tenant to configure.
     app.put(
       '/admin-config/formularios/:formularioId/campos',
-      { preHandler: [authenticate, requireAdminRole, requireTenantAccess] },
+      { preHandler: [authenticate, requireTenantAccess, requireFormulariosAlterar] },
       async (request, reply) => {
         const { user } = request as AuthenticatedRequest;
         const params = formularioParamsSchema.parse(request.params);

@@ -36,6 +36,7 @@ import {
   countMaestroActiveFilters,
 } from '@/components/admin/MaestroFilterPanel';
 import { ApiMaestroRepository, type Maestro } from '@/modules/maestro/maestro.api';
+import { useFormListStyle } from '@/hooks/useFormListStyle';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -136,6 +137,7 @@ function formatDateTime(d: Date | string | null): string {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 const MaestroView = () => {
+  const { stripeColor } = useFormListStyle('maestro');
   const { toast } = useToast();
 
   // ── State ──────────────────────────────────────────────────────────────────
@@ -482,6 +484,7 @@ const MaestroView = () => {
           />
         ) : (
           <SortableTable
+            stripeColor={stripeColor}
             data={filteredItems}
             columns={columns}
             getRowKey={(item) => item.id}

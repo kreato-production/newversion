@@ -21,6 +21,11 @@ import {
 } from '@/components/ui/select';
 import type { RecordFormBodyProps } from '@/components/shared/RecordFormPage';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  ConfigurableFieldGrid,
+  FieldAsterisk,
+  useFormFieldConfig,
+} from '@/hooks/useFormFieldConfig';
 import { Loader2, Sparkles, Play, CalendarDays } from 'lucide-react';
 import { toast } from 'sonner';
 import { escalasRepository } from '@/modules/escalas/escalas.repository.provider';
@@ -268,6 +273,14 @@ export function EscalaFormBody({
   readOnly,
   onSubmit,
 }: RecordFormBodyProps<Escala, EscalaInput>) {
+  const { getAsterisk, validate, fieldLabel, fieldLayout } = useFormFieldConfig('escala');
+  /** Label of a field: translation configured in Formulários + required/suggested asterisk. */
+  const label = (campo: string, text: string, alwaysRequired = false) => (
+    <>
+      {fieldLabel(campo, text)}
+      <FieldAsterisk type={getAsterisk(campo, alwaysRequired)} />
+    </>
+  );
   // ── Tab state
   const [activeTab, setActiveTab] = useState<Tab>('dados');
 
@@ -533,6 +546,7 @@ export function EscalaFormBody({
       toast.error('Preencha o título e a data de início');
       return;
     }
+    if (!validate({ titulo, codigoExterno, dataInicio, equipeId })) return;
 
     // An existing escala: save its colaboradores grid first (the page goes back to the
     // list once the escala itself is saved).
@@ -597,12 +611,9 @@ export function EscalaFormBody({
               </div>
             )}
 
-            {/* Row 2: Título + Código Externo */}
-            <div className="grid grid-cols-3 gap-4">
-              <div className="col-span-2 space-y-2">
-                <Label htmlFor="titulo">
-                  Título <span className="text-destructive">*</span>
-                </Label>
+            <ConfigurableFieldGrid>
+              <div className="space-y-2" {...fieldLayout('titulo')}>
+                <Label htmlFor="titulo">{label('titulo', 'Título', true)}</Label>
                 <Input
                   id="titulo"
                   value={titulo}
@@ -611,8 +622,8 @@ export function EscalaFormBody({
                   placeholder="Nome da escala"
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="codigoExterno">Código Externo</Label>
+              <div className="space-y-2" {...fieldLayout('codigoExterno')}>
+                <Label htmlFor="codigoExterno">{label('codigoExterno', 'Código Externo')}</Label>
                 <Input
                   id="codigoExterno"
                   value={codigoExterno}
@@ -622,12 +633,8 @@ export function EscalaFormBody({
                   maxLength={10}
                 />
               </div>
-            </div>
-
-            {/* Row 3: Data Início + Equipe */}
-            <div className="grid grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="dataInicio">Início</Label>
+              <div className="space-y-2" {...fieldLayout('dataInicio')}>
+                <Label htmlFor="dataInicio">{label('dataInicio', 'Início', true)}</Label>
                 <Input
                   id="dataInicio"
                   type="date"
@@ -636,8 +643,8 @@ export function EscalaFormBody({
                   disabled={readOnly}
                 />
               </div>
-              <div className="col-span-2 space-y-2">
-                <Label>Equipe</Label>
+              <div className="space-y-2" {...fieldLayout('equipeId')}>
+                <Label>{label('equipeId', 'Equipe')}</Label>
                 {readOnly ? (
                   <Input value={data?.equipeNome ?? ''} readOnly className="bg-muted" />
                 ) : (
@@ -655,7 +662,7 @@ export function EscalaFormBody({
                   </Select>
                 )}
               </div>
-            </div>
+            </ConfigurableFieldGrid>
           </TabsContent>
 
           {/* ── Tab: Escala ─────────────────────────────────────────────── */}

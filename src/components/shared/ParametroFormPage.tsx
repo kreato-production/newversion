@@ -8,6 +8,11 @@ import { ColorPicker } from '@/components/shared/ColorPicker';
 import { FormPage } from '@/components/shared/FormPage';
 import { TraducaoTab, type Traducoes } from '@/components/shared/TraducaoTab';
 import { useLanguage } from '@/contexts/LanguageContext';
+import {
+  ConfigurableFieldGrid,
+  FieldAsterisk,
+  useFormFieldConfig,
+} from '@/hooks/useFormFieldConfig';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useRecordForm } from '@/hooks/useRecordForm';
 import {
@@ -64,7 +69,9 @@ interface ParametroFormPageProps {
 export const ParametroFormPage = ({ config, basePath, id }: ParametroFormPageProps) => {
   const { t } = useLanguage();
   const { canIncluir, canAlterar } = usePermissions();
-  const { entityName, storageKey, permissionPath, showCor = false } = config;
+  const { entityName, storageKey, permissionPath, showCor = false, formularioId } = config;
+  // Validação, tamanho, posição e rótulos configurados em Administração > Formulários.
+  const { getAsterisk, validate, fieldLabel, fieldLayout } = useFormFieldConfig(formularioId);
 
   const routes = useMemo<RecordRouteConfig>(
     () => ({ basePath, navStorageKey: parametroNavStorageKey(storageKey) }),
@@ -94,6 +101,21 @@ export const ParametroFormPage = ({ config, basePath, id }: ParametroFormPagePro
       }),
     onSaved: goBack,
     readOnly,
+    validate: (values) =>
+      validate(
+        {
+          codigoExterno: values.codigoExterno,
+          nome: values.nome,
+          ...(showCor ? { cor: values.cor } : {}),
+          descricao: values.descricao,
+        },
+        {
+          codigoExterno: t('common.externalCode'),
+          nome: t('common.name'),
+          cor: 'Cor',
+          descricao: t('common.description'),
+        },
+      ),
     messages: {
       created: `${entityName} ${t('common.save').toLowerCase()}!`,
       updated: `${entityName} ${t('common.updated').toLowerCase()}!`,
@@ -129,9 +151,12 @@ export const ParametroFormPage = ({ config, basePath, id }: ParametroFormPagePro
           </TabsList>
 
           <TabsContent value="dados" className="space-y-4 mt-4">
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-              <div className="space-y-2">
-                <Label htmlFor="codigoExterno">{t('common.externalCode')}</Label>
+            <ConfigurableFieldGrid>
+              <div className="space-y-2" {...fieldLayout('codigoExterno')}>
+                <Label htmlFor="codigoExterno">
+                  {fieldLabel('codigoExterno', t('common.externalCode'))}
+                  <FieldAsterisk type={getAsterisk('codigoExterno')} />
+                </Label>
                 <Input
                   id="codigoExterno"
                   value={formData.codigoExterno}
@@ -141,9 +166,10 @@ export const ParametroFormPage = ({ config, basePath, id }: ParametroFormPagePro
                   disabled={disabled}
                 />
               </div>
-              <div className="space-y-2 md:col-span-2">
+              <div className="space-y-2" {...fieldLayout('nome')}>
                 <Label htmlFor="nome">
-                  {t('common.name')} <span className="text-destructive">*</span>
+                  {fieldLabel('nome', t('common.name'))}
+                  <FieldAsterisk type={getAsterisk('nome', true)} />
                 </Label>
                 <Input
                   id="nome"
@@ -154,30 +180,36 @@ export const ParametroFormPage = ({ config, basePath, id }: ParametroFormPagePro
                   disabled={disabled}
                 />
               </div>
-            </div>
 
-            {showCor && (
-              <div className="space-y-2">
-                <Label>Cor</Label>
-                <ColorPicker
-                  value={formData.cor || '#3b82f6'}
-                  onChange={(cor) => update('cor', cor)}
+              {showCor && (
+                <div className="space-y-2" {...fieldLayout('cor')}>
+                  <Label>
+                    {fieldLabel('cor', 'Cor')}
+                    <FieldAsterisk type={getAsterisk('cor')} />
+                  </Label>
+                  <ColorPicker
+                    value={formData.cor || '#3b82f6'}
+                    onChange={(cor) => update('cor', cor)}
+                    disabled={disabled}
+                    previewLabel={formData.nome}
+                  />
+                </div>
+              )}
+
+              <div className="space-y-2" {...fieldLayout('descricao')}>
+                <Label htmlFor="descricao">
+                  {fieldLabel('descricao', t('common.description'))}
+                  <FieldAsterisk type={getAsterisk('descricao')} />
+                </Label>
+                <Textarea
+                  id="descricao"
+                  value={formData.descricao}
+                  onChange={(e) => update('descricao', e.target.value)}
+                  rows={4}
                   disabled={disabled}
-                  previewLabel={formData.nome}
                 />
               </div>
-            )}
-
-            <div className="space-y-2">
-              <Label htmlFor="descricao">{t('common.description')}</Label>
-              <Textarea
-                id="descricao"
-                value={formData.descricao}
-                onChange={(e) => update('descricao', e.target.value)}
-                rows={4}
-                disabled={disabled}
-              />
-            </div>
+            </ConfigurableFieldGrid>
 
             {record?.created_at && (
               <div className="grid grid-cols-1 gap-4 pt-2 border-t md:grid-cols-3">

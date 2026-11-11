@@ -1,6 +1,11 @@
 import { useState } from 'react';
 import { LayoutList } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import {
+  ConfigurableFieldGrid,
+  FieldAsterisk,
+  useFormFieldConfig,
+} from '@/hooks/useFormFieldConfig';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -39,10 +44,12 @@ export function TemplateFormBody({
   const [saving, setSaving] = useState(false);
   const [showPlano, setShowPlano] = useState(false);
   const { toast } = useToast();
+  const { getAsterisk, validate, fieldLabel, fieldLayout } = useFormFieldConfig('template');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (readOnly || saving || !nome.trim()) return;
+    if (!validate({ nome, descricao, estado })) return;
 
     for (const etapa of etapas) {
       for (const atividade of etapa.atividades) {
@@ -102,45 +109,56 @@ export function TemplateFormBody({
           </TabsList>
 
           <TabsContent value="dados" className="mt-4 space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="nome">Nome *</Label>
-              <Input
-                id="nome"
-                value={nome}
-                onChange={(e) => setNome(e.target.value)}
-                disabled={readOnly}
-                placeholder="Nome do template"
-                maxLength={100}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="descricao">Descrição</Label>
-              <Textarea
-                id="descricao"
-                value={descricao}
-                onChange={(e) => setDescricao(e.target.value)}
-                disabled={readOnly}
-                placeholder="Descrição opcional do template"
-                rows={3}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="estado">Estado</Label>
-              <Select
-                value={estado}
-                onValueChange={(v) => setEstado(v as 'Ativo' | 'Inativo')}
-                disabled={readOnly}
-              >
-                <SelectTrigger id="estado">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Ativo">Ativo</SelectItem>
-                  <SelectItem value="Inativo">Inativo</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            <ConfigurableFieldGrid>
+              <div className="space-y-2" {...fieldLayout('nome')}>
+                <Label htmlFor="nome">
+                  {fieldLabel('nome', 'Nome')}
+                  <FieldAsterisk type={getAsterisk('nome', true)} />
+                </Label>
+                <Input
+                  id="nome"
+                  value={nome}
+                  onChange={(e) => setNome(e.target.value)}
+                  disabled={readOnly}
+                  placeholder="Nome do template"
+                  maxLength={100}
+                  required
+                />
+              </div>
+              <div className="space-y-2" {...fieldLayout('descricao')}>
+                <Label htmlFor="descricao">
+                  {fieldLabel('descricao', 'Descrição')}
+                  <FieldAsterisk type={getAsterisk('descricao')} />
+                </Label>
+                <Textarea
+                  id="descricao"
+                  value={descricao}
+                  onChange={(e) => setDescricao(e.target.value)}
+                  disabled={readOnly}
+                  placeholder="Descrição opcional do template"
+                  rows={3}
+                />
+              </div>
+              <div className="space-y-2" {...fieldLayout('estado')}>
+                <Label htmlFor="estado">
+                  {fieldLabel('estado', 'Estado')}
+                  <FieldAsterisk type={getAsterisk('estado')} />
+                </Label>
+                <Select
+                  value={estado}
+                  onValueChange={(v) => setEstado(v as 'Ativo' | 'Inativo')}
+                  disabled={readOnly}
+                >
+                  <SelectTrigger id="estado">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Ativo">Ativo</SelectItem>
+                    <SelectItem value="Inativo">Inativo</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </ConfigurableFieldGrid>
           </TabsContent>
 
           <TabsContent value="etapas" className="mt-4">

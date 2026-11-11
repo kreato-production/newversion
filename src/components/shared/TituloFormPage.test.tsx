@@ -14,6 +14,14 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ push, replace: vi.fn() }),
   useParams: () => ({}),
 }));
+const fieldConfigs = vi.hoisted(() => ({
+  getFormularioCamposFull: vi.fn(),
+}));
+vi.mock('@/modules/admin/admin-config.api', () => ({
+  ApiAdminConfigRepository: class {
+    getFormularioCamposFull = fieldConfigs.getFormularioCamposFull;
+  },
+}));
 vi.mock('@/hooks/usePermissions', () => ({
   usePermissions: () => permissions,
 }));
@@ -34,6 +42,7 @@ vi.mock('@/components/shared/TraducaoTab', () => ({ TraducaoTab: () => <div>trad
 function makeConfig(overrides: Partial<TituloFormConfig> = {}): TituloFormConfig {
   return {
     routes: { basePath: '/financeiro/status-contas-pagar', navStorageKey: 'test_nav' },
+    formularioId: 'statusContaPagar',
     newTitle: 'Novo Status',
     editTitle: 'Editar Status',
     notFoundTitle: 'Status não encontrado',
@@ -64,6 +73,7 @@ describe('TituloFormPage', () => {
   beforeEach(() => {
     push.mockClear();
     sessionStorage.clear();
+    fieldConfigs.getFormularioCamposFull.mockReset().mockResolvedValue({});
   });
 
   it('cadastra com as flags marcadas e volta para a lista', async () => {
@@ -201,6 +211,33 @@ describe('TituloFormPage', () => {
     fireEvent.change(titulo, { target: { value: 'Novo' } });
     fireEvent.submit(titulo.closest('form') ?? (titulo as HTMLInputElement).form!);
 
+    await waitFor(() => expect(config.save).toHaveBeenCalled());
+  });
+
+  it('aplica a configuração do módulo Formulários nos campos e nas flags', async () => {
+    fieldConfigs.getFormularioCamposFull.mockResolvedValue({
+      descricao: { tipoValidacao: 'obrigatorio', tamanho: null, posicao: null, traducoes: null },
+      isBaixa: { tipoValidacao: null, tamanho: '4', posicao: 1, traducoes: null },
+    });
+    const config = makeConfig();
+    render(<TituloFormPage config={config} />);
+
+    await waitFor(() =>
+      expect(fieldConfigs.getFormularioCamposFull).toHaveBeenCalledWith('statusContaPagar'),
+    );
+    await waitFor(() => {
+      const flag = document.querySelector('[data-campo="isBaixa"]') as HTMLElement;
+      expect(flag.style.order).toBe('1');
+      expect(flag.style.getPropertyValue('--field-span')).toBe('12');
+    });
+
+    fireEvent.change(screen.getByLabelText(/Título/), { target: { value: 'Pago' } });
+    fireEvent.click(screen.getByRole('button', { name: /Salvar/ }));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(config.save).not.toHaveBeenCalled();
+
+    fireEvent.change(screen.getByLabelText(/Descrição/), { target: { value: 'Conta paga' } });
+    fireEvent.click(screen.getByRole('button', { name: /Salvar/ }));
     await waitFor(() => expect(config.save).toHaveBeenCalled());
   });
 });

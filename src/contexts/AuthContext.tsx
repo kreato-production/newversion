@@ -13,7 +13,7 @@
 
 import React, { createContext, useContext, useMemo, type ReactNode } from 'react';
 import { useSession, signIn, signOut } from 'next-auth/react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { clearKreatoLocalStorage } from '@/lib/kreato-local-storage';
 import type {
   AuthSession,
@@ -32,6 +32,8 @@ interface AuthContextType {
   isLoading: boolean;
   login: (usuario: string, password: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
+  /** Rebusca a foto do usuário logado (ex.: depois de alterá-la no cadastro). */
+  refreshUserFoto: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -45,8 +47,19 @@ async function fetchUserPermissions(): Promise<{
   return res.json() as Promise<{ permissions: PermissionItem[]; enabledModules: string[] }>;
 }
 
+export const USER_FOTO_QUERY_KEY = 'user-foto';
+
+// A foto (data URL) não cabe no cookie JWT — é buscada à parte.
+async function fetchUserFoto(): Promise<string | null> {
+  const res = await fetch('/api/user/foto');
+  if (!res.ok) throw new Error('Erro ao buscar foto do usuário');
+  const body = (await res.json()) as { foto?: string | null };
+  return body.foto || null;
+}
+
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const { data: nextAuthSession, status } = useSession();
+  const queryClient = useQueryClient();
 
   const isLoading = status === 'loading';
   const isAuthenticated = status === 'authenticated' && !!nextAuthSession?.user;
@@ -60,6 +73,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     retry: 2,
   });
 
+  const { data: fotoData } = useQuery({
+    queryKey: [USER_FOTO_QUERY_KEY, nextAuthSession?.user?.id],
+    queryFn: fetchUserFoto,
+    enabled: isAuthenticated,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    retry: 1,
+  });
+
   // Mapeia session.user (Auth.js v5) → AuthUserProfile (contrato legado)
   // Permissions are fetched separately via /api/user/permissions to keep the JWT cookie small.
   const user: User | null = useMemo(() => {
@@ -71,7 +93,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       email: u.email ?? '',
       usuario: u.usuario ?? '',
       perfil: u.perfil ?? 'Usuário',
-      foto: u.image ?? undefined,
+      foto: fotoData ?? u.image ?? undefined,
       tipoAcesso: u.tipoAcesso ?? 'Operacional',
       unidadeIds: u.unidadeIds ?? [],
       tenantId: u.tenantId ?? undefined,
@@ -80,7 +102,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       permissions: permissionsData?.permissions ?? [],
       enabledModules: permissionsData?.enabledModules ?? u.enabledModules ?? [],
     };
-  }, [nextAuthSession, permissionsData]);
+  }, [nextAuthSession, permissionsData, fotoData]);
 
   const sessionUser: AuthSessionUser | null = useMemo(() => {
     if (!nextAuthSession?.user) return null;
@@ -124,6 +146,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return { success: true };
   };
 
+  const refreshUserFoto = () => {
+    void queryClient.invalidateQueries({ queryKey: [USER_FOTO_QUERY_KEY] });
+  };
+
   const logout = async () => {
     // Limpa possíveis tokens legados no localStorage
     clearKreatoLocalStorage();
@@ -140,6 +166,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         isLoading,
         login,
         logout,
+        refreshUserFoto,
       }}
     >
       {children}

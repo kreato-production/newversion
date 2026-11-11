@@ -32,6 +32,7 @@ import {
   MasterDetail,
   type ColumnConfig,
 } from '@/components/listing';
+import { useFormListStyle } from '@/hooks/useFormListStyle';
 
 export interface StatusGravacaoItem {
   id: string;
@@ -238,6 +239,7 @@ function StatusGravacaoDetailPanel({
 // ─── Main component ────────────────────────────────────────────────────────────
 
 const StatusGravacao = () => {
+  const { stripeColor } = useFormListStyle('statusGravacao');
   const { toast } = useToast();
   const importFileRef = useRef<HTMLInputElement>(null);
   const [isImporting, setIsImporting] = useState(false);
@@ -583,6 +585,7 @@ const StatusGravacao = () => {
             />
           ) : (
             <SortableTable
+              stripeColor={stripeColor}
               data={filteredItems}
               columns={columns}
               getRowKey={(item) => item.id}

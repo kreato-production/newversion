@@ -14,6 +14,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Camera, X } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import {
+  ConfigurableFieldGrid,
+  FieldAsterisk,
+  useFormFieldConfig,
+} from '@/hooks/useFormFieldConfig';
 import type { Usuario } from '@/views/admin/Usuarios';
 import type { RecordFormBodyProps } from '@/components/shared/RecordFormPage';
 import { UnidadesNegocioTab } from './UnidadesNegocioTab';
@@ -77,7 +82,15 @@ export const UsuarioFormBody = ({
   onSubmit,
   showTenantSelector = false,
 }: UsuarioFormBodyProps) => {
-  const { user } = useAuth();
+  const { user, refreshUserFoto } = useAuth();
+  const { getAsterisk, validate, fieldLabel, fieldLayout } = useFormFieldConfig('usuario');
+  /** Label of a field: translation configured in Formulários + required/suggested asterisk. */
+  const label = (campo: string, text: string, alwaysRequired = false) => (
+    <>
+      {fieldLabel(campo, text)}
+      <FieldAsterisk type={getAsterisk(campo, alwaysRequired)} />
+    </>
+  );
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [fotoPreview, setFotoPreview] = useState<string | null>(() => data?.foto || null);
@@ -162,6 +175,24 @@ export const UsuarioFormBody = ({
       return;
     }
 
+    if (
+      !validate({
+        codigoExterno: formData.codigoExterno,
+        nome: formData.nome,
+        email: formData.email,
+        usuario: formData.usuario,
+        // Na edição, senha em branco mantém a atual.
+        ...(data ? {} : { senha: formData.senha }),
+        perfilId: formData.perfilId,
+        tipoAcesso: formData.tipoAcesso,
+        role: formData.role,
+        ...(shouldShowTenantSelect ? { tenantId: formData.tenantId } : {}),
+        status: formData.status,
+        descricao: formData.descricao,
+      })
+    )
+      return;
+
     setIsSaving(true);
     try {
       await onSubmit({
@@ -186,6 +217,7 @@ export const UsuarioFormBody = ({
             : null,
         role: formData.role,
       });
+      if (data?.id && data.id === user?.id) refreshUserFoto?.();
     } finally {
       setIsSaving(false);
     }
@@ -201,8 +233,11 @@ export const UsuarioFormBody = ({
 
   // Regra 2: no módulo Usuários nunca aparece GLOBAL_ADMIN (esse role é exclusivo do módulo Usuários Globais).
   // Regra 4: apenas GLOBAL_ADMIN pode atribuir TENANT_ADMIN.
+  // Um TENANT_ADMIN já existente aparece com o role travado para quem não é GLOBAL_ADMIN.
+  const isGlobalAdmin = user?.role === 'GLOBAL_ADMIN';
+  const lockedTenantAdmin = !isGlobalAdmin && formData.role === 'TENANT_ADMIN';
   const availableRoles: Array<'TENANT_ADMIN' | 'USER'> =
-    user?.role === 'GLOBAL_ADMIN' ? ['TENANT_ADMIN', 'USER'] : ['USER'];
+    isGlobalAdmin || lockedTenantAdmin ? ['TENANT_ADMIN', 'USER'] : ['USER'];
 
   const showTabs = !!data;
   const isCoordenacao = formData.tipoAcesso === 'Coordenação';
@@ -270,9 +305,9 @@ export const UsuarioFormBody = ({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="codigoExterno">Codigo Externo</Label>
+          <ConfigurableFieldGrid>
+            <div className="space-y-2" {...fieldLayout('codigoExterno')}>
+              <Label htmlFor="codigoExterno">{label('codigoExterno', 'Codigo Externo')}</Label>
               <Input
                 id="codigoExterno"
                 value={formData.codigoExterno}
@@ -282,8 +317,8 @@ export const UsuarioFormBody = ({
                 maxLength={10}
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="nome">Nome</Label>
+            <div className="space-y-2" {...fieldLayout('nome')}>
+              <Label htmlFor="nome">{label('nome', 'Nome', true)}</Label>
               <Input
                 id="nome"
                 value={formData.nome}
@@ -294,11 +329,9 @@ export const UsuarioFormBody = ({
                 required
               />
             </div>
-          </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">E-mail</Label>
+            <div className="space-y-2" {...fieldLayout('email')}>
+              <Label htmlFor="email">{label('email', 'E-mail', true)}</Label>
               <Input
                 id="email"
                 type="email"
@@ -309,8 +342,8 @@ export const UsuarioFormBody = ({
                 required
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="usuario">Usuario</Label>
+            <div className="space-y-2" {...fieldLayout('usuario')}>
+              <Label htmlFor="usuario">{label('usuario', 'Usuario', true)}</Label>
               <Input
                 id="usuario"
                 value={formData.usuario}
@@ -320,35 +353,33 @@ export const UsuarioFormBody = ({
                 required
               />
             </div>
-          </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="senha">Senha</Label>
-            <Input
-              id="senha"
-              type="password"
-              value={formData.senha}
-              onChange={(event) =>
-                setFormData((current) => ({ ...current, senha: event.target.value }))
-              }
-              required={!data}
-              placeholder={data ? '••••••••' : ''}
-            />
-            <p
-              className={`text-xs ${showPasswordValidation ? 'text-destructive' : 'text-muted-foreground'}`}
-            >
-              {PASSWORD_POLICY_MESSAGE}
-            </p>
-            {data && (
-              <p className="text-xs text-muted-foreground">
-                Deixe em branco para manter a senha atual.
+            <div className="space-y-2" {...fieldLayout('senha')}>
+              <Label htmlFor="senha">{label('senha', 'Senha', !data)}</Label>
+              <Input
+                id="senha"
+                type="password"
+                value={formData.senha}
+                onChange={(event) =>
+                  setFormData((current) => ({ ...current, senha: event.target.value }))
+                }
+                required={!data}
+                placeholder={data ? '••••••••' : ''}
+              />
+              <p
+                className={`text-xs ${showPasswordValidation ? 'text-destructive' : 'text-muted-foreground'}`}
+              >
+                {PASSWORD_POLICY_MESSAGE}
               </p>
-            )}
-          </div>
+              {data && (
+                <p className="text-xs text-muted-foreground">
+                  Deixe em branco para manter a senha atual.
+                </p>
+              )}
+            </div>
 
-          <div className="grid gap-4 grid-cols-2">
-            <div className="space-y-2">
-              <Label>Perfil</Label>
+            <div className="space-y-2" {...fieldLayout('perfilId')}>
+              <Label>{label('perfilId', 'Perfil')}</Label>
               <Select
                 value={formData.perfilId}
                 onValueChange={(perfilId) => {
@@ -373,8 +404,8 @@ export const UsuarioFormBody = ({
               </Select>
             </div>
 
-            <div className="space-y-2">
-              <Label>Tipo de Acesso</Label>
+            <div className="space-y-2" {...fieldLayout('tipoAcesso')}>
+              <Label>{label('tipoAcesso', 'Tipo de Acesso')}</Label>
               <Select
                 value={formData.tipoAcesso}
                 onValueChange={(value) =>
@@ -391,10 +422,11 @@ export const UsuarioFormBody = ({
               </Select>
             </div>
 
-            <div className="space-y-2">
-              <Label>Role</Label>
+            <div className="space-y-2" {...fieldLayout('role')}>
+              <Label>{label('role', 'Role')}</Label>
               <Select
                 value={formData.role}
+                disabled={readOnly || lockedTenantAdmin}
                 onValueChange={(value) =>
                   setFormData((current) => ({
                     ...current,
@@ -416,8 +448,8 @@ export const UsuarioFormBody = ({
             </div>
 
             {shouldShowTenantSelect && (
-              <div className="space-y-2">
-                <Label>Tenant</Label>
+              <div className="space-y-2" {...fieldLayout('tenantId')}>
+                <Label>{label('tenantId', 'Tenant')}</Label>
                 <Select
                   value={formData.tenantId}
                   onValueChange={(value) =>
@@ -437,41 +469,41 @@ export const UsuarioFormBody = ({
                 </Select>
               </div>
             )}
-          </div>
 
-          <div className="space-y-2">
-            <Label>Status</Label>
-            <Select
-              value={formData.status}
-              onValueChange={(value) =>
-                setFormData((current) => ({
-                  ...current,
-                  status: value as 'Ativo' | 'Inativo' | 'Bloqueado',
-                }))
-              }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Ativo">Ativo</SelectItem>
-                <SelectItem value="Inativo">Inativo</SelectItem>
-                <SelectItem value="Bloqueado">Bloqueado</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+            <div className="space-y-2" {...fieldLayout('status')}>
+              <Label>{label('status', 'Status')}</Label>
+              <Select
+                value={formData.status}
+                onValueChange={(value) =>
+                  setFormData((current) => ({
+                    ...current,
+                    status: value as 'Ativo' | 'Inativo' | 'Bloqueado',
+                  }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Ativo">Ativo</SelectItem>
+                  <SelectItem value="Inativo">Inativo</SelectItem>
+                  <SelectItem value="Bloqueado">Bloqueado</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="descricao">Descricao</Label>
-            <Textarea
-              id="descricao"
-              value={formData.descricao}
-              onChange={(event) =>
-                setFormData((current) => ({ ...current, descricao: event.target.value }))
-              }
-              rows={3}
-            />
-          </div>
+            <div className="space-y-2" {...fieldLayout('descricao')}>
+              <Label htmlFor="descricao">{label('descricao', 'Descricao')}</Label>
+              <Textarea
+                id="descricao"
+                value={formData.descricao}
+                onChange={(event) =>
+                  setFormData((current) => ({ ...current, descricao: event.target.value }))
+                }
+                rows={3}
+              />
+            </div>
+          </ConfigurableFieldGrid>
         </form>
       </TabsContent>
 

@@ -41,6 +41,7 @@ import { TEMPLATES_ROUTES } from '@/modules/templates/templates.navigation';
 import { PlanoProducaoModal } from '@/components/producao/PlanoProducaoModal';
 import { etapasFromTemplate } from '@/modules/templates/templates.api';
 import { templatesRepository, type Template } from '@/modules/templates/templates.api';
+import { useFormListStyle } from '@/hooks/useFormListStyle';
 
 // ─── Column configuration ─────────────────────────────────────────────────────
 
@@ -232,6 +233,7 @@ function TemplateDetailPanel({
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function Templates() {
+  const { stripeColor } = useFormListStyle('template');
   const { toast } = useToast();
   const { canIncluir, canAlterar, canExcluir } = usePermissions();
 
@@ -474,6 +476,7 @@ export default function Templates() {
             />
           ) : (
             <SortableTable
+              stripeColor={stripeColor}
               data={filteredItems}
               columns={columns}
               getRowKey={(item) => item.id}

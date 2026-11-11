@@ -32,6 +32,7 @@ import {
 } from '@/components/listing';
 import { useRecordList } from '@/hooks/useRecordNavigation';
 import { TIPOS_DOCUMENTOS_FORM } from '@/modules/parametrizacoes/financeiro.forms';
+import { useFormListStyle } from '@/hooks/useFormListStyle';
 
 export interface TipoDocumentoFinanceiroItem {
   id: string;
@@ -193,6 +194,7 @@ function TipoDocumentoDetailPanel({
 }
 
 const TiposDocumentos = () => {
+  const { stripeColor } = useFormListStyle('tipoDocumento');
   const { toast } = useToast();
   const importFileRef = useRef<HTMLInputElement>(null);
   const [isImporting, setIsImporting] = useState(false);
@@ -506,6 +508,7 @@ const TiposDocumentos = () => {
             />
           ) : (
             <SortableTable
+              stripeColor={stripeColor}
               data={filteredItems}
               columns={columns}
               getRowKey={(item) => item.id}

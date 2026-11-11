@@ -23,6 +23,7 @@ import { useRecordList } from '@/hooks/useRecordNavigation';
 import { usePathname } from 'next/navigation';
 import { fornecedoresRoutes } from '@/modules/fornecedores/fornecedores.navigation';
 import { SortableTable, type Column } from '@/components/shared/SortableTable';
+import { useFormListStyle } from '@/hooks/useFormListStyle';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useAuth } from '@/contexts/AuthContext';
@@ -186,6 +187,7 @@ function FornecedorDetailPanel({
 
 const Fornecedores = () => {
   const { toast } = useToast();
+  const { stripeColor } = useFormListStyle('fornecedor');
   const { t } = useLanguage();
   const { user, session } = useAuth();
   const { canIncluir, canAlterar, canExcluir } = usePermissions();
@@ -566,6 +568,7 @@ const Fornecedores = () => {
             />
           ) : (
             <SortableTable
+              stripeColor={stripeColor}
               data={filteredItems}
               columns={columns}
               getRowKey={(item) => item.id}

@@ -5,6 +5,7 @@ import { ApiSatOpsRepository } from './satops.api.repository';
 const repository = new ApiSatOpsRepository();
 
 export const ESTADOS_EVENTO_FORM: TituloFormConfig = {
+  formularioId: 'estadoEvento',
   routes: { basePath: '/satops/estados-evento', navStorageKey: 'kreato_estados_evento_nav_ids' },
   newTitle: 'Novo Estado de Evento',
   editTitle: 'Editar Estado de Evento',

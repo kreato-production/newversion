@@ -15,6 +15,7 @@ import { Separator } from '@/components/ui/separator';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
 import { ListActionBar } from '@/components/shared/ListActionBar';
 import { SortableTable, Column } from '@/components/shared/SortableTable';
+import { useFormListStyle } from '@/hooks/useFormListStyle';
 import { Edit, Trash2, Settings, Loader2, Calendar } from 'lucide-react';
 import { NewButton } from '@/components/shared/NewButton';
 import { useToast } from '@/hooks/use-toast';
@@ -197,6 +198,7 @@ function TabelaPrecoDetailPanel({
 
 const TabelasPreco = () => {
   const { toast } = useToast();
+  const { stripeColor } = useFormListStyle('tabelaPreco');
   const [search, setSearch] = useState('');
   const { openNew, openRecord } = useRecordList(TABELAS_PRECO_ROUTES);
   // Keeps the filtered order so the form page can navigate previous/next.
@@ -455,6 +457,7 @@ const TabelasPreco = () => {
             />
           ) : (
             <SortableTable
+              stripeColor={stripeColor}
               data={filteredItems}
               columns={columns}
               getRowKey={(item) => item.id}

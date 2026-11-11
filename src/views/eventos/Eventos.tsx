@@ -49,6 +49,7 @@ import {
   ApiParametrosRepository,
   type ParametroApiItem,
 } from '@/modules/parametros/parametros.api.repository';
+import { useFormListStyle } from '@/hooks/useFormListStyle';
 
 const apiRepo = new ApiEventosRepository();
 const parametrosRepo = new ApiParametrosRepository();
@@ -254,6 +255,7 @@ function EventoDetail({
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 const Eventos = () => {
+  const { stripeColor } = useFormListStyle('evento');
   const { toast } = useToast();
   const { t } = useLanguage();
   const { session } = useAuth();
@@ -553,6 +555,7 @@ const Eventos = () => {
             />
           ) : (
             <SortableTable
+              stripeColor={stripeColor}
               data={filteredItems}
               columns={columns}
               getRowKey={(i) => i.id}

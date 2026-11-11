@@ -69,7 +69,8 @@ export function useRecordPage<TRecord, TInput>({
       })
       .catch((error: unknown) => {
         if (cancelled) return;
-        console.error('Error loading record:', error);
+        // Handled (not-found state); warn keeps the Next.js dev overlay for real errors only.
+        console.warn('Error loading record:', error);
         setLoadError(error instanceof Error ? error.message : String(error));
       })
       .finally(() => {
@@ -97,7 +98,8 @@ export function useRecordPage<TRecord, TInput>({
         onSaved?.();
         return true;
       } catch (error) {
-        console.error('Error saving record:', error);
+        // Handled (error toast); warn keeps the Next.js dev overlay for real errors only.
+        console.warn('Error saving record:', error);
         toast({
           title: t('common.error'),
           description: `Erro ao salvar: ${error instanceof Error ? error.message : String(error)}`,

@@ -41,6 +41,7 @@ import {
 } from '@/components/listing';
 import { useRecordList } from '@/hooks/useRecordNavigation';
 import { STATUS_CONTAS_PAGAR_FORM } from '@/modules/parametrizacoes/financeiro.forms';
+import { useFormListStyle } from '@/hooks/useFormListStyle';
 
 export interface StatusContaPagarItem {
   id: string;
@@ -264,6 +265,7 @@ function StatusContaPagarDetailPanel({
 }
 
 const StatusContasPagar = () => {
+  const { stripeColor } = useFormListStyle('statusContaPagar');
   const { toast } = useToast();
   const importFileRef = useRef<HTMLInputElement>(null);
   const [isImporting, setIsImporting] = useState(false);
@@ -625,6 +627,7 @@ const StatusContasPagar = () => {
             />
           ) : (
             <SortableTable
+              stripeColor={stripeColor}
               data={filteredItems}
               columns={columns}
               getRowKey={(item) => item.id}

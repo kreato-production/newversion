@@ -40,6 +40,7 @@ import {
   MasterDetail,
   type ColumnConfig,
 } from '@/components/listing';
+import { useFormListStyle } from '@/hooks/useFormListStyle';
 
 export interface SateliteItem {
   id: string;
@@ -227,6 +228,7 @@ function SateliteDetailPanel({
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 const Satelites = () => {
+  const { stripeColor } = useFormListStyle('satelite');
   const { toast } = useToast();
   const [search, setSearch] = useState('');
   const { openNew, openRecord } = useRecordList(SATELITES_ROUTES);
@@ -483,6 +485,7 @@ const Satelites = () => {
             />
           ) : (
             <SortableTable
+              stripeColor={stripeColor}
               data={filteredItems}
               columns={columns}
               getRowKey={(item) => item.id}

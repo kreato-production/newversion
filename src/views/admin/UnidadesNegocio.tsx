@@ -15,6 +15,7 @@ import { Separator } from '@/components/ui/separator';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
 import { ListActionBar } from '@/components/shared/ListActionBar';
 import { SortableTable, type Column } from '@/components/shared/SortableTable';
+import { useFormListStyle } from '@/hooks/useFormListStyle';
 import { Edit, Trash2, Building2, Loader2 } from 'lucide-react';
 import { NewButton } from '@/components/shared/NewButton';
 import { useToast } from '@/hooks/use-toast';
@@ -165,6 +166,7 @@ function UnidadeDetailPanel({
 
 const UnidadesNegocio = () => {
   const { toast } = useToast();
+  const { stripeColor } = useFormListStyle('unidadeNegocio');
   const { t } = useLanguage();
   const { user, session } = useAuth();
   const [search, setSearch] = useState('');
@@ -323,6 +325,7 @@ const UnidadesNegocio = () => {
             />
           ) : (
             <SortableTable
+              stripeColor={stripeColor}
               data={filteredItems}
               columns={columns}
               getRowKey={(item) => item.id}

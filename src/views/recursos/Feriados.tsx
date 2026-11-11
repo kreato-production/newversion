@@ -34,6 +34,7 @@ import {
 } from '@/components/listing';
 import { CalendarDays, Edit, Loader2, Trash2, Download, Upload } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { useFormListStyle } from '@/hooks/useFormListStyle';
 
 const STORAGE_KEY = 'kreato_feriados';
 
@@ -165,6 +166,7 @@ function FeriadoDetailPanel({
 }
 
 const Feriados = () => {
+  const { stripeColor } = useFormListStyle('feriado');
   const { toast } = useToast();
   const { t } = useLanguage();
   const { canIncluir, canAlterar, canExcluir } = usePermissions();
@@ -471,6 +473,7 @@ const Feriados = () => {
             />
           ) : (
             <SortableTable
+              stripeColor={stripeColor}
               data={filteredItems}
               columns={columns}
               getRowKey={(item) => item.id}

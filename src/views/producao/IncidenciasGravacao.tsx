@@ -25,6 +25,7 @@ import { Separator } from '@/components/ui/separator';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
 import { ListActionBar } from '@/components/shared/ListActionBar';
 import { SortableTable, Column } from '@/components/shared/SortableTable';
+import { useFormListStyle } from '@/hooks/useFormListStyle';
 import { Edit, Trash2, AlertTriangle, Loader2, Filter, BarChart3, X } from 'lucide-react';
 import { NewButton } from '@/components/shared/NewButton';
 import { useToast } from '@/hooks/use-toast';
@@ -217,6 +218,7 @@ function IncidenciaDetailPanel({
 
 const IncidenciasGravacao = () => {
   const { toast } = useToast();
+  const { stripeColor } = useFormListStyle('incidenciaGravacao');
   const { t } = useLanguage();
   const { canIncluir } = usePermissions();
   const [search, setSearch] = useState('');
@@ -702,6 +704,7 @@ const IncidenciasGravacao = () => {
             />
           ) : (
             <SortableTable
+              stripeColor={stripeColor}
               data={filteredItems}
               columns={columns}
               getRowKey={(item) => item.id}

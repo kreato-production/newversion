@@ -33,6 +33,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
+import { useFormListStyle } from '@/hooks/useFormListStyle';
 import { ApiParametrosRepository } from '@/modules/parametros/parametros.api.repository';
 import {
   parametroNavStorageKey,
@@ -187,7 +188,9 @@ const ParametroListPage = ({
   storageKey,
   permissionPath,
   showExportImport = true,
+  formularioId,
 }: ParametroListPageProps) => {
+  const { stripeColor } = useFormListStyle(formularioId);
   const { toast } = useToast();
   const { t } = useLanguage();
   const { session } = useAuth();
@@ -558,6 +561,7 @@ const ParametroListPage = ({
             />
           ) : (
             <SortableTable
+              stripeColor={stripeColor}
               data={filteredItems}
               columns={columns}
               getRowKey={(item) => item.id}

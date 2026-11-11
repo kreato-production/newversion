@@ -5,13 +5,16 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { SearchableSelect } from '@/components/shared/SearchableSelect';
-import { FieldAsterisk, useFormFieldConfig } from '@/hooks/useFormFieldConfig';
+import {
+  ConfigurableFieldGrid,
+  FieldAsterisk,
+  useFormFieldConfig,
+} from '@/hooks/useFormFieldConfig';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { unidadesRepository } from '@/modules/unidades/unidades.repository.provider';
 import type { Programa, ProgramaInput } from '@/modules/programas/programas.types';
 import { ColorPicker } from '@/components/shared/ColorPicker';
 import type { RecordFormBodyProps } from '@/components/shared/RecordFormPage';
-import { cn } from '@/lib/utils';
 
 const emptyForm = {
   codigoExterno: '',
@@ -19,24 +22,6 @@ const emptyForm = {
   descricao: '',
   cor: '',
   unidadeNegocioId: '',
-};
-
-// Default column spans when not configured (out of 4)
-const DEFAULT_COLS: Record<string, number> = {
-  codigoExterno: 1,
-  nome: 2,
-  cor: 4,
-  unidadeNegocio: 4,
-  descricao: 4,
-};
-
-// Default display order when not configured
-const DEFAULT_ORDER: Record<string, number> = {
-  codigoExterno: 1,
-  nome: 2,
-  cor: 3,
-  unidadeNegocio: 4,
-  descricao: 5,
 };
 
 /** Fields of the Programa cadastro (layout configurable per tenant), inside a `RecordFormPage`. */
@@ -60,7 +45,7 @@ export const ProgramaFormBody = ({
   );
   const [unidades, setUnidades] = useState<{ id: string; nome: string }[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { getColSpan, getPosicao, getAsterisk, validateRequired, showValidationError } =
+  const { fieldLayout, getAsterisk, validateRequired, showValidationError, fieldLabel } =
     useFormFieldConfig('programa');
 
   const fetchUnidades = useCallback(async () => {
@@ -117,22 +102,14 @@ export const ProgramaFormBody = ({
     }
   };
 
-  // Helper: resolve order value, falling back to default
-  const order = (campo: string) => getPosicao(campo) ?? DEFAULT_ORDER[campo] ?? 99;
-  // Helper: resolve col-span class, falling back to default
-  const colSpanClass = (campo: string) => `col-span-${getColSpan(campo, DEFAULT_COLS[campo] ?? 4)}`;
-
   return (
     <form id={formId} onSubmit={handleSubmit}>
-      {/* 4-column grid — order and col-span driven by config */}
-      <div className="grid grid-cols-4 gap-4 py-2">
+      {/* Tamanho / Posição configured in Formulários (same grid as its preview) */}
+      <ConfigurableFieldGrid className="py-2">
         {/* Código Externo */}
-        <div
-          className={cn('space-y-2', colSpanClass('codigoExterno'))}
-          style={{ order: order('codigoExterno') }}
-        >
+        <div className="space-y-2" {...fieldLayout('codigoExterno')}>
           <Label htmlFor="codigoExterno">
-            {t('common.externalCode')}
+            {fieldLabel('codigoExterno', t('common.externalCode'))}
             <FieldAsterisk type={getAsterisk('codigoExterno')} />
           </Label>
           <Input
@@ -146,9 +123,10 @@ export const ProgramaFormBody = ({
         </div>
 
         {/* Nome */}
-        <div className={cn('space-y-2', colSpanClass('nome'))} style={{ order: order('nome') }}>
+        <div className="space-y-2" {...fieldLayout('nome')}>
           <Label htmlFor="nome">
-            {t('common.name')} <span className="text-destructive">*</span>
+            {fieldLabel('nome', t('common.name'))}{' '}
+            <FieldAsterisk type={getAsterisk('nome', true)} />
           </Label>
           <Input
             id="nome"
@@ -161,23 +139,24 @@ export const ProgramaFormBody = ({
         </div>
 
         {/* Cor */}
-        <div className={cn('space-y-2', colSpanClass('cor'))} style={{ order: order('cor') }}>
+        <div className="space-y-2" {...fieldLayout('cor')}>
           <div className="flex items-center justify-between">
             <Label>
-              Cor
+              {fieldLabel('cor', 'Cor')}
               <FieldAsterisk type={getAsterisk('cor')} />
             </Label>
             {formData.cor && !readOnly && !isSubmitting && (
               <button
                 type="button"
                 onClick={() => setFormData({ ...formData, cor: '' })}
-                className="text-xs text-muted-foreground hover:text-destructive"
+                className="text-xs leading-none text-muted-foreground hover:text-destructive"
               >
                 Limpar
               </button>
             )}
           </div>
           <ColorPicker
+            compact
             value={formData.cor || '#6366f1'}
             onChange={(cor) => setFormData({ ...formData, cor })}
             disabled={readOnly || isSubmitting}
@@ -186,12 +165,9 @@ export const ProgramaFormBody = ({
         </div>
 
         {/* Unidade de Negócio */}
-        <div
-          className={cn('space-y-2', colSpanClass('unidadeNegocio'))}
-          style={{ order: order('unidadeNegocio') }}
-        >
+        <div className="space-y-2" {...fieldLayout('unidadeNegocio')}>
           <Label>
-            Unidade de Negócio
+            {fieldLabel('unidadeNegocio', 'Unidade de Negócio')}
             <FieldAsterisk type={getAsterisk('unidadeNegocio')} />
           </Label>
           <SearchableSelect
@@ -206,12 +182,9 @@ export const ProgramaFormBody = ({
         </div>
 
         {/* Descrição */}
-        <div
-          className={cn('space-y-2', colSpanClass('descricao'))}
-          style={{ order: order('descricao') }}
-        >
+        <div className="space-y-2" {...fieldLayout('descricao')}>
           <Label htmlFor="descricao">
-            {t('common.description')}
+            {fieldLabel('descricao', t('common.description'))}
             <FieldAsterisk type={getAsterisk('descricao')} />
           </Label>
           <Textarea
@@ -222,7 +195,7 @@ export const ProgramaFormBody = ({
             disabled={readOnly || isSubmitting}
           />
         </div>
-      </div>
+      </ConfigurableFieldGrid>
     </form>
   );
 };

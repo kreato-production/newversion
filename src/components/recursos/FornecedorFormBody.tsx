@@ -4,6 +4,11 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { usePermissions } from '@/hooks/usePermissions';
+import {
+  FieldAsterisk,
+  useFormFieldConfig,
+  ConfigurableFieldGrid,
+} from '@/hooks/useFormFieldConfig';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { SearchableSelect } from '@/components/shared/SearchableSelect';
 import { ServicosTab } from './ServicosTab';
@@ -76,6 +81,7 @@ export const FornecedorFormBody = ({
   const [categorias, setCategorias] = useState<CategoriaFornecedorOption[]>([]);
   const [formData, setFormData] = useState<FornecedorInput>(() => toFormData(data));
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { getAsterisk, validate, fieldLabel, fieldLayout } = useFormFieldConfig('fornecedor');
 
   useEffect(() => {
     const loadCategorias = async () => {
@@ -91,6 +97,16 @@ export const FornecedorFormBody = ({
     if (readOnly || isSubmitting) {
       return;
     }
+    const camposValidos = validate({
+      codigoExterno: formData.codigoExterno,
+      nome: formData.nome,
+      identificacaoFiscal: formData.identificacaoFiscal,
+      categoriaId: formData.categoriaId,
+      email: formData.email,
+      pais: formData.pais,
+      descricao: formData.descricao,
+    });
+    if (!camposValidos) return;
 
     setIsSubmitting(true);
     try {
@@ -117,9 +133,12 @@ export const FornecedorFormBody = ({
       {/* Kept mounted (hidden when inactive) so the page's Save button finds the form from any tab. */}
       <TabsContent value="dados" forceMount className="data-[state=inactive]:hidden">
         <form id={formId} onSubmit={handleSubmit} className="space-y-4 mt-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="codigoExterno">{t('common.externalCode')}</Label>
+          <ConfigurableFieldGrid>
+            <div className="space-y-1.5" {...fieldLayout('codigoExterno')}>
+              <Label htmlFor="codigoExterno">
+                {fieldLabel('codigoExterno', t('common.externalCode'))}{' '}
+                <FieldAsterisk type={getAsterisk('codigoExterno')} />
+              </Label>
               <Input
                 id="codigoExterno"
                 value={formData.codigoExterno}
@@ -128,8 +147,11 @@ export const FornecedorFormBody = ({
                 maxLength={10}
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="nome">{t('common.name')}</Label>
+            <div className="space-y-1.5" {...fieldLayout('nome')}>
+              <Label htmlFor="nome">
+                {fieldLabel('nome', t('common.name'))}{' '}
+                <FieldAsterisk type={getAsterisk('nome', true)} />
+              </Label>
               <Input
                 id="nome"
                 value={formData.nome}
@@ -139,11 +161,12 @@ export const FornecedorFormBody = ({
                 required
               />
             </div>
-          </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>{t('common.category')}</Label>
+            <div className="space-y-1.5" {...fieldLayout('categoriaId')}>
+              <Label>
+                {fieldLabel('categoriaId', t('common.category'))}{' '}
+                <FieldAsterisk type={getAsterisk('categoriaId')} />
+              </Label>
               <SearchableSelect
                 options={categorias.map((c) => ({ value: c.id, label: c.nome }))}
                 value={formData.categoriaId || ''}
@@ -160,8 +183,11 @@ export const FornecedorFormBody = ({
                 disabled={readOnly}
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="email">{t('common.email')}</Label>
+            <div className="space-y-1.5" {...fieldLayout('email')}>
+              <Label htmlFor="email">
+                {fieldLabel('email', t('common.email'))}{' '}
+                <FieldAsterisk type={getAsterisk('email')} />
+              </Label>
               <Input
                 id="email"
                 type="email"
@@ -170,11 +196,12 @@ export const FornecedorFormBody = ({
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               />
             </div>
-          </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>{t('common.country')}</Label>
+            <div className="space-y-1.5" {...fieldLayout('pais')}>
+              <Label>
+                {fieldLabel('pais', t('common.country'))}{' '}
+                <FieldAsterisk type={getAsterisk('pais')} />
+              </Label>
               <SearchableSelect
                 options={PAISES.map((pais) => ({ value: pais, label: pais }))}
                 value={formData.pais}
@@ -184,8 +211,11 @@ export const FornecedorFormBody = ({
                 disabled={readOnly}
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="identificacaoFiscal">{t('field.fiscalId')}</Label>
+            <div className="space-y-1.5" {...fieldLayout('identificacaoFiscal')}>
+              <Label htmlFor="identificacaoFiscal">
+                {fieldLabel('identificacaoFiscal', t('field.fiscalId'))}{' '}
+                <FieldAsterisk type={getAsterisk('identificacaoFiscal')} />
+              </Label>
               <Input
                 id="identificacaoFiscal"
                 value={formData.identificacaoFiscal}
@@ -194,18 +224,21 @@ export const FornecedorFormBody = ({
                 maxLength={100}
               />
             </div>
-          </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="descricao">{t('common.description')}</Label>
-            <Textarea
-              id="descricao"
-              value={formData.descricao}
-              disabled={readOnly}
-              onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
-              rows={3}
-            />
-          </div>
+            <div className="space-y-1.5" {...fieldLayout('descricao')}>
+              <Label htmlFor="descricao">
+                {fieldLabel('descricao', t('common.description'))}{' '}
+                <FieldAsterisk type={getAsterisk('descricao')} />
+              </Label>
+              <Textarea
+                id="descricao"
+                value={formData.descricao}
+                disabled={readOnly}
+                onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
+                rows={3}
+              />
+            </div>
+          </ConfigurableFieldGrid>
         </form>
       </TabsContent>
 

@@ -11,6 +11,11 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
+import {
+  ConfigurableFieldGrid,
+  FieldAsterisk,
+  useFormFieldConfig,
+} from '@/hooks/useFormFieldConfig';
 import type { RecordFormBodyProps } from '@/components/shared/RecordFormPage';
 import { TraducaoTab, type Traducoes } from '@/components/shared/TraducaoTab';
 import { SateliteChecklistTab, type Checklist } from '@/components/satops/SateliteChecklistTab';
@@ -47,6 +52,14 @@ export const SateliteFormBody = ({
   onSubmit,
 }: RecordFormBodyProps<SateliteItem, SateliteItem>) => {
   const { user } = useAuth();
+  const { getAsterisk, validate, fieldLabel, fieldLayout } = useFormFieldConfig('satelite');
+  /** Label of a field: translation configured in Formulários + required/suggested asterisk. */
+  const label = (campo: string, text: string, alwaysRequired = false) => (
+    <>
+      {fieldLabel(campo, text)}
+      <FieldAsterisk type={getAsterisk(campo, alwaysRequired)} />
+    </>
+  );
   const [formData, setFormData] = useState<FormState>(() =>
     data
       ? {
@@ -69,6 +82,7 @@ export const SateliteFormBody = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (readOnly) return;
+    if (!validate(formData)) return;
     // No client-side id: the page decides create vs update from the URL.
     await onSubmit({
       id: data?.id || '',
@@ -101,9 +115,9 @@ export const SateliteFormBody = ({
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="codigoExterno">Código Externo</Label>
+          <ConfigurableFieldGrid>
+            <div className="space-y-2" {...fieldLayout('codigoExterno')}>
+              <Label htmlFor="codigoExterno">{label('codigoExterno', 'Código Externo')}</Label>
               <Input
                 id="codigoExterno"
                 value={formData.codigoExterno}
@@ -113,10 +127,8 @@ export const SateliteFormBody = ({
                 disabled={readOnly}
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="nome">
-                Nome <span className="text-destructive">*</span>
-              </Label>
+            <div className="space-y-2" {...fieldLayout('nome')}>
+              <Label htmlFor="nome">{label('nome', 'Nome', true)}</Label>
               <Input
                 id="nome"
                 value={formData.nome}
@@ -126,7 +138,7 @@ export const SateliteFormBody = ({
                 disabled={readOnly}
               />
             </div>
-          </div>
+          </ConfigurableFieldGrid>
 
           {/* Separador: Parâmetros Técnicos */}
           <div className="space-y-4">
@@ -138,9 +150,9 @@ export const SateliteFormBody = ({
               <Separator className="flex-1" />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="transponder">Transponder</Label>
+            <ConfigurableFieldGrid>
+              <div className="space-y-2" {...fieldLayout('transponder')}>
+                <Label htmlFor="transponder">{label('transponder', 'Transponder')}</Label>
                 <Input
                   id="transponder"
                   value={formData.transponder}
@@ -148,8 +160,10 @@ export const SateliteFormBody = ({
                   disabled={readOnly}
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="frequenciaUplink">Frequência Uplink (MHz)</Label>
+              <div className="space-y-2" {...fieldLayout('frequenciaUplink')}>
+                <Label htmlFor="frequenciaUplink">
+                  {label('frequenciaUplink', 'Frequência Uplink (MHz)')}
+                </Label>
                 <Input
                   id="frequenciaUplink"
                   value={formData.frequenciaUplink}
@@ -158,11 +172,8 @@ export const SateliteFormBody = ({
                   disabled={readOnly}
                 />
               </div>
-            </div>
-
-            <div className="grid grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label>Polarização</Label>
+              <div className="space-y-2" {...fieldLayout('polarizacao')}>
+                <Label>{label('polarizacao', 'Polarização')}</Label>
                 <Select
                   value={formData.polarizacao}
                   onValueChange={set('polarizacao')}
@@ -180,8 +191,8 @@ export const SateliteFormBody = ({
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="symbolRate">Symbol Rate (Msps)</Label>
+              <div className="space-y-2" {...fieldLayout('symbolRate')}>
+                <Label htmlFor="symbolRate">{label('symbolRate', 'Symbol Rate (Msps)')}</Label>
                 <Input
                   id="symbolRate"
                   value={formData.symbolRate}
@@ -190,8 +201,8 @@ export const SateliteFormBody = ({
                   disabled={readOnly}
                 />
               </div>
-              <div className="space-y-2">
-                <Label>FEC</Label>
+              <div className="space-y-2" {...fieldLayout('fec')}>
+                <Label>{label('fec', 'FEC')}</Label>
                 <Select value={formData.fec} onValueChange={set('fec')} disabled={readOnly}>
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione..." />
@@ -205,7 +216,7 @@ export const SateliteFormBody = ({
                   </SelectContent>
                 </Select>
               </div>
-            </div>
+            </ConfigurableFieldGrid>
           </div>
 
           {data && (

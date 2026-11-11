@@ -23,6 +23,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { ApiParametrizacoesRepository } from '@/modules/parametrizacoes/parametrizacoes.api.repository';
 import { useRecordList } from '@/hooks/useRecordNavigation';
 import { STATUS_TAREFA_FORM } from '@/modules/parametrizacoes/producao.forms';
+import { useFormListStyle } from '@/hooks/useFormListStyle';
 
 interface StatusTarefaItem {
   id: string;
@@ -38,6 +39,7 @@ interface StatusTarefaItem {
 const repository = new ApiParametrizacoesRepository();
 
 const StatusTarefa = () => {
+  const { stripeColor } = useFormListStyle('statusTarefa');
   const { t } = useLanguage();
   const importFileRef = useRef<HTMLInputElement>(null);
   const [isImporting, setIsImporting] = useState(false);
@@ -340,6 +342,7 @@ const StatusTarefa = () => {
       ) : (
         <DataCard>
           <SortableTable
+            stripeColor={stripeColor}
             data={filteredItems}
             columns={columns}
             getRowKey={(item) => item.id}

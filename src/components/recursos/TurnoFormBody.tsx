@@ -9,6 +9,11 @@ import { ColorPicker } from '@/components/shared/ColorPicker';
 import type { RecordFormBodyProps } from '@/components/shared/RecordFormPage';
 import { TraducaoTab, type Traducoes } from '@/components/shared/TraducaoTab';
 import { useLanguage } from '@/contexts/LanguageContext';
+import {
+  ConfigurableFieldGrid,
+  FieldAsterisk,
+  useFormFieldConfig,
+} from '@/hooks/useFormFieldConfig';
 import type { Turno, TurnoInput, WeekdayKey } from '@/modules/turnos/turnos.types';
 import { createEmptyPeoplePerDay, createEmptyWeekdayFlags } from '@/modules/turnos/turnos.types';
 
@@ -94,6 +99,7 @@ export const TurnoFormBody = ({
   onSubmit,
 }: RecordFormBodyProps<Turno, TurnoInput>) => {
   const { t } = useLanguage();
+  const { getAsterisk, validate, fieldLabel, fieldLayout } = useFormFieldConfig('turno');
   const [formData, setFormData] = useState<TurnoInput>(() => toFormData(data));
   const [traducoes, setTraducoes] = useState<Traducoes>(() => (data?.traducoes as Traducoes) ?? {});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -130,6 +136,24 @@ export const TurnoFormBody = ({
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (readOnly) return;
+    if (
+      !validate(
+        {
+          sigla: formData.sigla,
+          nome: formData.nome,
+          cor: formData.cor,
+          horaInicio: formData.horaInicio,
+          horaFim: formData.horaFim,
+          diasSemana: displayOrder.filter((key) => formData.diasSemana[key]),
+          diasTrabalhados: formData.diasTrabalhados,
+          folgasPorSemana: formData.folgasPorSemana,
+          folgaEspecial: formData.folgaEspecial,
+          descricao: formData.descricao,
+        },
+        { descricao: t('common.description') },
+      )
+    )
+      return;
     setIsSubmitting(true);
     try {
       await onSubmit({
@@ -160,10 +184,12 @@ export const TurnoFormBody = ({
         </TabsList>
 
         <TabsContent value="dados" className="space-y-4 mt-4">
-          {/* Row 1: Sigla | Nome */}
-          <div className="flex gap-3 items-end">
-            <div className="space-y-2 w-24 shrink-0">
-              <Label htmlFor="turno-sigla">Sigla</Label>
+          <ConfigurableFieldGrid>
+            <div className="space-y-2" {...fieldLayout('sigla')}>
+              <Label htmlFor="turno-sigla">
+                {fieldLabel('sigla', 'Sigla')}
+                <FieldAsterisk type={getAsterisk('sigla')} />
+              </Label>
               <Input
                 id="turno-sigla"
                 value={formData.sigla || ''}
@@ -172,9 +198,10 @@ export const TurnoFormBody = ({
                 disabled={readOnly || isSubmitting}
               />
             </div>
-            <div className="space-y-2 flex-1">
+            <div className="space-y-2" {...fieldLayout('nome')}>
               <Label htmlFor="turno-nome">
-                Nome do Turno <span className="text-destructive">*</span>
+                {fieldLabel('nome', 'Nome do Turno')}
+                <FieldAsterisk type={getAsterisk('nome', true)} />
               </Label>
               <Input
                 id="turno-nome"
@@ -185,23 +212,25 @@ export const TurnoFormBody = ({
                 disabled={readOnly || isSubmitting}
               />
             </div>
-          </div>
 
-          {/* Row 2: Cor */}
-          <div className="space-y-2">
-            <Label>Cor</Label>
-            <ColorPicker
-              value={formData.cor}
-              onChange={(cor) => setFormData((p) => ({ ...p, cor }))}
-              disabled={readOnly || isSubmitting}
-              previewLabel={formData.nome}
-            />
-          </div>
+            <div className="space-y-2" {...fieldLayout('cor')}>
+              <Label>
+                {fieldLabel('cor', 'Cor')}
+                <FieldAsterisk type={getAsterisk('cor')} />
+              </Label>
+              <ColorPicker
+                value={formData.cor}
+                onChange={(cor) => setFormData((p) => ({ ...p, cor }))}
+                disabled={readOnly || isSubmitting}
+                previewLabel={formData.nome}
+              />
+            </div>
 
-          {/* Row 2: Início | Fim | Total */}
-          <div className="grid grid-cols-3 gap-3">
-            <div className="space-y-2">
-              <Label htmlFor="turno-inicio">Início do Turno</Label>
+            <div className="space-y-2" {...fieldLayout('horaInicio')}>
+              <Label htmlFor="turno-inicio">
+                {fieldLabel('horaInicio', 'Início do Turno')}
+                <FieldAsterisk type={getAsterisk('horaInicio', true)} />
+              </Label>
               <Input
                 id="turno-inicio"
                 type="time"
@@ -211,8 +240,11 @@ export const TurnoFormBody = ({
                 disabled={readOnly || isSubmitting}
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="turno-fim">Fim do Turno</Label>
+            <div className="space-y-2" {...fieldLayout('horaFim')}>
+              <Label htmlFor="turno-fim">
+                {fieldLabel('horaFim', 'Fim do Turno')}
+                <FieldAsterisk type={getAsterisk('horaFim', true)} />
+              </Label>
               <Input
                 id="turno-fim"
                 type="time"
@@ -222,68 +254,70 @@ export const TurnoFormBody = ({
                 disabled={readOnly || isSubmitting}
               />
             </div>
-            <div className="space-y-2">
-              <Label>Total de Horas</Label>
+            <div className="space-y-2" {...fieldLayout('totalHoras')}>
+              <Label>{fieldLabel('totalHoras', 'Total de Horas')}</Label>
               <Input value={totalHours} readOnly className="bg-muted font-mono" />
             </div>
-          </div>
 
-          {/* Days grid */}
-          <div className="space-y-2">
-            <Label>Dias da Semana e Pessoas por Dia</Label>
-            <div className="rounded-md border overflow-hidden">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="bg-muted/40">
-                    {displayOrder.map((key) => (
-                      <th
-                        key={key}
-                        className="text-center font-medium py-2 px-1 text-muted-foreground"
-                      >
-                        {dayLabels[key]}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {/* Checkboxes row */}
-                  <tr className="border-t">
-                    {displayOrder.map((key) => (
-                      <td key={key} className="text-center py-2 px-1">
-                        <div className="flex justify-center">
-                          <Checkbox
-                            checked={formData.diasSemana[key]}
-                            onCheckedChange={(checked) => handleDayToggle(key, !!checked)}
-                            disabled={readOnly || isSubmitting}
+            <div className="space-y-2" {...fieldLayout('diasSemana')}>
+              <Label>
+                {fieldLabel('diasSemana', 'Dias da Semana e Pessoas por Dia')}
+                <FieldAsterisk type={getAsterisk('diasSemana')} />
+              </Label>
+              <div className="rounded-md border overflow-hidden">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="bg-muted/40">
+                      {displayOrder.map((key) => (
+                        <th
+                          key={key}
+                          className="text-center font-medium py-2 px-1 text-muted-foreground"
+                        >
+                          {dayLabels[key]}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {/* Checkboxes row */}
+                    <tr className="border-t">
+                      {displayOrder.map((key) => (
+                        <td key={key} className="text-center py-2 px-1">
+                          <div className="flex justify-center">
+                            <Checkbox
+                              checked={formData.diasSemana[key]}
+                              onCheckedChange={(checked) => handleDayToggle(key, !!checked)}
+                              disabled={readOnly || isSubmitting}
+                            />
+                          </div>
+                        </td>
+                      ))}
+                    </tr>
+                    {/* People per day row */}
+                    <tr className="border-t bg-muted/10">
+                      {displayOrder.map((key) => (
+                        <td key={key} className="text-center py-2 px-1">
+                          <Input
+                            type="number"
+                            min={0}
+                            value={formData.pessoasPorDia[key]}
+                            onChange={(e) => handlePeopleChange(key, e.target.value)}
+                            disabled={readOnly || isSubmitting || !formData.diasSemana[key]}
+                            className="h-8 text-center px-1"
                           />
-                        </div>
-                      </td>
-                    ))}
-                  </tr>
-                  {/* People per day row */}
-                  <tr className="border-t bg-muted/10">
-                    {displayOrder.map((key) => (
-                      <td key={key} className="text-center py-2 px-1">
-                        <Input
-                          type="number"
-                          min={0}
-                          value={formData.pessoasPorDia[key]}
-                          onChange={(e) => handlePeopleChange(key, e.target.value)}
-                          disabled={readOnly || isSubmitting || !formData.diasSemana[key]}
-                          className="h-8 text-center px-1"
-                        />
-                      </td>
-                    ))}
-                  </tr>
-                </tbody>
-              </table>
+                        </td>
+                      ))}
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </div>
 
-          {/* Dias Trabalhados | Folgas por Semana */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label htmlFor="turno-dias-trabalhados">Dias Trabalhados</Label>
+            <div className="space-y-2" {...fieldLayout('diasTrabalhados')}>
+              <Label htmlFor="turno-dias-trabalhados">
+                {fieldLabel('diasTrabalhados', 'Dias Trabalhados')}
+                <FieldAsterisk type={getAsterisk('diasTrabalhados')} />
+              </Label>
               <Input
                 id="turno-dias-trabalhados"
                 type="number"
@@ -300,8 +334,11 @@ export const TurnoFormBody = ({
                 disabled={readOnly || isSubmitting}
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="turno-folgas">Folgas por Semana</Label>
+            <div className="space-y-2" {...fieldLayout('folgasPorSemana')}>
+              <Label htmlFor="turno-folgas">
+                {fieldLabel('folgasPorSemana', 'Folgas por Semana')}
+                <FieldAsterisk type={getAsterisk('folgasPorSemana')} />
+              </Label>
               <Input
                 id="turno-folgas"
                 type="number"
@@ -314,56 +351,60 @@ export const TurnoFormBody = ({
                 disabled={readOnly || isSubmitting}
               />
             </div>
-          </div>
 
-          {/* Folga Especial */}
-          <div className="rounded-md border p-4 space-y-3">
-            <Label className="text-xs font-medium">Folga Especial</Label>
-            <RadioGroup
-              value={formData.folgaEspecial || ''}
-              onValueChange={(value) =>
-                setFormData((p) => ({
-                  ...p,
-                  folgaEspecial: value === p.folgaEspecial ? '' : value,
-                }))
-              }
-              disabled={readOnly || isSubmitting}
-              className="grid grid-cols-3 gap-x-6 gap-y-2"
-            >
-              {FOLGA_OPTIONS.map((opt) => (
-                <div key={opt.value} className="flex items-center space-x-2">
-                  <RadioGroupItem
-                    value={opt.value}
-                    id={`folga-${opt.value}`}
-                    onClick={() => {
-                      if (formData.folgaEspecial === opt.value) {
-                        setFormData((p) => ({ ...p, folgaEspecial: '' }));
-                      }
-                    }}
-                  />
-                  <Label
-                    htmlFor={`folga-${opt.value}`}
-                    className="font-normal cursor-pointer text-xs"
-                  >
-                    {opt.label}
-                  </Label>
-                </div>
-              ))}
-            </RadioGroup>
-          </div>
+            <div className="rounded-md border p-4 space-y-3" {...fieldLayout('folgaEspecial')}>
+              <Label className="text-xs font-medium">
+                {fieldLabel('folgaEspecial', 'Folga Especial')}
+                <FieldAsterisk type={getAsterisk('folgaEspecial')} />
+              </Label>
+              <RadioGroup
+                value={formData.folgaEspecial || ''}
+                onValueChange={(value) =>
+                  setFormData((p) => ({
+                    ...p,
+                    folgaEspecial: value === p.folgaEspecial ? '' : value,
+                  }))
+                }
+                disabled={readOnly || isSubmitting}
+                className="grid grid-cols-3 gap-x-6 gap-y-2"
+              >
+                {FOLGA_OPTIONS.map((opt) => (
+                  <div key={opt.value} className="flex items-center space-x-2">
+                    <RadioGroupItem
+                      value={opt.value}
+                      id={`folga-${opt.value}`}
+                      onClick={() => {
+                        if (formData.folgaEspecial === opt.value) {
+                          setFormData((p) => ({ ...p, folgaEspecial: '' }));
+                        }
+                      }}
+                    />
+                    <Label
+                      htmlFor={`folga-${opt.value}`}
+                      className="font-normal cursor-pointer text-xs"
+                    >
+                      {opt.label}
+                    </Label>
+                  </div>
+                ))}
+              </RadioGroup>
+            </div>
 
-          {/* Descrição */}
-          <div className="space-y-2">
-            <Label htmlFor="turno-descricao">{t('common.description')}</Label>
-            <Textarea
-              id="turno-descricao"
-              rows={3}
-              placeholder="Descrição do turno"
-              value={formData.descricao || ''}
-              onChange={(e) => setFormData((p) => ({ ...p, descricao: e.target.value }))}
-              disabled={readOnly || isSubmitting}
-            />
-          </div>
+            <div className="space-y-2" {...fieldLayout('descricao')}>
+              <Label htmlFor="turno-descricao">
+                {fieldLabel('descricao', t('common.description'))}
+                <FieldAsterisk type={getAsterisk('descricao')} />
+              </Label>
+              <Textarea
+                id="turno-descricao"
+                rows={3}
+                placeholder="Descrição do turno"
+                value={formData.descricao || ''}
+                onChange={(e) => setFormData((p) => ({ ...p, descricao: e.target.value }))}
+                disabled={readOnly || isSubmitting}
+              />
+            </div>
+          </ConfigurableFieldGrid>
 
           {/* Usuário/Data Cadastro — only in edit mode */}
           {isEditing && (usuarioCadastro || dataCadastro) && (

@@ -28,6 +28,11 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { usePermissions } from '@/hooks/usePermissions';
+import {
+  FieldAsterisk,
+  useFormFieldConfig,
+  ConfigurableFieldGrid,
+} from '@/hooks/useFormFieldConfig';
 import { recursosHumanosRepository } from '@/modules/recursos-humanos/recursos-humanos.repository.provider';
 import type { RecordFormBodyProps } from '@/components/shared/RecordFormPage';
 import type {
@@ -53,7 +58,6 @@ const MOTIVOS = [
   'Curso Externo',
   'Viagem de Trabalho',
 ];
-const Asterisk = () => <span className="text-destructive ml-0.5">*</span>;
 
 const emptyForm = (): RecursoHumanoInput => ({
   codigoExterno: '',
@@ -113,6 +117,7 @@ export function RecursoHumanoFormBody({
   onSubmit,
 }: RecordFormBodyProps<RecursoHumano, RecursoHumanoInput>) {
   const { isVisible } = usePermissions();
+  const { getAsterisk, validate, fieldLabel, fieldLayout } = useFormFieldConfig('recursoHumano');
   const fotoInputRef = useRef<HTMLInputElement>(null);
   const anexoInputRef = useRef<HTMLInputElement>(null);
   const [activeTab, setActiveTab] = useState('dados');
@@ -295,6 +300,25 @@ export function RecursoHumanoFormBody({
     if (readOnly) return;
     if (!formData.nome.trim() || !formData.sobrenome.trim())
       return toast.error('Nome e sobrenome sao obrigatorios');
+    const camposValidos = validate({
+      codigoExterno: formData.codigoExterno,
+      nome: formData.nome,
+      sobrenome: formData.sobrenome,
+      email: formData.email,
+      telefone: formData.telefone,
+      sexo: formData.sexo,
+      dataNascimento: formData.dataNascimento,
+      dataContratacao: formData.dataContratacao,
+      // Custo/hora starts at 0: zero counts as not filled in when the field is required.
+      custoHora: formData.custoHora > 0 ? formData.custoHora : null,
+      departamento: formData.departamentoId,
+      funcao: formData.funcaoId,
+      status: formData.status,
+    });
+    if (!camposValidos) {
+      setActiveTab('dados');
+      return;
+    }
     const funcao = funcoesDisponiveis.find((item) => item.id === formData.funcaoId);
     await onSubmit({ ...formData, funcao: funcao?.nome || formData.funcao || '' });
   };
@@ -353,233 +377,251 @@ export function RecursoHumanoFormBody({
               )}
             </div>
 
-            <div className="flex-1 space-y-4">
-              <div className="grid grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label>Codigo Externo</Label>
-                  <Input
-                    value={formData.codigoExterno}
-                    onChange={(e) => onField('codigoExterno', e.target.value)}
-                    disabled={readOnly}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>
-                    Nome <Asterisk />
-                  </Label>
-                  <Input
-                    value={formData.nome}
-                    onChange={(e) => onField('nome', e.target.value)}
-                    disabled={readOnly}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>
-                    Sobrenome <Asterisk />
-                  </Label>
-                  <Input
-                    value={formData.sobrenome}
-                    onChange={(e) => onField('sobrenome', e.target.value)}
-                    disabled={readOnly}
-                    required
-                  />
-                </div>
+            <ConfigurableFieldGrid className="flex-1 content-start">
+              <div className="space-y-1.5" {...fieldLayout('codigoExterno')}>
+                <Label>
+                  {fieldLabel('codigoExterno', 'Codigo Externo')}{' '}
+                  <FieldAsterisk type={getAsterisk('codigoExterno')} />
+                </Label>
+                <Input
+                  value={formData.codigoExterno}
+                  onChange={(e) => onField('codigoExterno', e.target.value)}
+                  disabled={readOnly}
+                />
               </div>
-              <div className="grid grid-cols-4 gap-4">
-                <div className="space-y-2">
-                  <Label>Data de Nascimento</Label>
-                  <Input
-                    type="date"
-                    value={formData.dataNascimento}
-                    onChange={(e) => onField('dataNascimento', e.target.value)}
-                    disabled={readOnly}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Sexo</Label>
-                  <SearchableSelect
-                    options={[
-                      { value: 'Masculino', label: 'Masculino' },
-                      { value: 'Feminino', label: 'Feminino' },
-                      { value: 'Outro', label: 'Outro' },
-                    ]}
-                    value={formData.sexo}
-                    onValueChange={(value) => onField('sexo', value)}
-                    placeholder="Selecione..."
-                    disabled={readOnly}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Telefone</Label>
-                  <Input
-                    value={formData.telefone}
-                    onChange={(e) => onField('telefone', e.target.value)}
-                    disabled={readOnly}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Email</Label>
-                  <Input
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => onField('email', e.target.value)}
-                    disabled={readOnly}
-                  />
-                </div>
+              <div className="space-y-1.5" {...fieldLayout('nome')}>
+                <Label>
+                  {fieldLabel('nome', 'Nome')} <FieldAsterisk type={getAsterisk('nome', true)} />
+                </Label>
+                <Input
+                  value={formData.nome}
+                  onChange={(e) => onField('nome', e.target.value)}
+                  disabled={readOnly}
+                  required
+                />
               </div>
-              <div className="grid grid-cols-4 gap-4">
-                <div className="space-y-2">
-                  <Label>Data de Contratacao</Label>
-                  <Input
-                    type="date"
-                    value={formData.dataContratacao}
-                    onChange={(e) => onField('dataContratacao', e.target.value)}
-                    disabled={readOnly}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Custo/Hora</Label>
-                  <Input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={formData.custoHora}
-                    onChange={(e) => onField('custoHora', parseFloat(e.target.value) || 0)}
-                    disabled={readOnly}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Departamento</Label>
-                  <SearchableSelect
-                    options={options.departamentos.map((item) => ({
-                      value: item.id,
-                      label: item.nome,
-                    }))}
-                    value={formData.departamentoId}
-                    onValueChange={(value) => {
-                      const item = options.departamentos.find((current) => current.id === value);
-                      setFormData((current) => ({
-                        ...current,
-                        departamentoId: value,
-                        departamento: item?.nome || '',
-                        funcaoId: '',
-                        funcao: '',
-                      }));
-                    }}
-                    placeholder={loadingOptions ? 'Carregando...' : 'Selecione...'}
-                    searchPlaceholder="Pesquisar departamento..."
-                    disabled={readOnly || loadingOptions}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Funcao</Label>
-                  <SearchableSelect
-                    options={funcoesDisponiveis.map((item) => ({
-                      value: item.id,
-                      label: item.nome,
-                    }))}
-                    value={formData.funcaoId}
-                    onValueChange={(value) => {
-                      const item = funcoesDisponiveis.find((current) => current.id === value);
-                      setFormData((current) => ({
-                        ...current,
-                        funcaoId: value,
-                        funcao: item?.nome || '',
-                      }));
-                    }}
-                    placeholder={
-                      !formData.departamentoId
-                        ? 'Selecione um departamento primeiro'
-                        : loadingOptions
-                          ? 'Carregando...'
-                          : 'Selecione...'
-                    }
-                    searchPlaceholder="Pesquisar funcao..."
-                    disabled={readOnly || loadingOptions || !formData.departamentoId}
-                  />
-                </div>
+              <div className="space-y-1.5" {...fieldLayout('sobrenome')}>
+                <Label>
+                  {fieldLabel('sobrenome', 'Sobrenome')}{' '}
+                  <FieldAsterisk type={getAsterisk('sobrenome', true)} />
+                </Label>
+                <Input
+                  value={formData.sobrenome}
+                  onChange={(e) => onField('sobrenome', e.target.value)}
+                  disabled={readOnly}
+                  required
+                />
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>
-                    Status <Asterisk />
-                  </Label>
-                  <SearchableSelect
-                    options={[
-                      { value: 'Ativo', label: 'Ativo' },
-                      { value: 'Inativo', label: 'Inativo' },
-                    ]}
-                    value={formData.status}
-                    onValueChange={(value) => onField('status', value as 'Ativo' | 'Inativo')}
-                    placeholder="Selecione..."
-                    disabled={readOnly}
-                  />
+              <div className="space-y-1.5" {...fieldLayout('dataNascimento')}>
+                <Label>
+                  {fieldLabel('dataNascimento', 'Data de Nascimento')}{' '}
+                  <FieldAsterisk type={getAsterisk('dataNascimento')} />
+                </Label>
+                <Input
+                  type="date"
+                  value={formData.dataNascimento}
+                  onChange={(e) => onField('dataNascimento', e.target.value)}
+                  disabled={readOnly}
+                />
+              </div>
+              <div className="space-y-1.5" {...fieldLayout('sexo')}>
+                <Label>
+                  {fieldLabel('sexo', 'Sexo')} <FieldAsterisk type={getAsterisk('sexo')} />
+                </Label>
+                <SearchableSelect
+                  options={[
+                    { value: 'Masculino', label: 'Masculino' },
+                    { value: 'Feminino', label: 'Feminino' },
+                    { value: 'Outro', label: 'Outro' },
+                  ]}
+                  value={formData.sexo}
+                  onValueChange={(value) => onField('sexo', value)}
+                  placeholder="Selecione..."
+                  disabled={readOnly}
+                />
+              </div>
+              <div className="space-y-1.5" {...fieldLayout('telefone')}>
+                <Label>
+                  {fieldLabel('telefone', 'Telefone')}{' '}
+                  <FieldAsterisk type={getAsterisk('telefone')} />
+                </Label>
+                <Input
+                  value={formData.telefone}
+                  onChange={(e) => onField('telefone', e.target.value)}
+                  disabled={readOnly}
+                />
+              </div>
+              <div className="space-y-1.5" {...fieldLayout('email')}>
+                <Label>
+                  {fieldLabel('email', 'Email')} <FieldAsterisk type={getAsterisk('email')} />
+                </Label>
+                <Input
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => onField('email', e.target.value)}
+                  disabled={readOnly}
+                />
+              </div>
+              <div className="space-y-1.5" {...fieldLayout('dataContratacao')}>
+                <Label>
+                  {fieldLabel('dataContratacao', 'Data de Contratacao')}{' '}
+                  <FieldAsterisk type={getAsterisk('dataContratacao')} />
+                </Label>
+                <Input
+                  type="date"
+                  value={formData.dataContratacao}
+                  onChange={(e) => onField('dataContratacao', e.target.value)}
+                  disabled={readOnly}
+                />
+              </div>
+              <div className="space-y-1.5" {...fieldLayout('custoHora')}>
+                <Label>
+                  {fieldLabel('custoHora', 'Custo/Hora')}{' '}
+                  <FieldAsterisk type={getAsterisk('custoHora')} />
+                </Label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={formData.custoHora}
+                  onChange={(e) => onField('custoHora', parseFloat(e.target.value) || 0)}
+                  disabled={readOnly}
+                />
+              </div>
+              <div className="space-y-1.5" {...fieldLayout('departamento')}>
+                <Label>
+                  {fieldLabel('departamento', 'Departamento')}{' '}
+                  <FieldAsterisk type={getAsterisk('departamento')} />
+                </Label>
+                <SearchableSelect
+                  options={options.departamentos.map((item) => ({
+                    value: item.id,
+                    label: item.nome,
+                  }))}
+                  value={formData.departamentoId}
+                  onValueChange={(value) => {
+                    const item = options.departamentos.find((current) => current.id === value);
+                    setFormData((current) => ({
+                      ...current,
+                      departamentoId: value,
+                      departamento: item?.nome || '',
+                      funcaoId: '',
+                      funcao: '',
+                    }));
+                  }}
+                  placeholder={loadingOptions ? 'Carregando...' : 'Selecione...'}
+                  searchPlaceholder="Pesquisar departamento..."
+                  disabled={readOnly || loadingOptions}
+                />
+              </div>
+              <div className="space-y-1.5" {...fieldLayout('funcao')}>
+                <Label>
+                  {fieldLabel('funcao', 'Funcao')} <FieldAsterisk type={getAsterisk('funcao')} />
+                </Label>
+                <SearchableSelect
+                  options={funcoesDisponiveis.map((item) => ({
+                    value: item.id,
+                    label: item.nome,
+                  }))}
+                  value={formData.funcaoId}
+                  onValueChange={(value) => {
+                    const item = funcoesDisponiveis.find((current) => current.id === value);
+                    setFormData((current) => ({
+                      ...current,
+                      funcaoId: value,
+                      funcao: item?.nome || '',
+                    }));
+                  }}
+                  placeholder={
+                    !formData.departamentoId
+                      ? 'Selecione um departamento primeiro'
+                      : loadingOptions
+                        ? 'Carregando...'
+                        : 'Selecione...'
+                  }
+                  searchPlaceholder="Pesquisar funcao..."
+                  disabled={readOnly || loadingOptions || !formData.departamentoId}
+                />
+              </div>
+              <div className="space-y-1.5" {...fieldLayout('status')}>
+                <Label>
+                  {fieldLabel('status', 'Status')}{' '}
+                  <FieldAsterisk type={getAsterisk('status', true)} />
+                </Label>
+                <SearchableSelect
+                  options={[
+                    { value: 'Ativo', label: 'Ativo' },
+                    { value: 'Inativo', label: 'Inativo' },
+                  ]}
+                  value={formData.status}
+                  onValueChange={(value) => onField('status', value as 'Ativo' | 'Inativo')}
+                  placeholder="Selecione..."
+                  disabled={readOnly}
+                />
+              </div>
+              <div className="space-y-1.5" {...fieldLayout('anexos')}>
+                <div className="flex items-center justify-between">
+                  <Label>{fieldLabel('anexos', 'Anexos')} (max. 2MB por arquivo)</Label>
+                  {!readOnly && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => anexoInputRef.current?.click()}
+                    >
+                      <Upload className="w-3 h-3 mr-1" />
+                      Adicionar
+                    </Button>
+                  )}
                 </div>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label>Anexos (max. 2MB por arquivo)</Label>
-                    {!readOnly && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => anexoInputRef.current?.click()}
+                <input
+                  ref={anexoInputRef}
+                  type="file"
+                  multiple
+                  className="hidden"
+                  onChange={uploadAnexos}
+                  disabled={readOnly}
+                />
+                <div className="border rounded-lg p-2 space-y-1 max-h-28 overflow-y-auto">
+                  {formData.anexos.length > 0 ? (
+                    formData.anexos.map((item) => (
+                      <div
+                        key={item.id}
+                        className="flex items-center justify-between text-xs bg-muted/30 rounded p-2"
                       >
-                        <Upload className="w-3 h-3 mr-1" />
-                        Adicionar
-                      </Button>
-                    )}
-                  </div>
-                  <input
-                    ref={anexoInputRef}
-                    type="file"
-                    multiple
-                    className="hidden"
-                    onChange={uploadAnexos}
-                    disabled={readOnly}
-                  />
-                  <div className="border rounded-lg p-2 space-y-1 max-h-28 overflow-y-auto">
-                    {formData.anexos.length > 0 ? (
-                      formData.anexos.map((item) => (
-                        <div
-                          key={item.id}
-                          className="flex items-center justify-between text-xs bg-muted/30 rounded p-2"
-                        >
-                          <div className="flex items-center gap-2 min-w-0 flex-1">
-                            <FileText className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                            <span className="truncate">{item.nome}</span>
-                            <span className="text-xs text-muted-foreground flex-shrink-0">
-                              ({fileSize(item.tamanho)})
-                            </span>
-                          </div>
-                          {!readOnly && (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6 text-destructive hover:text-destructive"
-                              onClick={() =>
-                                onField(
-                                  'anexos',
-                                  formData.anexos.filter((current) => current.id !== item.id),
-                                )
-                              }
-                            >
-                              <X className="w-3 h-3" />
-                            </Button>
-                          )}
+                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                          <FileText className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                          <span className="truncate">{item.nome}</span>
+                          <span className="text-xs text-muted-foreground flex-shrink-0">
+                            ({fileSize(item.tamanho)})
+                          </span>
                         </div>
-                      ))
-                    ) : (
-                      <div className="text-center text-xs text-muted-foreground border-dashed py-3">
-                        Nenhum anexo adicionado
+                        {!readOnly && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 text-destructive hover:text-destructive"
+                            onClick={() =>
+                              onField(
+                                'anexos',
+                                formData.anexos.filter((current) => current.id !== item.id),
+                              )
+                            }
+                          >
+                            <X className="w-3 h-3" />
+                          </Button>
+                        )}
                       </div>
-                    )}
-                  </div>
+                    ))
+                  ) : (
+                    <div className="text-center text-xs text-muted-foreground border-dashed py-3">
+                      Nenhum anexo adicionado
+                    </div>
+                  )}
                 </div>
               </div>
-            </div>
+            </ConfigurableFieldGrid>
           </div>
         </form>
       </TabsContent>

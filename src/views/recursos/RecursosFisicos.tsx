@@ -21,6 +21,7 @@ import { useRecordList } from '@/hooks/useRecordNavigation';
 import { RECURSOS_FISICOS_ROUTES } from '@/modules/recursos-fisicos/recursos-fisicos.navigation';
 import { MapaRecursosFisicosModal } from '@/components/recursos/MapaRecursosFisicosModal';
 import { SortableTable, Column } from '@/components/shared/SortableTable';
+import { useFormListStyle } from '@/hooks/useFormListStyle';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -197,6 +198,7 @@ function RecursoFisicoDetailPanel({
 
 const RecursosFisicos = () => {
   const { toast } = useToast();
+  const { stripeColor } = useFormListStyle('recursoFisico');
   const { t } = useLanguage();
   const { session } = useAuth();
   const { canIncluir, canAlterar, canExcluir } = usePermissions();
@@ -429,6 +431,7 @@ const RecursosFisicos = () => {
             />
           ) : (
             <SortableTable
+              stripeColor={stripeColor}
               data={filteredItems}
               columns={columns}
               getRowKey={(item) => item.id}

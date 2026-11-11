@@ -49,6 +49,7 @@ import {
   ApiParametrosRepository,
   type ParametroApiItem,
 } from '@/modules/parametros/parametros.api.repository';
+import { useFormListStyle } from '@/hooks/useFormListStyle';
 
 const apiRepo = new ApiExpositoresRepository();
 const parametrosRepo = new ApiParametrosRepository();
@@ -68,10 +69,20 @@ function buildColumnConfig(t: (k: string) => string): ColumnConfig[] {
 
 // ─── Logo thumbnail ────────────────────────────────────────────────────────────
 
-function LogoThumb({ logo, nome }: { logo: string | null; nome: string }) {
+function LogoThumb({
+  logo,
+  nome,
+  small = false,
+}: {
+  logo: string | null;
+  nome: string;
+  /** Na lista (linhas compactas). */
+  small?: boolean;
+}) {
+  const size = small ? 'w-6 h-6' : 'w-8 h-8';
   if (!logo) {
     return (
-      <div className="w-8 h-8 rounded border bg-muted/50 flex items-center justify-center">
+      <div className={`${size} rounded border bg-muted/50 flex items-center justify-center`}>
         <Users className="h-4 w-4 text-muted-foreground opacity-50" />
       </div>
     );
@@ -80,7 +91,7 @@ function LogoThumb({ logo, nome }: { logo: string | null; nome: string }) {
     <img
       src={logo}
       alt={`Logo ${nome}`}
-      className="w-8 h-8 rounded border object-contain bg-white"
+      className={`${size} rounded border object-contain bg-white`}
     />
   );
 }
@@ -277,6 +288,7 @@ function ExpositorDetail({
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 const Expositores = () => {
+  const { stripeColor } = useFormListStyle('expositor');
   const { toast } = useToast();
   const { t } = useLanguage();
   const { session } = useAuth();
@@ -388,7 +400,7 @@ const Expositores = () => {
       label: 'Logo',
       className: 'w-12',
       sortable: false,
-      render: (i) => <LogoThumb logo={i.logo} nome={i.nome} />,
+      render: (i) => <LogoThumb logo={i.logo} nome={i.nome} small />,
     },
     {
       key: 'nome',
@@ -554,6 +566,7 @@ const Expositores = () => {
             />
           ) : (
             <SortableTable
+              stripeColor={stripeColor}
               data={filteredItems}
               columns={columns}
               getRowKey={(i) => i.id}

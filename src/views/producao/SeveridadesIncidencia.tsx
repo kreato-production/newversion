@@ -30,6 +30,7 @@ import {
   MasterDetail,
   type ColumnConfig,
 } from '@/components/listing';
+import { useFormListStyle } from '@/hooks/useFormListStyle';
 
 export interface SeveridadeIncidencia {
   id: string;
@@ -183,6 +184,7 @@ function SeveridadeDetailPanel({
 // ─── Main component ───────────────────────────────────────────────────────────
 
 const SeveridadesIncidencia = () => {
+  const { stripeColor } = useFormListStyle('severidadeIncidencia');
   const { toast } = useToast();
   const { t } = useLanguage();
   const [search, setSearch] = useState('');
@@ -358,6 +360,7 @@ const SeveridadesIncidencia = () => {
             />
           ) : (
             <SortableTable
+              stripeColor={stripeColor}
               data={filteredItems}
               columns={columns}
               getRowKey={(item) => item.id}

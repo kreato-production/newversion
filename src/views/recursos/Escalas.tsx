@@ -34,6 +34,7 @@ import { useRecordList } from '@/hooks/useRecordNavigation';
 import { ESCALAS_PERMISSION_SCOPE, ESCALAS_ROUTES } from '@/modules/escalas/escalas.navigation';
 import { escalasRepository } from '@/modules/escalas/escalas.repository.provider';
 import type { Escala } from '@/modules/escalas/escalas.types';
+import { useFormListStyle } from '@/hooks/useFormListStyle';
 
 const STORAGE_KEY = 'kreato_escalas';
 
@@ -196,6 +197,7 @@ function EscalaDetailPanel({
 // ─── Main component ──────────────────────────────────────────────────────────
 
 export default function Escalas() {
+  const { stripeColor } = useFormListStyle('escala');
   const { t } = useLanguage();
   const { toast } = useToast();
   const { canIncluir, canAlterar, canExcluir } = usePermissions();
@@ -379,6 +381,7 @@ export default function Escalas() {
             />
           ) : (
             <SortableTable
+              stripeColor={stripeColor}
               data={filtered}
               columns={columns}
               getRowKey={(item) => item.id}

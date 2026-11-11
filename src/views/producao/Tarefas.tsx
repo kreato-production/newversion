@@ -41,6 +41,8 @@ import { TAREFAS_ROUTES } from '@/modules/tarefas/tarefas.navigation';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { cn } from '@/lib/utils';
+import { zebraBodyProps } from '@/lib/listZebra';
+import { useFormListStyle } from '@/hooks/useFormListStyle';
 import {
   ApiTarefasRepository,
   type Tarefa,
@@ -59,6 +61,7 @@ const tarefasRepository = new ApiTarefasRepository();
 const Tarefas = () => {
   const { t, formatDate } = useLanguage();
   const { canAlterar, canIncluir } = usePermissions();
+  const { stripeColor } = useFormListStyle('tarefa');
 
   const podeIncluir = canIncluir('Produção', 'Tarefas');
   const podeAlterar = canAlterar('Produção', 'Tarefas');
@@ -354,7 +357,7 @@ const Tarefas = () => {
                     <TableHead className="w-[100px]">{t('common.actions')}</TableHead>
                   </TableRow>
                 </TableHeader>
-                <TableBody>
+                <TableBody {...zebraBodyProps(stripeColor)}>
                   {sortedTarefas.map((tarefa) => (
                     <TableRow
                       key={tarefa.id}

@@ -42,6 +42,11 @@ export interface TituloFormTab {
 
 export interface TituloFormConfig {
   routes: RecordRouteConfig;
+  /**
+   * Id do formulário em Administração > Formulários (`src/data/formsRegistry.ts`). Campos:
+   * `codigoExterno`, `titulo`, `cor`, a `key` de cada flag e `descricao`.
+   */
+  formularioId: string;
   newTitle: string;
   editTitle: string;
   notFoundTitle: string;

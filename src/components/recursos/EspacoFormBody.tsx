@@ -9,6 +9,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
+import {
+  ConfigurableFieldGrid,
+  FieldAsterisk,
+  useFormFieldConfig,
+} from '@/hooks/useFormFieldConfig';
 import { Plus, Trash2, Calendar, Settings } from 'lucide-react';
 import type { Espaco, EspacoInput, FaixaDisponibilidade } from '@/modules/espacos/espacos.types';
 
@@ -30,6 +35,7 @@ export function EspacoFormBody({
   onSubmit,
 }: RecordFormBodyProps<Espaco, EspacoInput>) {
   const { toast } = useToast();
+  const { getAsterisk, validate, fieldLabel, fieldLayout } = useFormFieldConfig('espaco');
   const [codigoExterno, setCodigoExterno] = useState(data?.codigoExterno ?? '');
   const [titulo, setTitulo] = useState(data?.titulo ?? '');
   const [descricao, setDescricao] = useState(data?.descricao ?? '');
@@ -149,6 +155,7 @@ export function EspacoFormBody({
       });
       return;
     }
+    if (!validate({ codigoExterno, titulo, descricao })) return;
     if (faixas.length > 0 && !validarFaixas()) return;
 
     try {
@@ -200,43 +207,52 @@ export function EspacoFormBody({
             </div>
           )}
 
-          <div className="space-y-2">
-            <Label htmlFor="codigoExterno">Código Externo</Label>
-            <Input
-              id="codigoExterno"
-              value={codigoExterno}
-              onChange={(e) => setCodigoExterno(e.target.value.slice(0, 20))}
-              maxLength={20}
-              placeholder="Máx. 20 caracteres"
-              disabled={readOnly || isSubmitting}
-            />
-          </div>
+          <ConfigurableFieldGrid>
+            <div className="space-y-2" {...fieldLayout('codigoExterno')}>
+              <Label htmlFor="codigoExterno">
+                {fieldLabel('codigoExterno', 'Código Externo')}
+                <FieldAsterisk type={getAsterisk('codigoExterno')} />
+              </Label>
+              <Input
+                id="codigoExterno"
+                value={codigoExterno}
+                onChange={(e) => setCodigoExterno(e.target.value.slice(0, 20))}
+                maxLength={20}
+                placeholder="Máx. 20 caracteres"
+                disabled={readOnly || isSubmitting}
+              />
+            </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="titulo">
-              Título <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              id="titulo"
-              value={titulo}
-              onChange={(e) => setTitulo(e.target.value)}
-              maxLength={100}
-              placeholder="Nome do espaço"
-              disabled={readOnly || isSubmitting}
-            />
-          </div>
+            <div className="space-y-2" {...fieldLayout('titulo')}>
+              <Label htmlFor="titulo">
+                {fieldLabel('titulo', 'Título')}
+                <FieldAsterisk type={getAsterisk('titulo', true)} />
+              </Label>
+              <Input
+                id="titulo"
+                value={titulo}
+                onChange={(e) => setTitulo(e.target.value)}
+                maxLength={100}
+                placeholder="Nome do espaço"
+                disabled={readOnly || isSubmitting}
+              />
+            </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="descricao">Descrição</Label>
-            <Textarea
-              id="descricao"
-              value={descricao}
-              onChange={(e) => setDescricao(e.target.value)}
-              placeholder="Descrição do espaço"
-              rows={3}
-              disabled={readOnly || isSubmitting}
-            />
-          </div>
+            <div className="space-y-2" {...fieldLayout('descricao')}>
+              <Label htmlFor="descricao">
+                {fieldLabel('descricao', 'Descrição')}
+                <FieldAsterisk type={getAsterisk('descricao')} />
+              </Label>
+              <Textarea
+                id="descricao"
+                value={descricao}
+                onChange={(e) => setDescricao(e.target.value)}
+                placeholder="Descrição do espaço"
+                rows={3}
+                disabled={readOnly || isSubmitting}
+              />
+            </div>
+          </ConfigurableFieldGrid>
         </TabsContent>
 
         {/* ── Tab: Disponibilidade ────────────────────────────────── */}

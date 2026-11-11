@@ -30,7 +30,11 @@ import { enUS, es, ptBR } from 'date-fns/locale';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { cn } from '@/lib/utils';
-import { FieldAsterisk, useFormFieldConfig } from '@/hooks/useFormFieldConfig';
+import {
+  FieldAsterisk,
+  useFormFieldConfig,
+  ConfigurableFieldGrid,
+} from '@/hooks/useFormFieldConfig';
 import {
   ApiTarefasRepository,
   type Tarefa,
@@ -59,7 +63,7 @@ export const TarefaFormBody = ({
 }: TarefaFormBodyProps) => {
   const { t, language } = useLanguage();
   const { isReadOnly, isVisible } = usePermissions();
-  const { getAsterisk } = useFormFieldConfig('tarefa');
+  const { getAsterisk, validate, fieldLabel, fieldLayout } = useFormFieldConfig('tarefa');
   const [formData, setFormData] = useState<Partial<Tarefa>>(() =>
     data ? { ...data, recursoHumanoId: data.recursoHumanoId || '' } : {},
   );
@@ -136,6 +140,19 @@ export const TarefaFormBody = ({
     event.preventDefault();
     if (globalReadOnly) return;
 
+    // Only the fields the user can see are checked: a hidden field cannot be filled in.
+    const values: Record<string, unknown> = {};
+    if (showTitulo) values.titulo = formData.titulo;
+    if (showDescricao) values.descricao = formData.descricao;
+    if (showGravacao) values.gravacaoId = formData.gravacaoId;
+    if (showStatus) values.statusId = formData.statusId;
+    if (showResponsavel) values.recursoHumanoId = formData.recursoHumanoId;
+    if (showPrioridade) values.prioridade = formData.prioridade;
+    if (showDataInicio) values.dataInicio = formData.dataInicio;
+    if (showDataLimite) values.dataFim = formData.dataFim;
+    if (showObservacoes) values.observacoes = formData.observacoes;
+    if (!validate(values)) return;
+
     const recurso = recursosHumanos.find((item) => item.id === formData.recursoHumanoId);
     void onSubmit({
       ...formData,
@@ -153,45 +170,48 @@ export const TarefaFormBody = ({
 
   return (
     <form id={formId} onSubmit={handleSubmit} className="space-y-4">
-      {showTitulo && (
-        <div className="space-y-2">
-          <Label htmlFor="titulo">
-            {t('tasks.taskTitle')} <FieldAsterisk type={getAsterisk('titulo')} />
-          </Label>
-          <Input
-            id="titulo"
-            value={formData.titulo || ''}
-            onChange={(event) => updateField('titulo', event.target.value)}
-            placeholder={t('tasks.taskTitlePlaceholder')}
-            required={!isTituloReadOnly}
-            disabled={isTituloReadOnly}
-            className={isTituloReadOnly ? 'bg-muted' : ''}
-          />
-        </div>
-      )}
+      <ConfigurableFieldGrid>
+        {showTitulo && (
+          <div className="space-y-1.5" {...fieldLayout('titulo')}>
+            <Label htmlFor="titulo">
+              {fieldLabel('titulo', t('tasks.taskTitle'))}{' '}
+              <FieldAsterisk type={getAsterisk('titulo', true)} />
+            </Label>
+            <Input
+              id="titulo"
+              value={formData.titulo || ''}
+              onChange={(event) => updateField('titulo', event.target.value)}
+              placeholder={t('tasks.taskTitlePlaceholder')}
+              required={!isTituloReadOnly}
+              disabled={isTituloReadOnly}
+              className={isTituloReadOnly ? 'bg-muted' : ''}
+            />
+          </div>
+        )}
 
-      {showDescricao && (
-        <div className="space-y-2">
-          <Label htmlFor="descricao">
-            {t('tasks.taskDescription')} <FieldAsterisk type={getAsterisk('descricao')} />
-          </Label>
-          <Textarea
-            id="descricao"
-            value={formData.descricao || ''}
-            onChange={(event) => updateField('descricao', event.target.value)}
-            placeholder={t('tasks.taskDescriptionPlaceholder')}
-            rows={3}
-            disabled={isDescricaoReadOnly}
-            className={isDescricaoReadOnly ? 'bg-muted' : ''}
-          />
-        </div>
-      )}
+        {showDescricao && (
+          <div className="space-y-1.5" {...fieldLayout('descricao')}>
+            <Label htmlFor="descricao">
+              {fieldLabel('descricao', t('tasks.taskDescription'))}{' '}
+              <FieldAsterisk type={getAsterisk('descricao')} />
+            </Label>
+            <Textarea
+              id="descricao"
+              value={formData.descricao || ''}
+              onChange={(event) => updateField('descricao', event.target.value)}
+              placeholder={t('tasks.taskDescriptionPlaceholder')}
+              rows={3}
+              disabled={isDescricaoReadOnly}
+              className={isDescricaoReadOnly ? 'bg-muted' : ''}
+            />
+          </div>
+        )}
 
-      <div className="grid grid-cols-2 gap-4">
         {showGravacao && (
-          <div className="space-y-2">
+          <div className="space-y-1.5" {...fieldLayout('gravacaoId')}>
             <Label>
-              {t('tasks.recording')} <FieldAsterisk type={getAsterisk('gravacaoId')} />
+              {fieldLabel('gravacaoId', t('tasks.recording'))}{' '}
+              <FieldAsterisk type={getAsterisk('gravacaoId')} />
             </Label>
             {isGravacaoReadOnly ? (
               <Input
@@ -220,9 +240,10 @@ export const TarefaFormBody = ({
         )}
 
         {showStatus && (
-          <div className="space-y-2">
+          <div className="space-y-1.5" {...fieldLayout('statusId')}>
             <Label>
-              {t('tasks.status')} <FieldAsterisk type={getAsterisk('statusId')} />
+              {fieldLabel('statusId', t('tasks.status'))}{' '}
+              <FieldAsterisk type={getAsterisk('statusId')} />
             </Label>
             {isStatusReadOnly ? (
               <Input
@@ -259,13 +280,12 @@ export const TarefaFormBody = ({
             )}
           </div>
         )}
-      </div>
 
-      <div className="grid grid-cols-2 gap-4">
         {showResponsavel && (
-          <div className="space-y-2">
+          <div className="space-y-1.5" {...fieldLayout('recursoHumanoId')}>
             <Label>
-              {t('tasks.assignee')} <FieldAsterisk type={getAsterisk('recursoHumanoId')} />
+              {fieldLabel('recursoHumanoId', t('tasks.assignee'))}{' '}
+              <FieldAsterisk type={getAsterisk('recursoHumanoId')} />
             </Label>
             {isResponsavelReadOnly ? (
               <Input
@@ -299,9 +319,10 @@ export const TarefaFormBody = ({
         )}
 
         {showPrioridade && (
-          <div className="space-y-2">
+          <div className="space-y-1.5" {...fieldLayout('prioridade')}>
             <Label>
-              {t('tasks.priority')} <FieldAsterisk type={getAsterisk('prioridade')} />
+              {fieldLabel('prioridade', t('tasks.priority'))}{' '}
+              <FieldAsterisk type={getAsterisk('prioridade')} />
             </Label>
             {isPrioridadeReadOnly ? (
               <Input
@@ -332,13 +353,12 @@ export const TarefaFormBody = ({
             )}
           </div>
         )}
-      </div>
 
-      <div className="grid grid-cols-2 gap-4">
         {showDataInicio && (
-          <div className="space-y-2">
+          <div className="space-y-1.5" {...fieldLayout('dataInicio')}>
             <Label>
-              {t('tasks.startDate')} <FieldAsterisk type={getAsterisk('dataInicio')} />
+              {fieldLabel('dataInicio', t('tasks.startDate'))}{' '}
+              <FieldAsterisk type={getAsterisk('dataInicio')} />
             </Label>
             {isDataInicioReadOnly ? (
               <Input
@@ -378,9 +398,10 @@ export const TarefaFormBody = ({
         )}
 
         {showDataLimite && (
-          <div className="space-y-2">
+          <div className="space-y-1.5" {...fieldLayout('dataFim')}>
             <Label>
-              {t('tasks.dueDate')} <FieldAsterisk type={getAsterisk('dataFim')} />
+              {fieldLabel('dataFim', t('tasks.dueDate'))}{' '}
+              <FieldAsterisk type={getAsterisk('dataFim')} />
             </Label>
             {isDataLimiteReadOnly ? (
               <Input
@@ -420,8 +441,8 @@ export const TarefaFormBody = ({
         )}
 
         {showHoraInicio && (
-          <div className="space-y-2">
-            <Label htmlFor="horaInicio">{t('common.startTime')}</Label>
+          <div className="space-y-1.5" {...fieldLayout('horaInicio')}>
+            <Label htmlFor="horaInicio">{fieldLabel('horaInicio', t('common.startTime'))}</Label>
             <Input
               id="horaInicio"
               type="time"
@@ -434,8 +455,8 @@ export const TarefaFormBody = ({
         )}
 
         {showHoraFim && (
-          <div className="space-y-2">
-            <Label htmlFor="horaFim">{t('common.endTime')}</Label>
+          <div className="space-y-1.5" {...fieldLayout('horaFim')}>
+            <Label htmlFor="horaFim">{fieldLabel('horaFim', t('common.endTime'))}</Label>
             <Input
               id="horaFim"
               type="time"
@@ -446,24 +467,25 @@ export const TarefaFormBody = ({
             />
           </div>
         )}
-      </div>
 
-      {showObservacoes && (
-        <div className="space-y-2">
-          <Label htmlFor="observacoes">
-            {t('common.observations')} <FieldAsterisk type={getAsterisk('observacoes')} />
-          </Label>
-          <Textarea
-            id="observacoes"
-            value={formData.observacoes || ''}
-            onChange={(event) => updateField('observacoes', event.target.value)}
-            placeholder={`${t('common.observations')}...`}
-            rows={2}
-            disabled={isObservacoesReadOnly}
-            className={isObservacoesReadOnly ? 'bg-muted' : ''}
-          />
-        </div>
-      )}
+        {showObservacoes && (
+          <div className="space-y-1.5" {...fieldLayout('observacoes')}>
+            <Label htmlFor="observacoes">
+              {fieldLabel('observacoes', t('common.observations'))}{' '}
+              <FieldAsterisk type={getAsterisk('observacoes')} />
+            </Label>
+            <Textarea
+              id="observacoes"
+              value={formData.observacoes || ''}
+              onChange={(event) => updateField('observacoes', event.target.value)}
+              placeholder={`${t('common.observations')}...`}
+              rows={2}
+              disabled={isObservacoesReadOnly}
+              className={isObservacoesReadOnly ? 'bg-muted' : ''}
+            />
+          </div>
+        )}
+      </ConfigurableFieldGrid>
 
       {onDelete && !globalReadOnly && (
         <div className="flex justify-start pt-2 border-t">

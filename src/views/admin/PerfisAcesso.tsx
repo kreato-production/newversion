@@ -37,6 +37,7 @@ import {
   MasterDetail,
   type ColumnConfig,
 } from '@/components/listing';
+import { useFormListStyle } from '@/hooks/useFormListStyle';
 
 interface PerfilDb {
   id: string;
@@ -226,6 +227,7 @@ function PerfilDetailPanel({
 // ─── Main component ───────────────────────────────────────────────────────────
 
 const PerfisAcesso = () => {
+  const { stripeColor } = useFormListStyle('perfilAcesso');
   const { toast } = useToast();
   const { t } = useLanguage();
   const { user, session } = useAuth();
@@ -553,6 +555,7 @@ const PerfisAcesso = () => {
             />
           ) : (
             <SortableTable
+              stripeColor={stripeColor}
               data={filteredItems}
               columns={columns}
               getRowKey={(item) => item.id}

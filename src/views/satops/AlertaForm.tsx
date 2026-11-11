@@ -8,6 +8,11 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { FormPage } from '@/components/shared/FormPage';
+import {
+  ConfigurableFieldGrid,
+  FieldAsterisk,
+  useFormFieldConfig,
+} from '@/hooks/useFormFieldConfig';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useRecordForm } from '@/hooks/useRecordForm';
 import { useRecordNavigation } from '@/hooks/useRecordNavigation';
@@ -47,6 +52,7 @@ const AlertaForm = ({ id }: { id?: string }) => {
   const { canIncluir, canAlterar } = usePermissions();
   const { goBack, navigation } = useRecordNavigation(ALERTAS_ROUTES, id);
   const readOnly = id ? !canAlterar(...PERMISSION) : !canIncluir(...PERMISSION);
+  const { getAsterisk, validate, fieldLabel, fieldLayout } = useFormFieldConfig('alerta');
 
   const form = useRecordForm<AlertaApiItem, AlertaFormValues>({
     id,
@@ -63,6 +69,13 @@ const AlertaForm = ({ id }: { id?: string }) => {
       }),
     onSaved: goBack,
     readOnly,
+    validate: (values) =>
+      validate({
+        nome: values.nome,
+        tempoParaAlerta: values.tempoParaAlerta,
+        regra: values.regra,
+        campoReferencia: values.campoReferencia,
+      }),
     messages: { created: 'Alerta cadastrado!', updated: 'Alerta atualizado!' },
   });
   const { isEditing, record, formData, update, handleSubmit } = form;
@@ -84,24 +97,26 @@ const AlertaForm = ({ id }: { id?: string }) => {
       createLabel="Salvar"
     >
       <form id="alerta-form" onSubmit={handleSubmit} className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="nome">
-            Nome <span className="text-destructive">*</span>
-          </Label>
-          <Input
-            id="nome"
-            value={formData.nome}
-            onChange={(e) => update('nome', e.target.value)}
-            maxLength={100}
-            required
-            disabled={disabled}
-          />
-        </div>
+        <ConfigurableFieldGrid>
+          <div className="space-y-2" {...fieldLayout('nome')}>
+            <Label htmlFor="nome">
+              {fieldLabel('nome', 'Nome')}
+              <FieldAsterisk type={getAsterisk('nome', true)} />
+            </Label>
+            <Input
+              id="nome"
+              value={formData.nome}
+              onChange={(e) => update('nome', e.target.value)}
+              maxLength={100}
+              required
+              disabled={disabled}
+            />
+          </div>
 
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          <div className="space-y-2">
+          <div className="space-y-2" {...fieldLayout('tempoParaAlerta')}>
             <Label htmlFor="tempoParaAlerta">
-              Tempo para Alerta <span className="text-destructive">*</span>
+              {fieldLabel('tempoParaAlerta', 'Tempo para Alerta')}
+              <FieldAsterisk type={getAsterisk('tempoParaAlerta', true)} />
             </Label>
             <Input
               id="tempoParaAlerta"
@@ -114,9 +129,10 @@ const AlertaForm = ({ id }: { id?: string }) => {
             />
             <p className="text-xs text-muted-foreground">Formato HH:MM:SS</p>
           </div>
-          <div className="space-y-2">
+          <div className="space-y-2" {...fieldLayout('regra')}>
             <Label htmlFor="regra">
-              Regra <span className="text-destructive">*</span>
+              {fieldLabel('regra', 'Regra')}
+              <FieldAsterisk type={getAsterisk('regra', true)} />
             </Label>
             <Select
               value={formData.regra}
@@ -132,9 +148,10 @@ const AlertaForm = ({ id }: { id?: string }) => {
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-2">
+          <div className="space-y-2" {...fieldLayout('campoReferencia')}>
             <Label htmlFor="campoReferencia">
-              Campo de Referência <span className="text-destructive">*</span>
+              {fieldLabel('campoReferencia', 'Campo de Referência')}
+              <FieldAsterisk type={getAsterisk('campoReferencia', true)} />
             </Label>
             <Select
               value={formData.campoReferencia}
@@ -153,7 +170,7 @@ const AlertaForm = ({ id }: { id?: string }) => {
               </SelectContent>
             </Select>
           </div>
-        </div>
+        </ConfigurableFieldGrid>
 
         {record && (
           <div className="grid grid-cols-1 gap-4 pt-2 border-t md:grid-cols-3">

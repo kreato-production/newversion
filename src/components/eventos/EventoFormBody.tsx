@@ -25,6 +25,11 @@ import { AgendaTab } from '@/components/eventos/AgendaTab';
 import { OrcamentoEventoTab } from '@/components/eventos/OrcamentoEventoTab';
 import { PreviewTab } from '@/components/eventos/PreviewTab';
 import { useLanguage } from '@/contexts/LanguageContext';
+import {
+  ConfigurableFieldGrid,
+  FieldAsterisk,
+  useFormFieldConfig,
+} from '@/hooks/useFormFieldConfig';
 import type { RecordFormBodyProps } from '@/components/shared/RecordFormPage';
 import { SearchableSelect } from '@/components/shared/SearchableSelect';
 import {
@@ -113,6 +118,14 @@ export const EventoFormBody = ({
   onSubmit,
 }: RecordFormBodyProps<Evento, SaveEventoInput>) => {
   const { t } = useLanguage();
+  const { getAsterisk, validate, fieldLabel, fieldLayout } = useFormFieldConfig('evento');
+  /** Label of a field: translation configured in Formulários + required/suggested asterisk. */
+  const label = (campo: string, text: string, alwaysRequired = false) => (
+    <>
+      {fieldLabel(campo, text)}
+      <FieldAsterisk type={getAsterisk(campo, alwaysRequired)} />
+    </>
+  );
   const [form, setForm] = useState<SaveEventoInput>(() => toFormData(data));
   const [tagInput, setTagInput] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -235,6 +248,26 @@ export const EventoFormBody = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (readOnly || isSubmitting) return;
+    if (
+      !validate(
+        {
+          codigoExterno: form.codigoExterno,
+          nome: form.nome,
+          tipoEventoId: form.tipoEventoId,
+          unidadeNegocioId: form.unidadeNegocioId,
+          descricao: form.descricao,
+          tags: form.tags ?? [],
+          inicioEvento: form.inicioEvento,
+          fimEvento: form.fimEvento,
+          publicoEstimado: form.publicoEstimado,
+          local: form.local,
+          latitude: form.latitude,
+          longitude: form.longitude,
+        },
+        { codigoExterno: t('common.externalCode') },
+      )
+    )
+      return;
     setIsSubmitting(true);
     try {
       await onSubmit({
@@ -329,9 +362,11 @@ L.marker([${form.latitude},${form.longitude}],{icon:redIcon}).addTo(map);
 
         {/* ── Dados Gerais ── */}
         <TabsContent value="geral" className="space-y-4 mt-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="codigoExterno">{t('common.externalCode')}</Label>
+          <ConfigurableFieldGrid>
+            <div className="space-y-2" {...fieldLayout('codigoExterno')}>
+              <Label htmlFor="codigoExterno">
+                {label('codigoExterno', t('common.externalCode'))}
+              </Label>
               <Input
                 id="codigoExterno"
                 value={form.codigoExterno ?? ''}
@@ -340,10 +375,8 @@ L.marker([${form.latitude},${form.longitude}],{icon:redIcon}).addTo(map);
                 disabled={readOnly || isSubmitting}
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="nome">
-                Nome do Evento <span className="text-destructive">*</span>
-              </Label>
+            <div className="space-y-2" {...fieldLayout('nome')}>
+              <Label htmlFor="nome">{label('nome', 'Nome do Evento', true)}</Label>
               <Input
                 id="nome"
                 value={form.nome}
@@ -353,11 +386,8 @@ L.marker([${form.latitude},${form.longitude}],{icon:redIcon}).addTo(map);
                 disabled={readOnly || isSubmitting}
               />
             </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Tipo de Evento</Label>
+            <div className="space-y-2" {...fieldLayout('tipoEventoId')}>
+              <Label>{label('tipoEventoId', 'Tipo de Evento')}</Label>
               <SearchableSelect
                 options={tiposEvento.map((t) => ({ value: t.id, label: t.nome }))}
                 value={form.tipoEventoId ?? ''}
@@ -368,8 +398,8 @@ L.marker([${form.latitude},${form.longitude}],{icon:redIcon}).addTo(map);
                 disabled={readOnly || isSubmitting}
               />
             </div>
-            <div className="space-y-2">
-              <Label>Unidade de Negócio</Label>
+            <div className="space-y-2" {...fieldLayout('unidadeNegocioId')}>
+              <Label>{label('unidadeNegocioId', 'Unidade de Negócio')}</Label>
               <SearchableSelect
                 options={unidades.map((u) => ({ value: u.id, label: u.nome }))}
                 value={form.unidadeNegocioId ?? ''}
@@ -380,64 +410,60 @@ L.marker([${form.latitude},${form.longitude}],{icon:redIcon}).addTo(map);
                 disabled={readOnly || isSubmitting}
               />
             </div>
-          </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="descricao">Descrição do Evento</Label>
-            <Textarea
-              id="descricao"
-              value={form.descricao ?? ''}
-              onChange={(e) => set('descricao', e.target.value)}
-              rows={3}
-              disabled={readOnly || isSubmitting}
-            />
-          </div>
-
-          {/* Tags */}
-          <div className="space-y-2">
-            <Label>Tags</Label>
-            <div className="flex gap-2">
-              <Input
-                value={tagInput}
-                onChange={(e) => setTagInput(e.target.value)}
-                onKeyDown={handleTagKeyDown}
-                placeholder="Digite uma tag e pressione Enter"
+            <div className="space-y-2" {...fieldLayout('descricao')}>
+              <Label htmlFor="descricao">{label('descricao', 'Descrição do Evento')}</Label>
+              <Textarea
+                id="descricao"
+                value={form.descricao ?? ''}
+                onChange={(e) => set('descricao', e.target.value)}
+                rows={3}
                 disabled={readOnly || isSubmitting}
-                className="flex-1"
               />
-              <Button
-                type="button"
-                variant="outline"
-                onClick={addTag}
-                disabled={!tagInput.trim() || readOnly || isSubmitting}
-              >
-                Adicionar
-              </Button>
             </div>
-            {(form.tags ?? []).length > 0 && (
-              <div className="flex flex-wrap gap-1.5 pt-1">
-                {(form.tags ?? []).map((tag) => (
-                  <Badge key={tag} variant="secondary" className="gap-1 pr-1">
-                    {tag}
-                    {!readOnly && (
-                      <button
-                        type="button"
-                        onClick={() => removeTag(tag)}
-                        className="ml-0.5 rounded-full hover:bg-muted-foreground/20 p-0.5"
-                      >
-                        <X className="h-2.5 w-2.5" />
-                      </button>
-                    )}
-                  </Badge>
-                ))}
-              </div>
-            )}
-          </div>
 
-          {/* Datas */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="inicioEvento">Início do Evento</Label>
+            <div className="space-y-2" {...fieldLayout('tags')}>
+              <Label>{label('tags', 'Tags')}</Label>
+              <div className="flex gap-2">
+                <Input
+                  value={tagInput}
+                  onChange={(e) => setTagInput(e.target.value)}
+                  onKeyDown={handleTagKeyDown}
+                  placeholder="Digite uma tag e pressione Enter"
+                  disabled={readOnly || isSubmitting}
+                  className="flex-1"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={addTag}
+                  disabled={!tagInput.trim() || readOnly || isSubmitting}
+                >
+                  Adicionar
+                </Button>
+              </div>
+              {(form.tags ?? []).length > 0 && (
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {(form.tags ?? []).map((tag) => (
+                    <Badge key={tag} variant="secondary" className="gap-1 pr-1">
+                      {tag}
+                      {!readOnly && (
+                        <button
+                          type="button"
+                          onClick={() => removeTag(tag)}
+                          className="ml-0.5 rounded-full hover:bg-muted-foreground/20 p-0.5"
+                        >
+                          <X className="h-2.5 w-2.5" />
+                        </button>
+                      )}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-2" {...fieldLayout('inicioEvento')}>
+              <Label htmlFor="inicioEvento">{label('inicioEvento', 'Início do Evento')}</Label>
               <Input
                 id="inicioEvento"
                 type="datetime-local"
@@ -446,8 +472,8 @@ L.marker([${form.latitude},${form.longitude}],{icon:redIcon}).addTo(map);
                 disabled={readOnly || isSubmitting}
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="fimEvento">Fim do Evento</Label>
+            <div className="space-y-2" {...fieldLayout('fimEvento')}>
+              <Label htmlFor="fimEvento">{label('fimEvento', 'Fim do Evento')}</Label>
               <Input
                 id="fimEvento"
                 type="datetime-local"
@@ -456,17 +482,19 @@ L.marker([${form.latitude},${form.longitude}],{icon:redIcon}).addTo(map);
                 disabled={readOnly || isSubmitting}
               />
             </div>
-          </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="publicoEstimado">Público Estimado</Label>
-            <Input
-              id="publicoEstimado"
-              value={form.publicoEstimado ?? ''}
-              onChange={(e) => set('publicoEstimado', e.target.value)}
-              disabled={readOnly || isSubmitting}
-            />
-          </div>
+            <div className="space-y-2" {...fieldLayout('publicoEstimado')}>
+              <Label htmlFor="publicoEstimado">
+                {label('publicoEstimado', 'Público Estimado')}
+              </Label>
+              <Input
+                id="publicoEstimado"
+                value={form.publicoEstimado ?? ''}
+                onChange={(e) => set('publicoEstimado', e.target.value)}
+                disabled={readOnly || isSubmitting}
+              />
+            </div>
+          </ConfigurableFieldGrid>
 
           {/* Dados de cadastro (somente leitura no modo edição) */}
           {isEditing && data && (
@@ -490,20 +518,20 @@ L.marker([${form.latitude},${form.longitude}],{icon:redIcon}).addTo(map);
 
         {/* ── Local & Mapa ── */}
         <TabsContent value="local" className="space-y-4 mt-4">
-          <div className="space-y-2">
-            <Label htmlFor="local">Local</Label>
-            <Input
-              id="local"
-              value={form.local ?? ''}
-              onChange={(e) => set('local', e.target.value)}
-              placeholder="Nome ou endereço do local"
-              disabled={readOnly || isSubmitting}
-            />
-          </div>
+          <ConfigurableFieldGrid>
+            <div className="space-y-2" {...fieldLayout('local')}>
+              <Label htmlFor="local">{label('local', 'Local')}</Label>
+              <Input
+                id="local"
+                value={form.local ?? ''}
+                onChange={(e) => set('local', e.target.value)}
+                placeholder="Nome ou endereço do local"
+                disabled={readOnly || isSubmitting}
+              />
+            </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="latitude">Latitude</Label>
+            <div className="space-y-2" {...fieldLayout('latitude')}>
+              <Label htmlFor="latitude">{label('latitude', 'Latitude')}</Label>
               <Input
                 id="latitude"
                 value={form.latitude ?? ''}
@@ -512,8 +540,8 @@ L.marker([${form.latitude},${form.longitude}],{icon:redIcon}).addTo(map);
                 disabled={readOnly || isSubmitting}
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="longitude">Longitude</Label>
+            <div className="space-y-2" {...fieldLayout('longitude')}>
+              <Label htmlFor="longitude">{label('longitude', 'Longitude')}</Label>
               <Input
                 id="longitude"
                 value={form.longitude ?? ''}
@@ -522,7 +550,7 @@ L.marker([${form.latitude},${form.longitude}],{icon:redIcon}).addTo(map);
                 disabled={readOnly || isSubmitting}
               />
             </div>
-          </div>
+          </ConfigurableFieldGrid>
 
           {/* Mapa */}
           <div className="space-y-2">

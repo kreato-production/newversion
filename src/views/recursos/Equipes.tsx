@@ -18,6 +18,7 @@ import { ListActionBar } from '@/components/shared/ListActionBar';
 import { useRecordList } from '@/hooks/useRecordNavigation';
 import { EQUIPES_ROUTES } from '@/modules/equipes/equipes.navigation';
 import { SortableTable, type Column } from '@/components/shared/SortableTable';
+import { useFormListStyle } from '@/hooks/useFormListStyle';
 import { Edit, Trash2, UsersRound, Loader2, Download, Upload } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { NewButton } from '@/components/shared/NewButton';
@@ -148,6 +149,7 @@ function EquipeDetailPanel({
 
 const Equipes = () => {
   const { toast } = useToast();
+  const { stripeColor } = useFormListStyle('equipe');
   const { t } = useLanguage();
   const importFileRef = useRef<HTMLInputElement>(null);
   const [isImporting, setIsImporting] = useState(false);
@@ -412,6 +414,7 @@ const Equipes = () => {
             />
           ) : (
             <SortableTable
+              stripeColor={stripeColor}
               data={filteredItems}
               columns={columns}
               getRowKey={(item) => item.id}

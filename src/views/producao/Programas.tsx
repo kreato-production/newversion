@@ -9,6 +9,7 @@ import { NewButton } from '@/components/shared/NewButton';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SortableTable, Column } from '@/components/shared/SortableTable';
+import { useFormListStyle } from '@/hooks/useFormListStyle';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useAuth } from '@/contexts/AuthContext';
@@ -189,6 +190,7 @@ function ProgramaDetailPanel({
 
 const Programas = () => {
   const { toast } = useToast();
+  const { stripeColor } = useFormListStyle('programa');
   const { t } = useLanguage();
   const { session } = useAuth();
   const { canIncluir, canAlterar, canExcluir } = usePermissions();
@@ -408,6 +410,7 @@ const Programas = () => {
             />
           ) : (
             <SortableTable
+              stripeColor={stripeColor}
               data={filteredItems}
               columns={columns}
               getRowKey={(item) => item.id}

@@ -20,6 +20,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SortableTable, type Column } from '@/components/shared/SortableTable';
+import { useFormListStyle } from '@/hooks/useFormListStyle';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useAuth } from '@/contexts/AuthContext';
@@ -243,6 +244,7 @@ function GravacaoDetailPanel({
 
 export const BackendGravacaoList = () => {
   const { toast } = useToast();
+  const { stripeColor } = useFormListStyle('gravacao');
   const { t } = useLanguage();
   const { user, session } = useAuth();
   const { canIncluir, canAlterar, canExcluir } = usePermissions();
@@ -530,6 +532,7 @@ export const BackendGravacaoList = () => {
             />
           ) : (
             <SortableTable
+              stripeColor={stripeColor}
               data={filteredItems}
               columns={columns}
               getRowKey={(item) => item.id}

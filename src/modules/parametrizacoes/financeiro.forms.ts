@@ -39,6 +39,7 @@ function toTituloInput(values: TituloFormValues) {
 }
 
 export const STATUS_CONTAS_PAGAR_FORM: TituloFormConfig = {
+  formularioId: 'statusContaPagar',
   routes: routes('/financeiro/status-contas-pagar', 'status_contas_pagar'),
   newTitle: 'Novo Status',
   editTitle: 'Editar Status',
@@ -84,6 +85,7 @@ export const STATUS_CONTAS_PAGAR_FORM: TituloFormConfig = {
 };
 
 export const FORMAS_PAGAMENTO_FORM: TituloFormConfig = {
+  formularioId: 'formaPagamento',
   routes: routes('/financeiro/formas-pagamento', 'formas_pagamento'),
   newTitle: 'Nova Forma de Pagamento',
   editTitle: 'Editar Forma de Pagamento',
@@ -126,6 +128,7 @@ export const FORMAS_PAGAMENTO_FORM: TituloFormConfig = {
 };
 
 export const TIPOS_DOCUMENTOS_FORM: TituloFormConfig = {
+  formularioId: 'tipoDocumento',
   routes: routes('/financeiro/tipos-documentos', 'tipos_documentos_financeiro'),
   newTitle: 'Novo Tipo de Documento',
   editTitle: 'Editar Tipo de Documento',
@@ -141,6 +144,7 @@ export const TIPOS_DOCUMENTOS_FORM: TituloFormConfig = {
 };
 
 export const TIPOS_PAGAMENTO_FORM: TituloFormConfig = {
+  formularioId: 'tipoPagamento',
   routes: routes('/financeiro/tipos-pagamento', 'tipos_pagamento'),
   newTitle: 'Novo Tipo de Pagamento',
   editTitle: 'Editar Tipo de Pagamento',
@@ -156,6 +160,7 @@ export const TIPOS_PAGAMENTO_FORM: TituloFormConfig = {
 };
 
 export const CATEGORIAS_DESPESA_FORM: TituloFormConfig = {
+  formularioId: 'categoriaDespesa',
   routes: routes('/financeiro/categorias-despesa', 'categorias_despesa'),
   newTitle: 'Nova Categoria de Despesa',
   editTitle: 'Editar Categoria de Despesa',

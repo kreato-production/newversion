@@ -9,7 +9,11 @@ import { Loader2, Upload, Trash2, Download } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useToast } from '@/hooks/use-toast';
-import { useFormFieldConfig, FieldAsterisk } from '@/hooks/useFormFieldConfig';
+import {
+  useFormFieldConfig,
+  FieldAsterisk,
+  ConfigurableFieldGrid,
+} from '@/hooks/useFormFieldConfig';
 import {
   ApiIncidenciasGravacaoRepository,
   type IncidenciaAnexoApiItem,
@@ -82,7 +86,7 @@ export const IncidenciaGravacaoFormBody = ({
   const { user } = useAuth();
   const { t } = useLanguage();
   const { toast } = useToast();
-  const { getAsterisk, validateRequired, showValidationError } =
+  const { getAsterisk, validateRequired, showValidationError, fieldLabel, fieldLayout } =
     useFormFieldConfig('incidenciaGravacao');
 
   const fieldKeyMap: Record<string, string> = {
@@ -313,10 +317,11 @@ export const IncidenciaGravacaoFormBody = ({
         </TabsList>
 
         <TabsContent value="dados" className="space-y-4 mt-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
+          <ConfigurableFieldGrid>
+            <div className="space-y-1.5" {...fieldLayout('codigoExterno')}>
               <Label>
-                {t('common.externalCode')} <FieldAsterisk type={getAsterisk('codigoExterno')} />
+                {fieldLabel('codigoExterno', t('common.externalCode'))}{' '}
+                <FieldAsterisk type={getAsterisk('codigoExterno')} />
               </Label>
               <Input
                 maxLength={10}
@@ -325,9 +330,10 @@ export const IncidenciaGravacaoFormBody = ({
                 disabled={readOnly}
               />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-1.5" {...fieldLayout('titulo')}>
               <Label>
-                {t('incident.title')} <FieldAsterisk type={getAsterisk('titulo')} />
+                {fieldLabel('titulo', t('incident.title'))}{' '}
+                <FieldAsterisk type={getAsterisk('titulo')} />
               </Label>
               <Input
                 value={form.titulo}
@@ -335,12 +341,11 @@ export const IncidenciaGravacaoFormBody = ({
                 disabled={readOnly}
               />
             </div>
-          </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
+            <div className="space-y-1.5" {...fieldLayout('gravacaoId')}>
               <Label>
-                {t('incident.recording')} <FieldAsterisk type={getAsterisk('gravacaoId')} />
+                {fieldLabel('gravacaoId', t('incident.recording'))}{' '}
+                <FieldAsterisk type={getAsterisk('gravacaoId')} />
               </Label>
               <SearchableSelect
                 options={gravacoes.map((g) => ({
@@ -354,9 +359,9 @@ export const IncidenciaGravacaoFormBody = ({
                 searchPlaceholder="Pesquisar gravação..."
               />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-1.5" {...fieldLayout('recursoFisicoId')}>
               <Label>
-                {t('incident.physicalResource')}{' '}
+                {fieldLabel('recursoFisicoId', t('incident.physicalResource'))}{' '}
                 <FieldAsterisk type={getAsterisk('recursoFisicoId')} />
               </Label>
               <SearchableSelect
@@ -368,12 +373,11 @@ export const IncidenciaGravacaoFormBody = ({
                 searchPlaceholder="Pesquisar recurso físico..."
               />
             </div>
-          </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
+            <div className="space-y-1.5" {...fieldLayout('severidadeId')}>
               <Label>
-                {t('incident.severity')} <FieldAsterisk type={getAsterisk('severidadeId')} />
+                {fieldLabel('severidadeId', t('incident.severity'))}{' '}
+                <FieldAsterisk type={getAsterisk('severidadeId')} />
               </Label>
               <SearchableSelect
                 options={severidades.map((s) => ({ value: s.id, label: s.titulo ?? '' }))}
@@ -384,9 +388,10 @@ export const IncidenciaGravacaoFormBody = ({
                 searchPlaceholder="Pesquisar severidade..."
               />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-1.5" {...fieldLayout('impactoId')}>
               <Label>
-                {t('incident.impact')} <FieldAsterisk type={getAsterisk('impactoId')} />
+                {fieldLabel('impactoId', t('incident.impact'))}{' '}
+                <FieldAsterisk type={getAsterisk('impactoId')} />
               </Label>
               <SearchableSelect
                 options={impactos.map((i) => ({ value: i.id, label: i.titulo ?? '' }))}
@@ -397,12 +402,11 @@ export const IncidenciaGravacaoFormBody = ({
                 searchPlaceholder="Pesquisar impacto..."
               />
             </div>
-          </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
+            <div className="space-y-1.5" {...fieldLayout('categoriaId')}>
               <Label>
-                {t('incident.category')} <FieldAsterisk type={getAsterisk('categoriaId')} />
+                {fieldLabel('categoriaId', t('incident.category'))}{' '}
+                <FieldAsterisk type={getAsterisk('categoriaId')} />
               </Label>
               <SearchableSelect
                 options={categorias.map((c) => ({ value: c.id, label: c.titulo ?? '' }))}
@@ -413,9 +417,9 @@ export const IncidenciaGravacaoFormBody = ({
                 searchPlaceholder="Pesquisar categoria..."
               />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-1.5" {...fieldLayout('classificacaoId')}>
               <Label>
-                {t('incident.classification')}{' '}
+                {fieldLabel('classificacaoId', t('incident.classification'))}{' '}
                 <FieldAsterisk type={getAsterisk('classificacaoId')} />
               </Label>
               <SearchableSelect
@@ -429,12 +433,11 @@ export const IncidenciaGravacaoFormBody = ({
                 searchPlaceholder="Pesquisar classificação..."
               />
             </div>
-          </div>
 
-          <div className="grid grid-cols-3 gap-4">
-            <div className="space-y-2">
+            <div className="space-y-1.5" {...fieldLayout('dataIncidencia')}>
               <Label>
-                {t('incident.date')} <FieldAsterisk type={getAsterisk('dataIncidencia')} />
+                {fieldLabel('dataIncidencia', t('incident.date'))}{' '}
+                <FieldAsterisk type={getAsterisk('dataIncidencia')} />
               </Label>
               <Input
                 type="date"
@@ -443,9 +446,10 @@ export const IncidenciaGravacaoFormBody = ({
                 disabled={readOnly}
               />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-1.5" {...fieldLayout('horarioIncidencia')}>
               <Label>
-                {t('incident.time')} <FieldAsterisk type={getAsterisk('horarioIncidencia')} />
+                {fieldLabel('horarioIncidencia', t('incident.time'))}{' '}
+                <FieldAsterisk type={getAsterisk('horarioIncidencia')} />
               </Label>
               <Input
                 type="time"
@@ -454,9 +458,10 @@ export const IncidenciaGravacaoFormBody = ({
                 disabled={readOnly}
               />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-1.5" {...fieldLayout('tempoIncidencia')}>
               <Label>
-                {t('incident.duration')} <FieldAsterisk type={getAsterisk('tempoIncidencia')} />
+                {fieldLabel('tempoIncidencia', t('incident.duration'))}{' '}
+                <FieldAsterisk type={getAsterisk('tempoIncidencia')} />
               </Label>
               <Input
                 type="time"
@@ -466,31 +471,33 @@ export const IncidenciaGravacaoFormBody = ({
                 placeholder="HH:MM"
               />
             </div>
-          </div>
 
-          <div className="space-y-2">
-            <Label>
-              {t('common.description')} <FieldAsterisk type={getAsterisk('descricao')} />
-            </Label>
-            <Textarea
-              rows={3}
-              value={form.descricao}
-              onChange={(e) => setForm({ ...form, descricao: e.target.value })}
-              disabled={readOnly}
-            />
-          </div>
+            <div className="space-y-1.5" {...fieldLayout('descricao')}>
+              <Label>
+                {fieldLabel('descricao', t('common.description'))}{' '}
+                <FieldAsterisk type={getAsterisk('descricao')} />
+              </Label>
+              <Textarea
+                rows={3}
+                value={form.descricao}
+                onChange={(e) => setForm({ ...form, descricao: e.target.value })}
+                disabled={readOnly}
+              />
+            </div>
 
-          <div className="space-y-2">
-            <Label>
-              {t('incident.probableCause')} <FieldAsterisk type={getAsterisk('causaProvavel')} />
-            </Label>
-            <Textarea
-              rows={3}
-              value={form.causa_provavel}
-              onChange={(e) => setForm({ ...form, causa_provavel: e.target.value })}
-              disabled={readOnly}
-            />
-          </div>
+            <div className="space-y-1.5" {...fieldLayout('causaProvavel')}>
+              <Label>
+                {fieldLabel('causaProvavel', t('incident.probableCause'))}{' '}
+                <FieldAsterisk type={getAsterisk('causaProvavel')} />
+              </Label>
+              <Textarea
+                rows={3}
+                value={form.causa_provavel}
+                onChange={(e) => setForm({ ...form, causa_provavel: e.target.value })}
+                disabled={readOnly}
+              />
+            </div>
+          </ConfigurableFieldGrid>
 
           <div className="space-y-2">
             <Label>{t('common.user')}</Label>

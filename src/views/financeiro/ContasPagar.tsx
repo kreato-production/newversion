@@ -42,6 +42,7 @@ import {
   sortSubtitle,
   dateRangeSubtitle,
 } from '@/components/shared/ListFilter';
+import { useFormListStyle } from '@/hooks/useFormListStyle';
 
 const repository = new ApiContasPagarRepository();
 
@@ -272,6 +273,7 @@ function ContaPagarDetailPanel({
 // â”€â”€â”€ Main component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const ContasPagar = () => {
+  const { stripeColor } = useFormListStyle('contaPagar');
   const { toast } = useToast();
   const [search, setSearch] = useState('');
   const { openNew, openRecord } = useRecordList(CONTAS_PAGAR_ROUTES);
@@ -577,6 +579,7 @@ const ContasPagar = () => {
             />
           ) : (
             <SortableTable
+              stripeColor={stripeColor}
               data={filteredItems}
               columns={columns}
               getRowKey={(item) => item.id}

@@ -36,6 +36,7 @@ import {
   MasterDetail,
   type ColumnConfig,
 } from '@/components/listing';
+import { useFormListStyle } from '@/hooks/useFormListStyle';
 
 type Departamento = DepartamentoApiItem;
 
@@ -175,6 +176,7 @@ function DepartamentoDetailPanel({
 // ─── Main component ───────────────────────────────────────────────────────────
 
 const Departamentos = () => {
+  const { stripeColor } = useFormListStyle('departamento');
   const { toast } = useToast();
   const { t } = useLanguage();
   const { canIncluir, canAlterar, canExcluir } = usePermissions();
@@ -473,6 +475,7 @@ const Departamentos = () => {
             />
           ) : (
             <SortableTable
+              stripeColor={stripeColor}
               data={filteredItems}
               columns={columns}
               getRowKey={(item) => item.id}

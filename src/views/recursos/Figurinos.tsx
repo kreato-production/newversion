@@ -18,6 +18,7 @@ import { Separator } from '@/components/ui/separator';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
 import { ListActionBar } from '@/components/shared/ListActionBar';
 import { SortableTable, type Column } from '@/components/shared/SortableTable';
+import { useFormListStyle } from '@/hooks/useFormListStyle';
 import { useRecordList } from '@/hooks/useRecordNavigation';
 import { FIGURINOS_ROUTES } from '@/modules/figurinos/figurinos.navigation';
 import { useToast } from '@/hooks/use-toast';
@@ -235,6 +236,7 @@ function FigurinoDetailPanel({
 
 const Figurinos = () => {
   const [search, setSearch] = useState('');
+  const { stripeColor } = useFormListStyle('figurino');
   const { openNew, openRecord } = useRecordList(FIGURINOS_ROUTES);
   // Keeps the filtered order so the form page can navigate previous/next.
   const openEdit = (item: { id: string }) =>
@@ -307,10 +309,10 @@ const Figurinos = () => {
       render: (figurino) => {
         const imgUrl = getImagemPrincipal(figurino);
         return imgUrl ? (
-          <img src={imgUrl} alt={figurino.descricao} className="w-12 h-12 rounded object-cover" />
+          <img src={imgUrl} alt={figurino.descricao} className="w-6 h-6 rounded object-cover" />
         ) : (
-          <div className="w-12 h-12 rounded bg-muted flex items-center justify-center">
-            <ImageIcon className="w-6 h-6 text-muted-foreground" />
+          <div className="w-6 h-6 rounded bg-muted flex items-center justify-center">
+            <ImageIcon className="w-3.5 h-3.5 text-muted-foreground" />
           </div>
         );
       },
@@ -410,6 +412,7 @@ const Figurinos = () => {
             />
           ) : (
             <SortableTable
+              stripeColor={stripeColor}
               columns={columns}
               data={filteredItems}
               getRowKey={(item) => item.id}

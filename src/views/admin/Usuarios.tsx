@@ -42,6 +42,7 @@ import {
   chipsSubtitle,
   sortSubtitle,
 } from '@/components/shared/ListFilter';
+import { useFormListStyle } from '@/hooks/useFormListStyle';
 
 export interface Usuario {
   id: string;
@@ -215,6 +216,7 @@ function UsuarioDetailPanel({
 // ─── Main component ───────────────────────────────────────────────────────────
 
 const Usuarios = () => {
+  const { stripeColor } = useFormListStyle('usuario');
   const { toast } = useToast();
   const { session } = useAuth();
   const [search, setSearch] = useState('');
@@ -342,9 +344,9 @@ const Usuarios = () => {
       className: 'w-16',
       sortable: false,
       render: (item) => (
-        <Avatar className="h-9 w-9">
+        <Avatar className="h-6 w-6">
           <AvatarImage src={item.foto || undefined} alt={item.nome} />
-          <AvatarFallback className="text-xs bg-muted">
+          <AvatarFallback className="text-[10px] bg-muted">
             {getInitials(item.nome || '??')}
           </AvatarFallback>
         </Avatar>
@@ -494,6 +496,7 @@ const Usuarios = () => {
             />
           ) : (
             <SortableTable
+              stripeColor={stripeColor}
               data={filteredItems}
               columns={columns}
               getRowKey={(item) => item.id}

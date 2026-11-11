@@ -12,6 +12,11 @@ import { PessoaGravacoesTab } from '@/components/recursos/PessoaGravacoesTab';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { usePermissions } from '@/hooks/usePermissions';
+import {
+  ConfigurableFieldGrid,
+  FieldAsterisk,
+  useFormFieldConfig,
+} from '@/hooks/useFormFieldConfig';
 import { useRecordForm } from '@/hooks/useRecordForm';
 import { useRecordNavigation } from '@/hooks/useRecordNavigation';
 import { getCountryOptions, getLanguageOptions, withCurrentValue } from '@/lib/locale-options';
@@ -114,6 +119,7 @@ const PessoaForm = ({ pessoaId }: PessoaFormProps) => {
   const { user } = useAuth();
   const { canIncluir, canAlterar } = usePermissions();
   const { goBack, navigation } = useRecordNavigation(PESSOAS_ROUTES, pessoaId);
+  const { fieldLayout, getAsterisk, validate, fieldLabel } = useFormFieldConfig('pessoa');
 
   const readOnly = pessoaId
     ? !canAlterar('Recursos', 'Pessoas')
@@ -136,6 +142,28 @@ const PessoaForm = ({ pessoaId }: PessoaFormProps) => {
     toInput: toFormData,
     save: (input) => pessoasRepository.save({ ...input, tenantId: user?.tenantId ?? null }),
     onSaved: goBack,
+    validate: (input) =>
+      validate({
+        codigoExterno: input.codigoExterno,
+        classificacao: input.classificacaoId || input.classificacao,
+        nome: input.nome,
+        sobrenome: input.sobrenome,
+        nomeTrabalho: input.nomeTrabalho,
+        dataNascimento: input.dataNascimento,
+        sexo: input.sexo,
+        documento: input.documento,
+        paisNascimento: input.paisNascimento,
+        idiomaNativo: input.idiomaNativo,
+        email: input.email,
+        telefone: input.telefone,
+        endereco: input.endereco,
+        cidade: input.cidade,
+        estado: input.estado,
+        cep: input.cep,
+        observacoes: input.observacoes,
+        tags: input.tags,
+        status: input.status,
+      }),
     readOnly,
     messages: { created: 'Pessoa cadastrada!', updated: 'Pessoa atualizada!' },
   });
@@ -235,156 +263,185 @@ const PessoaForm = ({ pessoaId }: PessoaFormProps) => {
                 </div>
               </div>
 
-              <div className="flex-1 space-y-6">
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="codigoExterno">Código Externo</Label>
-                    <Input
-                      id="codigoExterno"
-                      value={formData.codigoExterno}
-                      disabled={readOnly}
-                      onChange={(event) => update('codigoExterno', event.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="classificacao">Classificação</Label>
-                    <SearchableSelect
-                      options={classificacoes.map((item) => ({ value: item.id, label: item.nome }))}
-                      value={formData.classificacaoId || ''}
-                      onValueChange={(value) => {
-                        const selected = classificacoes.find((item) => item.id === value);
-                        setFormData((current) => ({
-                          ...current,
-                          classificacaoId: value,
-                          classificacao: selected?.nome || '',
-                        }));
-                      }}
-                      placeholder="Selecione a classificação"
-                      searchPlaceholder="Pesquisar classificação..."
-                      disabled={readOnly}
-                    />
-                  </div>
+              <ConfigurableFieldGrid className="flex-1 content-start">
+                <div className="space-y-1.5" {...fieldLayout('codigoExterno')}>
+                  <Label htmlFor="codigoExterno">
+                    {fieldLabel('codigoExterno', 'Código Externo')}
+                    <FieldAsterisk type={getAsterisk('codigoExterno')} />
+                  </Label>
+                  <Input
+                    id="codigoExterno"
+                    value={formData.codigoExterno}
+                    disabled={readOnly}
+                    onChange={(event) => update('codigoExterno', event.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5" {...fieldLayout('classificacao')}>
+                  <Label htmlFor="classificacao">
+                    {fieldLabel('classificacao', 'Classificação')}
+                    <FieldAsterisk type={getAsterisk('classificacao')} />
+                  </Label>
+                  <SearchableSelect
+                    options={classificacoes.map((item) => ({ value: item.id, label: item.nome }))}
+                    value={formData.classificacaoId || ''}
+                    onValueChange={(value) => {
+                      const selected = classificacoes.find((item) => item.id === value);
+                      setFormData((current) => ({
+                        ...current,
+                        classificacaoId: value,
+                        classificacao: selected?.nome || '',
+                      }));
+                    }}
+                    placeholder="Selecione a classificação"
+                    searchPlaceholder="Pesquisar classificação..."
+                    disabled={readOnly}
+                  />
                 </div>
 
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                  <div className="space-y-2">
-                    <Label htmlFor="nome">Nome</Label>
-                    <Input
-                      id="nome"
-                      value={formData.nome}
-                      required
-                      disabled={readOnly}
-                      onChange={(event) => update('nome', event.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="sobrenome">Sobrenome</Label>
-                    <Input
-                      id="sobrenome"
-                      value={formData.sobrenome}
-                      required
-                      disabled={readOnly}
-                      onChange={(event) => update('sobrenome', event.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="nomeTrabalho">Nome de Trabalho</Label>
-                    <Input
-                      id="nomeTrabalho"
-                      value={formData.nomeTrabalho}
-                      disabled={readOnly}
-                      placeholder="Nome artístico ou de trabalho"
-                      onChange={(event) => update('nomeTrabalho', event.target.value)}
-                    />
-                  </div>
+                <div className="space-y-1.5" {...fieldLayout('nome')}>
+                  <Label htmlFor="nome">
+                    {fieldLabel('nome', 'Nome')}
+                    <FieldAsterisk type={getAsterisk('nome', true)} />
+                  </Label>
+                  <Input
+                    id="nome"
+                    value={formData.nome}
+                    required
+                    disabled={readOnly}
+                    onChange={(event) => update('nome', event.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5" {...fieldLayout('sobrenome')}>
+                  <Label htmlFor="sobrenome">
+                    {fieldLabel('sobrenome', 'Sobrenome')}
+                    <FieldAsterisk type={getAsterisk('sobrenome', true)} />
+                  </Label>
+                  <Input
+                    id="sobrenome"
+                    value={formData.sobrenome}
+                    required
+                    disabled={readOnly}
+                    onChange={(event) => update('sobrenome', event.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5" {...fieldLayout('nomeTrabalho')}>
+                  <Label htmlFor="nomeTrabalho">
+                    {fieldLabel('nomeTrabalho', 'Nome de Trabalho')}
+                    <FieldAsterisk type={getAsterisk('nomeTrabalho')} />
+                  </Label>
+                  <Input
+                    id="nomeTrabalho"
+                    value={formData.nomeTrabalho}
+                    disabled={readOnly}
+                    placeholder="Nome artístico ou de trabalho"
+                    onChange={(event) => update('nomeTrabalho', event.target.value)}
+                  />
                 </div>
 
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                  <div className="space-y-2">
-                    <Label htmlFor="dataNascimento">Data de Nascimento</Label>
-                    <Input
-                      id="dataNascimento"
-                      type="date"
-                      value={formData.dataNascimento}
-                      disabled={readOnly}
-                      onChange={(event) => update('dataNascimento', event.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="sexo">Sexo</Label>
-                    <SearchableSelect
-                      options={[
-                        { value: 'Masculino', label: 'Masculino' },
-                        { value: 'Feminino', label: 'Feminino' },
-                        { value: 'Outro', label: 'Outro' },
-                      ]}
-                      value={formData.sexo}
-                      onValueChange={(value) => update('sexo', value)}
-                      placeholder="Selecione"
-                      searchPlaceholder="Pesquisar..."
-                      disabled={readOnly}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="documento">CPF/Documento</Label>
-                    <Input
-                      id="documento"
-                      value={formData.documento}
-                      disabled={readOnly}
-                      onChange={(event) => update('documento', event.target.value)}
-                    />
-                  </div>
+                <div className="space-y-1.5" {...fieldLayout('dataNascimento')}>
+                  <Label htmlFor="dataNascimento">
+                    {fieldLabel('dataNascimento', 'Data de Nascimento')}
+                    <FieldAsterisk type={getAsterisk('dataNascimento')} />
+                  </Label>
+                  <Input
+                    id="dataNascimento"
+                    type="date"
+                    value={formData.dataNascimento}
+                    disabled={readOnly}
+                    onChange={(event) => update('dataNascimento', event.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5" {...fieldLayout('sexo')}>
+                  <Label htmlFor="sexo">
+                    {fieldLabel('sexo', 'Sexo')}
+                    <FieldAsterisk type={getAsterisk('sexo')} />
+                  </Label>
+                  <SearchableSelect
+                    options={[
+                      { value: 'Masculino', label: 'Masculino' },
+                      { value: 'Feminino', label: 'Feminino' },
+                      { value: 'Outro', label: 'Outro' },
+                    ]}
+                    value={formData.sexo}
+                    onValueChange={(value) => update('sexo', value)}
+                    placeholder="Selecione"
+                    searchPlaceholder="Pesquisar..."
+                    disabled={readOnly}
+                  />
+                </div>
+                <div className="space-y-1.5" {...fieldLayout('documento')}>
+                  <Label htmlFor="documento">
+                    {fieldLabel('documento', 'CPF/Documento')}
+                    <FieldAsterisk type={getAsterisk('documento')} />
+                  </Label>
+                  <Input
+                    id="documento"
+                    value={formData.documento}
+                    disabled={readOnly}
+                    onChange={(event) => update('documento', event.target.value)}
+                  />
                 </div>
 
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="paisNascimento">País de Nascimento</Label>
-                    <SearchableSelect
-                      options={paisOptions}
-                      value={formData.paisNascimento}
-                      onValueChange={(value) => update('paisNascimento', value)}
-                      placeholder="Selecione o país"
-                      searchPlaceholder="Pesquisar país..."
-                      disabled={readOnly}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="idiomaNativo">Idioma Nativo</Label>
-                    <SearchableSelect
-                      options={idiomaOptions}
-                      value={formData.idiomaNativo}
-                      onValueChange={(value) => update('idiomaNativo', value)}
-                      placeholder="Selecione o idioma"
-                      searchPlaceholder="Pesquisar idioma..."
-                      disabled={readOnly}
-                    />
-                  </div>
+                <div className="space-y-1.5" {...fieldLayout('paisNascimento')}>
+                  <Label htmlFor="paisNascimento">
+                    {fieldLabel('paisNascimento', 'País de Nascimento')}
+                    <FieldAsterisk type={getAsterisk('paisNascimento')} />
+                  </Label>
+                  <SearchableSelect
+                    options={paisOptions}
+                    value={formData.paisNascimento}
+                    onValueChange={(value) => update('paisNascimento', value)}
+                    placeholder="Selecione o país"
+                    searchPlaceholder="Pesquisar país..."
+                    disabled={readOnly}
+                  />
+                </div>
+                <div className="space-y-1.5" {...fieldLayout('idiomaNativo')}>
+                  <Label htmlFor="idiomaNativo">
+                    {fieldLabel('idiomaNativo', 'Idioma Nativo')}
+                    <FieldAsterisk type={getAsterisk('idiomaNativo')} />
+                  </Label>
+                  <SearchableSelect
+                    options={idiomaOptions}
+                    value={formData.idiomaNativo}
+                    onValueChange={(value) => update('idiomaNativo', value)}
+                    placeholder="Selecione o idioma"
+                    searchPlaceholder="Pesquisar idioma..."
+                    disabled={readOnly}
+                  />
                 </div>
 
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="email">E-mail</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      value={formData.email}
-                      disabled={readOnly}
-                      onChange={(event) => update('email', event.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="telefone">Telefone</Label>
-                    <Input
-                      id="telefone"
-                      value={formData.telefone}
-                      disabled={readOnly}
-                      onChange={(event) => update('telefone', event.target.value)}
-                    />
-                  </div>
+                <div className="space-y-1.5" {...fieldLayout('email')}>
+                  <Label htmlFor="email">
+                    {fieldLabel('email', 'E-mail')}
+                    <FieldAsterisk type={getAsterisk('email')} />
+                  </Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={formData.email}
+                    disabled={readOnly}
+                    onChange={(event) => update('email', event.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5" {...fieldLayout('telefone')}>
+                  <Label htmlFor="telefone">
+                    {fieldLabel('telefone', 'Telefone')}
+                    <FieldAsterisk type={getAsterisk('telefone')} />
+                  </Label>
+                  <Input
+                    id="telefone"
+                    value={formData.telefone}
+                    disabled={readOnly}
+                    onChange={(event) => update('telefone', event.target.value)}
+                  />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="endereco">Endereço</Label>
+                <div className="space-y-1.5" {...fieldLayout('endereco')}>
+                  <Label htmlFor="endereco">
+                    {fieldLabel('endereco', 'Endereço')}
+                    <FieldAsterisk type={getAsterisk('endereco')} />
+                  </Label>
                   <Input
                     id="endereco"
                     value={formData.endereco}
@@ -393,56 +450,67 @@ const PessoaForm = ({ pessoaId }: PessoaFormProps) => {
                   />
                 </div>
 
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-                  <div className="space-y-2 md:col-span-2">
-                    <Label htmlFor="cidade">Cidade</Label>
-                    <Input
-                      id="cidade"
-                      value={formData.cidade}
-                      disabled={readOnly}
-                      onChange={(event) => update('cidade', event.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="estado">Estado</Label>
-                    <SearchableSelect
-                      options={estadoOptions}
-                      value={formData.estado}
-                      onValueChange={(value) => update('estado', value)}
-                      placeholder="Selecione"
-                      searchPlaceholder="Pesquisar estado..."
-                      disabled={readOnly}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="cep">CEP</Label>
-                    <Input
-                      id="cep"
-                      value={formData.cep}
-                      disabled={readOnly}
-                      onChange={(event) => update('cep', event.target.value)}
-                    />
-                  </div>
+                <div className="space-y-1.5" {...fieldLayout('cidade')}>
+                  <Label htmlFor="cidade">
+                    {fieldLabel('cidade', 'Cidade')}
+                    <FieldAsterisk type={getAsterisk('cidade')} />
+                  </Label>
+                  <Input
+                    id="cidade"
+                    value={formData.cidade}
+                    disabled={readOnly}
+                    onChange={(event) => update('cidade', event.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5" {...fieldLayout('estado')}>
+                  <Label htmlFor="estado">
+                    {fieldLabel('estado', 'Estado')}
+                    <FieldAsterisk type={getAsterisk('estado')} />
+                  </Label>
+                  <SearchableSelect
+                    options={estadoOptions}
+                    value={formData.estado}
+                    onValueChange={(value) => update('estado', value)}
+                    placeholder="Selecione"
+                    searchPlaceholder="Pesquisar estado..."
+                    disabled={readOnly}
+                  />
+                </div>
+                <div className="space-y-1.5" {...fieldLayout('cep')}>
+                  <Label htmlFor="cep">
+                    {fieldLabel('cep', 'CEP')}
+                    <FieldAsterisk type={getAsterisk('cep')} />
+                  </Label>
+                  <Input
+                    id="cep"
+                    value={formData.cep}
+                    disabled={readOnly}
+                    onChange={(event) => update('cep', event.target.value)}
+                  />
                 </div>
 
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="status">Status</Label>
-                    <SearchableSelect
-                      options={[
-                        { value: 'Ativo', label: 'Ativo' },
-                        { value: 'Inativo', label: 'Inativo' },
-                      ]}
-                      value={formData.status}
-                      onValueChange={(value) => update('status', value as 'Ativo' | 'Inativo')}
-                      placeholder="Selecione"
-                      disabled={readOnly}
-                    />
-                  </div>
+                <div className="space-y-1.5" {...fieldLayout('status')}>
+                  <Label htmlFor="status">
+                    {fieldLabel('status', 'Status')}
+                    <FieldAsterisk type={getAsterisk('status')} />
+                  </Label>
+                  <SearchableSelect
+                    options={[
+                      { value: 'Ativo', label: 'Ativo' },
+                      { value: 'Inativo', label: 'Inativo' },
+                    ]}
+                    value={formData.status}
+                    onValueChange={(value) => update('status', value as 'Ativo' | 'Inativo')}
+                    placeholder="Selecione"
+                    disabled={readOnly}
+                  />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="tags">Tags</Label>
+                <div className="space-y-1.5" {...fieldLayout('tags')}>
+                  <Label htmlFor="tags">
+                    {fieldLabel('tags', 'Tags')}
+                    <FieldAsterisk type={getAsterisk('tags')} />
+                  </Label>
                   <TagInput
                     id="tags"
                     value={formData.tags}
@@ -453,8 +521,11 @@ const PessoaForm = ({ pessoaId }: PessoaFormProps) => {
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="observacoes">Observações</Label>
+                <div className="space-y-1.5" {...fieldLayout('observacoes')}>
+                  <Label htmlFor="observacoes">
+                    {fieldLabel('observacoes', 'Observações')}
+                    <FieldAsterisk type={getAsterisk('observacoes')} />
+                  </Label>
                   <Textarea
                     id="observacoes"
                     rows={4}
@@ -463,7 +534,7 @@ const PessoaForm = ({ pessoaId }: PessoaFormProps) => {
                     onChange={(event) => update('observacoes', event.target.value)}
                   />
                 </div>
-              </div>
+              </ConfigurableFieldGrid>
             </div>
           </form>
         </TabsContent>

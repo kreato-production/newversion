@@ -27,6 +27,8 @@ export interface FormPageProps {
   createLabel?: string;
   /** Extra actions rendered before the navigation (e.g. export, duplicate). */
   actions?: ReactNode;
+  /** Hides the Save button, for pages that save through their own action (e.g. Publicar). */
+  hideSubmit?: boolean;
   children: ReactNode;
 }
 
@@ -49,6 +51,7 @@ export const FormPage = ({
   navigation,
   createLabel = 'Cadastrar',
   actions,
+  hideSubmit = false,
   children,
 }: FormPageProps) => {
   const { t } = useLanguage();
@@ -66,9 +69,9 @@ export const FormPage = ({
           {actions}
           {navigation && <ModalNavigation {...navigation} />}
           <Button type="button" variant="outline" size="sm" onClick={onBack}>
-            {readOnly ? 'Fechar' : t('common.cancel')}
+            {readOnly || hideSubmit ? 'Fechar' : t('common.cancel')}
           </Button>
-          {!readOnly && (
+          {!readOnly && !hideSubmit && (
             <Button
               type="submit"
               form={formId}
@@ -87,7 +90,7 @@ export const FormPage = ({
       </ListActionBar>
 
       <Card>
-        <CardContent className="p-6">
+        <CardContent className="form-page-content p-6">
           {isLoading ? (
             <div
               className="flex items-center justify-center py-12"

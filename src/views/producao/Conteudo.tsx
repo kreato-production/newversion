@@ -11,6 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useRecordList } from '@/hooks/useRecordNavigation';
 import { CONTEUDOS_ROUTES } from '@/modules/conteudos/conteudos.navigation';
 import { SortableTable, type Column } from '@/components/shared/SortableTable';
+import { useFormListStyle } from '@/hooks/useFormListStyle';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -196,6 +197,7 @@ function ConteudoDetailPanel({
 
 const Conteudo = () => {
   const { toast } = useToast();
+  const { stripeColor } = useFormListStyle('conteudo');
   const { t } = useLanguage();
   const { session } = useAuth();
   const { canIncluir, canAlterar, canExcluir } = usePermissions();
@@ -448,6 +450,7 @@ const Conteudo = () => {
             />
           ) : (
             <SortableTable
+              stripeColor={stripeColor}
               data={filteredItems}
               columns={columns}
               getRowKey={(item) => item.id}
