@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import type { SessionUser } from '../auth/auth.types.js';
 import { ensureSameTenant, resolveTenantId } from '../common/access.js';
-import type { RecursosTecnicosRepository } from './recursos-tecnicos.repository.js';
+import type { RecursoTecnicoRecord, RecursosTecnicosRepository } from './recursos-tecnicos.repository.js';
 
 const optionalUuid = z.preprocess(
   (value) => (value === '' || value === undefined ? null : value),
@@ -18,6 +18,18 @@ export const saveRecursoTecnicoSchema = z.object({
 
 export type SaveRecursoTecnicoDto = z.infer<typeof saveRecursoTecnicoSchema>;
 
+function toRecursoTecnicoDto(item: RecursoTecnicoRecord) {
+  return {
+    id: item.id,
+    codigoExterno: item.codigoExterno || '',
+    nome: item.nome,
+    funcaoOperador: item.funcaoOperadorNome || '',
+    funcaoOperadorId: item.funcaoOperadorId || '',
+    dataCadastro: item.createdAt?.toISOString() || '',
+    usuarioCadastro: item.createdByNome || '',
+  };
+}
+
 export class RecursosTecnicosService {
   constructor(private readonly repository: RecursosTecnicosRepository) {}
 
@@ -27,15 +39,7 @@ export class RecursosTecnicosService {
 
     return {
       total,
-      data: data.map((item) => ({
-        id: item.id,
-        codigoExterno: item.codigoExterno || '',
-        nome: item.nome,
-        funcaoOperador: item.funcaoOperadorNome || '',
-        funcaoOperadorId: item.funcaoOperadorId || '',
-        dataCadastro: item.createdAt?.toISOString() || '',
-        usuarioCadastro: item.createdByNome || '',
-      })),
+      data: data.map(toRecursoTecnicoDto),
     };
   }
 
@@ -49,6 +53,16 @@ export class RecursosTecnicosService {
         nome: item.nome,
       })),
     };
+  }
+
+  async getById(actor: SessionUser, id: string) {
+    const existing = await this.repository.findById(id);
+    if (!existing) {
+      return null;
+    }
+
+    ensureSameTenant(actor, existing.tenantId);
+    return toRecursoTecnicoDto(existing);
   }
 
   async save(actor: SessionUser, input: SaveRecursoTecnicoDto) {
@@ -71,15 +85,7 @@ export class RecursosTecnicosService {
       createdBy: actor.id,
     });
 
-    return {
-      id: item.id,
-      codigoExterno: item.codigoExterno || '',
-      nome: item.nome,
-      funcaoOperador: item.funcaoOperadorNome || '',
-      funcaoOperadorId: item.funcaoOperadorId || '',
-      dataCadastro: item.createdAt?.toISOString() || '',
-      usuarioCadastro: item.createdByNome || '',
-    };
+    return toRecursoTecnicoDto(item);
   }
 
   async remove(actor: SessionUser, id: string) {

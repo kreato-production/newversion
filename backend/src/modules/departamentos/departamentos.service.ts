@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import type { SessionUser } from '../auth/auth.types.js';
 import { AccessError, ensureSameTenant, resolveTenantId } from '../common/access.js';
-import type { DepartamentosRepository } from './departamentos.repository.js';
+import type { DepartamentoRecord, DepartamentosRepository } from './departamentos.repository.js';
 
 export const saveDepartamentoSchema = z.object({
   id: z.string().min(1).optional(),
@@ -18,6 +18,18 @@ export const saveDepartamentoFuncaoSchema = z.object({
 
 export type SaveDepartamentoDto = z.infer<typeof saveDepartamentoSchema>;
 
+function toDepartamentoDto(item: DepartamentoRecord) {
+  return {
+    id: item.id,
+    codigoExterno: item.codigoExterno || '',
+    nome: item.nome,
+    descricao: item.descricao || '',
+    traducoes: item.traducoes ?? null,
+    dataCadastro: item.createdAt.toISOString(),
+    usuarioCadastro: item.createdBy || '',
+  };
+}
+
 export class DepartamentosService {
   constructor(private readonly repository: DepartamentosRepository) {}
 
@@ -27,16 +39,18 @@ export class DepartamentosService {
 
     return {
       total,
-      data: data.map((item) => ({
-        id: item.id,
-        codigoExterno: item.codigoExterno || '',
-        nome: item.nome,
-        descricao: item.descricao || '',
-        traducoes: item.traducoes ?? null,
-        dataCadastro: item.createdAt.toISOString(),
-        usuarioCadastro: item.createdBy || '',
-      })),
+      data: data.map(toDepartamentoDto),
     };
+  }
+
+  async getById(actor: SessionUser, id: string) {
+    const existing = await this.repository.findById(id);
+    if (!existing) {
+      return null;
+    }
+
+    ensureSameTenant(actor, existing.tenantId);
+    return toDepartamentoDto(existing);
   }
 
   async save(actor: SessionUser, input: SaveDepartamentoDto) {
@@ -60,15 +74,7 @@ export class DepartamentosService {
       createdBy: actor.nome,
     });
 
-    return {
-      id: item.id,
-      codigoExterno: item.codigoExterno || '',
-      nome: item.nome,
-      descricao: item.descricao || '',
-      traducoes: item.traducoes ?? null,
-      dataCadastro: item.createdAt.toISOString(),
-      usuarioCadastro: item.createdBy || '',
-    };
+    return toDepartamentoDto(item);
   }
 
   async remove(actor: SessionUser, id: string) {

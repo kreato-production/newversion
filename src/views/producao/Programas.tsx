@@ -12,7 +12,8 @@ import { SortableTable, Column } from '@/components/shared/SortableTable';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useAuth } from '@/contexts/AuthContext';
-import { ProgramaFormModal } from '@/components/producao/ProgramaFormModal';
+import { useRecordList } from '@/hooks/useRecordNavigation';
+import { PROGRAMAS_ROUTES } from '@/modules/programas/programas.navigation';
 import { programasRepository } from '@/modules/programas/programas.repository.provider';
 import {
   ListFilterPanel,
@@ -24,7 +25,7 @@ import {
   chipsSubtitle,
   sortSubtitle,
 } from '@/components/shared/ListFilter';
-import type { Programa, ProgramaInput } from '@/modules/programas/programas.types';
+import type { Programa } from '@/modules/programas/programas.types';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -189,7 +190,7 @@ function ProgramaDetailPanel({
 const Programas = () => {
   const { toast } = useToast();
   const { t } = useLanguage();
-  const { user, session } = useAuth();
+  const { session } = useAuth();
   const { canIncluir, canAlterar, canExcluir } = usePermissions();
 
   const podeIncluir = canIncluir('Produção', 'Programas');
@@ -197,8 +198,13 @@ const Programas = () => {
   const podeExcluir = canExcluir('Produção', 'Programas');
 
   const [search, setSearch] = useState('');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<Programa | null>(null);
+  const { openNew, openRecord } = useRecordList(PROGRAMAS_ROUTES);
+  // Keeps the filtered order so the form page can navigate previous/next.
+  const openEdit = (item: { id: string }) =>
+    openRecord(
+      item.id,
+      filteredItems.map((i) => i.id),
+    );
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<Programa | null>(null);
   const [items, setItems] = useState<Programa[]>([]);
@@ -233,31 +239,6 @@ const Programas = () => {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
-
-  const handleSave = async (data: ProgramaInput) => {
-    try {
-      await programasRepository.save(
-        {
-          ...data,
-          tenantId: user?.tenantId ?? null,
-        },
-        user?.id,
-      );
-      toast({
-        title: t('common.success'),
-        description: editingItem ? 'Programa atualizado!' : 'Programa criado!',
-      });
-      await fetchData();
-      setEditingItem(null);
-    } catch (err) {
-      console.error('Error saving programa:', err);
-      toast({
-        title: t('common.error'),
-        description: `Erro ao salvar: ${(err as Error).message}`,
-        variant: 'destructive',
-      });
-    }
-  };
 
   const handleDeleteConfirm = async () => {
     if (!deletingId) return;
@@ -338,15 +319,7 @@ const Programas = () => {
       sortable: false,
       render: (item) => (
         <div className="flex justify-end gap-1">
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-7 w-7"
-            onClick={() => {
-              setEditingItem(item);
-              setIsModalOpen(true);
-            }}
-          >
+          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(item)}>
             <Edit className="w-3.5 h-3.5" />
           </Button>
           {podeExcluir && (
@@ -377,15 +350,7 @@ const Programas = () => {
       <PageHeader title="Programas" description="Gerencie os programas de produção" />
 
       <ListActionBar>
-        {podeIncluir && (
-          <NewButton
-            tooltip="Novo Programa"
-            onClick={() => {
-              setEditingItem(null);
-              setIsModalOpen(true);
-            }}
-          />
-        )}
+        {podeIncluir && <NewButton tooltip="Novo Programa" onClick={openNew} />}
         <div className="flex-1" />
         <SearchBar value={search} onChange={setSearch} placeholder={t('common.search')} />
         <ListFilterPanel
@@ -438,7 +403,7 @@ const Programas = () => {
               title={t('common.noResults')}
               description="Adicione um programa."
               icon={FolderOpen}
-              onAction={() => setIsModalOpen(true)}
+              onAction={openNew}
               actionLabel="Novo Programa"
             />
           ) : (
@@ -456,17 +421,14 @@ const Programas = () => {
             getRowKey={(item) => item.id}
             emptyTitle={t('common.noResults')}
             emptyDescription="Adicione um programa."
-            onEmptyAction={() => setIsModalOpen(true)}
+            onEmptyAction={openNew}
             emptyActionLabel="Novo Programa"
             renderCard={(item) => (
               <ProgramaCard
                 item={item}
                 podeAlterar={podeAlterar}
                 podeExcluir={podeExcluir}
-                onEdit={() => {
-                  setEditingItem(item);
-                  setIsModalOpen(true);
-                }}
+                onEdit={() => openEdit(item)}
                 onDelete={() => setDeletingId(item.id)}
               />
             )}
@@ -493,40 +455,13 @@ const Programas = () => {
                 item={item}
                 podeAlterar={podeAlterar}
                 podeExcluir={podeExcluir}
-                onEdit={() => {
-                  setEditingItem(item);
-                  setIsModalOpen(true);
-                }}
+                onEdit={() => openEdit(item)}
                 onDelete={() => setDeletingId(item.id)}
               />
             )}
           />
         )}
       </DataCard>
-
-      <ProgramaFormModal
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setEditingItem(null);
-        }}
-        onSave={handleSave}
-        data={editingItem}
-        readOnly={!!editingItem && !podeAlterar}
-        navigation={(() => {
-          const navIndex = editingItem
-            ? filteredItems.findIndex((i) => i.id === editingItem.id)
-            : -1;
-          return navIndex >= 0
-            ? {
-                currentIndex: navIndex,
-                total: filteredItems.length,
-                onPrevious: () => setEditingItem(filteredItems[navIndex - 1]),
-                onNext: () => setEditingItem(filteredItems[navIndex + 1]),
-              }
-            : undefined;
-        })()}
-      />
 
       <AlertDialog open={!!deletingId} onOpenChange={(open) => !open && setDeletingId(null)}>
         <AlertDialogContent>

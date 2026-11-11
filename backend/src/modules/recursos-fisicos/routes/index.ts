@@ -35,6 +35,14 @@ export function createRecursosFisicosRoutes(authService: AuthService, recursosFi
       return reply.status(200).send(await recursosFisicosService.listOcupacoes(user, query.dataInicio, query.dataFim));
     });
 
+    app.get('/recursos-fisicos/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      const params = request.params as { id: string };
+      const item = await recursosFisicosService.getById(user, params.id);
+      if (!item) return reply.status(404).send({ message: 'Recurso físico não encontrado(a)' });
+      return reply.status(200).send(item);
+    });
+
     app.post('/recursos-fisicos', { preHandler: [authenticate, requireTenantAccess, requireIncluir] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const body = saveRecursoFisicoSchema.parse(request.body);

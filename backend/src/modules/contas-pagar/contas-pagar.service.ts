@@ -41,6 +41,12 @@ export class ContasPagarService {
     return { total, data: data.map(mapContaPagar) };
   }
 
+  async getById(actor: SessionUser, id: string) {
+    const tenantId = resolveTenantId(actor, actor.tenantId);
+    const item = await this.repository.findById(id, tenantId);
+    return item ? mapContaPagar(item) : null;
+  }
+
   async save(actor: SessionUser, input: SaveContaPagarData) {
     const tenantId = resolveTenantId(actor, actor.tenantId);
 

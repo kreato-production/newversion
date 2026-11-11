@@ -20,7 +20,8 @@ import { NewButton } from '@/components/shared/NewButton';
 import { useToast } from '@/hooks/use-toast';
 import { SortableTable, type Column } from '@/components/shared/SortableTable';
 import { ApiTenantsRepository } from '@/modules/tenants/tenants.api.repository';
-import { TenantFormModal } from '@/components/admin/TenantFormModal';
+import { useRecordList } from '@/hooks/useRecordNavigation';
+import { TENANTS_ROUTES } from '@/modules/tenants/tenants.navigation';
 import {
   ListFilterPanel,
   FilterSection,
@@ -199,8 +200,13 @@ function TenantDetailPanel({
 const Tenants = () => {
   const { toast } = useToast();
   const [search, setSearch] = useState('');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<Tenant | null>(null);
+  const { openNew, openRecord } = useRecordList(TENANTS_ROUTES);
+  // Keeps the filtered order so the form page can navigate previous/next.
+  const openEdit = (item: { id: string }) =>
+    openRecord(
+      item.id,
+      filteredItems.map((i) => i.id),
+    );
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<Tenant | null>(null);
   const [items, setItems] = useState<Tenant[]>([]);
@@ -325,8 +331,7 @@ const Tenants = () => {
             variant="ghost"
             onClick={(event) => {
               event.stopPropagation();
-              setEditingItem(item);
-              setIsModalOpen(true);
+              openEdit(item);
             }}
           >
             <Edit className="w-4 h-4" />
@@ -352,13 +357,7 @@ const Tenants = () => {
       <PageHeader title="Tenants" description="Gerencie as organizacoes e licencas do sistema" />
 
       <ListActionBar>
-        <NewButton
-          tooltip="Novo Tenant"
-          onClick={() => {
-            setEditingItem(null);
-            setIsModalOpen(true);
-          }}
-        />
+        <NewButton tooltip="Novo Tenant" onClick={openNew} />
         <div className="flex-1" />
         <SearchBar value={search} onChange={setSearch} />
         <ListFilterPanel
@@ -421,7 +420,7 @@ const Tenants = () => {
               title="Nenhum tenant cadastrado"
               description="Adicione organizacoes para comecar a usar o sistema."
               icon={Building2}
-              onAction={() => setIsModalOpen(true)}
+              onAction={openNew}
               actionLabel="Adicionar Tenant"
             />
           ) : (
@@ -439,15 +438,12 @@ const Tenants = () => {
             getRowKey={(item) => item.id}
             emptyTitle="Nenhum tenant cadastrado"
             emptyDescription="Adicione organizacoes para comecar a usar o sistema."
-            onEmptyAction={() => setIsModalOpen(true)}
+            onEmptyAction={openNew}
             emptyActionLabel="Adicionar Tenant"
             renderCard={(item) => (
               <TenantCard
                 item={item}
-                onEdit={() => {
-                  setEditingItem(item);
-                  setIsModalOpen(true);
-                }}
+                onEdit={() => openEdit(item)}
                 onDelete={() => setDeletingId(item.id)}
               />
             )}
@@ -480,39 +476,13 @@ const Tenants = () => {
             renderDetail={(item) => (
               <TenantDetailPanel
                 item={item}
-                onEdit={() => {
-                  setEditingItem(item);
-                  setIsModalOpen(true);
-                }}
+                onEdit={() => openEdit(item)}
                 onDelete={() => setDeletingId(item.id)}
               />
             )}
           />
         )}
       </DataCard>
-
-      <TenantFormModal
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setEditingItem(null);
-        }}
-        onSave={() => void fetchData()}
-        data={editingItem}
-        navigation={(() => {
-          const navIndex = editingItem
-            ? filteredItems.findIndex((i) => i.id === editingItem.id)
-            : -1;
-          return navIndex >= 0
-            ? {
-                currentIndex: navIndex,
-                total: filteredItems.length,
-                onPrevious: () => setEditingItem(filteredItems[navIndex - 1]),
-                onNext: () => setEditingItem(filteredItems[navIndex + 1]),
-              }
-            : undefined;
-        })()}
-      />
 
       <AlertDialog open={!!deletingId} onOpenChange={(open) => !open && setDeletingId(null)}>
         <AlertDialogContent>

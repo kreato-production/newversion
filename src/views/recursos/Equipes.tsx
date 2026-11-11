@@ -15,16 +15,16 @@ import { Card, CardFooter, CardHeader } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
 import { ListActionBar } from '@/components/shared/ListActionBar';
-import { EquipeFormModal } from '@/components/recursos/EquipeFormModal';
+import { useRecordList } from '@/hooks/useRecordNavigation';
+import { EQUIPES_ROUTES } from '@/modules/equipes/equipes.navigation';
 import { SortableTable, type Column } from '@/components/shared/SortableTable';
 import { Edit, Trash2, UsersRound, Loader2, Download, Upload } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { NewButton } from '@/components/shared/NewButton';
 import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { usePermissions } from '@/hooks/usePermissions';
 import { equipesRepository } from '@/modules/equipes/equipes.repository.provider';
-import type { Equipe, EquipeInput } from '@/modules/equipes/equipes.types';
+import type { Equipe } from '@/modules/equipes/equipes.types';
 import {
   useListingView,
   ViewSwitcher,
@@ -149,12 +149,16 @@ function EquipeDetailPanel({
 const Equipes = () => {
   const { toast } = useToast();
   const { t } = useLanguage();
-  const { canAlterar } = usePermissions();
   const importFileRef = useRef<HTMLInputElement>(null);
   const [isImporting, setIsImporting] = useState(false);
   const [search, setSearch] = useState('');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<Equipe | null>(null);
+  const { openNew, openRecord } = useRecordList(EQUIPES_ROUTES);
+  // Keeps the filtered order so the form page can navigate previous/next.
+  const openEdit = (item: { id: string }) =>
+    openRecord(
+      item.id,
+      filteredItems.map((i) => i.id),
+    );
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<Equipe | null>(null);
   const [items, setItems] = useState<Equipe[]>([]);
@@ -182,28 +186,6 @@ const Equipes = () => {
   useEffect(() => {
     void fetchEquipes();
   }, [fetchEquipes]);
-
-  const handleSave = async (data: EquipeInput) => {
-    try {
-      if (editingItem) {
-        await equipesRepository.update(editingItem.id, data);
-        toast({ title: t('common.success'), description: t('teams.updated') });
-      } else {
-        await equipesRepository.create(data);
-        toast({ title: t('common.success'), description: t('teams.created') });
-      }
-
-      await fetchEquipes();
-      setEditingItem(null);
-    } catch (error) {
-      console.error('Error saving equipe:', error);
-      toast({
-        title: t('common.error'),
-        description: t('teams.saveError'),
-        variant: 'destructive',
-      });
-    }
-  };
 
   const handleDeleteConfirm = async () => {
     if (!deletingId) return;
@@ -345,15 +327,7 @@ const Equipes = () => {
       sortable: false,
       render: (item) => (
         <div className="flex justify-end gap-1">
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-7 w-7"
-            onClick={() => {
-              setEditingItem(item);
-              setIsModalOpen(true);
-            }}
-          >
+          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(item)}>
             <Edit className="w-3.5 h-3.5" />
           </Button>
           <Button
@@ -382,13 +356,7 @@ const Equipes = () => {
       />
 
       <ListActionBar>
-        <NewButton
-          tooltip={t('teams.new')}
-          onClick={() => {
-            setEditingItem(null);
-            setIsModalOpen(true);
-          }}
-        />
+        <NewButton tooltip={t('teams.new')} onClick={openNew} />
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
@@ -439,7 +407,7 @@ const Equipes = () => {
               title={t('common.noResults')}
               description={t('teams.empty')}
               icon={UsersRound}
-              onAction={() => setIsModalOpen(true)}
+              onAction={openNew}
               actionLabel={t('teams.new')}
             />
           ) : (
@@ -457,15 +425,12 @@ const Equipes = () => {
             getRowKey={(item) => item.id}
             emptyTitle={t('common.noResults')}
             emptyDescription={t('teams.empty')}
-            onEmptyAction={() => setIsModalOpen(true)}
+            onEmptyAction={openNew}
             emptyActionLabel={t('teams.new')}
             renderCard={(item) => (
               <EquipeCard
                 item={item}
-                onEdit={() => {
-                  setEditingItem(item);
-                  setIsModalOpen(true);
-                }}
+                onEdit={() => openEdit(item)}
                 onDelete={() => setDeletingId(item.id)}
               />
             )}
@@ -493,41 +458,13 @@ const Equipes = () => {
             renderDetail={(item) => (
               <EquipeDetailPanel
                 item={item}
-                onEdit={() => {
-                  setEditingItem(item);
-                  setIsModalOpen(true);
-                }}
+                onEdit={() => openEdit(item)}
                 onDelete={() => setDeletingId(item.id)}
               />
             )}
           />
         )}
       </DataCard>
-
-      <EquipeFormModal
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setEditingItem(null);
-        }}
-        onSave={handleSave}
-        data={editingItem}
-        onRefresh={fetchEquipes}
-        readOnly={!!editingItem && !canAlterar('Recursos', 'Equipes')}
-        navigation={(() => {
-          const navIndex = editingItem
-            ? filteredItems.findIndex((i) => i.id === editingItem.id)
-            : -1;
-          return navIndex >= 0
-            ? {
-                currentIndex: navIndex,
-                total: filteredItems.length,
-                onPrevious: () => setEditingItem(filteredItems[navIndex - 1]),
-                onNext: () => setEditingItem(filteredItems[navIndex + 1]),
-              }
-            : undefined;
-        })()}
-      />
 
       <AlertDialog open={!!deletingId} onOpenChange={(open) => !open && setDeletingId(null)}>
         <AlertDialogContent>

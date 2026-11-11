@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { usePathname } from 'next/navigation';
 import * as XLSX from 'xlsx';
 import {
   AlertDialog,
@@ -14,7 +15,6 @@ import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
 import { ListActionBar } from '@/components/shared/ListActionBar';
-import { ParametroFormModal } from '@/components/shared/ParametroFormModal';
 import { SortableTable, Column } from '@/components/shared/SortableTable';
 import {
   useListingView,
@@ -35,6 +35,11 @@ import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { ApiParametrosRepository } from '@/modules/parametros/parametros.api.repository';
 import {
+  parametroNavStorageKey,
+  type ParametroPageConfig,
+} from '@/modules/parametros/parametros.config';
+import { useRecordList, type RecordRouteConfig } from '@/hooks/useRecordNavigation';
+import {
   ListFilterPanel,
   FilterSection,
   SortChip,
@@ -53,26 +58,7 @@ interface Parametro {
   created_by: string;
 }
 
-interface ParametroLegacy {
-  id: string;
-  codigoExterno: string;
-  nome: string;
-  descricao: string;
-  cor?: string | null;
-  traducoes?: Record<string, string> | null;
-  dataCadastro: string;
-  usuarioCadastro: string;
-}
-
-interface ParametroListPageProps {
-  title: string;
-  description: string;
-  entityName: string;
-  storageKey: string;
-  permissionPath?: [string, string, string?];
-  showExportImport?: boolean;
-  showCor?: boolean;
-}
+type ParametroListPageProps = ParametroPageConfig;
 
 const apiRepository = new ApiParametrosRepository();
 
@@ -201,19 +187,27 @@ const ParametroListPage = ({
   storageKey,
   permissionPath,
   showExportImport = true,
-  showCor = false,
 }: ParametroListPageProps) => {
   const { toast } = useToast();
   const { t } = useLanguage();
-  const { user, session } = useAuth();
-  const { canAlterar } = usePermissions();
+  const { session } = useAuth();
+  const { canIncluir } = usePermissions();
+  const podeIncluir = permissionPath
+    ? canIncluir(permissionPath[0], permissionPath[1], permissionPath[2] || '-')
+    : true;
+
+  // The list lives at the current route; its form pages are `<route>/novo` and `<route>/[id]`.
+  const pathname = usePathname();
+  const routes = useMemo<RecordRouteConfig>(
+    () => ({ basePath: pathname, navStorageKey: parametroNavStorageKey(storageKey) }),
+    [pathname, storageKey],
+  );
+  const { openNew, openRecord } = useRecordList(routes);
 
   const importFileRef = useRef<HTMLInputElement>(null);
   const [isImporting, setIsImporting] = useState(false);
 
   const [search, setSearch] = useState('');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<ParametroLegacy | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<Parametro | null>(null);
   const [items, setItems] = useState<Parametro[]>([]);
@@ -257,40 +251,7 @@ const ParametroListPage = ({
     fetchData();
   }, [fetchData]);
 
-  const toLegacyFormat = (data: Parametro): ParametroLegacy => ({
-    id: data.id,
-    codigoExterno: data.codigo_externo || '',
-    nome: data.nome,
-    descricao: data.descricao || '',
-    cor: data.cor ?? null,
-    traducoes: data.traducoes ?? null,
-    dataCadastro: data.created_at ? new Date(data.created_at).toLocaleDateString('pt-BR') : '',
-    usuarioCadastro: user?.nome || '',
-  });
-
-  const openEdit = (item: Parametro) => {
-    setEditingItem(toLegacyFormat(item));
-    setIsModalOpen(true);
-  };
-
   const openDelete = (id: string) => setDeletingId(id);
-
-  const handleSave = async (data: ParametroLegacy) => {
-    await apiRepository.save(storageKey, {
-      id: editingItem ? data.id : undefined,
-      codigoExterno: data.codigoExterno,
-      nome: data.nome,
-      descricao: data.descricao,
-      cor: data.cor ?? null,
-      traducoes: data.traducoes ?? null,
-    });
-    toast({
-      title: t('common.success'),
-      description: `${entityName} ${editingItem ? t('common.updated').toLowerCase() : t('common.save').toLowerCase()}!`,
-    });
-    await fetchData();
-    setEditingItem(null);
-  };
 
   const handleDeleteConfirm = async () => {
     if (!deletingId) return;
@@ -436,6 +397,12 @@ const ParametroListPage = ({
     return result;
   })();
 
+  const openEdit = (item: Parametro) =>
+    openRecord(
+      item.id,
+      filteredItems.map((i) => i.id),
+    );
+
   // ── Table columns ──────────────────────────────────────────────────────────
 
   const columns: Column<Parametro & { actions?: never }>[] = [
@@ -509,13 +476,9 @@ const ParametroListPage = ({
       )}
 
       <ListActionBar>
-        <NewButton
-          tooltip={`${t('common.new')} ${entityName}`}
-          onClick={() => {
-            setEditingItem(null);
-            setIsModalOpen(true);
-          }}
-        />
+        {podeIncluir && (
+          <NewButton tooltip={`${t('common.new')} ${entityName}`} onClick={openNew} />
+        )}
         {showExportImport && (
           <>
             <Tooltip>
@@ -590,7 +553,7 @@ const ParametroListPage = ({
               title={t('common.noResults')}
               description={`${t('common.add')} ${entityName.toLowerCase()}.`}
               icon={Settings}
-              onAction={() => setIsModalOpen(true)}
+              onAction={podeIncluir ? openNew : undefined}
               actionLabel={`${t('common.add')} ${entityName}`}
             />
           ) : (
@@ -608,7 +571,7 @@ const ParametroListPage = ({
             getRowKey={(item) => item.id}
             emptyTitle={t('common.noResults')}
             emptyDescription={`${t('common.add')} ${entityName.toLowerCase()}.`}
-            onEmptyAction={() => setIsModalOpen(true)}
+            onEmptyAction={podeIncluir ? openNew : undefined}
             emptyActionLabel={`${t('common.add')} ${entityName}`}
             renderCard={(item) => (
               <ParametroCard
@@ -650,36 +613,6 @@ const ParametroListPage = ({
           />
         )}
       </DataCard>
-
-      <ParametroFormModal
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setEditingItem(null);
-        }}
-        onSave={handleSave}
-        title={entityName}
-        data={editingItem}
-        showCor={showCor}
-        readOnly={
-          !!editingItem && permissionPath
-            ? !canAlterar(permissionPath[0], permissionPath[1], permissionPath[2] || '-')
-            : false
-        }
-        navigation={(() => {
-          const navIndex = editingItem
-            ? filteredItems.findIndex((i) => i.id === editingItem.id)
-            : -1;
-          return navIndex >= 0
-            ? {
-                currentIndex: navIndex,
-                total: filteredItems.length,
-                onPrevious: () => setEditingItem(toLegacyFormat(filteredItems[navIndex - 1])),
-                onNext: () => setEditingItem(toLegacyFormat(filteredItems[navIndex + 1])),
-              }
-            : undefined;
-        })()}
-      />
 
       <AlertDialog open={!!deletingId} onOpenChange={(open) => !open && setDeletingId(null)}>
         <AlertDialogContent>

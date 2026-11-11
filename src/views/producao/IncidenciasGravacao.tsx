@@ -30,7 +30,8 @@ import { NewButton } from '@/components/shared/NewButton';
 import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { usePermissions } from '@/hooks/usePermissions';
-import { IncidenciaGravacaoFormModal } from '@/components/producao/IncidenciaGravacaoFormModal';
+import { useRecordList } from '@/hooks/useRecordNavigation';
+import { INCIDENCIAS_ROUTES } from '@/modules/incidencias-gravacao/incidencias-gravacao.navigation';
 import { IncidenciaChartModal } from '@/components/producao/IncidenciaChartModal';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -217,11 +218,16 @@ function IncidenciaDetailPanel({
 const IncidenciasGravacao = () => {
   const { toast } = useToast();
   const { t } = useLanguage();
-  const { canAlterar, canIncluir } = usePermissions();
+  const { canIncluir } = usePermissions();
   const [search, setSearch] = useState('');
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const { openNew, openRecord } = useRecordList(INCIDENCIAS_ROUTES);
+  // Keeps the filtered order so the form page can navigate previous/next.
+  const openEdit = (item: { id: string }) =>
+    openRecord(
+      item.id,
+      filteredItems.map((i) => i.id),
+    );
   const [isChartOpen, setIsChartOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<IncidenciaGravacao | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<IncidenciaGravacao | null>(null);
   const [items, setItems] = useState<IncidenciaGravacao[]>([]);
@@ -384,11 +390,6 @@ const IncidenciasGravacao = () => {
     }
   };
 
-  const handleSave = async () => {
-    await fetchData();
-    setEditingItem(null);
-  };
-
   const clearFilters = () => {
     setFilterDateFrom('');
     setFilterDateTo('');
@@ -500,8 +501,7 @@ const IncidenciasGravacao = () => {
             className="h-7 w-7"
             onClick={(e) => {
               e.stopPropagation();
-              setEditingItem(item);
-              setIsModalOpen(true);
+              openEdit(item);
             }}
           >
             <Edit className="w-3.5 h-3.5" />
@@ -527,13 +527,7 @@ const IncidenciasGravacao = () => {
       <PageHeader title={t('incident.pageTitle')} description={t('incident.pageDescription')} />
       <ListActionBar>
         {canIncluir(permPath[0], permPath[1]) && (
-          <NewButton
-            tooltip={`${t('common.new')} ${t('incident.entity')}`}
-            onClick={() => {
-              setEditingItem(null);
-              setIsModalOpen(true);
-            }}
-          />
+          <NewButton tooltip={`${t('common.new')} ${t('incident.entity')}`} onClick={openNew} />
         )}
         <div className="flex-1" />
         <SearchBar value={search} onChange={setSearch} placeholder={t('common.search')} />
@@ -703,7 +697,7 @@ const IncidenciasGravacao = () => {
               title={t('common.noResults')}
               description={`${t('common.add')} ${t('incident.entity').toLowerCase()}.`}
               icon={AlertTriangle}
-              onAction={() => setIsModalOpen(true)}
+              onAction={openNew}
               actionLabel={`${t('common.add')} ${t('incident.entity')}`}
             />
           ) : (
@@ -721,15 +715,12 @@ const IncidenciasGravacao = () => {
             getRowKey={(item) => item.id}
             emptyTitle={t('common.noResults')}
             emptyDescription={`${t('common.add')} ${t('incident.entity').toLowerCase()}.`}
-            onEmptyAction={() => setIsModalOpen(true)}
+            onEmptyAction={openNew}
             emptyActionLabel={`${t('common.add')} ${t('incident.entity')}`}
             renderCard={(item) => (
               <IncidenciaCard
                 item={item}
-                onEdit={() => {
-                  setEditingItem(item);
-                  setIsModalOpen(true);
-                }}
+                onEdit={() => openEdit(item)}
                 onDelete={() => setDeletingId(item.id)}
               />
             )}
@@ -766,40 +757,13 @@ const IncidenciasGravacao = () => {
             renderDetail={(item) => (
               <IncidenciaDetailPanel
                 item={item}
-                onEdit={() => {
-                  setEditingItem(item);
-                  setIsModalOpen(true);
-                }}
+                onEdit={() => openEdit(item)}
                 onDelete={() => setDeletingId(item.id)}
               />
             )}
           />
         )}
       </DataCard>
-
-      <IncidenciaGravacaoFormModal
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setEditingItem(null);
-        }}
-        onSave={handleSave}
-        data={editingItem}
-        readOnly={!!editingItem && !canAlterar(permPath[0], permPath[1])}
-        navigation={(() => {
-          const navIndex = editingItem
-            ? filteredItems.findIndex((i) => i.id === editingItem.id)
-            : -1;
-          return navIndex >= 0
-            ? {
-                currentIndex: navIndex,
-                total: filteredItems.length,
-                onPrevious: () => setEditingItem(filteredItems[navIndex - 1]),
-                onNext: () => setEditingItem(filteredItems[navIndex + 1]),
-              }
-            : undefined;
-        })()}
-      />
 
       <IncidenciaChartModal
         isOpen={isChartOpen}

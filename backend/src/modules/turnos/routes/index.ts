@@ -24,6 +24,14 @@ export function createTurnosRoutes(
       return reply.status(200).send(await turnosService.list(user, opts));
     });
 
+    app.get('/turnos/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      const params = request.params as { id: string };
+      const item = await turnosService.getById(user, params.id);
+      if (!item) return reply.status(404).send({ message: 'Turno não encontrado(a)' });
+      return reply.status(200).send(item);
+    });
+
     app.post('/turnos', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const body = saveTurnoSchema.parse(request.body);

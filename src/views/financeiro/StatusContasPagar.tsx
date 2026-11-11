@@ -39,7 +39,8 @@ import {
   MasterDetail,
   type ColumnConfig,
 } from '@/components/listing';
-import { StatusContaPagarFormModal } from '@/components/financeiro/StatusContaPagarFormModal';
+import { useRecordList } from '@/hooks/useRecordNavigation';
+import { STATUS_CONTAS_PAGAR_FORM } from '@/modules/parametrizacoes/financeiro.forms';
 
 export interface StatusContaPagarItem {
   id: string;
@@ -267,8 +268,7 @@ const StatusContasPagar = () => {
   const importFileRef = useRef<HTMLInputElement>(null);
   const [isImporting, setIsImporting] = useState(false);
   const [search, setSearch] = useState('');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<StatusContaPagarItem | null>(null);
+  const { openNew, openRecord } = useRecordList(STATUS_CONTAS_PAGAR_FORM.routes);
   const [items, setItems] = useState<StatusContaPagarItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -297,37 +297,6 @@ const StatusContasPagar = () => {
   useEffect(() => {
     void fetchStatusContaPagar();
   }, [fetchStatusContaPagar]);
-
-  const handleSave = async (data: StatusContaPagarItem) => {
-    try {
-      await repository.saveStatusContaPagar({
-        id: editingItem?.id,
-        codigoExterno: data.codigoExterno,
-        titulo: data.titulo,
-        descricao: data.descricao,
-        cor: data.cor,
-        isInicial: data.isInicial,
-        isBaixa: data.isBaixa,
-        traducoes: data.traducoes,
-      });
-
-      toast({
-        title: 'Sucesso',
-        description: `Status ${editingItem ? 'atualizado' : 'criado'} com sucesso`,
-      });
-
-      setIsModalOpen(false);
-      setEditingItem(null);
-      await fetchStatusContaPagar();
-    } catch (error) {
-      console.error('Error saving status_conta_pagar:', error);
-      toast({
-        title: 'Erro',
-        description: 'Erro ao salvar status de contas a pagar',
-        variant: 'destructive',
-      });
-    }
-  };
 
   const handleDeleteConfirm = async () => {
     if (!deletingId) return;
@@ -489,6 +458,13 @@ const StatusContasPagar = () => {
     );
   });
 
+  // Keeps the filtered order so the form page can navigate previous/next.
+  const openEdit = (item: { id: string }) =>
+    openRecord(
+      item.id,
+      filteredItems.map((i) => i.id),
+    );
+
   const columns: Column<StatusContaPagarItem & { actions?: never }>[] = [
     {
       key: 'codigoExterno',
@@ -555,15 +531,7 @@ const StatusContasPagar = () => {
       sortable: false,
       render: (item) => (
         <div className="flex justify-end gap-1">
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-7 w-7"
-            onClick={() => {
-              setEditingItem(item);
-              setIsModalOpen(true);
-            }}
-          >
+          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(item)}>
             <Edit className="h-3.5 w-3.5" />
           </Button>
           <Button
@@ -605,13 +573,7 @@ const StatusContasPagar = () => {
       />
 
       <ListActionBar>
-        <NewButton
-          tooltip="Novo Status de Contas a Pagar"
-          onClick={() => {
-            setEditingItem(null);
-            setIsModalOpen(true);
-          }}
-        />
+        <NewButton tooltip="Novo Status de Contas a Pagar" onClick={openNew} />
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
@@ -658,7 +620,7 @@ const StatusContasPagar = () => {
               title="Nenhum status encontrado"
               description="Adicione o primeiro status de contas a pagar."
               icon={Settings}
-              onAction={() => setIsModalOpen(true)}
+              onAction={openNew}
               actionLabel="Adicionar Status"
             />
           ) : (
@@ -676,15 +638,12 @@ const StatusContasPagar = () => {
             getRowKey={(item) => item.id}
             emptyTitle="Nenhum status encontrado"
             emptyDescription="Adicione o primeiro status de contas a pagar."
-            onEmptyAction={() => setIsModalOpen(true)}
+            onEmptyAction={openNew}
             emptyActionLabel="Adicionar Status"
             renderCard={(item) => (
               <StatusContaPagarCard
                 item={item}
-                onEdit={() => {
-                  setEditingItem(item);
-                  setIsModalOpen(true);
-                }}
+                onEdit={() => openEdit(item)}
                 onDelete={() => setDeletingId(item.id)}
                 onToggleInicial={() => void handleToggleInicial(item.id, !item.isInicial)}
               />
@@ -723,10 +682,7 @@ const StatusContasPagar = () => {
             renderDetail={(item) => (
               <StatusContaPagarDetailPanel
                 item={item}
-                onEdit={() => {
-                  setEditingItem(item);
-                  setIsModalOpen(true);
-                }}
+                onEdit={() => openEdit(item)}
                 onDelete={() => setDeletingId(item.id)}
                 onToggleInicial={() => void handleToggleInicial(item.id, !item.isInicial)}
               />
@@ -734,30 +690,6 @@ const StatusContasPagar = () => {
           />
         )}
       </DataCard>
-
-      <StatusContaPagarFormModal
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setEditingItem(null);
-        }}
-        onSave={handleSave}
-        data={editingItem}
-        navigation={(() => {
-          const navIndex = editingItem
-            ? filteredItems.findIndex((item) => item.id === editingItem.id)
-            : -1;
-
-          return navIndex >= 0
-            ? {
-                currentIndex: navIndex,
-                total: filteredItems.length,
-                onPrevious: () => setEditingItem(filteredItems[navIndex - 1]),
-                onNext: () => setEditingItem(filteredItems[navIndex + 1]),
-              }
-            : undefined;
-        })()}
-      />
 
       <AlertDialog open={!!deletingId} onOpenChange={(open) => !open && setDeletingId(null)}>
         <AlertDialogContent>

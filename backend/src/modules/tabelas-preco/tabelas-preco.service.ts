@@ -69,6 +69,13 @@ export class TabelasPrecoService {
     return { data: rows.map(mapTabelaPreco) };
   }
 
+  async getById(actor: SessionUser, id: string) {
+    const existing = await this.repository.findById(id);
+    if (!existing) return null;
+    ensureSameTenant(actor, existing.tenantId);
+    return mapTabelaPreco(existing);
+  }
+
   async save(actor: SessionUser, input: SaveTabelaPrecoDto) {
     const tenantId = resolveTenantId(actor, input.tenantId ?? actor.tenantId);
 

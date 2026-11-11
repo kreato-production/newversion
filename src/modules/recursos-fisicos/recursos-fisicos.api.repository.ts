@@ -28,6 +28,10 @@ export class ApiRecursosFisicosRepository {
     return response.data;
   }
 
+  async getById(id: string): Promise<RecursoFisico> {
+    return apiRequest<RecursoFisico>(`/recursos-fisicos/${id}`);
+  }
+
   async save(input: RecursoFisicoInput): Promise<void> {
     const path = input.id ? `/recursos-fisicos/${input.id}` : '/recursos-fisicos';
     const method = input.id ? 'PUT' : 'POST';

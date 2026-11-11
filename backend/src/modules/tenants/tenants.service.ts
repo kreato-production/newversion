@@ -3,7 +3,7 @@ import type { SessionUser } from '../auth/auth.types.js';
 import { hashPassword } from '../../lib/security/password.js';
 import { isValidPasswordPolicy, PASSWORD_POLICY_MESSAGE } from '../../lib/security/password-policy.js';
 import { AccessError } from '../common/access.js';
-import type { TenantsRepository } from './tenants.repository.js';
+import type { TenantRecord, TenantsRepository } from './tenants.repository.js';
 import type { UsersRepository } from '../users/users.repository.js';
 
 export const saveTenantSchema = z.object({
@@ -64,25 +64,29 @@ export class TenantsService {
     return tenant;
   }
 
+  private async toTenantDto(item: TenantRecord) {
+    const admin = await this.usersRepository.findTenantAdmin(item.id);
+    return {
+      id: item.id,
+      nome: item.nome,
+      plano: item.plano || 'Mensal',
+      status: statusLabelMap[item.status],
+      notas: item.notas || '',
+      createdAt: item.createdAt.toISOString(),
+      licencaFim: item.licencaFim?.toISOString() ?? null,
+      adminNome: admin?.nome ?? null,
+      adminUsuario: admin?.usuario ?? null,
+    };
+  }
+
   async list(_actor: SessionUser) {
     const data = await this.repository.list();
-    const results = await Promise.all(
-      data.map(async (item) => {
-        const admin = await this.usersRepository.findTenantAdmin(item.id);
-        return {
-          id: item.id,
-          nome: item.nome,
-          plano: item.plano || 'Mensal',
-          status: statusLabelMap[item.status],
-          notas: item.notas || '',
-          createdAt: item.createdAt.toISOString(),
-          licencaFim: item.licencaFim?.toISOString() ?? null,
-          adminNome: admin?.nome ?? null,
-          adminUsuario: admin?.usuario ?? null,
-        };
-      }),
-    );
-    return results;
+    return Promise.all(data.map((item) => this.toTenantDto(item)));
+  }
+
+  async getById(_actor: SessionUser, id: string) {
+    const item = await this.repository.findById(id);
+    return item ? this.toTenantDto(item) : null;
   }
 
   async save(_actor: SessionUser, input: SaveTenantDto) {

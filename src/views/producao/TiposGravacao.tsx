@@ -1,14 +1,6 @@
 import ParametroListPage from '@/components/shared/ParametroListPage';
+import { PARAMETROS } from '@/modules/parametros/parametros.config';
 
-const TiposGravacao = () => (
-  <ParametroListPage
-    title="Tipos de Gravação"
-    description="Gerencie os tipos de gravação disponíveis no sistema"
-    entityName="Tipo de Gravação"
-    storageKey="kreato_tipos_gravacao"
-    permissionPath={['Produção', 'Parametrizações', 'Tipos Gravação']}
-    showCor
-  />
-);
+const TiposGravacao = () => <ParametroListPage {...PARAMETROS.tiposGravacao} />;
 
 export default TiposGravacao;

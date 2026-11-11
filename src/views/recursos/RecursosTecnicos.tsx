@@ -17,16 +17,14 @@ import { ListActionBar } from '@/components/shared/ListActionBar';
 import { Edit, Trash2, Wrench, Loader2 } from 'lucide-react';
 import { NewButton } from '@/components/shared/NewButton';
 import { useToast } from '@/hooks/use-toast';
-import { RecursoTecnicoFormModal } from '@/components/recursos/RecursoTecnicoFormModal';
+import { useRecordList } from '@/hooks/useRecordNavigation';
+import { RECURSOS_TECNICOS_ROUTES } from '@/modules/recursos-tecnicos/recursos-tecnicos.navigation';
 import { SortableTable, Column } from '@/components/shared/SortableTable';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { recursosTecnicosRepository } from '@/modules/recursos-tecnicos/recursos-tecnicos.repository.provider';
-import type {
-  RecursoTecnico,
-  RecursoTecnicoInput,
-} from '@/modules/recursos-tecnicos/recursos-tecnicos.types';
+import type { RecursoTecnico } from '@/modules/recursos-tecnicos/recursos-tecnicos.types';
 import {
   useListingView,
   ViewSwitcher,
@@ -182,14 +180,19 @@ function RecursoTecnicoDetailPanel({
 const RecursosTecnicos = () => {
   const { toast } = useToast();
   const { t } = useLanguage();
-  const { user, session } = useAuth();
+  const { session } = useAuth();
   const { canIncluir, canAlterar, canExcluir } = usePermissions();
   const podeIncluir = canIncluir('Recursos', 'Recursos Técnicos');
   const podeAlterar = canAlterar('Recursos', 'Recursos Técnicos');
   const podeExcluir = canExcluir('Recursos', 'Recursos Técnicos');
   const [search, setSearch] = useState('');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<RecursoTecnico | null>(null);
+  const { openNew, openRecord } = useRecordList(RECURSOS_TECNICOS_ROUTES);
+  // Keeps the filtered order so the form page can navigate previous/next.
+  const openEdit = (item: { id: string }) =>
+    openRecord(
+      item.id,
+      filteredItems.map((i) => i.id),
+    );
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<RecursoTecnico | null>(null);
   const [items, setItems] = useState<RecursoTecnico[]>([]);
@@ -224,29 +227,6 @@ const RecursosTecnicos = () => {
   useEffect(() => {
     fetchRecursosTecnicos();
   }, [fetchRecursosTecnicos]);
-
-  const handleSave = async (data: RecursoTecnicoInput) => {
-    try {
-      await recursosTecnicosRepository.save({
-        ...data,
-        tenantId: user?.tenantId ?? null,
-      });
-      toast({
-        title: t('common.success'),
-        description: editingItem ? 'Recurso técnico atualizado!' : 'Recurso técnico criado!',
-      });
-      await fetchRecursosTecnicos();
-      setEditingItem(null);
-    } catch (error) {
-      console.error('Error saving recurso tecnico:', error);
-      toast({
-        title: t('common.error'),
-        description: `Erro ao salvar: ${(error as Error).message}`,
-        variant: 'destructive',
-      });
-      throw error;
-    }
-  };
 
   const handleDeleteConfirm = async () => {
     if (!deletingId) return;
@@ -331,8 +311,7 @@ const RecursosTecnicos = () => {
             variant="ghost"
             onClick={(e) => {
               e.stopPropagation();
-              setEditingItem(item);
-              setIsModalOpen(true);
+              openEdit(item);
             }}
             disabled={!podeAlterar}
           >
@@ -364,15 +343,7 @@ const RecursosTecnicos = () => {
       />
 
       <ListActionBar>
-        {podeIncluir && (
-          <NewButton
-            tooltip={t('field.newResource')}
-            onClick={() => {
-              setEditingItem(null);
-              setIsModalOpen(true);
-            }}
-          />
-        )}
+        {podeIncluir && <NewButton tooltip={t('field.newResource')} onClick={openNew} />}
         <div className="flex-1" />
         <SearchBar value={search} onChange={setSearch} />
         <ListFilterPanel
@@ -430,7 +401,7 @@ const RecursosTecnicos = () => {
               title={t('field.noTechnicalResourceRegistered')}
               description={t('field.technicalResourcesHint')}
               icon={Wrench}
-              onAction={podeIncluir ? () => setIsModalOpen(true) : undefined}
+              onAction={podeIncluir ? openNew : undefined}
               actionLabel={t('field.addTechnicalResource')}
             />
           ) : (
@@ -448,17 +419,14 @@ const RecursosTecnicos = () => {
             getRowKey={(item) => item.id}
             emptyTitle={t('field.noTechnicalResourceRegistered')}
             emptyDescription={t('field.technicalResourcesHint')}
-            onEmptyAction={podeIncluir ? () => setIsModalOpen(true) : undefined}
+            onEmptyAction={podeIncluir ? openNew : undefined}
             emptyActionLabel={t('field.addTechnicalResource')}
             renderCard={(item) => (
               <RecursoTecnicoCard
                 item={item}
                 podeAlterar={podeAlterar}
                 podeExcluir={podeExcluir}
-                onEdit={() => {
-                  setEditingItem(item);
-                  setIsModalOpen(true);
-                }}
+                onEdit={() => openEdit(item)}
                 onDelete={() => setDeletingId(item.id)}
               />
             )}
@@ -488,40 +456,13 @@ const RecursosTecnicos = () => {
                 item={item}
                 podeAlterar={podeAlterar}
                 podeExcluir={podeExcluir}
-                onEdit={() => {
-                  setEditingItem(item);
-                  setIsModalOpen(true);
-                }}
+                onEdit={() => openEdit(item)}
                 onDelete={() => setDeletingId(item.id)}
               />
             )}
           />
         )}
       </DataCard>
-
-      <RecursoTecnicoFormModal
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setEditingItem(null);
-        }}
-        onSave={handleSave}
-        data={editingItem}
-        readOnly={!!editingItem && !podeAlterar}
-        navigation={(() => {
-          const navIndex = editingItem
-            ? filteredItems.findIndex((i) => i.id === editingItem.id)
-            : -1;
-          return navIndex >= 0
-            ? {
-                currentIndex: navIndex,
-                total: filteredItems.length,
-                onPrevious: () => setEditingItem(filteredItems[navIndex - 1]),
-                onNext: () => setEditingItem(filteredItems[navIndex + 1]),
-              }
-            : undefined;
-        })()}
-      />
 
       <AlertDialog open={!!deletingId} onOpenChange={(open) => !open && setDeletingId(null)}>
         <AlertDialogContent>

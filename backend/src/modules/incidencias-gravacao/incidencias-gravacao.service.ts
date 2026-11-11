@@ -59,6 +59,13 @@ export class IncidenciasGravacaoService {
     return this.repository.listByJanela(tenantId, janelaId);
   }
 
+  async getById(actor: SessionUser, id: string) {
+    const existing = await this.repository.findById(id);
+    if (!existing) return null;
+    ensureSameTenant(actor, existing.tenantId);
+    return existing;
+  }
+
   async save(actor: SessionUser, input: SaveIncidenciaGravacaoDto) {
     const tenantId = resolveTenantId(actor, input.tenantId ?? actor.tenantId);
 

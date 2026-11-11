@@ -19,7 +19,8 @@ import { Edit, Trash2, Building2, Loader2 } from 'lucide-react';
 import { NewButton } from '@/components/shared/NewButton';
 import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { UnidadeNegocioFormModal } from '@/components/admin/UnidadeNegocioFormModal';
+import { useRecordList } from '@/hooks/useRecordNavigation';
+import { UNIDADES_ROUTES } from '@/modules/unidades/unidades.navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { unidadesRepository } from '@/modules/unidades/unidades.repository.provider';
 import type { UnidadeNegocio } from '@/modules/unidades/unidades.types';
@@ -35,12 +36,12 @@ import {
 const STORAGE_KEY = 'kreato_unidades_negocio';
 
 const COLUMN_CONFIG: ColumnConfig[] = [
-  { key: 'codigoExterno',   label: 'Código',         defaultVisible: true },
-  { key: 'nome',            label: 'Nome',           required: true },
-  { key: 'descricao',       label: 'Descrição',      defaultVisible: true },
-  { key: 'dataCadastro',    label: 'Data Cadastro',  defaultVisible: false },
-  { key: 'usuarioCadastro', label: 'Usuário',        defaultVisible: false },
-  { key: 'actions',         label: 'Ações',          required: true },
+  { key: 'codigoExterno', label: 'Código', defaultVisible: true },
+  { key: 'nome', label: 'Nome', required: true },
+  { key: 'descricao', label: 'Descrição', defaultVisible: true },
+  { key: 'dataCadastro', label: 'Data Cadastro', defaultVisible: false },
+  { key: 'usuarioCadastro', label: 'Usuário', defaultVisible: false },
+  { key: 'actions', label: 'Ações', required: true },
 ];
 
 // ─── Card renderer ────────────────────────────────────────────────────────────
@@ -167,8 +168,13 @@ const UnidadesNegocio = () => {
   const { t } = useLanguage();
   const { user, session } = useAuth();
   const [search, setSearch] = useState('');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<UnidadeNegocio | null>(null);
+  const { openNew, openRecord } = useRecordList(UNIDADES_ROUTES);
+  // Keeps the filtered order so the form page can navigate previous/next.
+  const openEdit = (item: { id: string }) =>
+    openRecord(
+      item.id,
+      filteredItems.map((i) => i.id),
+    );
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<UnidadeNegocio | null>(null);
   const [items, setItems] = useState<UnidadeNegocio[]>([]);
@@ -201,28 +207,6 @@ const UnidadesNegocio = () => {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
-
-  const handleSave = async (data: UnidadeNegocio) => {
-    try {
-      await unidadesRepository.save(data, user?.id);
-
-      if (editingItem) {
-        toast({ title: t('common.success'), description: t('businessUnits.updated') });
-      } else {
-        toast({ title: t('common.success'), description: t('businessUnits.saved') });
-      }
-
-      await fetchData();
-      setEditingItem(null);
-    } catch (error) {
-      console.error('Error saving unidade:', error);
-      toast({
-        title: 'Erro',
-        description: `Erro ao salvar: ${(error as Error).message}`,
-        variant: 'destructive',
-      });
-    }
-  };
 
   const handleDeleteConfirm = async () => {
     if (!deletingId) return;
@@ -288,15 +272,7 @@ const UnidadesNegocio = () => {
       sortable: false,
       render: (item) => (
         <div className="flex justify-end gap-1">
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-7 w-7"
-            onClick={() => {
-              setEditingItem(item);
-              setIsModalOpen(true);
-            }}
-          >
+          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(item)}>
             <Edit className="w-3.5 h-3.5" />
           </Button>
           <Button
@@ -317,13 +293,7 @@ const UnidadesNegocio = () => {
       <PageHeader title={t('businessUnits.title')} description={t('businessUnits.description')} />
 
       <ListActionBar>
-        <NewButton
-          tooltip={t('businessUnits.new')}
-          onClick={() => {
-            setEditingItem(null);
-            setIsModalOpen(true);
-          }}
-        />
+        <NewButton tooltip={t('businessUnits.new')} onClick={openNew} />
         <div className="flex-1" />
         <SearchBar value={search} onChange={setSearch} placeholder={t('common.search')} />
         {mode === 'list' && (
@@ -348,7 +318,7 @@ const UnidadesNegocio = () => {
               title={t('businessUnits.empty')}
               description={t('businessUnits.emptyDescription')}
               icon={Building2}
-              onAction={() => setIsModalOpen(true)}
+              onAction={openNew}
               actionLabel={t('common.add')}
             />
           ) : (
@@ -366,15 +336,12 @@ const UnidadesNegocio = () => {
             getRowKey={(item) => item.id}
             emptyTitle={t('businessUnits.empty')}
             emptyDescription={t('businessUnits.emptyDescription')}
-            onEmptyAction={() => setIsModalOpen(true)}
+            onEmptyAction={openNew}
             emptyActionLabel={t('common.add')}
             renderCard={(item) => (
               <UnidadeCard
                 item={item}
-                onEdit={() => {
-                  setEditingItem(item);
-                  setIsModalOpen(true);
-                }}
+                onEdit={() => openEdit(item)}
                 onDelete={() => setDeletingId(item.id)}
               />
             )}
@@ -404,39 +371,13 @@ const UnidadesNegocio = () => {
             renderDetail={(item) => (
               <UnidadeDetailPanel
                 item={item}
-                onEdit={() => {
-                  setEditingItem(item);
-                  setIsModalOpen(true);
-                }}
+                onEdit={() => openEdit(item)}
                 onDelete={() => setDeletingId(item.id)}
               />
             )}
           />
         )}
       </DataCard>
-
-      <UnidadeNegocioFormModal
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setEditingItem(null);
-        }}
-        onSave={handleSave}
-        data={editingItem}
-        navigation={(() => {
-          const navIndex = editingItem
-            ? filteredItems.findIndex((i) => i.id === editingItem.id)
-            : -1;
-          return navIndex >= 0
-            ? {
-                currentIndex: navIndex,
-                total: filteredItems.length,
-                onPrevious: () => setEditingItem(filteredItems[navIndex - 1]),
-                onNext: () => setEditingItem(filteredItems[navIndex + 1]),
-              }
-            : undefined;
-        })()}
-      />
 
       <AlertDialog open={!!deletingId} onOpenChange={(open) => !open && setDeletingId(null)}>
         <AlertDialogContent>

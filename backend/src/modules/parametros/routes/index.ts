@@ -22,6 +22,16 @@ export function createParametrosRoutes(authService: AuthService, parametrosServi
       return reply.status(200).send(await parametrosService.list(user, params.storageKey, opts));
     });
 
+    app.get('/parametros/:storageKey/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      const params = request.params as { storageKey: string; id: string };
+      const item = await parametrosService.getById(user, params.storageKey, params.id);
+      if (!item) {
+        return reply.status(404).send({ message: 'Registro não encontrado' });
+      }
+      return reply.status(200).send(item);
+    });
+
     app.post('/parametros/:storageKey', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const params = request.params as { storageKey: string };

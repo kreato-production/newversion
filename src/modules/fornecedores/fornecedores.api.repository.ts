@@ -33,6 +33,10 @@ export class ApiFornecedoresRepository {
     return apiRequest<{ categorias: CategoriaFornecedorOption[] }>('/fornecedores/options');
   }
 
+  async getById(id: string): Promise<Fornecedor> {
+    return apiRequest<Fornecedor>(`/fornecedores/${id}`);
+  }
+
   async save(input: FornecedorInput): Promise<void> {
     const path = input.id ? `/fornecedores/${input.id}` : '/fornecedores';
     const method = input.id ? 'PUT' : 'POST';

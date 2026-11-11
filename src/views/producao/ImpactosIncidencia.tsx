@@ -19,8 +19,8 @@ import { Edit, Trash2, Settings } from 'lucide-react';
 import { NewButton } from '@/components/shared/NewButton';
 import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { usePermissions } from '@/hooks/usePermissions';
-import { ImpactoIncidenciaFormModal } from '@/components/producao/ImpactoIncidenciaFormModal';
+import { useRecordList } from '@/hooks/useRecordNavigation';
+import { IMPACTOS_INCIDENCIA_FORM } from '@/modules/parametrizacoes/producao.forms';
 import { ApiParametrizacoesRepository } from '@/modules/parametrizacoes/parametrizacoes.api.repository';
 import {
   useListingView,
@@ -174,16 +174,18 @@ function ImpactoDetailPanel({
 const ImpactosIncidencia = () => {
   const { toast } = useToast();
   const { t } = useLanguage();
-  const { canAlterar } = usePermissions();
   const [search, setSearch] = useState('');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<ImpactoIncidencia | null>(null);
+  const { openNew, openRecord } = useRecordList(IMPACTOS_INCIDENCIA_FORM.routes);
+  // Keeps the filtered order so the form page can navigate previous/next.
+  const openEdit = (item: { id: string }) =>
+    openRecord(
+      item.id,
+      filteredItems.map((i) => i.id),
+    );
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<ImpactoIncidencia | null>(null);
   const [items, setItems] = useState<ImpactoIncidencia[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-
-  const permPath = ['ProduÃ§Ã£o', 'ParametrizaÃ§Ãµes', 'Impactos de IncidÃªncia'] as const;
 
   const { mode, setMode, visibleColumnKeys, toggleColumn, resetColumns, optionalColumns } =
     useListingView({ storageKey: STORAGE_KEY, columns: COLUMN_CONFIG });
@@ -241,36 +243,6 @@ const ImpactosIncidencia = () => {
     }
   };
 
-  const handleSave = async (data: {
-    titulo: string;
-    descricao?: string;
-    codigo_externo?: string;
-    traducoes?: Record<string, string>;
-  }) => {
-    try {
-      await repository.saveImpactoIncidencia({
-        ...(editingItem ? { id: editingItem.id } : {}),
-        titulo: data.titulo,
-        descricao: data.descricao || '',
-        codigo_externo: data.codigo_externo || '',
-        traducoes: data.traducoes,
-      });
-      toast({
-        title: t('common.success'),
-        description: `${t('incidentImpact.entity')} ${editingItem ? t('common.updated').toLowerCase() : t('common.save').toLowerCase()}!`,
-      });
-      await fetchData();
-      setEditingItem(null);
-    } catch (err) {
-      toast({
-        title: t('common.error'),
-        description: (err as Error).message,
-        variant: 'destructive',
-      });
-      throw err;
-    }
-  };
-
   const filteredItems = items.filter(
     (item) =>
       item.titulo.toLowerCase().includes(search.toLowerCase()) ||
@@ -313,15 +285,7 @@ const ImpactosIncidencia = () => {
       sortable: false,
       render: (item) => (
         <div className="flex justify-end gap-1">
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-7 w-7"
-            onClick={() => {
-              setEditingItem(item);
-              setIsModalOpen(true);
-            }}
-          >
+          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(item)}>
             <Edit className="w-3.5 h-3.5" />
           </Button>
           <Button
@@ -344,13 +308,7 @@ const ImpactosIncidencia = () => {
         description={t('incidentImpact.pageDescription')}
       />
       <ListActionBar>
-        <NewButton
-          tooltip={`${t('common.new')} ${t('incidentImpact.entity')}`}
-          onClick={() => {
-            setEditingItem(null);
-            setIsModalOpen(true);
-          }}
-        />
+        <NewButton tooltip={`${t('common.new')} ${t('incidentImpact.entity')}`} onClick={openNew} />
         <div className="flex-1" />
         <SearchBar value={search} onChange={setSearch} placeholder={t('common.search')} />
         {mode === 'list' && (
@@ -374,7 +332,7 @@ const ImpactosIncidencia = () => {
               title={t('common.noResults')}
               description={`${t('common.add')} ${t('incidentImpact.entity').toLowerCase()}.`}
               icon={Settings}
-              onAction={() => setIsModalOpen(true)}
+              onAction={openNew}
               actionLabel={`${t('common.add')} ${t('incidentImpact.entity')}`}
             />
           ) : (
@@ -392,15 +350,12 @@ const ImpactosIncidencia = () => {
             getRowKey={(item) => item.id}
             emptyTitle={t('common.noResults')}
             emptyDescription={`${t('common.add')} ${t('incidentImpact.entity').toLowerCase()}.`}
-            onEmptyAction={() => setIsModalOpen(true)}
+            onEmptyAction={openNew}
             emptyActionLabel={`${t('common.add')} ${t('incidentImpact.entity')}`}
             renderCard={(item) => (
               <ImpactoCard
                 item={item}
-                onEdit={() => {
-                  setEditingItem(item);
-                  setIsModalOpen(true);
-                }}
+                onEdit={() => openEdit(item)}
                 onDelete={() => openDelete(item.id)}
               />
             )}
@@ -429,40 +384,13 @@ const ImpactosIncidencia = () => {
             renderDetail={(item) => (
               <ImpactoDetailPanel
                 item={item}
-                onEdit={() => {
-                  setEditingItem(item);
-                  setIsModalOpen(true);
-                }}
+                onEdit={() => openEdit(item)}
                 onDelete={() => openDelete(item.id)}
               />
             )}
           />
         )}
       </DataCard>
-      <ImpactoIncidenciaFormModal
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setEditingItem(null);
-        }}
-        onSave={handleSave}
-        data={editingItem}
-        readOnly={!!editingItem && !canAlterar(permPath[0], permPath[1], permPath[2])}
-        navigation={(() => {
-          const navIndex = editingItem
-            ? filteredItems.findIndex((i) => i.id === editingItem.id)
-            : -1;
-          return navIndex >= 0
-            ? {
-                currentIndex: navIndex,
-                total: filteredItems.length,
-                onPrevious: () => setEditingItem(filteredItems[navIndex - 1]),
-                onNext: () => setEditingItem(filteredItems[navIndex + 1]),
-              }
-            : undefined;
-        })()}
-      />
-
       <AlertDialog open={!!deletingId} onOpenChange={(open) => !open && setDeletingId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>

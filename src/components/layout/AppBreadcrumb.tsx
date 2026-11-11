@@ -66,6 +66,7 @@ const SUB_LABELS: Record<string, string> = {
   fisicos: 'Equipamentos',
   fornecedores: 'Fornecedores',
   pessoas: 'Pessoas',
+  novo: 'Novo',
   figurinos: 'Figurinos',
   equipes: 'Equipes',
   // Recursos — parametrizações

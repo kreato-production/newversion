@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import type { SessionUser } from '../auth/auth.types.js';
 import { ensureSameTenant, resolveTenantId } from '../common/access.js';
-import type { FornecedoresRepository } from './fornecedores.repository.js';
+import type { FornecedorRecord, FornecedoresRepository } from './fornecedores.repository.js';
 
 const optionalUuid = z.preprocess(
   (value) => (value === '' || value === undefined ? null : value),
@@ -38,6 +38,22 @@ export const addFornecedorArquivoSchema = z.object({
 
 export type SaveFornecedorDto = z.infer<typeof saveFornecedorSchema>;
 
+function toFornecedorDto(item: FornecedorRecord) {
+  return {
+    id: item.id,
+    codigoExterno: item.codigoExterno || '',
+    nome: item.nome,
+    categoria: item.categoria || '',
+    categoriaId: item.categoriaId || '',
+    email: item.email || '',
+    pais: item.pais || '',
+    identificacaoFiscal: item.identificacaoFiscal || '',
+    descricao: item.descricao || '',
+    dataCadastro: item.createdAt?.toISOString() || '',
+    usuarioCadastro: item.createdByNome || '',
+  };
+}
+
 export class FornecedoresService {
   constructor(private readonly repository: FornecedoresRepository) {}
 
@@ -47,19 +63,7 @@ export class FornecedoresService {
 
     return {
       total,
-      data: data.map((item) => ({
-        id: item.id,
-        codigoExterno: item.codigoExterno || '',
-        nome: item.nome,
-        categoria: item.categoria || '',
-        categoriaId: item.categoriaId || '',
-        email: item.email || '',
-        pais: item.pais || '',
-        identificacaoFiscal: item.identificacaoFiscal || '',
-        descricao: item.descricao || '',
-        dataCadastro: item.createdAt?.toISOString() || '',
-        usuarioCadastro: item.createdByNome || '',
-      })),
+      data: data.map(toFornecedorDto),
     };
   }
 
@@ -67,6 +71,16 @@ export class FornecedoresService {
     const tenantId = resolveTenantId(actor, actor.tenantId);
     const categorias = await this.repository.listCategorias(tenantId);
     return { categorias };
+  }
+
+  async getById(actor: SessionUser, id: string) {
+    const existing = await this.repository.findById(id);
+    if (!existing) {
+      return null;
+    }
+
+    ensureSameTenant(actor, existing.tenantId);
+    return toFornecedorDto(existing);
   }
 
   async save(actor: SessionUser, input: SaveFornecedorDto) {
@@ -93,19 +107,7 @@ export class FornecedoresService {
       createdBy: actor.id,
     });
 
-    return {
-      id: item.id,
-      codigoExterno: item.codigoExterno || '',
-      nome: item.nome,
-      categoria: item.categoria || '',
-      categoriaId: item.categoriaId || '',
-      email: item.email || '',
-      pais: item.pais || '',
-      identificacaoFiscal: item.identificacaoFiscal || '',
-      descricao: item.descricao || '',
-      dataCadastro: item.createdAt?.toISOString() || '',
-      usuarioCadastro: item.createdByNome || '',
-    };
+    return toFornecedorDto(item);
   }
 
   async remove(actor: SessionUser, id: string) {

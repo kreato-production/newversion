@@ -91,6 +91,10 @@ export class ApiSatOpsRepository {
     return apiRequest('/satops/estados-evento');
   }
 
+  getEstadoEvento(id: string): Promise<EstadoEventoApiItem> {
+    return apiRequest(`/satops/estados-evento/${id}`);
+  }
+
   saveEstadoEvento(
     input: Partial<EstadoEventoApiItem> & { nome: string },
   ): Promise<EstadoEventoApiItem> {
@@ -139,6 +143,10 @@ export class ApiSatOpsRepository {
 
   listAlertas(): Promise<ListResponse<AlertaApiItem>> {
     return apiRequest('/satops/alertas');
+  }
+
+  getAlerta(id: string): Promise<AlertaApiItem> {
+    return apiRequest(`/satops/alertas/${id}`);
   }
 
   saveAlerta(input: Partial<AlertaApiItem> & { nome: string }): Promise<AlertaApiItem> {

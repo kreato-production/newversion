@@ -11,7 +11,8 @@ import { useToast } from '@/hooks/use-toast';
 import { SortableTable, type Column } from '@/components/shared/SortableTable';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Usuario } from './Usuarios';
-import { UsuarioFormModal } from '@/components/admin/UsuarioFormModal';
+import { useRecordList } from '@/hooks/useRecordNavigation';
+import { GLOBAL_USUARIOS_ROUTES } from '@/modules/usuarios/usuarios.navigation';
 import { ApiUsuariosRepository } from '@/modules/usuarios/usuarios.api.repository';
 import { type UsuarioApiModel } from '@/modules/usuarios/usuarios.types';
 import { useAuth } from '@/contexts/AuthContext';
@@ -23,7 +24,6 @@ import {
   MasterDetail,
   type ColumnConfig,
 } from '@/components/listing';
-import { isPasswordPolicyValid, PASSWORD_POLICY_MESSAGE } from '@/lib/password-policy';
 
 const apiRepository = new ApiUsuariosRepository();
 
@@ -155,8 +155,13 @@ const GlobalUsers = () => {
   const { toast } = useToast();
   const { session } = useAuth();
   const [search, setSearch] = useState('');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<Usuario | null>(null);
+  const { openNew, openRecord } = useRecordList(GLOBAL_USUARIOS_ROUTES);
+  // Keeps the filtered order so the form page can navigate previous/next.
+  const openEdit = (item: { id: string }) =>
+    openRecord(
+      item.id,
+      filteredItems.map((i) => i.id),
+    );
   const [selectedItem, setSelectedItem] = useState<Usuario | null>(null);
   const [items, setItems] = useState<Usuario[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -189,71 +194,6 @@ const GlobalUsers = () => {
   useEffect(() => {
     void fetchData();
   }, [fetchData]);
-
-  const handleSave = async (data: Usuario) => {
-    try {
-      if (!data.email || !data.nome || !data.usuario) {
-        toast({
-          title: 'Erro',
-          description: 'Preencha todos os campos obrigatórios',
-          variant: 'destructive',
-        });
-        return;
-      }
-
-      if (!editingItem && !data.senha) {
-        toast({
-          title: 'Erro',
-          description: 'Preencha todos os campos obrigatórios',
-          variant: 'destructive',
-        });
-        return;
-      }
-
-      if (data.senha && !isPasswordPolicyValid(data.senha)) {
-        toast({
-          title: 'Erro',
-          description: PASSWORD_POLICY_MESSAGE,
-          variant: 'destructive',
-        });
-        return;
-      }
-
-      await apiRepository.save({
-        ...(editingItem ? { id: data.id } : {}),
-        codigoExterno: data.codigoExterno || '',
-        nome: data.nome,
-        email: data.email,
-        usuario: data.usuario,
-        ...(data.senha ? { senha: data.senha } : {}),
-        foto: data.foto || '',
-        perfil: data.perfil || 'Admin Global',
-        descricao: data.descricao || '',
-        status: data.status || 'Ativo',
-        tipoAcesso: 'Global',
-        role: 'GLOBAL_ADMIN',
-        dataCadastro: data.dataCadastro,
-        usuarioCadastro: data.usuarioCadastro,
-      });
-
-      toast({
-        title: 'Sucesso',
-        description: editingItem ? 'Admin global atualizado!' : 'Admin global criado com sucesso!',
-      });
-
-      await fetchData();
-      setIsModalOpen(false);
-      setEditingItem(null);
-    } catch (error: unknown) {
-      console.error('Error saving global user:', error);
-      toast({
-        title: 'Erro',
-        description: (error as Error).message || 'Erro ao salvar admin global',
-        variant: 'destructive',
-      });
-      throw error;
-    }
-  };
 
   const filteredItems = items.filter(
     (item) =>
@@ -320,8 +260,7 @@ const GlobalUsers = () => {
                 toast({ description: 'O usuário root não pode ser editado aqui.' });
                 return;
               }
-              setEditingItem(item);
-              setIsModalOpen(true);
+              openEdit(item);
             }}
           >
             <Edit className="w-4 h-4" />
@@ -339,13 +278,7 @@ const GlobalUsers = () => {
       />
 
       <ListActionBar>
-        <NewButton
-          tooltip="Novo Admin Global"
-          onClick={() => {
-            setEditingItem(null);
-            setIsModalOpen(true);
-          }}
-        />
+        <NewButton tooltip="Novo Admin Global" onClick={openNew} />
         <div className="flex-1" />
         <SearchBar value={search} onChange={setSearch} />
         {mode === 'list' && (
@@ -370,7 +303,7 @@ const GlobalUsers = () => {
               title="Nenhum administrador global"
               description="Cadastre usuários com privilégios de super-admin."
               icon={Globe}
-              onAction={() => setIsModalOpen(true)}
+              onAction={openNew}
               actionLabel="Adicionar Admin Global"
             />
           ) : (
@@ -388,7 +321,7 @@ const GlobalUsers = () => {
             getRowKey={(item) => item.id}
             emptyTitle="Nenhum administrador global"
             emptyDescription="Cadastre usuários com privilégios de super-admin."
-            onEmptyAction={() => setIsModalOpen(true)}
+            onEmptyAction={openNew}
             emptyActionLabel="Adicionar Admin Global"
             renderCard={(item) => (
               <GlobalUserCard
@@ -398,8 +331,7 @@ const GlobalUsers = () => {
                     toast({ description: 'O usuário root não pode ser editado aqui.' });
                     return;
                   }
-                  setEditingItem(item);
-                  setIsModalOpen(true);
+                  openEdit(item);
                 }}
               />
             )}
@@ -437,37 +369,13 @@ const GlobalUsers = () => {
                     toast({ description: 'O usuário root não pode ser editado aqui.' });
                     return;
                   }
-                  setEditingItem(item);
-                  setIsModalOpen(true);
+                  openEdit(item);
                 }}
               />
             )}
           />
         )}
       </DataCard>
-
-      <UsuarioFormModal
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setEditingItem(null);
-        }}
-        onSave={handleSave}
-        data={editingItem}
-        navigation={(() => {
-          const navIndex = editingItem
-            ? filteredItems.findIndex((i) => i.id === editingItem.id)
-            : -1;
-          return navIndex >= 0
-            ? {
-                currentIndex: navIndex,
-                total: filteredItems.length,
-                onPrevious: () => setEditingItem(filteredItems[navIndex - 1]),
-                onNext: () => setEditingItem(filteredItems[navIndex + 1]),
-              }
-            : undefined;
-        })()}
-      />
     </div>
   );
 };

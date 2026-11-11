@@ -16,6 +16,7 @@ export type Turno = {
   folgaEspecial: string;
   descricao: string;
   diasTrabalhados: number | null;
+  traducoes?: Record<string, string> | null;
   dataCadastro: string;
   usuarioCadastro: string;
 };

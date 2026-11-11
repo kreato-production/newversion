@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import type { SessionUser } from '../auth/auth.types.js';
 import { ensureSameTenant, resolveTenantId } from '../common/access.js';
-import type { FeriadosRepository } from './feriados.repository.js';
+import type { FeriadoRecord, FeriadosRepository } from './feriados.repository.js';
 
 const datePattern = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -16,6 +16,18 @@ export const saveFeriadoSchema = z.object({
 
 export type SaveFeriadoDto = z.infer<typeof saveFeriadoSchema>;
 
+function toFeriadoDto(item: FeriadoRecord) {
+  return {
+    id: item.id,
+    data: item.data,
+    feriado: item.feriado,
+    observacoes: item.observacoes || '',
+    traducoes: item.traducoes ?? null,
+    dataCadastro: item.createdAt.toISOString(),
+    usuarioCadastro: item.createdBy || '',
+  };
+}
+
 export class FeriadosService {
   constructor(private readonly repository: FeriadosRepository) {}
 
@@ -25,16 +37,18 @@ export class FeriadosService {
 
     return {
       total,
-      data: data.map((item) => ({
-        id: item.id,
-        data: item.data,
-        feriado: item.feriado,
-        observacoes: item.observacoes || '',
-        traducoes: item.traducoes ?? null,
-        dataCadastro: item.createdAt.toISOString(),
-        usuarioCadastro: item.createdBy || '',
-      })),
+      data: data.map(toFeriadoDto),
     };
+  }
+
+  async getById(actor: SessionUser, id: string) {
+    const existing = await this.repository.findById(id);
+    if (!existing) {
+      return null;
+    }
+
+    ensureSameTenant(actor, existing.tenantId);
+    return toFeriadoDto(existing);
   }
 
   async save(actor: SessionUser, input: SaveFeriadoDto) {
@@ -63,15 +77,7 @@ export class FeriadosService {
       createdBy: actor.nome,
     });
 
-    return {
-      id: item.id,
-      data: item.data,
-      feriado: item.feriado,
-      observacoes: item.observacoes || '',
-      traducoes: item.traducoes ?? null,
-      dataCadastro: item.createdAt.toISOString(),
-      usuarioCadastro: item.createdBy || '',
-    };
+    return toFeriadoDto(item);
   }
 
   async remove(actor: SessionUser, id: string) {

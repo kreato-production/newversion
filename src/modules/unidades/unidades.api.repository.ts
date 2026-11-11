@@ -7,6 +7,10 @@ export class ApiUnidadesRepository {
     return response.data;
   }
 
+  async getById(id: string): Promise<UnidadeNegocio> {
+    return apiRequest<UnidadeNegocio>(`/unidades/${id}`);
+  }
+
   async save(data: UnidadeNegocio, _userId?: string): Promise<void> {
     const normalizedId = data.id || undefined;
     const payload = normalizedId ? data : { ...data, id: undefined };

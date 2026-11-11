@@ -14,7 +14,9 @@ import {
 import { NewButton } from '@/components/shared/NewButton';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { CentroLucroFormModal, type CentroLucro } from '@/components/admin/CentroLucroFormModal';
+import { useRecordList } from '@/hooks/useRecordNavigation';
+import { CENTROS_LUCRO_ROUTES } from '@/modules/parametrizacoes/centros-lucro.navigation';
+import type { CentroLucro } from '@/components/admin/CentroLucroFormBody';
 import { cn } from '@/lib/utils';
 import { ApiParametrizacoesRepository } from '@/modules/parametrizacoes/parametrizacoes.api.repository';
 
@@ -23,8 +25,13 @@ const repository = new ApiParametrizacoesRepository();
 const CentrosLucro = () => {
   const { toast } = useToast();
   const [search, setSearch] = useState('');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<CentroLucro | null>(null);
+  const { openNew, openRecord } = useRecordList(CENTROS_LUCRO_ROUTES);
+  // Keeps the filtered order so the form page can navigate previous/next.
+  const openEdit = (item: { id: string }) =>
+    openRecord(
+      item.id,
+      filteredItems.map((i) => i.id),
+    );
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [items, setItems] = useState<CentroLucro[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -49,34 +56,6 @@ const CentrosLucro = () => {
   useEffect(() => {
     void fetchData();
   }, [fetchData]);
-
-  const handleSave = async (data: CentroLucro) => {
-    try {
-      await repository.saveCentroLucro({
-        ...(editingItem ? { id: data.id } : {}),
-        codigoExterno: data.codigoExterno || '',
-        nome: data.nome,
-        descricao: data.descricao || '',
-        status: data.status,
-        parentId: data.parentId,
-      });
-
-      toast({
-        title: 'Sucesso',
-        description: editingItem ? 'Centro de Custos atualizado!' : 'Centro de Custos cadastrado!',
-      });
-      await fetchData();
-      setEditingItem(null);
-    } catch (err) {
-      console.error('Error saving centro lucro:', err);
-      toast({
-        title: 'Erro',
-        description: `Erro ao salvar: ${(err as Error).message}`,
-        variant: 'destructive',
-      });
-      throw err;
-    }
-  };
 
   const handleDelete = async (id: string) => {
     const hasChildren = items.some((item) => item.parentId === id);
@@ -184,14 +163,7 @@ const CentrosLucro = () => {
           </span>
 
           <div className="flex gap-1">
-            <Button
-              size="icon"
-              variant="ghost"
-              onClick={() => {
-                setEditingItem(item);
-                setIsModalOpen(true);
-              }}
-            >
+            <Button size="icon" variant="ghost" onClick={() => openEdit(item)}>
               <Edit className="w-4 h-4" />
             </Button>
             <Button
@@ -230,13 +202,7 @@ const CentrosLucro = () => {
       />
 
       <ListActionBar>
-        <NewButton
-          tooltip="Novo Centro de Custos"
-          onClick={() => {
-            setEditingItem(null);
-            setIsModalOpen(true);
-          }}
-        />
+        <NewButton tooltip="Novo Centro de Custos" onClick={openNew} />
         <div className="flex-1" />
         <SearchBar value={search} onChange={setSearch} />
       </ListActionBar>
@@ -247,7 +213,7 @@ const CentrosLucro = () => {
             title="Nenhum centro de custos cadastrado"
             description="Adicione centros de custos para organizar suas operacoes."
             icon={FolderTree}
-            onAction={() => setIsModalOpen(true)}
+            onAction={openNew}
             actionLabel="Adicionar Centro de Custos"
           />
         ) : rootItems.length === 0 && search ? (
@@ -270,30 +236,6 @@ const CentrosLucro = () => {
           </div>
         )}
       </DataCard>
-
-      <CentroLucroFormModal
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setEditingItem(null);
-        }}
-        onSave={handleSave}
-        data={editingItem}
-        centrosLucro={items}
-        navigation={(() => {
-          const navIndex = editingItem
-            ? filteredItems.findIndex((i) => i.id === editingItem.id)
-            : -1;
-          return navIndex >= 0
-            ? {
-                currentIndex: navIndex,
-                total: filteredItems.length,
-                onPrevious: () => setEditingItem(filteredItems[navIndex - 1]),
-                onNext: () => setEditingItem(filteredItems[navIndex + 1]),
-              }
-            : undefined;
-        })()}
-      />
     </div>
   );
 };

@@ -18,12 +18,13 @@ import { Separator } from '@/components/ui/separator';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
 import { ListActionBar } from '@/components/shared/ListActionBar';
 import { SortableTable, type Column } from '@/components/shared/SortableTable';
-import FigurinoFormModal from '@/components/recursos/FigurinoFormModal';
+import { useRecordList } from '@/hooks/useRecordNavigation';
+import { FIGURINOS_ROUTES } from '@/modules/figurinos/figurinos.navigation';
 import { useToast } from '@/hooks/use-toast';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useAuth } from '@/contexts/AuthContext';
 import { figurinosRepository } from '@/modules/figurinos/figurinos.repository.provider';
-import type { Figurino, FigurinoInput } from '@/modules/figurinos/figurinos.types';
+import type { Figurino } from '@/modules/figurinos/figurinos.types';
 import {
   useListingView,
   ViewSwitcher,
@@ -234,14 +235,19 @@ function FigurinoDetailPanel({
 
 const Figurinos = () => {
   const [search, setSearch] = useState('');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingData, setEditingData] = useState<Figurino | null>(null);
+  const { openNew, openRecord } = useRecordList(FIGURINOS_ROUTES);
+  // Keeps the filtered order so the form page can navigate previous/next.
+  const openEdit = (item: { id: string }) =>
+    openRecord(
+      item.id,
+      filteredItems.map((i) => i.id),
+    );
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<Figurino | null>(null);
   const [items, setItems] = useState<Figurino[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
-  const { user, session } = useAuth();
+  const { session } = useAuth();
   const { canIncluir, canAlterar, canExcluir } = usePermissions();
   const podeIncluir = canIncluir('Recursos', 'Figurinos');
   const podeAlterar = canAlterar('Recursos', 'Figurinos');
@@ -270,28 +276,6 @@ const Figurinos = () => {
   useEffect(() => {
     void fetchFigurinos();
   }, [fetchFigurinos]);
-
-  const handleSave = async (figurino: FigurinoInput) => {
-    try {
-      await figurinosRepository.save({
-        ...figurino,
-        tenantId: user?.tenantId ?? null,
-      });
-      toast({
-        title: editingData ? 'Figurino atualizado' : 'Figurino criado',
-        description: editingData
-          ? 'O figurino foi atualizado com sucesso.'
-          : 'O figurino foi criado com sucesso.',
-      });
-      await fetchFigurinos();
-      setIsModalOpen(false);
-      setEditingData(null);
-    } catch (error) {
-      console.error('Error saving figurino:', error);
-      toast({ title: 'Erro', description: 'Erro ao salvar figurino', variant: 'destructive' });
-      throw error;
-    }
-  };
 
   const handleDeleteConfirm = async () => {
     if (!deletingId) return;
@@ -364,8 +348,7 @@ const Figurinos = () => {
             size="icon"
             onClick={(e) => {
               e.stopPropagation();
-              setEditingData(figurino);
-              setIsModalOpen(true);
+              openEdit(figurino);
             }}
             disabled={!podeAlterar}
           >
@@ -397,15 +380,7 @@ const Figurinos = () => {
       />
 
       <ListActionBar>
-        {podeIncluir && (
-          <NewButton
-            tooltip="Novo Figurino"
-            onClick={() => {
-              setEditingData(null);
-              setIsModalOpen(true);
-            }}
-          />
-        )}
+        {podeIncluir && <NewButton tooltip="Novo Figurino" onClick={openNew} />}
         <div className="flex-1" />
         <SearchBar value={search} onChange={setSearch} />
         {mode === 'list' && (
@@ -430,7 +405,7 @@ const Figurinos = () => {
               icon={ImageIcon}
               title="Nenhum figurino encontrado"
               description="Adicione um novo figurino para começar."
-              onAction={podeIncluir ? () => setIsModalOpen(true) : undefined}
+              onAction={podeIncluir ? openNew : undefined}
               actionLabel="Adicionar Figurino"
             />
           ) : (
@@ -448,17 +423,14 @@ const Figurinos = () => {
             getRowKey={(item) => item.id}
             emptyTitle="Nenhum figurino encontrado"
             emptyDescription="Adicione um novo figurino para começar."
-            onEmptyAction={podeIncluir ? () => setIsModalOpen(true) : undefined}
+            onEmptyAction={podeIncluir ? openNew : undefined}
             emptyActionLabel="Adicionar Figurino"
             renderCard={(item) => (
               <FigurinoCard
                 item={item}
                 podeAlterar={podeAlterar}
                 podeExcluir={podeExcluir}
-                onEdit={() => {
-                  setEditingData(item);
-                  setIsModalOpen(true);
-                }}
+                onEdit={() => openEdit(item)}
                 onDelete={() => setDeletingId(item.id)}
               />
             )}
@@ -507,40 +479,13 @@ const Figurinos = () => {
                 item={item}
                 podeAlterar={podeAlterar}
                 podeExcluir={podeExcluir}
-                onEdit={() => {
-                  setEditingData(item);
-                  setIsModalOpen(true);
-                }}
+                onEdit={() => openEdit(item)}
                 onDelete={() => setDeletingId(item.id)}
               />
             )}
           />
         )}
       </DataCard>
-
-      <FigurinoFormModal
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setEditingData(null);
-        }}
-        onSave={handleSave}
-        data={editingData}
-        readOnly={!!editingData && !podeAlterar}
-        navigation={(() => {
-          const navIndex = editingData
-            ? filteredItems.findIndex((i) => i.id === editingData.id)
-            : -1;
-          return navIndex >= 0
-            ? {
-                currentIndex: navIndex,
-                total: filteredItems.length,
-                onPrevious: () => setEditingData(filteredItems[navIndex - 1]),
-                onNext: () => setEditingData(filteredItems[navIndex + 1]),
-              }
-            : undefined;
-        })()}
-      />
 
       <AlertDialog open={!!deletingId} onOpenChange={(open) => !open && setDeletingId(null)}>
         <AlertDialogContent>

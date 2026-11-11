@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import type { SessionUser } from '../auth/auth.types.js';
 import { ensureSameTenant, resolveTenantId } from '../common/access.js';
-import type { TurnosRepository, WeekdayKey } from './turnos.repository.js';
+import type { TurnoRecord, TurnosRepository, WeekdayKey } from './turnos.repository.js';
 
 const timePattern = /^\d{2}:\d{2}(:\d{2})?$/;
 const weekdayKeys: WeekdayKey[] = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab'];
@@ -45,6 +45,26 @@ export const saveTurnoSchema = z.object({
 
 export type SaveTurnoDto = z.infer<typeof saveTurnoSchema>;
 
+function toTurnoDto(item: TurnoRecord) {
+  return {
+    id: item.id,
+    nome: item.nome,
+    horaInicio: item.horaInicio,
+    horaFim: item.horaFim,
+    diasSemana: item.diasSemana,
+    pessoasPorDia: item.pessoasPorDia,
+    cor: item.cor,
+    sigla: item.sigla ?? '',
+    folgasPorSemana: item.folgasPorSemana,
+    folgaEspecial: item.folgaEspecial ?? '',
+    descricao: item.descricao ?? '',
+    diasTrabalhados: item.diasTrabalhados,
+    traducoes: item.traducoes ?? null,
+    dataCadastro: item.createdAt.toISOString(),
+    usuarioCadastro: item.createdBy ?? '',
+  };
+}
+
 export class TurnosService {
   constructor(private readonly repository: TurnosRepository) {}
 
@@ -54,24 +74,18 @@ export class TurnosService {
 
     return {
       total,
-      data: data.map((item) => ({
-        id: item.id,
-        nome: item.nome,
-        horaInicio: item.horaInicio,
-        horaFim: item.horaFim,
-        diasSemana: item.diasSemana,
-        pessoasPorDia: item.pessoasPorDia,
-        cor: item.cor,
-        sigla: item.sigla ?? '',
-        folgasPorSemana: item.folgasPorSemana,
-        folgaEspecial: item.folgaEspecial ?? '',
-        descricao: item.descricao ?? '',
-        diasTrabalhados: item.diasTrabalhados,
-        traducoes: item.traducoes ?? null,
-        dataCadastro: item.createdAt.toISOString(),
-        usuarioCadastro: item.createdBy ?? '',
-      })),
+      data: data.map(toTurnoDto),
     };
+  }
+
+  async getById(actor: SessionUser, id: string) {
+    const existing = await this.repository.findById(id);
+    if (!existing) {
+      return null;
+    }
+
+    ensureSameTenant(actor, existing.tenantId);
+    return toTurnoDto(existing);
   }
 
   async save(actor: SessionUser, input: SaveTurnoDto) {
@@ -108,23 +122,7 @@ export class TurnosService {
       createdBy: actor.nome,
     });
 
-    return {
-      id: item.id,
-      nome: item.nome,
-      horaInicio: item.horaInicio,
-      horaFim: item.horaFim,
-      diasSemana: item.diasSemana,
-      pessoasPorDia: item.pessoasPorDia,
-      cor: item.cor,
-      sigla: item.sigla ?? '',
-      folgasPorSemana: item.folgasPorSemana,
-      folgaEspecial: item.folgaEspecial ?? '',
-      descricao: item.descricao ?? '',
-      diasTrabalhados: item.diasTrabalhados,
-      traducoes: item.traducoes ?? null,
-      dataCadastro: item.createdAt.toISOString(),
-      usuarioCadastro: item.createdBy ?? '',
-    };
+    return toTurnoDto(item);
   }
 
   async remove(actor: SessionUser, id: string) {

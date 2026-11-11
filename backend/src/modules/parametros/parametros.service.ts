@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import type { SessionUser } from '../auth/auth.types.js';
 import { ensureSameTenant, resolveTenantId } from '../common/access.js';
-import type { ParametrosRepository } from './parametros.repository.js';
+import type { ParametroRecord, ParametrosRepository } from './parametros.repository.js';
 
 export const saveParametroSchema = z.object({
   id: z.string().min(1).optional(),
@@ -15,6 +15,19 @@ export const saveParametroSchema = z.object({
 
 export type SaveParametroDto = z.infer<typeof saveParametroSchema>;
 
+function toParametroDto(item: ParametroRecord) {
+  return {
+    id: item.id,
+    codigo_externo: item.codigoExterno || '',
+    nome: item.nome,
+    descricao: item.descricao || '',
+    cor: item.cor ?? null,
+    traducoes: item.traducoes ?? null,
+    created_at: item.createdAt?.toISOString() ?? '',
+    created_by: item.createdBy || '',
+  };
+}
+
 export class ParametrosService {
   constructor(private readonly repository: ParametrosRepository) {}
 
@@ -24,17 +37,18 @@ export class ParametrosService {
 
     return {
       total,
-      data: data.map((item) => ({
-        id: item.id,
-        codigo_externo: item.codigoExterno || '',
-        nome: item.nome,
-        descricao: item.descricao || '',
-        cor: item.cor ?? null,
-        traducoes: item.traducoes ?? null,
-        created_at: item.createdAt?.toISOString() ?? '',
-        created_by: item.createdBy || '',
-      })),
+      data: data.map(toParametroDto),
     };
+  }
+
+  async getById(actor: SessionUser, storageKey: string, id: string) {
+    const existing = await this.repository.findById(storageKey, id);
+    if (!existing) {
+      return null;
+    }
+
+    ensureSameTenant(actor, existing.tenantId);
+    return toParametroDto(existing);
   }
 
   async save(actor: SessionUser, storageKey: string, input: SaveParametroDto) {
@@ -59,16 +73,7 @@ export class ParametrosService {
       createdBy: actor.id,
     });
 
-    return {
-      id: item.id,
-      codigo_externo: item.codigoExterno || '',
-      nome: item.nome,
-      descricao: item.descricao || '',
-      cor: item.cor ?? null,
-      traducoes: item.traducoes ?? null,
-      created_at: item.createdAt?.toISOString() ?? '',
-      created_by: item.createdBy || '',
-    };
+    return toParametroDto(item);
   }
 
   async remove(actor: SessionUser, storageKey: string, id: string) {

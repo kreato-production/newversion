@@ -25,6 +25,14 @@ export function createEquipesRoutes(authService: AuthService, equipesService: Eq
       return reply.status(200).send(await equipesService.list(user, opts));
     });
 
+    app.get('/equipes/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      const params = request.params as { id: string };
+      const item = await equipesService.getById(user, params.id);
+      if (!item) return reply.status(404).send({ message: 'Equipe não encontrado(a)' });
+      return reply.status(200).send(item);
+    });
+
     app.post('/equipes', { preHandler: [authenticate, requireTenantAccess, requireIncluir] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const body = saveEquipeSchema.parse(request.body);

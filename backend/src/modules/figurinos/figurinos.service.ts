@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import type { SessionUser } from '../auth/auth.types.js';
 import { ensureSameTenant, resolveTenantId } from '../common/access.js';
-import type { FigurinosRepository } from './figurinos.repository.js';
+import type { FigurinoRecord, FigurinosRepository } from './figurinos.repository.js';
 
 const optionalUuid = z.preprocess(
   (value) => (value === '' || value === undefined ? null : value),
@@ -30,6 +30,29 @@ export const saveFigurinoSchema = z.object({
 
 export type SaveFigurinoDto = z.infer<typeof saveFigurinoSchema>;
 
+function toFigurinoDto(item: FigurinoRecord) {
+  return {
+    id: item.id,
+    codigoExterno: item.codigoExterno || '',
+    codigoFigurino: item.codigoFigurino,
+    descricao: item.descricao,
+    tipoFigurino: item.tipoFigurino || '',
+    tipoFigurinoId: item.tipoFigurinoId || '',
+    material: item.material || '',
+    materialId: item.materialId || '',
+    tamanhoPeca: item.tamanhoPeca || '',
+    corPredominante: item.corPredominante || '',
+    corSecundaria: item.corSecundaria || '',
+    imagens: item.imagens.map((imagem) => ({
+      id: imagem.id,
+      url: imagem.url,
+      isPrincipal: imagem.isPrincipal,
+    })),
+    dataCadastro: item.createdAt?.toISOString() || '',
+    usuarioCadastro: item.createdByNome || '',
+  };
+}
+
 export class FigurinosService {
   constructor(private readonly repository: FigurinosRepository) {}
 
@@ -39,26 +62,7 @@ export class FigurinosService {
 
     return {
       total,
-      data: data.map((item) => ({
-        id: item.id,
-        codigoExterno: item.codigoExterno || '',
-        codigoFigurino: item.codigoFigurino,
-        descricao: item.descricao,
-        tipoFigurino: item.tipoFigurino || '',
-        tipoFigurinoId: item.tipoFigurinoId || '',
-        material: item.material || '',
-        materialId: item.materialId || '',
-        tamanhoPeca: item.tamanhoPeca || '',
-        corPredominante: item.corPredominante || '',
-        corSecundaria: item.corSecundaria || '',
-        imagens: item.imagens.map((imagem) => ({
-          id: imagem.id,
-          url: imagem.url,
-          isPrincipal: imagem.isPrincipal,
-        })),
-        dataCadastro: item.createdAt?.toISOString() || '',
-        usuarioCadastro: item.createdByNome || '',
-      })),
+      data: data.map(toFigurinoDto),
     };
   }
 
@@ -70,6 +74,16 @@ export class FigurinosService {
     ]);
 
     return { tiposFigurino, materiais };
+  }
+
+  async getById(actor: SessionUser, id: string) {
+    const existing = await this.repository.findById(id);
+    if (!existing) {
+      return null;
+    }
+
+    ensureSameTenant(actor, existing.tenantId);
+    return toFigurinoDto(existing);
   }
 
   async save(actor: SessionUser, input: SaveFigurinoDto) {
@@ -102,26 +116,7 @@ export class FigurinosService {
       })),
     });
 
-    return {
-      id: item.id,
-      codigoExterno: item.codigoExterno || '',
-      codigoFigurino: item.codigoFigurino,
-      descricao: item.descricao,
-      tipoFigurino: item.tipoFigurino || '',
-      tipoFigurinoId: item.tipoFigurinoId || '',
-      material: item.material || '',
-      materialId: item.materialId || '',
-      tamanhoPeca: item.tamanhoPeca || '',
-      corPredominante: item.corPredominante || '',
-      corSecundaria: item.corSecundaria || '',
-      imagens: item.imagens.map((imagem) => ({
-        id: imagem.id,
-        url: imagem.url,
-        isPrincipal: imagem.isPrincipal,
-      })),
-      dataCadastro: item.createdAt?.toISOString() || '',
-      usuarioCadastro: item.createdByNome || '',
-    };
+    return toFigurinoDto(item);
   }
 
   async remove(actor: SessionUser, id: string) {

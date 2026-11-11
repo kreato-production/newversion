@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as XLSX from 'xlsx';
 import { Button } from '@/components/ui/button';
 import {
@@ -19,7 +19,9 @@ import { Edit, Trash2, Truck, Loader2, Download, Upload } from 'lucide-react';
 import { NewButton } from '@/components/shared/NewButton';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
-import { FornecedorFormModal } from '@/components/recursos/FornecedorFormModal';
+import { useRecordList } from '@/hooks/useRecordNavigation';
+import { usePathname } from 'next/navigation';
+import { fornecedoresRoutes } from '@/modules/fornecedores/fornecedores.navigation';
 import { SortableTable, type Column } from '@/components/shared/SortableTable';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -35,7 +37,7 @@ import {
   chipsSubtitle,
   sortSubtitle,
 } from '@/components/shared/ListFilter';
-import type { Fornecedor, FornecedorInput } from '@/modules/fornecedores/fornecedores.types';
+import type { Fornecedor } from '@/modules/fornecedores/fornecedores.types';
 import {
   useListingView,
   ViewSwitcher,
@@ -190,8 +192,16 @@ const Fornecedores = () => {
   const podeIncluir = canIncluir('Recursos', 'Fornecedores');
   const podeAlterar = canAlterar('Recursos', 'Fornecedores');
   const podeExcluir = canExcluir('Recursos', 'Fornecedores');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<Fornecedor | null>(null);
+  // Same list under Recursos and Gestão de Eventos: the form pages hang off the current path.
+  const pathname = usePathname();
+  const routes = useMemo(() => fornecedoresRoutes(pathname), [pathname]);
+  const { openNew, openRecord } = useRecordList(routes);
+  // Keeps the filtered order so the form page can navigate previous/next.
+  const openEdit = (item: { id: string }) =>
+    openRecord(
+      item.id,
+      filteredItems.map((i) => i.id),
+    );
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<Fornecedor | null>(null);
   const [items, setItems] = useState<Fornecedor[]>([]);
@@ -230,29 +240,6 @@ const Fornecedores = () => {
   useEffect(() => {
     fetchFornecedores();
   }, [fetchFornecedores]);
-
-  const handleSave = async (input: FornecedorInput) => {
-    try {
-      await fornecedoresRepository.save({
-        ...input,
-        tenantId: user?.tenantId ?? null,
-      });
-      toast({
-        title: t('common.success'),
-        description: editingItem ? t('field.supplierUpdated') : t('field.supplierCreated'),
-      });
-      await fetchFornecedores();
-      setEditingItem(null);
-    } catch (error) {
-      console.error('Error saving fornecedor:', error);
-      toast({
-        title: t('common.error'),
-        description: t('field.supplierSaveError'),
-        variant: 'destructive',
-      });
-      throw error;
-    }
-  };
 
   const handleDeleteConfirm = async () => {
     if (!deletingId) return;
@@ -445,8 +432,7 @@ const Fornecedores = () => {
             disabled={!podeAlterar}
             onClick={(event) => {
               event.stopPropagation();
-              setEditingItem(item);
-              setIsModalOpen(true);
+              openEdit(item);
             }}
           >
             <Edit className="w-4 h-4" />
@@ -482,15 +468,7 @@ const Fornecedores = () => {
       />
 
       <ListActionBar>
-        {podeIncluir && (
-          <NewButton
-            tooltip={t('field.newSupplier')}
-            onClick={() => {
-              setEditingItem(null);
-              setIsModalOpen(true);
-            }}
-          />
-        )}
+        {podeIncluir && <NewButton tooltip={t('field.newSupplier')} onClick={openNew} />}
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -583,7 +561,7 @@ const Fornecedores = () => {
               title={t('field.noSupplierRegistered')}
               description={t('field.suppliersHint')}
               icon={Truck}
-              onAction={podeIncluir ? () => setIsModalOpen(true) : undefined}
+              onAction={podeIncluir ? openNew : undefined}
               actionLabel={t('field.addSupplier')}
             />
           ) : (
@@ -601,17 +579,14 @@ const Fornecedores = () => {
             getRowKey={(item) => item.id}
             emptyTitle={t('field.noSupplierRegistered')}
             emptyDescription={t('field.suppliersHint')}
-            onEmptyAction={podeIncluir ? () => setIsModalOpen(true) : undefined}
+            onEmptyAction={podeIncluir ? openNew : undefined}
             emptyActionLabel={t('field.addSupplier')}
             renderCard={(item) => (
               <FornecedorCard
                 item={item}
                 podeAlterar={podeAlterar}
                 podeExcluir={podeExcluir}
-                onEdit={() => {
-                  setEditingItem(item);
-                  setIsModalOpen(true);
-                }}
+                onEdit={() => openEdit(item)}
                 onDelete={() => setDeletingId(item.id)}
               />
             )}
@@ -643,40 +618,13 @@ const Fornecedores = () => {
                 item={item}
                 podeAlterar={podeAlterar}
                 podeExcluir={podeExcluir}
-                onEdit={() => {
-                  setEditingItem(item);
-                  setIsModalOpen(true);
-                }}
+                onEdit={() => openEdit(item)}
                 onDelete={() => setDeletingId(item.id)}
               />
             )}
           />
         )}
       </DataCard>
-
-      <FornecedorFormModal
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setEditingItem(null);
-        }}
-        onSave={handleSave}
-        data={editingItem}
-        readOnly={!!editingItem && !podeAlterar}
-        navigation={(() => {
-          const navIndex = editingItem
-            ? filteredItems.findIndex((i) => i.id === editingItem.id)
-            : -1;
-          return navIndex >= 0
-            ? {
-                currentIndex: navIndex,
-                total: filteredItems.length,
-                onPrevious: () => setEditingItem(filteredItems[navIndex - 1]),
-                onNext: () => setEditingItem(filteredItems[navIndex + 1]),
-              }
-            : undefined;
-        })()}
-      />
 
       <AlertDialog open={!!deletingId} onOpenChange={(open) => !open && setDeletingId(null)}>
         <AlertDialogContent>

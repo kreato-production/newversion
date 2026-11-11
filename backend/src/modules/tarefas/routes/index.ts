@@ -36,6 +36,14 @@ export function createTarefasRoutes(authService: AuthService, tarefasService: Ta
       return reply.status(200).send(await tarefasService.listByGravacao(user, params.id));
     });
 
+    app.get('/tarefas/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      const params = request.params as { id: string };
+      const item = await tarefasService.getById(user, params.id);
+      if (!item) return reply.status(404).send({ message: 'Tarefa não encontrada' });
+      return reply.status(200).send(item);
+    });
+
     app.post('/tarefas', { preHandler: [authenticate, requireTenantAccess, requireIncluir] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       return reply.status(200).send(await tarefasService.save(user, saveTarefaSchema.parse(request.body)));

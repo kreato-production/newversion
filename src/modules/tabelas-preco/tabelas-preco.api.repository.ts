@@ -17,6 +17,10 @@ export class ApiTabelasPrecoRepository {
     return apiRequest<{ unidades: UnidadeNegocioOption[] }>('/tabelas-preco/options');
   }
 
+  async getById(id: string): Promise<TabelaPrecoItem> {
+    return apiRequest<TabelaPrecoItem>(`/tabelas-preco/${id}`);
+  }
+
   async save(input: TabelaPrecoInput): Promise<TabelaPrecoItem> {
     const path = input.id ? `/tabelas-preco/${input.id}` : '/tabelas-preco';
     const method = input.id ? 'PUT' : 'POST';

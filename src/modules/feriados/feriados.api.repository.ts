@@ -12,6 +12,10 @@ export class ApiFeriadosRepository {
     return response.data;
   }
 
+  async getById(id: string): Promise<Feriado> {
+    return apiRequest<Feriado>(`/feriados/${id}`);
+  }
+
   async save(input: FeriadoInput): Promise<Feriado> {
     const path = input.id ? `/feriados/${input.id}` : '/feriados';
     const method = input.id ? 'PUT' : 'POST';

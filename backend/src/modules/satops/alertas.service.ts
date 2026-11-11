@@ -57,6 +57,12 @@ export class AlertasService {
     return { total, data: data.map(mapAlerta) };
   }
 
+  async getById(actor: SessionUser, id: string) {
+    const tenantId = resolveTenantId(actor, actor.tenantId);
+    const record = await this.repository.findById(id, tenantId);
+    return record ? mapAlerta(record) : null;
+  }
+
   async save(actor: SessionUser, input: SaveAlertaData) {
     const tenantId = resolveTenantId(actor, actor.tenantId);
     if (input.id) {

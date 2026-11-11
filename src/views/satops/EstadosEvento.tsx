@@ -28,9 +28,9 @@ import {
   SORT_OPTIONS_NOME,
 } from '@/components/shared/ListFilter';
 import { useToast } from '@/hooks/use-toast';
-import { EstadoEventoFormModal } from '@/components/satops/EstadoEventoFormModal';
+import { useRecordList } from '@/hooks/useRecordNavigation';
+import { ESTADOS_EVENTO_FORM } from '@/modules/satops/estados-evento.form';
 import { ApiSatOpsRepository } from '@/modules/satops/satops.api.repository';
-import { usePermissions } from '@/hooks/usePermissions';
 import {
   useListingView,
   ViewSwitcher,
@@ -199,10 +199,14 @@ function EstadoEventoDetailPanel({
 
 const EstadosEvento = () => {
   const { toast } = useToast();
-  const { canAlterar } = usePermissions();
   const [search, setSearch] = useState('');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<EstadoEventoItem | null>(null);
+  const { openNew, openRecord } = useRecordList(ESTADOS_EVENTO_FORM.routes);
+  // Keeps the filtered order so the form page can navigate previous/next.
+  const openEdit = (item: { id: string }) =>
+    openRecord(
+      item.id,
+      filteredItems.map((i) => i.id),
+    );
   const [items, setItems] = useState<EstadoEventoItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -233,27 +237,6 @@ const EstadosEvento = () => {
   useEffect(() => {
     void fetchItems();
   }, [fetchItems]);
-
-  const handleSave = async (data: EstadoEventoItem) => {
-    try {
-      await repository.saveEstadoEvento({
-        ...(editingItem ? { id: data.id } : {}),
-        codigoExterno: data.codigoExterno,
-        nome: data.nome,
-        cor: data.cor,
-        traducoes: data.traducoes,
-      });
-      toast({
-        title: 'Sucesso',
-        description: editingItem ? 'Estado atualizado!' : 'Estado cadastrado!',
-      });
-      await fetchItems();
-      setEditingItem(null);
-    } catch {
-      toast({ title: 'Erro', description: 'Erro ao salvar estado', variant: 'destructive' });
-      throw new Error('save failed');
-    }
-  };
 
   const handleDeleteConfirm = async () => {
     if (!deletingId) return;
@@ -342,15 +325,7 @@ const EstadosEvento = () => {
       sortable: false,
       render: (item) => (
         <div className="flex justify-end gap-1">
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-7 w-7"
-            onClick={() => {
-              setEditingItem(item);
-              setIsModalOpen(true);
-            }}
-          >
+          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(item)}>
             <Edit className="w-3.5 h-3.5" />
           </Button>
           <Button
@@ -374,13 +349,7 @@ const EstadosEvento = () => {
       />
 
       <ListActionBar>
-        <NewButton
-          tooltip="Novo Estado de Evento"
-          onClick={() => {
-            setEditingItem(null);
-            setIsModalOpen(true);
-          }}
-        />
+        <NewButton tooltip="Novo Estado de Evento" onClick={openNew} />
         <div className="flex-1" />
         <SearchBar value={search} onChange={setSearch} />
 
@@ -428,7 +397,7 @@ const EstadosEvento = () => {
               title="Nenhum estado cadastrado"
               description="Comece adicionando estados para organizar os eventos SatOps."
               icon={Radio}
-              onAction={() => setIsModalOpen(true)}
+              onAction={openNew}
               actionLabel="Adicionar Estado"
             />
           ) : (
@@ -446,15 +415,12 @@ const EstadosEvento = () => {
             getRowKey={(item) => item.id}
             emptyTitle="Nenhum estado cadastrado"
             emptyDescription="Comece adicionando estados para organizar os eventos SatOps."
-            onEmptyAction={() => setIsModalOpen(true)}
+            onEmptyAction={openNew}
             emptyActionLabel="Adicionar Estado"
             renderCard={(item) => (
               <EstadoEventoCard
                 item={item}
-                onEdit={() => {
-                  setEditingItem(item);
-                  setIsModalOpen(true);
-                }}
+                onEdit={() => openEdit(item)}
                 onDelete={() => setDeletingId(item.id)}
               />
             )}
@@ -486,40 +452,13 @@ const EstadosEvento = () => {
             renderDetail={(item) => (
               <EstadoEventoDetailPanel
                 item={item}
-                onEdit={() => {
-                  setEditingItem(item);
-                  setIsModalOpen(true);
-                }}
+                onEdit={() => openEdit(item)}
                 onDelete={() => setDeletingId(item.id)}
               />
             )}
           />
         )}
       </DataCard>
-
-      <EstadoEventoFormModal
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setEditingItem(null);
-        }}
-        onSave={handleSave}
-        data={editingItem}
-        readOnly={!!editingItem && !canAlterar('SatOps', 'Parametrizacoes', 'EstadosEvento')}
-        navigation={(() => {
-          const navIndex = editingItem
-            ? filteredItems.findIndex((i) => i.id === editingItem.id)
-            : -1;
-          return navIndex >= 0
-            ? {
-                currentIndex: navIndex,
-                total: filteredItems.length,
-                onPrevious: () => setEditingItem(filteredItems[navIndex - 1]),
-                onNext: () => setEditingItem(filteredItems[navIndex + 1]),
-              }
-            : undefined;
-        })()}
-      />
 
       <AlertDialog open={!!deletingId} onOpenChange={(open) => !open && setDeletingId(null)}>
         <AlertDialogContent>

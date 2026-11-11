@@ -24,6 +24,14 @@ export function createFeriadosRoutes(
       return reply.status(200).send(await feriadosService.list(user, opts));
     });
 
+    app.get('/feriados/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      const params = request.params as { id: string };
+      const item = await feriadosService.getById(user, params.id);
+      if (!item) return reply.status(404).send({ message: 'Feriado não encontrado' });
+      return reply.status(200).send(item);
+    });
+
     app.post(
       '/feriados',
       { preHandler: [authenticate, requireTenantAccess] },

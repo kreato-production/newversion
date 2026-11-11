@@ -30,7 +30,8 @@ import {
   MasterDetail,
   type ColumnConfig,
 } from '@/components/listing';
-import { TipoDocumentoFormModal } from '@/components/financeiro/TipoDocumentoFormModal';
+import { useRecordList } from '@/hooks/useRecordNavigation';
+import { TIPOS_DOCUMENTOS_FORM } from '@/modules/parametrizacoes/financeiro.forms';
 
 export interface TipoDocumentoFinanceiroItem {
   id: string;
@@ -196,8 +197,7 @@ const TiposDocumentos = () => {
   const importFileRef = useRef<HTMLInputElement>(null);
   const [isImporting, setIsImporting] = useState(false);
   const [search, setSearch] = useState('');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<TipoDocumentoFinanceiroItem | null>(null);
+  const { openNew, openRecord } = useRecordList(TIPOS_DOCUMENTOS_FORM.routes);
   const [items, setItems] = useState<TipoDocumentoFinanceiroItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -236,35 +236,6 @@ const TiposDocumentos = () => {
   useEffect(() => {
     void fetchTiposDocumentos();
   }, [fetchTiposDocumentos]);
-
-  const handleSave = async (data: TipoDocumentoFinanceiroItem) => {
-    try {
-      await repository.saveTipoDocumentoFinanceiro({
-        id: editingItem?.id,
-        codigo_externo: data.codigoExterno,
-        titulo: data.titulo,
-        descricao: data.descricao,
-        cor: data.cor,
-        traducoes: data.traducoes,
-      });
-
-      toast({
-        title: 'Sucesso',
-        description: `Tipo de documento ${editingItem ? 'atualizado' : 'criado'} com sucesso`,
-      });
-
-      setIsModalOpen(false);
-      setEditingItem(null);
-      await fetchTiposDocumentos();
-    } catch (error) {
-      console.error('Error saving tipo_documento_financeiro:', error);
-      toast({
-        title: 'Erro',
-        description: 'Erro ao salvar tipo de documento',
-        variant: 'destructive',
-      });
-    }
-  };
 
   const handleDeleteConfirm = async () => {
     if (!deletingId) return;
@@ -390,6 +361,13 @@ const TiposDocumentos = () => {
     );
   });
 
+  // Keeps the filtered order so the form page can navigate previous/next.
+  const openEdit = (item: { id: string }) =>
+    openRecord(
+      item.id,
+      filteredItems.map((i) => i.id),
+    );
+
   const columns: Column<TipoDocumentoFinanceiroItem & { actions?: never }>[] = [
     {
       key: 'codigoExterno',
@@ -430,15 +408,7 @@ const TiposDocumentos = () => {
       sortable: false,
       render: (item) => (
         <div className="flex justify-end gap-1">
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-7 w-7"
-            onClick={() => {
-              setEditingItem(item);
-              setIsModalOpen(true);
-            }}
-          >
+          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(item)}>
             <Edit className="h-3.5 w-3.5" />
           </Button>
           <Button
@@ -480,13 +450,7 @@ const TiposDocumentos = () => {
       />
 
       <ListActionBar>
-        <NewButton
-          tooltip="Novo Tipo de Documento"
-          onClick={() => {
-            setEditingItem(null);
-            setIsModalOpen(true);
-          }}
-        />
+        <NewButton tooltip="Novo Tipo de Documento" onClick={openNew} />
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
@@ -537,7 +501,7 @@ const TiposDocumentos = () => {
               title="Nenhum tipo de documento encontrado"
               description="Adicione o primeiro tipo de documento."
               icon={Settings}
-              onAction={() => setIsModalOpen(true)}
+              onAction={openNew}
               actionLabel="Adicionar Tipo"
             />
           ) : (
@@ -555,15 +519,12 @@ const TiposDocumentos = () => {
             getRowKey={(item) => item.id}
             emptyTitle="Nenhum tipo de documento encontrado"
             emptyDescription="Adicione o primeiro tipo de documento."
-            onEmptyAction={() => setIsModalOpen(true)}
+            onEmptyAction={openNew}
             emptyActionLabel="Adicionar Tipo"
             renderCard={(item) => (
               <TipoDocumentoCard
                 item={item}
-                onEdit={() => {
-                  setEditingItem(item);
-                  setIsModalOpen(true);
-                }}
+                onEdit={() => openEdit(item)}
                 onDelete={() => setDeletingId(item.id)}
               />
             )}
@@ -604,40 +565,13 @@ const TiposDocumentos = () => {
             renderDetail={(item) => (
               <TipoDocumentoDetailPanel
                 item={item}
-                onEdit={() => {
-                  setEditingItem(item);
-                  setIsModalOpen(true);
-                }}
+                onEdit={() => openEdit(item)}
                 onDelete={() => setDeletingId(item.id)}
               />
             )}
           />
         )}
       </DataCard>
-
-      <TipoDocumentoFormModal
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setEditingItem(null);
-        }}
-        onSave={handleSave}
-        data={editingItem}
-        navigation={(() => {
-          const navIndex = editingItem
-            ? filteredItems.findIndex((item) => item.id === editingItem.id)
-            : -1;
-
-          return navIndex >= 0
-            ? {
-                currentIndex: navIndex,
-                total: filteredItems.length,
-                onPrevious: () => setEditingItem(filteredItems[navIndex - 1]),
-                onNext: () => setEditingItem(filteredItems[navIndex + 1]),
-              }
-            : undefined;
-        })()}
-      />
 
       <AlertDialog open={!!deletingId} onOpenChange={(open) => !open && setDeletingId(null)}>
         <AlertDialogContent>

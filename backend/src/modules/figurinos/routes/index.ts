@@ -30,6 +30,14 @@ export function createFigurinosRoutes(authService: AuthService, figurinosService
       return reply.status(200).send(await figurinosService.listOptions(user));
     });
 
+    app.get('/figurinos/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      const params = request.params as { id: string };
+      const item = await figurinosService.getById(user, params.id);
+      if (!item) return reply.status(404).send({ message: 'Figurino não encontrado(a)' });
+      return reply.status(200).send(item);
+    });
+
     app.post('/figurinos', { preHandler: [authenticate, requireTenantAccess, requireIncluir] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const body = saveFigurinoSchema.parse(request.body);

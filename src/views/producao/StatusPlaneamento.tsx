@@ -16,11 +16,11 @@ import { SortableTable, type Column } from '@/components/shared/SortableTable';
 import { Edit, Trash2, Settings, Loader2, Star } from 'lucide-react';
 import { NewButton } from '@/components/shared/NewButton';
 import { useToast } from '@/hooks/use-toast';
-import { StatusPlaneamentoFormModal } from '@/components/producao/StatusPlaneamentoFormModal';
+import { useRecordList } from '@/hooks/useRecordNavigation';
+import { STATUS_PLANEAMENTO_FORM } from '@/modules/parametrizacoes/producao.forms';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ApiParametrizacoesRepository } from '@/modules/parametrizacoes/parametrizacoes.api.repository';
-import { usePermissions } from '@/hooks/usePermissions';
 import {
   useListingView,
   ViewSwitcher,
@@ -55,10 +55,14 @@ const STORAGE_KEY = 'kreato_status_planeamento_table';
 
 const StatusPlaneamento = () => {
   const { toast } = useToast();
-  const { canAlterar } = usePermissions();
   const [search, setSearch] = useState('');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<StatusPlaneamentoItem | null>(null);
+  const { openNew, openRecord } = useRecordList(STATUS_PLANEAMENTO_FORM.routes);
+  // Keeps the filtered order so the form page can navigate previous/next.
+  const openEdit = (item: { id: string }) =>
+    openRecord(
+      item.id,
+      filteredItems.map((i) => i.id),
+    );
   const [items, setItems] = useState<StatusPlaneamentoItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -85,28 +89,6 @@ const StatusPlaneamento = () => {
   useEffect(() => {
     void fetchItems();
   }, [fetchItems]);
-
-  const handleSave = async (data: StatusPlaneamentoItem) => {
-    try {
-      await repository.saveStatusPlaneamento({
-        ...(editingItem ? { id: data.id } : {}),
-        codigoExterno: data.codigoExterno,
-        nome: data.nome,
-        descricao: data.descricao,
-        cor: data.cor,
-        isInicial: data.isInicial,
-      });
-      toast({
-        title: 'Sucesso',
-        description: editingItem ? 'Status atualizado!' : 'Status cadastrado!',
-      });
-      await fetchItems();
-      setEditingItem(null);
-    } catch {
-      toast({ title: 'Erro', description: 'Erro ao salvar status', variant: 'destructive' });
-      throw new Error('Erro ao salvar status');
-    }
-  };
 
   const handleDeleteConfirm = async () => {
     if (!deletingId) return;
@@ -219,15 +201,7 @@ const StatusPlaneamento = () => {
       sortable: false,
       render: (item) => (
         <div className="flex justify-end gap-1">
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-7 w-7"
-            onClick={() => {
-              setEditingItem(item);
-              setIsModalOpen(true);
-            }}
-          >
+          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(item)}>
             <Edit className="w-3.5 h-3.5" />
           </Button>
           <Button
@@ -251,13 +225,7 @@ const StatusPlaneamento = () => {
       />
 
       <ListActionBar>
-        <NewButton
-          tooltip="Novo Status"
-          onClick={() => {
-            setEditingItem(null);
-            setIsModalOpen(true);
-          }}
-        />
+        <NewButton tooltip="Novo Status" onClick={openNew} />
         <div className="flex-1" />
         <SearchBar value={search} onChange={setSearch} />
         {mode === 'list' && (
@@ -281,7 +249,7 @@ const StatusPlaneamento = () => {
             title="Nenhum status cadastrado"
             description="Comece adicionando status de planeamento."
             icon={Settings}
-            onAction={() => setIsModalOpen(true)}
+            onAction={openNew}
             actionLabel="Adicionar Status"
           />
         ) : (
@@ -294,30 +262,6 @@ const StatusPlaneamento = () => {
           />
         )}
       </DataCard>
-
-      <StatusPlaneamentoFormModal
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setEditingItem(null);
-        }}
-        onSave={handleSave}
-        data={editingItem}
-        readOnly={!!editingItem && !canAlterar('Producao', 'Parametrizacoes', 'Status Planeamento')}
-        navigation={(() => {
-          const navIndex = editingItem
-            ? filteredItems.findIndex((i) => i.id === editingItem.id)
-            : -1;
-          return navIndex >= 0
-            ? {
-                currentIndex: navIndex,
-                total: filteredItems.length,
-                onPrevious: () => setEditingItem(filteredItems[navIndex - 1]),
-                onNext: () => setEditingItem(filteredItems[navIndex + 1]),
-              }
-            : undefined;
-        })()}
-      />
 
       <AlertDialog open={!!deletingId} onOpenChange={(open) => !open && setDeletingId(null)}>
         <AlertDialogContent>

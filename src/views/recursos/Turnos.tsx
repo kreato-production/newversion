@@ -31,17 +31,14 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { usePermissions } from '@/hooks/usePermissions';
-import { TurnoFormModal } from '@/components/recursos/TurnoFormModal';
+import { useRecordList } from '@/hooks/useRecordNavigation';
 import { turnosRepository } from '@/modules/turnos/turnos.repository.provider';
-import type { Turno, TurnoInput, WeekdayKey } from '@/modules/turnos/turnos.types';
+import type { Turno, WeekdayKey } from '@/modules/turnos/turnos.types';
 import { weekdayKeys } from '@/modules/turnos/turnos.types';
 
+import { TURNOS_PERMISSION_SCOPE, TURNOS_ROUTES } from '@/modules/turnos/turnos.navigation';
+
 const STORAGE_KEY = 'kreato_turnos';
-export const TURNOS_PERMISSION_SCOPE = {
-  modulo: 'Recursos',
-  subModulo1: 'Parametrizações',
-  subModulo2: 'Turnos',
-} as const;
 
 const COLUMN_CONFIG: ColumnConfig[] = [
   { key: 'nome', label: 'Nome', required: true },
@@ -296,8 +293,13 @@ const Turnos = () => {
   const importFileRef = useRef<HTMLInputElement>(null);
   const [isImporting, setIsImporting] = useState(false);
   const [search, setSearch] = useState('');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<Turno | null>(null);
+  const { openNew, openRecord } = useRecordList(TURNOS_ROUTES);
+  // Keeps the filtered order so the form page can navigate previous/next.
+  const openEdit = (item: { id: string }) =>
+    openRecord(
+      item.id,
+      filteredItems.map((i) => i.id),
+    );
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<Turno | null>(null);
   const [items, setItems] = useState<Turno[]>([]);
@@ -327,29 +329,6 @@ const Turnos = () => {
   useEffect(() => {
     void fetchTurnos();
   }, [fetchTurnos]);
-
-  const handleSave = async (data: TurnoInput) => {
-    try {
-      await turnosRepository.save({
-        ...data,
-        id: editingItem?.id,
-      });
-      toast({
-        title: t('common.success'),
-        description: editingItem ? t('turns.updated') : t('turns.created'),
-      });
-      await fetchTurnos();
-      setEditingItem(null);
-    } catch (error) {
-      console.error('Error saving turno:', error);
-      toast({
-        title: t('common.error'),
-        description: error instanceof Error ? error.message : t('turns.saveError'),
-        variant: 'destructive',
-      });
-      throw error;
-    }
-  };
 
   const handleDeleteConfirm = async () => {
     if (!deletingId) return;
@@ -560,10 +539,7 @@ const Turnos = () => {
             size="icon"
             variant="ghost"
             className="h-7 w-7"
-            onClick={() => {
-              setEditingItem(item);
-              setIsModalOpen(true);
-            }}
+            onClick={() => openEdit(item)}
             disabled={!podeAlterar}
             aria-label={t('common.edit')}
           >
@@ -585,23 +561,6 @@ const Turnos = () => {
     },
   ];
 
-  const modalData: TurnoInput | null = editingItem
-    ? {
-        id: editingItem.id,
-        nome: editingItem.nome,
-        horaInicio: formatTime(editingItem.horaInicio),
-        horaFim: formatTime(editingItem.horaFim),
-        diasSemana: editingItem.diasSemana,
-        pessoasPorDia: editingItem.pessoasPorDia,
-        cor: editingItem.cor,
-        sigla: editingItem.sigla,
-        folgasPorSemana: editingItem.folgasPorSemana,
-        folgaEspecial: editingItem.folgaEspecial,
-        descricao: editingItem.descricao,
-        diasTrabalhados: editingItem.diasTrabalhados,
-      }
-    : null;
-
   return (
     <div>
       <PageHeader title={t('turns.title')} description={t('turns.description')} />
@@ -615,15 +574,7 @@ const Turnos = () => {
       />
 
       <ListActionBar>
-        {podeIncluir && (
-          <NewButton
-            tooltip={t('turns.new')}
-            onClick={() => {
-              setEditingItem(null);
-              setIsModalOpen(true);
-            }}
-          />
-        )}
+        {podeIncluir && <NewButton tooltip={t('turns.new')} onClick={openNew} />}
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
@@ -674,7 +625,7 @@ const Turnos = () => {
               title={t('common.noResults')}
               description={t('turns.empty')}
               icon={Clock3}
-              onAction={podeIncluir ? () => setIsModalOpen(true) : undefined}
+              onAction={podeIncluir ? openNew : undefined}
               actionLabel={t('turns.new')}
             />
           ) : (
@@ -692,7 +643,7 @@ const Turnos = () => {
             getRowKey={(item) => item.id}
             emptyTitle={t('common.noResults')}
             emptyDescription={t('turns.empty')}
-            onEmptyAction={podeIncluir ? () => setIsModalOpen(true) : undefined}
+            onEmptyAction={podeIncluir ? openNew : undefined}
             emptyActionLabel={t('turns.new')}
             renderCard={(item) => (
               <TurnoCard
@@ -700,10 +651,7 @@ const Turnos = () => {
                 dayLabel={dayLabel}
                 canEdit={podeAlterar}
                 canDelete={podeExcluir}
-                onEdit={() => {
-                  setEditingItem(item);
-                  setIsModalOpen(true);
-                }}
+                onEdit={() => openEdit(item)}
                 onDelete={() => setDeletingId(item.id)}
               />
             )}
@@ -734,42 +682,13 @@ const Turnos = () => {
                 dayLabel={dayLabel}
                 canEdit={podeAlterar}
                 canDelete={podeExcluir}
-                onEdit={() => {
-                  setEditingItem(item);
-                  setIsModalOpen(true);
-                }}
+                onEdit={() => openEdit(item)}
                 onDelete={() => setDeletingId(item.id)}
               />
             )}
           />
         )}
       </DataCard>
-
-      <TurnoFormModal
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setEditingItem(null);
-        }}
-        onSave={handleSave}
-        data={modalData}
-        readOnly={!!editingItem && !podeAlterar}
-        dataCadastro={editingItem?.dataCadastro}
-        usuarioCadastro={editingItem?.usuarioCadastro}
-        navigation={(() => {
-          const navIndex = editingItem
-            ? filteredItems.findIndex((i) => i.id === editingItem.id)
-            : -1;
-          return navIndex >= 0
-            ? {
-                currentIndex: navIndex,
-                total: filteredItems.length,
-                onPrevious: () => setEditingItem(filteredItems[navIndex - 1]),
-                onNext: () => setEditingItem(filteredItems[navIndex + 1]),
-              }
-            : undefined;
-        })()}
-      />
 
       <AlertDialog open={!!deletingId} onOpenChange={() => setDeletingId(null)}>
         <AlertDialogContent>

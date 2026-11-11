@@ -27,12 +27,9 @@ import {
   MasterDetail,
   type ColumnConfig,
 } from '@/components/listing';
-import { ContaPagarFormModal } from '@/components/financeiro/ContaPagarFormModal';
-import {
-  ApiContasPagarRepository,
-  type ContaPagar,
-  type SaveContaPagarInput,
-} from '@/modules/financeiro/contas-pagar.api';
+import { useRecordList } from '@/hooks/useRecordNavigation';
+import { CONTAS_PAGAR_ROUTES } from '@/modules/financeiro/contas-pagar.navigation';
+import { ApiContasPagarRepository, type ContaPagar } from '@/modules/financeiro/contas-pagar.api';
 import {
   ListFilterPanel,
   FilterSection,
@@ -49,7 +46,7 @@ import {
 const repository = new ApiContasPagarRepository();
 
 const COLUMN_CONFIG: ColumnConfig[] = [
-  { key: 'numeroDocumento', label: 'NÂº Doc', defaultVisible: true },
+  { key: 'numeroDocumento', label: 'Nº Doc', defaultVisible: true },
   { key: 'fornecedor', label: 'Fornecedor', required: false, defaultVisible: true },
   { key: 'descricao', label: 'Descricao', required: true },
   { key: 'dataVencimento', label: 'Vencimento', defaultVisible: true },
@@ -224,9 +221,9 @@ function ContaPagarDetailPanel({
       <Separator />
 
       <div className="grid grid-cols-2 gap-x-6 gap-y-3">
-        {field('NÂº Documento', item.numeroDocumento)}
+        {field('Nº Documento', item.numeroDocumento)}
         {field('Fornecedor', item.fornecedorNome)}
-        {field('Data EmissÃ£o', formatDate(item.dataEmissao))}
+        {field('Data Emissão', formatDate(item.dataEmissao))}
         <div>
           <p className="text-xs text-muted-foreground mb-0.5">Vencimento</p>
           <p className={`text-sm ${overdue ? 'text-destructive font-medium' : ''}`}>
@@ -245,7 +242,7 @@ function ContaPagarDetailPanel({
         <>
           <Separator />
           <div>
-            <p className="text-xs text-muted-foreground mb-1">ObservaÃ§Ãµes</p>
+            <p className="text-xs text-muted-foreground mb-1">Observações</p>
             <p className="text-sm leading-relaxed">{item.observacoes}</p>
           </div>
         </>
@@ -277,8 +274,13 @@ function ContaPagarDetailPanel({
 const ContasPagar = () => {
   const { toast } = useToast();
   const [search, setSearch] = useState('');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<ContaPagar | null>(null);
+  const { openNew, openRecord } = useRecordList(CONTAS_PAGAR_ROUTES);
+  // Keeps the filtered order so the form page can navigate previous/next.
+  const openEdit = (item: { id: string }) =>
+    openRecord(
+      item.id,
+      filteredItems.map((i) => i.id),
+    );
   const [items, setItems] = useState<ContaPagar[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -312,22 +314,6 @@ const ContasPagar = () => {
   useEffect(() => {
     void fetchItems();
   }, [fetchItems]);
-
-  const handleSave = async (input: SaveContaPagarInput) => {
-    try {
-      await repository.save(input);
-      toast({
-        title: 'Sucesso',
-        description: `Conta ${editingItem ? 'atualizada' : 'criada'} com sucesso`,
-      });
-      setIsModalOpen(false);
-      setEditingItem(null);
-      await fetchItems();
-    } catch (error) {
-      console.error('Error saving conta a pagar:', error);
-      toast({ title: 'Erro', description: 'Erro ao salvar conta a pagar', variant: 'destructive' });
-    }
-  };
 
   const handleDeleteConfirm = async () => {
     if (!deletingId) return;
@@ -387,7 +373,7 @@ const ContasPagar = () => {
   const columns: Column<ContaPagar & { actions?: never }>[] = [
     {
       key: 'numeroDocumento',
-      label: 'NÂº Doc',
+      label: 'Nº Doc',
       className: 'w-28',
       render: (item) => <span className="font-mono text-xs">{item.numeroDocumento || '-'}</span>,
     },
@@ -473,15 +459,7 @@ const ContasPagar = () => {
       sortable: false,
       render: (item) => (
         <div className="flex justify-end gap-1">
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-7 w-7"
-            onClick={() => {
-              setEditingItem(item);
-              setIsModalOpen(true);
-            }}
-          >
+          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(item)}>
             <Edit className="h-3.5 w-3.5" />
           </Button>
           <Button
@@ -511,17 +489,11 @@ const ContasPagar = () => {
     <div>
       <PageHeader
         title="Contas a Pagar"
-        description="Gerencie as contas e obrigaÃ§Ãµes financeiras a pagar"
+        description="Gerencie as contas e obrigações financeiras a pagar"
       />
 
       <ListActionBar>
-        <NewButton
-          tooltip="Nova Conta a Pagar"
-          onClick={() => {
-            setEditingItem(null);
-            setIsModalOpen(true);
-          }}
-        />
+        <NewButton tooltip="Nova Conta a Pagar" onClick={openNew} />
         <div className="flex-1" />
         <SearchBar value={search} onChange={setSearch} placeholder="Buscar contas..." />
         <ListFilterPanel
@@ -600,7 +572,7 @@ const ContasPagar = () => {
               title="Nenhuma conta encontrada"
               description="Adicione a primeira conta a pagar."
               icon={Receipt}
-              onAction={() => setIsModalOpen(true)}
+              onAction={openNew}
               actionLabel="Adicionar Conta"
             />
           ) : (
@@ -618,15 +590,12 @@ const ContasPagar = () => {
             getRowKey={(item) => item.id}
             emptyTitle="Nenhuma conta encontrada"
             emptyDescription="Adicione a primeira conta a pagar."
-            onEmptyAction={() => setIsModalOpen(true)}
+            onEmptyAction={openNew}
             emptyActionLabel="Adicionar Conta"
             renderCard={(item) => (
               <ContaPagarCard
                 item={item}
-                onEdit={() => {
-                  setEditingItem(item);
-                  setIsModalOpen(true);
-                }}
+                onEdit={() => openEdit(item)}
                 onDelete={() => setDeletingId(item.id)}
               />
             )}
@@ -663,40 +632,13 @@ const ContasPagar = () => {
             renderDetail={(item) => (
               <ContaPagarDetailPanel
                 item={item}
-                onEdit={() => {
-                  setEditingItem(item);
-                  setIsModalOpen(true);
-                }}
+                onEdit={() => openEdit(item)}
                 onDelete={() => setDeletingId(item.id)}
               />
             )}
           />
         )}
       </DataCard>
-
-      <ContaPagarFormModal
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setEditingItem(null);
-        }}
-        onSave={handleSave}
-        data={editingItem}
-        navigation={(() => {
-          const navIndex = editingItem
-            ? filteredItems.findIndex((item) => item.id === editingItem.id)
-            : -1;
-
-          return navIndex >= 0
-            ? {
-                currentIndex: navIndex,
-                total: filteredItems.length,
-                onPrevious: () => setEditingItem(filteredItems[navIndex - 1]),
-                onNext: () => setEditingItem(filteredItems[navIndex + 1]),
-              }
-            : undefined;
-        })()}
-      />
 
       <AlertDialog open={!!deletingId} onOpenChange={(open) => !open && setDeletingId(null)}>
         <AlertDialogContent>

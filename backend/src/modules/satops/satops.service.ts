@@ -94,6 +94,12 @@ export class EstadosEventoService {
     return { total, data: data.map(mapEstadoEvento) };
   }
 
+  async getById(actor: SessionUser, id: string) {
+    const tenantId = resolveTenantId(actor, actor.tenantId);
+    const record = await this.repository.findById(id, tenantId);
+    return record ? mapEstadoEvento(record) : null;
+  }
+
   async save(actor: SessionUser, input: SaveEstadoEventoData) {
     const tenantId = resolveTenantId(actor, actor.tenantId);
     if (input.id) {

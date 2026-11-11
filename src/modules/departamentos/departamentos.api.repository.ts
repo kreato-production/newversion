@@ -47,6 +47,10 @@ export class ApiDepartamentosRepository {
     return response.data;
   }
 
+  async getById(id: string): Promise<DepartamentoApiItem> {
+    return apiRequest<DepartamentoApiItem>(`/departamentos/${id}`);
+  }
+
   async save(input: DepartamentoApiInput): Promise<DepartamentoApiItem> {
     const path = input.id ? `/departamentos/${input.id}` : '/departamentos';
     const method = input.id ? 'PUT' : 'POST';

@@ -30,7 +30,8 @@ import {
   MasterDetail,
   type ColumnConfig,
 } from '@/components/listing';
-import { FormaPagamentoFormModal } from '@/components/financeiro/FormaPagamentoFormModal';
+import { useRecordList } from '@/hooks/useRecordNavigation';
+import { FORMAS_PAGAMENTO_FORM } from '@/modules/parametrizacoes/financeiro.forms';
 
 export interface FormaPagamentoItem {
   id: string;
@@ -238,8 +239,7 @@ const FormasPagamento = () => {
   const importFileRef = useRef<HTMLInputElement>(null);
   const [isImporting, setIsImporting] = useState(false);
   const [search, setSearch] = useState('');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<FormaPagamentoItem | null>(null);
+  const { openNew, openRecord } = useRecordList(FORMAS_PAGAMENTO_FORM.routes);
   const [items, setItems] = useState<FormaPagamentoItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -268,36 +268,6 @@ const FormasPagamento = () => {
   useEffect(() => {
     void fetchFormasPagamento();
   }, [fetchFormasPagamento]);
-
-  const handleSave = async (data: FormaPagamentoItem) => {
-    try {
-      await repository.saveFormaPagamento({
-        id: editingItem?.id,
-        codigoExterno: data.codigoExterno,
-        titulo: data.titulo,
-        descricao: data.descricao,
-        cor: data.cor,
-        isPadrao: data.isPadrao,
-        traducoes: data.traducoes,
-      });
-
-      toast({
-        title: 'Sucesso',
-        description: `Forma de pagamento ${editingItem ? 'atualizada' : 'criada'} com sucesso`,
-      });
-
-      setIsModalOpen(false);
-      setEditingItem(null);
-      await fetchFormasPagamento();
-    } catch (error) {
-      console.error('Error saving forma_pagamento:', error);
-      toast({
-        title: 'Erro',
-        description: 'Erro ao salvar forma de pagamento',
-        variant: 'destructive',
-      });
-    }
-  };
 
   const handleDeleteConfirm = async () => {
     if (!deletingId) return;
@@ -449,6 +419,13 @@ const FormasPagamento = () => {
     );
   });
 
+  // Keeps the filtered order so the form page can navigate previous/next.
+  const openEdit = (item: { id: string }) =>
+    openRecord(
+      item.id,
+      filteredItems.map((i) => i.id),
+    );
+
   const columns: Column<FormaPagamentoItem & { actions?: never }>[] = [
     {
       key: 'codigoExterno',
@@ -502,15 +479,7 @@ const FormasPagamento = () => {
       sortable: false,
       render: (item) => (
         <div className="flex justify-end gap-1">
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-7 w-7"
-            onClick={() => {
-              setEditingItem(item);
-              setIsModalOpen(true);
-            }}
-          >
+          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(item)}>
             <Edit className="h-3.5 w-3.5" />
           </Button>
           <Button
@@ -552,13 +521,7 @@ const FormasPagamento = () => {
       />
 
       <ListActionBar>
-        <NewButton
-          tooltip="Nova Forma de Pagamento"
-          onClick={() => {
-            setEditingItem(null);
-            setIsModalOpen(true);
-          }}
-        />
+        <NewButton tooltip="Nova Forma de Pagamento" onClick={openNew} />
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
@@ -609,7 +572,7 @@ const FormasPagamento = () => {
               title="Nenhuma forma de pagamento encontrada"
               description="Adicione a primeira forma de pagamento."
               icon={Settings}
-              onAction={() => setIsModalOpen(true)}
+              onAction={openNew}
               actionLabel="Adicionar Forma"
             />
           ) : (
@@ -627,15 +590,12 @@ const FormasPagamento = () => {
             getRowKey={(item) => item.id}
             emptyTitle="Nenhuma forma de pagamento encontrada"
             emptyDescription="Adicione a primeira forma de pagamento."
-            onEmptyAction={() => setIsModalOpen(true)}
+            onEmptyAction={openNew}
             emptyActionLabel="Adicionar Forma"
             renderCard={(item) => (
               <FormaPagamentoCard
                 item={item}
-                onEdit={() => {
-                  setEditingItem(item);
-                  setIsModalOpen(true);
-                }}
+                onEdit={() => openEdit(item)}
                 onDelete={() => setDeletingId(item.id)}
                 onTogglePadrao={() => void handleTogglePadrao(item.id, !item.isPadrao)}
               />
@@ -677,10 +637,7 @@ const FormasPagamento = () => {
             renderDetail={(item) => (
               <FormaPagamentoDetailPanel
                 item={item}
-                onEdit={() => {
-                  setEditingItem(item);
-                  setIsModalOpen(true);
-                }}
+                onEdit={() => openEdit(item)}
                 onDelete={() => setDeletingId(item.id)}
                 onTogglePadrao={() => void handleTogglePadrao(item.id, !item.isPadrao)}
               />
@@ -688,30 +645,6 @@ const FormasPagamento = () => {
           />
         )}
       </DataCard>
-
-      <FormaPagamentoFormModal
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setEditingItem(null);
-        }}
-        onSave={handleSave}
-        data={editingItem}
-        navigation={(() => {
-          const navIndex = editingItem
-            ? filteredItems.findIndex((item) => item.id === editingItem.id)
-            : -1;
-
-          return navIndex >= 0
-            ? {
-                currentIndex: navIndex,
-                total: filteredItems.length,
-                onPrevious: () => setEditingItem(filteredItems[navIndex - 1]),
-                onNext: () => setEditingItem(filteredItems[navIndex + 1]),
-              }
-            : undefined;
-        })()}
-      />
 
       <AlertDialog open={!!deletingId} onOpenChange={(open) => !open && setDeletingId(null)}>
         <AlertDialogContent>

@@ -19,6 +19,10 @@ export class ApiProgramasRepository {
     return response.data;
   }
 
+  async getById(id: string): Promise<Programa> {
+    return apiRequest<Programa>(`/programas/${id}`);
+  }
+
   async save(input: ProgramaInput, _userId?: string): Promise<void> {
     const path = input.id ? `/programas/${input.id}` : '/programas';
     const method = input.id ? 'PUT' : 'POST';

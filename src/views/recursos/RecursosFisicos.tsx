@@ -17,7 +17,8 @@ import { ListActionBar } from '@/components/shared/ListActionBar';
 import { Edit, Trash2, MapPin, Calendar, Loader2, Package } from 'lucide-react';
 import { NewButton } from '@/components/shared/NewButton';
 import { useToast } from '@/hooks/use-toast';
-import { RecursoFisicoFormModal } from '@/components/recursos/RecursoFisicoFormModal';
+import { useRecordList } from '@/hooks/useRecordNavigation';
+import { RECURSOS_FISICOS_ROUTES } from '@/modules/recursos-fisicos/recursos-fisicos.navigation';
 import { MapaRecursosFisicosModal } from '@/components/recursos/MapaRecursosFisicosModal';
 import { SortableTable, Column } from '@/components/shared/SortableTable';
 import { useAuth } from '@/contexts/AuthContext';
@@ -31,10 +32,7 @@ import {
   SORT_OPTIONS_NOME_DATA,
   sortSubtitle,
 } from '@/components/shared/ListFilter';
-import type {
-  RecursoFisico,
-  RecursoFisicoInput,
-} from '@/modules/recursos-fisicos/recursos-fisicos.types';
+import type { RecursoFisico } from '@/modules/recursos-fisicos/recursos-fisicos.types';
 import {
   useListingView,
   ViewSwitcher,
@@ -200,15 +198,20 @@ function RecursoFisicoDetailPanel({
 const RecursosFisicos = () => {
   const { toast } = useToast();
   const { t } = useLanguage();
-  const { user, session } = useAuth();
+  const { session } = useAuth();
   const { canIncluir, canAlterar, canExcluir } = usePermissions();
   const podeIncluir = canIncluir('Recursos', 'Recursos Físicos');
   const podeAlterar = canAlterar('Recursos', 'Recursos Físicos');
   const podeExcluir = canExcluir('Recursos', 'Recursos Físicos');
   const [search, setSearch] = useState('');
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const { openNew, openRecord } = useRecordList(RECURSOS_FISICOS_ROUTES);
+  // Keeps the filtered order so the form page can navigate previous/next.
+  const openEdit = (item: { id: string }) =>
+    openRecord(
+      item.id,
+      filteredItems.map((i) => i.id),
+    );
   const [isMapaOpen, setIsMapaOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<RecursoFisico | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<RecursoFisico | null>(null);
   const [items, setItems] = useState<RecursoFisico[]>([]);
@@ -242,29 +245,6 @@ const RecursosFisicos = () => {
   useEffect(() => {
     void fetchRecursosFisicos();
   }, [fetchRecursosFisicos]);
-
-  const handleSave = async (data: RecursoFisicoInput) => {
-    try {
-      await recursosFisicosRepository.save({
-        ...data,
-        tenantId: user?.tenantId ?? null,
-      });
-      toast({
-        title: t('common.success'),
-        description: editingItem ? 'Recurso físico atualizado!' : 'Recurso físico criado!',
-      });
-      await fetchRecursosFisicos();
-      setEditingItem(null);
-    } catch (error) {
-      console.error('Error saving recurso fisico:', error);
-      toast({
-        title: t('common.error'),
-        description: `Erro ao salvar: ${(error as Error).message}`,
-        variant: 'destructive',
-      });
-      throw error;
-    }
-  };
 
   const handleDeleteConfirm = async () => {
     if (!deletingId) return;
@@ -360,8 +340,7 @@ const RecursosFisicos = () => {
             variant="ghost"
             onClick={(e) => {
               e.stopPropagation();
-              setEditingItem(item);
-              setIsModalOpen(true);
+              openEdit(item);
             }}
             disabled={!podeAlterar}
           >
@@ -393,15 +372,7 @@ const RecursosFisicos = () => {
       />
 
       <ListActionBar>
-        {podeIncluir && (
-          <NewButton
-            tooltip={t('field.newResource')}
-            onClick={() => {
-              setEditingItem(null);
-              setIsModalOpen(true);
-            }}
-          />
-        )}
+        {podeIncluir && <NewButton tooltip={t('field.newResource')} onClick={openNew} />}
         <div className="flex-1" />
         <SearchBar value={search} onChange={setSearch} />
         <ListFilterPanel
@@ -453,7 +424,7 @@ const RecursosFisicos = () => {
               title={t('field.noPhysicalResourceRegistered')}
               description={t('field.physicalResourcesHint')}
               icon={MapPin}
-              onAction={podeIncluir ? () => setIsModalOpen(true) : undefined}
+              onAction={podeIncluir ? openNew : undefined}
               actionLabel={t('field.addPhysicalResource')}
             />
           ) : (
@@ -471,17 +442,14 @@ const RecursosFisicos = () => {
             getRowKey={(item) => item.id}
             emptyTitle={t('field.noPhysicalResourceRegistered')}
             emptyDescription={t('field.physicalResourcesHint')}
-            onEmptyAction={podeIncluir ? () => setIsModalOpen(true) : undefined}
+            onEmptyAction={podeIncluir ? openNew : undefined}
             emptyActionLabel={t('field.addPhysicalResource')}
             renderCard={(item) => (
               <RecursoFisicoCard
                 item={item}
                 podeAlterar={podeAlterar}
                 podeExcluir={podeExcluir}
-                onEdit={() => {
-                  setEditingItem(item);
-                  setIsModalOpen(true);
-                }}
+                onEdit={() => openEdit(item)}
                 onDelete={() => setDeletingId(item.id)}
               />
             )}
@@ -508,40 +476,13 @@ const RecursosFisicos = () => {
                 item={item}
                 podeAlterar={podeAlterar}
                 podeExcluir={podeExcluir}
-                onEdit={() => {
-                  setEditingItem(item);
-                  setIsModalOpen(true);
-                }}
+                onEdit={() => openEdit(item)}
                 onDelete={() => setDeletingId(item.id)}
               />
             )}
           />
         )}
       </DataCard>
-
-      <RecursoFisicoFormModal
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setEditingItem(null);
-        }}
-        onSave={handleSave}
-        data={editingItem}
-        readOnly={!!editingItem && !podeAlterar}
-        navigation={(() => {
-          const navIndex = editingItem
-            ? filteredItems.findIndex((i) => i.id === editingItem.id)
-            : -1;
-          return navIndex >= 0
-            ? {
-                currentIndex: navIndex,
-                total: filteredItems.length,
-                onPrevious: () => setEditingItem(filteredItems[navIndex - 1]),
-                onNext: () => setEditingItem(filteredItems[navIndex + 1]),
-              }
-            : undefined;
-        })()}
-      />
 
       <MapaRecursosFisicosModal
         isOpen={isMapaOpen}

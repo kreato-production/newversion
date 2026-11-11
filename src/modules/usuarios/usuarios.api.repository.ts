@@ -7,6 +7,10 @@ export class ApiUsuariosRepository {
     return response.data;
   }
 
+  async getById(id: string): Promise<UsuarioApiModel> {
+    return apiRequest<UsuarioApiModel>(`/users/${id}`);
+  }
+
   async save(data: UsuarioApiModel): Promise<void> {
     const normalizedId = data.id || undefined;
     const payload = normalizedId ? data : { ...data, id: undefined };
@@ -25,9 +29,7 @@ export class ApiUsuariosRepository {
     });
   }
 
-  async listUnidades(
-    userId: string,
-  ): Promise<{
+  async listUnidades(userId: string): Promise<{
     vinculadas: { id: string; nome: string }[];
     disponiveis: { id: string; nome: string }[];
   }> {
@@ -47,9 +49,7 @@ export class ApiUsuariosRepository {
     });
   }
 
-  async listProgramas(
-    userId: string,
-  ): Promise<{
+  async listProgramas(userId: string): Promise<{
     vinculados: { id: string; nome: string }[];
     disponiveis: { id: string; nome: string }[];
   }> {
@@ -69,9 +69,7 @@ export class ApiUsuariosRepository {
     });
   }
 
-  async listEquipes(
-    userId: string,
-  ): Promise<{
+  async listEquipes(userId: string): Promise<{
     vinculadas: { id: string; codigo: string; descricao: string }[];
     disponiveis: { id: string; codigo: string; descricao: string }[];
   }> {

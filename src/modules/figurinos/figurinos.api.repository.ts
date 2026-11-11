@@ -44,6 +44,10 @@ export class ApiFigurinosRepository {
     );
   }
 
+  async getById(id: string): Promise<Figurino> {
+    return apiRequest<Figurino>(`/figurinos/${id}`);
+  }
+
   async save(input: FigurinoInput): Promise<void> {
     const path = input.id ? `/figurinos/${input.id}` : '/figurinos';
     const method = input.id ? 'PUT' : 'POST';

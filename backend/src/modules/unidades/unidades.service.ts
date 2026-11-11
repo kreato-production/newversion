@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import type { SessionUser } from '../auth/auth.types.js';
 import { ensureSameTenant, resolveTenantId } from '../common/access.js';
-import type { UnidadesRepository } from './unidades.repository.js';
+import type { UnidadeRecord, UnidadesRepository } from './unidades.repository.js';
 
 export const saveUnidadeSchema = z.object({
   id: z.string().uuid().optional(),
@@ -15,6 +15,19 @@ export const saveUnidadeSchema = z.object({
 
 export type SaveUnidadeDto = z.infer<typeof saveUnidadeSchema>;
 
+function toUnidadeDto(item: UnidadeRecord) {
+  return {
+    id: item.id,
+    codigoExterno: item.codigoExterno || '',
+    nome: item.nome,
+    descricao: item.descricao || '',
+    imagem: item.imagemUrl || '',
+    moeda: item.moeda,
+    dataCadastro: item.createdAt.toISOString(),
+    usuarioCadastro: item.createdByName || '',
+  };
+}
+
 export class UnidadesService {
   constructor(private readonly repository: UnidadesRepository) {}
 
@@ -25,17 +38,18 @@ export class UnidadesService {
       : await this.repository.listByTenant(resolveTenantId(actor, actor.tenantId), opts);
     return {
       total,
-      data: data.map((item) => ({
-        id: item.id,
-        codigoExterno: item.codigoExterno || '',
-        nome: item.nome,
-        descricao: item.descricao || '',
-        imagem: item.imagemUrl || '',
-        moeda: item.moeda,
-        dataCadastro: item.createdAt.toISOString(),
-        usuarioCadastro: item.createdByName || '',
-      })),
+      data: data.map(toUnidadeDto),
     };
+  }
+
+  async getById(actor: SessionUser, id: string) {
+    const existing = await this.repository.findById(id);
+    if (!existing) {
+      return null;
+    }
+
+    ensureSameTenant(actor, existing.tenantId);
+    return toUnidadeDto(existing);
   }
 
   async save(actor: SessionUser, input: SaveUnidadeDto) {
@@ -60,16 +74,7 @@ export class UnidadesService {
       createdByName: actor.nome,
     });
 
-    return {
-      id: item.id,
-      codigoExterno: item.codigoExterno || '',
-      nome: item.nome,
-      descricao: item.descricao || '',
-      imagem: item.imagemUrl || '',
-      moeda: item.moeda,
-      dataCadastro: item.createdAt.toISOString(),
-      usuarioCadastro: item.createdByName || '',
-    };
+    return toUnidadeDto(item);
   }
 
   async remove(actor: SessionUser, id: string) {

@@ -19,11 +19,11 @@ import { SortableTable, type Column } from '@/components/shared/SortableTable';
 import { Edit, Trash2, Settings, Loader2, Star, Download, Upload } from 'lucide-react';
 import { NewButton } from '@/components/shared/NewButton';
 import { useToast } from '@/hooks/use-toast';
-import { StatusGravacaoFormModal } from '@/components/producao/StatusGravacaoFormModal';
+import { useRecordList } from '@/hooks/useRecordNavigation';
+import { STATUS_GRAVACAO_FORM } from '@/modules/parametrizacoes/producao.forms';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ApiParametrizacoesRepository } from '@/modules/parametrizacoes/parametrizacoes.api.repository';
-import { usePermissions } from '@/hooks/usePermissions';
 import {
   useListingView,
   ViewSwitcher,
@@ -239,12 +239,16 @@ function StatusGravacaoDetailPanel({
 
 const StatusGravacao = () => {
   const { toast } = useToast();
-  const { canAlterar } = usePermissions();
   const importFileRef = useRef<HTMLInputElement>(null);
   const [isImporting, setIsImporting] = useState(false);
   const [search, setSearch] = useState('');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<StatusGravacaoItem | null>(null);
+  const { openNew, openRecord } = useRecordList(STATUS_GRAVACAO_FORM.routes);
+  // Keeps the filtered order so the form page can navigate previous/next.
+  const openEdit = (item: { id: string }) =>
+    openRecord(
+      item.id,
+      filteredItems.map((i) => i.id),
+    );
   const [items, setItems] = useState<StatusGravacaoItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -273,32 +277,6 @@ const StatusGravacao = () => {
   useEffect(() => {
     void fetchStatusGravacao();
   }, [fetchStatusGravacao]);
-
-  const handleSave = async (data: StatusGravacaoItem) => {
-    try {
-      await repository.saveStatusGravacao({
-        ...(editingItem ? { id: data.id } : {}),
-        codigoExterno: data.codigoExterno,
-        nome: data.nome,
-        descricao: data.descricao,
-        cor: data.cor,
-        isInicial: data.isInicial,
-      });
-
-      toast({
-        title: 'Sucesso',
-        description: editingItem
-          ? 'Status atualizado com sucesso!'
-          : 'Status cadastrado com sucesso!',
-      });
-      await fetchStatusGravacao();
-      setEditingItem(null);
-    } catch (error) {
-      console.error('Error saving status_gravacao:', error);
-      toast({ title: 'Erro', description: 'Erro ao salvar status', variant: 'destructive' });
-      throw error;
-    }
-  };
 
   const handleDeleteConfirm = async () => {
     if (!deletingId) return;
@@ -517,15 +495,7 @@ const StatusGravacao = () => {
       sortable: false,
       render: (item) => (
         <div className="flex justify-end gap-1">
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-7 w-7"
-            onClick={() => {
-              setEditingItem(item);
-              setIsModalOpen(true);
-            }}
-          >
+          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(item)}>
             <Edit className="w-3.5 h-3.5" />
           </Button>
           <Button
@@ -557,13 +527,7 @@ const StatusGravacao = () => {
       />
 
       <ListActionBar>
-        <NewButton
-          tooltip="Novo Status"
-          onClick={() => {
-            setEditingItem(null);
-            setIsModalOpen(true);
-          }}
-        />
+        <NewButton tooltip="Novo Status" onClick={openNew} />
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
@@ -614,7 +578,7 @@ const StatusGravacao = () => {
               title="Nenhum status cadastrado"
               description="Comece adicionando status para organizar seu sistema."
               icon={Settings}
-              onAction={() => setIsModalOpen(true)}
+              onAction={openNew}
               actionLabel="Adicionar Status"
             />
           ) : (
@@ -632,15 +596,12 @@ const StatusGravacao = () => {
             getRowKey={(item) => item.id}
             emptyTitle="Nenhum status cadastrado"
             emptyDescription="Comece adicionando status para organizar seu sistema."
-            onEmptyAction={() => setIsModalOpen(true)}
+            onEmptyAction={openNew}
             emptyActionLabel="Adicionar Status"
             renderCard={(item) => (
               <StatusGravacaoCard
                 item={item}
-                onEdit={() => {
-                  setEditingItem(item);
-                  setIsModalOpen(true);
-                }}
+                onEdit={() => openEdit(item)}
                 onDelete={() => setDeletingId(item.id)}
                 onToggleInicial={() => void handleToggleInicial(item.id, !item.isInicial)}
               />
@@ -675,10 +636,7 @@ const StatusGravacao = () => {
             renderDetail={(item) => (
               <StatusGravacaoDetailPanel
                 item={item}
-                onEdit={() => {
-                  setEditingItem(item);
-                  setIsModalOpen(true);
-                }}
+                onEdit={() => openEdit(item)}
                 onDelete={() => setDeletingId(item.id)}
                 onToggleInicial={() => void handleToggleInicial(item.id, !item.isInicial)}
               />
@@ -686,30 +644,6 @@ const StatusGravacao = () => {
           />
         )}
       </DataCard>
-
-      <StatusGravacaoFormModal
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setEditingItem(null);
-        }}
-        onSave={handleSave}
-        data={editingItem}
-        readOnly={!!editingItem && !canAlterar('Producao', 'Parametrizacoes', 'Status Gravacao')}
-        navigation={(() => {
-          const navIndex = editingItem
-            ? filteredItems.findIndex((i) => i.id === editingItem.id)
-            : -1;
-          return navIndex >= 0
-            ? {
-                currentIndex: navIndex,
-                total: filteredItems.length,
-                onPrevious: () => setEditingItem(filteredItems[navIndex - 1]),
-                onNext: () => setEditingItem(filteredItems[navIndex + 1]),
-              }
-            : undefined;
-        })()}
-      />
 
       <AlertDialog open={!!deletingId} onOpenChange={(open) => !open && setDeletingId(null)}>
         <AlertDialogContent>

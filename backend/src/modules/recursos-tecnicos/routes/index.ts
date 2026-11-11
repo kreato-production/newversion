@@ -30,6 +30,14 @@ export function createRecursosTecnicosRoutes(authService: AuthService, recursosT
       return reply.status(200).send(await recursosTecnicosService.listOptions(user));
     });
 
+    app.get('/recursos-tecnicos/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      const params = request.params as { id: string };
+      const item = await recursosTecnicosService.getById(user, params.id);
+      if (!item) return reply.status(404).send({ message: 'Recurso técnico não encontrado' });
+      return reply.status(200).send(item);
+    });
+
     app.post('/recursos-tecnicos', { preHandler: [authenticate, requireTenantAccess, requireIncluir] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const body = saveRecursoTecnicoSchema.parse(request.body);

@@ -36,6 +36,14 @@ export function createFornecedoresRoutes(authService: AuthService, fornecedoresS
       return reply.status(200).send(await fornecedoresService.listOptions(user));
     });
 
+    app.get('/fornecedores/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      const params = request.params as { id: string };
+      const item = await fornecedoresService.getById(user, params.id);
+      if (!item) return reply.status(404).send({ message: 'Fornecedor não encontrado(a)' });
+      return reply.status(200).send(item);
+    });
+
     app.post('/fornecedores', { preHandler: [authenticate, requireTenantAccess, requireIncluir] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const body = saveFornecedorSchema.parse(request.body);

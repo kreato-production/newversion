@@ -211,6 +211,13 @@ function mapCentro(row: Awaited<ReturnType<PrismaParametrizacoesRepository['find
 export class ParametrizacoesService {
   constructor(private readonly repository: PrismaParametrizacoesRepository) {}
 
+  async getStatusGravacao(actor: SessionUser, id: string) {
+    const row = await this.repository.findStatusGravacao(id);
+    if (!row) return null;
+    ensureSameTenant(actor, row.tenant_id);
+    return mapStatusGravacao(row)!;
+  }
+
   async listStatusGravacao(actor: SessionUser) {
     const tenantId = resolveTenantId(actor, actor.tenantId);
     const rows = await this.repository.listStatusGravacao(tenantId);
@@ -247,6 +254,13 @@ export class ParametrizacoesService {
     if (!existing) throw new Error('Status de gravacao nao encontrado');
     ensureSameTenant(actor, existing.tenant_id);
     await this.repository.removeStatusGravacao(id);
+  }
+
+  async getStatusPlaneamento(actor: SessionUser, id: string) {
+    const row = await this.repository.findStatusPlaneamento(id);
+    if (!row) return null;
+    ensureSameTenant(actor, row.tenant_id);
+    return mapStatusPlaneamento(row)!;
   }
 
   async listStatusPlaneamento(actor: SessionUser) {
@@ -287,6 +301,13 @@ export class ParametrizacoesService {
     await this.repository.removeStatusPlaneamento(id);
   }
 
+  async getStatusTarefa(actor: SessionUser, id: string) {
+    const row = await this.repository.findStatusTarefa(id);
+    if (!row) return null;
+    ensureSameTenant(actor, row.tenant_id);
+    return mapStatusTarefa(row)!;
+  }
+
   async listStatusTarefa(actor: SessionUser) {
     const tenantId = resolveTenantId(actor, actor.tenantId);
     const rows = await this.repository.listStatusTarefa(tenantId);
@@ -323,6 +344,13 @@ export class ParametrizacoesService {
     if (!existing) throw new Error('Status de tarefa nao encontrado');
     ensureSameTenant(actor, existing.tenant_id);
     await this.repository.removeStatusTarefa(id);
+  }
+
+  async getStatusContaPagar(actor: SessionUser, id: string) {
+    const row = await this.repository.findStatusContaPagar(id);
+    if (!row) return null;
+    ensureSameTenant(actor, row.tenant_id);
+    return mapStatusContaPagar(row)!;
   }
 
   async listStatusContaPagar(actor: SessionUser) {
@@ -366,6 +394,13 @@ export class ParametrizacoesService {
     await this.repository.removeStatusContaPagar(id);
   }
 
+  async getFormaPagamento(actor: SessionUser, id: string) {
+    const row = await this.repository.findFormaPagamento(id);
+    if (!row) return null;
+    ensureSameTenant(actor, row.tenant_id);
+    return mapFormaPagamento(row)!;
+  }
+
   async listFormasPagamento(actor: SessionUser) {
     const tenantId = resolveTenantId(actor, actor.tenantId);
     const rows = await this.repository.listFormasPagamento(tenantId);
@@ -407,6 +442,13 @@ export class ParametrizacoesService {
     await this.repository.removeFormaPagamento(id);
   }
 
+  async getTipoDocumentoFinanceiro(actor: SessionUser, id: string) {
+    const row = await this.repository.findTipoDocumentoFinanceiro(id);
+    if (!row) return null;
+    ensureSameTenant(actor, row.tenant_id);
+    return mapTitulo(row);
+  }
+
   async listTiposDocumentoFinanceiro(actor: SessionUser) {
     const tenantId = resolveTenantId(actor, actor.tenantId);
     const rows = await this.repository.listTiposDocumentoFinanceiro(tenantId);
@@ -435,6 +477,13 @@ export class ParametrizacoesService {
     if (!existing) throw new Error('Tipo de documento financeiro nao encontrado');
     ensureSameTenant(actor, existing.tenant_id);
     await this.repository.removeTipoDocumentoFinanceiro(id);
+  }
+
+  async getTipoPagamento(actor: SessionUser, id: string) {
+    const row = await this.repository.findTipoPagamento(id);
+    if (!row) return null;
+    ensureSameTenant(actor, row.tenant_id);
+    return mapTitulo(row);
   }
 
   async listTiposPagamento(actor: SessionUser) {
@@ -467,6 +516,13 @@ export class ParametrizacoesService {
     await this.repository.removeTipoPagamento(id);
   }
 
+  async getCategoriaDespesa(actor: SessionUser, id: string) {
+    const row = await this.repository.findCategoriaDespesa(id);
+    if (!row) return null;
+    ensureSameTenant(actor, row.tenant_id);
+    return mapTitulo(row);
+  }
+
   async listCategoriasDespesa(actor: SessionUser) {
     const tenantId = resolveTenantId(actor, actor.tenantId);
     const rows = await this.repository.listCategoriasDespesa(tenantId);
@@ -495,6 +551,13 @@ export class ParametrizacoesService {
     if (!existing) throw new Error('Categoria de despesa nao encontrada');
     ensureSameTenant(actor, existing.tenant_id);
     await this.repository.removeCategoriaDespesa(id);
+  }
+
+  async getCategoriaIncidencia(actor: SessionUser, id: string) {
+    const row = await this.repository.findCategoriaIncidencia(id);
+    if (!row) return null;
+    ensureSameTenant(actor, row.tenant_id);
+    return mapTitulo(row);
   }
 
   async listCategoriasIncidencia(actor: SessionUser) {
@@ -563,6 +626,13 @@ export class ParametrizacoesService {
     await this.repository.removeClassificacaoIncidencia(classificacaoId);
   }
 
+  async getSeveridadeIncidencia(actor: SessionUser, id: string) {
+    const row = await this.repository.findSeveridadeIncidencia(id);
+    if (!row) return null;
+    ensureSameTenant(actor, row.tenant_id);
+    return mapTitulo(row);
+  }
+
   async listSeveridadesIncidencia(actor: SessionUser) {
     const tenantId = resolveTenantId(actor, actor.tenantId);
     const rows = await this.repository.listSeveridadesIncidencia(tenantId);
@@ -589,6 +659,13 @@ export class ParametrizacoesService {
     if (!existing) throw new Error('Severidade de incidencia nao encontrada');
     ensureSameTenant(actor, existing.tenant_id);
     await this.repository.removeSeveridadeIncidencia(id);
+  }
+
+  async getImpactoIncidencia(actor: SessionUser, id: string) {
+    const row = await this.repository.findImpactoIncidencia(id);
+    if (!row) return null;
+    ensureSameTenant(actor, row.tenant_id);
+    return mapTitulo(row);
   }
 
   async listImpactosIncidencia(actor: SessionUser) {
@@ -623,6 +700,13 @@ export class ParametrizacoesService {
     const tenantId = resolveTenantId(actor, actor.tenantId);
     const rows = await this.repository.listCentrosLucro(tenantId);
     return { data: rows.map((row) => mapCentro(row)!) };
+  }
+
+  async getCentroLucro(actor: SessionUser, id: string) {
+    const row = await this.repository.findCentroLucro(id);
+    if (!row) return null;
+    ensureSameTenant(actor, row.tenant_id);
+    return mapCentro(row)!;
   }
 
   async saveCentroLucro(actor: SessionUser, input: z.infer<typeof saveCentroLucroSchema>) {

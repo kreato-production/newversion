@@ -113,6 +113,10 @@ export class ApiTemplatesRepository {
     return response.data;
   }
 
+  async getById(id: string): Promise<Template> {
+    return apiRequest<Template>(`/templates/${id}`);
+  }
+
   async save(input: SaveTemplateInput): Promise<Template> {
     const path = input.id ? `/templates/${input.id}` : '/templates';
     const method = input.id ? 'PUT' : 'POST';

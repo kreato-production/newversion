@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
 import { ListActionBar } from '@/components/shared/ListActionBar';
@@ -26,7 +26,8 @@ import {
   ColumnSelector,
   type ColumnConfig,
 } from '@/components/listing';
-import { MaestroFormModal } from '@/components/admin/MaestroFormModal';
+import { useRecordList } from '@/hooks/useRecordNavigation';
+import { MAESTRO_ROUTES } from '@/modules/maestro/maestro.navigation';
 import { ExecResultDialog, type ExecResultPayload } from '@/components/admin/ExecResultDialog';
 import {
   MaestroFilterPanel,
@@ -34,11 +35,7 @@ import {
   EMPTY_MAESTRO_FILTERS,
   countMaestroActiveFilters,
 } from '@/components/admin/MaestroFilterPanel';
-import {
-  ApiMaestroRepository,
-  type Maestro,
-  type SaveMaestroInput,
-} from '@/modules/maestro/maestro.api';
+import { ApiMaestroRepository, type Maestro } from '@/modules/maestro/maestro.api';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -146,8 +143,14 @@ const MaestroView = () => {
   const [filters, setFilters] = useState<MaestroFilters>(EMPTY_MAESTRO_FILTERS);
   const [items, setItems] = useState<Maestro[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<Maestro | null>(null);
+  const { openNew, openRecord } = useRecordList(MAESTRO_ROUTES);
+  // Keeps the filtered order so the form page can navigate previous/next. Read through a
+  // ref so the memoized table columns never navigate with a stale order.
+  const filteredIdsRef = useRef<string[]>([]);
+  const openEdit = useCallback(
+    (item: { id: string }) => openRecord(item.id, filteredIdsRef.current),
+    [openRecord],
+  );
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [executingId, setExecutingId] = useState<string | null>(null);
   const [execResult, setExecResult] = useState<ExecResultPayload | null>(null);
@@ -182,25 +185,6 @@ const MaestroView = () => {
   }, [fetchData]);
 
   // ── Mutations ──────────────────────────────────────────────────────────────
-
-  const handleSave = async (data: SaveMaestroInput) => {
-    try {
-      await repository.save(data);
-      toast({
-        title: 'Sucesso',
-        description: editingItem ? 'Tarefa actualizada!' : 'Tarefa criada!',
-      });
-      await fetchData();
-      setEditingItem(null);
-    } catch (err) {
-      toast({
-        title: 'Erro',
-        description: `Erro ao salvar: ${(err as Error).message}`,
-        variant: 'destructive',
-      });
-      throw err;
-    }
-  };
 
   const handleExecute = async (id: string) => {
     setExecutingId(id);
@@ -270,6 +254,7 @@ const MaestroView = () => {
       result = result.filter((i) => i.modulo && filters.modulo.includes(i.modulo));
     return result;
   }, [items, search, filters]);
+  filteredIdsRef.current = filteredItems.map((i) => i.id);
 
   const activeFilterCount = countMaestroActiveFilters(filters);
 
@@ -420,10 +405,7 @@ const MaestroView = () => {
                     size="icon"
                     variant="ghost"
                     className="h-7 w-7"
-                    onClick={() => {
-                      setEditingItem(item);
-                      setIsModalOpen(true);
-                    }}
+                    onClick={() => openEdit(item)}
                   >
                     <Edit className="w-3.5 h-3.5" />
                   </Button>
@@ -441,7 +423,7 @@ const MaestroView = () => {
           ]
         : []),
     ],
-    [isColumnVisible, executingId],
+    [isColumnVisible, executingId, openEdit],
   );
 
   // ── Loading skeleton ───────────────────────────────────────────────────────
@@ -461,13 +443,7 @@ const MaestroView = () => {
       <PageHeader title="Maestro" description="Gerencie as tarefas automatizadas do sistema" />
 
       <ListActionBar>
-        <NewButton
-          tooltip="Nova tarefa"
-          onClick={() => {
-            setEditingItem(null);
-            setIsModalOpen(true);
-          }}
-        />
+        <NewButton tooltip="Nova tarefa" onClick={openNew} />
         <div className="flex-1" />
         <SearchBar value={search} onChange={setSearch} placeholder="Pesquisar tarefa..." />
         <MaestroFilterPanel
@@ -495,7 +471,7 @@ const MaestroView = () => {
             title="Nenhuma tarefa automática cadastrada"
             description="Adicione tarefas automáticas para integrar com outros sistemas."
             icon={Zap}
-            onAction={() => setIsModalOpen(true)}
+            onAction={openNew}
             actionLabel="Adicionar tarefa"
           />
         ) : filteredItems.length === 0 ? (
@@ -515,43 +491,6 @@ const MaestroView = () => {
       </DataCard>
 
       {/* Form modal */}
-      <MaestroFormModal
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setEditingItem(null);
-        }}
-        onSave={handleSave}
-        onExecute={async (id) => {
-          const res = await repository.execute(id);
-          setItems((prev) =>
-            prev.map((i) =>
-              i.id === id ? { ...i, ultimaExecucao: res.maestro.ultimaExecucao } : i,
-            ),
-          );
-          const payload: ExecResultPayload = {
-            resultado: res.resultado,
-            erro: res.erro,
-            ultimaExecucao: res.maestro.ultimaExecucao,
-          };
-          setExecResult(payload);
-          setIsResultOpen(true);
-          return payload;
-        }}
-        data={editingItem}
-        navigation={(() => {
-          const idx = editingItem ? filteredItems.findIndex((i) => i.id === editingItem.id) : -1;
-          return idx >= 0
-            ? {
-                currentIndex: idx,
-                total: filteredItems.length,
-                onPrevious: () => setEditingItem(filteredItems[idx - 1]),
-                onNext: () => setEditingItem(filteredItems[idx + 1]),
-              }
-            : undefined;
-        })()}
-      />
-
       {/* Execution result dialog */}
       <ExecResultDialog
         isOpen={isResultOpen}

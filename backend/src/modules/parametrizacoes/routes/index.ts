@@ -27,6 +27,14 @@ export function createParametrizacoesRoutes(authService: AuthService, parametriz
       return reply.status(200).send(await parametrizacoesService.listStatusGravacao(user));
     });
 
+    app.get('/parametrizacoes/status-gravacao/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      const params = request.params as { id: string };
+      const item = await parametrizacoesService.getStatusGravacao(user, params.id);
+      if (!item) return reply.status(404).send({ message: 'Registro não encontrado' });
+      return reply.status(200).send(item);
+    });
+
     app.post('/parametrizacoes/status-gravacao', { preHandler: [authenticate, requireTenantAccess, requireAdminRole] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       return reply.status(200).send(await parametrizacoesService.saveStatusGravacao(user, saveStatusGravacaoSchema.parse(request.body)));
@@ -55,6 +63,14 @@ export function createParametrizacoesRoutes(authService: AuthService, parametriz
     app.get('/parametrizacoes/status-planeamento', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       return reply.status(200).send(await parametrizacoesService.listStatusPlaneamento(user));
+    });
+
+    app.get('/parametrizacoes/status-planeamento/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      const params = request.params as { id: string };
+      const item = await parametrizacoesService.getStatusPlaneamento(user, params.id);
+      if (!item) return reply.status(404).send({ message: 'Registro não encontrado' });
+      return reply.status(200).send(item);
     });
 
     app.post('/parametrizacoes/status-planeamento', { preHandler: [authenticate, requireTenantAccess, requireAdminRole] }, async (request, reply) => {
@@ -87,6 +103,14 @@ export function createParametrizacoesRoutes(authService: AuthService, parametriz
       return reply.status(200).send(await parametrizacoesService.listStatusTarefa(user));
     });
 
+    app.get('/parametrizacoes/status-tarefa/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      const params = request.params as { id: string };
+      const item = await parametrizacoesService.getStatusTarefa(user, params.id);
+      if (!item) return reply.status(404).send({ message: 'Registro não encontrado' });
+      return reply.status(200).send(item);
+    });
+
     app.post('/parametrizacoes/status-tarefa', { preHandler: [authenticate, requireTenantAccess, requireAdminRole] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       return reply.status(200).send(await parametrizacoesService.saveStatusTarefa(user, saveStatusTarefaSchema.parse(request.body)));
@@ -115,6 +139,14 @@ export function createParametrizacoesRoutes(authService: AuthService, parametriz
     app.get('/parametrizacoes/status-contas-pagar', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       return reply.status(200).send(await parametrizacoesService.listStatusContaPagar(user));
+    });
+
+    app.get('/parametrizacoes/status-contas-pagar/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      const params = request.params as { id: string };
+      const item = await parametrizacoesService.getStatusContaPagar(user, params.id);
+      if (!item) return reply.status(404).send({ message: 'Registro não encontrado' });
+      return reply.status(200).send(item);
     });
 
     app.post('/parametrizacoes/status-contas-pagar', { preHandler: [authenticate, requireTenantAccess, requireAdminRole] }, async (request, reply) => {
@@ -147,6 +179,14 @@ export function createParametrizacoesRoutes(authService: AuthService, parametriz
       return reply.status(200).send(await parametrizacoesService.listFormasPagamento(user));
     });
 
+    app.get('/parametrizacoes/formas-pagamento/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      const params = request.params as { id: string };
+      const item = await parametrizacoesService.getFormaPagamento(user, params.id);
+      if (!item) return reply.status(404).send({ message: 'Registro não encontrado' });
+      return reply.status(200).send(item);
+    });
+
     app.post('/parametrizacoes/formas-pagamento', { preHandler: [authenticate, requireTenantAccess, requireAdminRole] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       return reply.status(200).send(await parametrizacoesService.saveFormaPagamento(user, saveFormaPagamentoSchema.parse(request.body)));
@@ -177,6 +217,14 @@ export function createParametrizacoesRoutes(authService: AuthService, parametriz
       return reply.status(200).send(await parametrizacoesService.listTiposDocumentoFinanceiro(user));
     });
 
+    app.get('/parametrizacoes/tipos-documentos-financeiro/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      const params = request.params as { id: string };
+      const item = await parametrizacoesService.getTipoDocumentoFinanceiro(user, params.id);
+      if (!item) return reply.status(404).send({ message: 'Registro não encontrado' });
+      return reply.status(200).send(item);
+    });
+
     app.post('/parametrizacoes/tipos-documentos-financeiro', { preHandler: [authenticate, requireTenantAccess, requireAdminRole] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       return reply.status(200).send(await parametrizacoesService.saveTipoDocumentoFinanceiro(user, saveTituloSchema.parse(request.body)));
@@ -198,6 +246,14 @@ export function createParametrizacoesRoutes(authService: AuthService, parametriz
     app.get('/parametrizacoes/tipos-pagamento', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       return reply.status(200).send(await parametrizacoesService.listTiposPagamento(user));
+    });
+
+    app.get('/parametrizacoes/tipos-pagamento/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      const params = request.params as { id: string };
+      const item = await parametrizacoesService.getTipoPagamento(user, params.id);
+      if (!item) return reply.status(404).send({ message: 'Registro não encontrado' });
+      return reply.status(200).send(item);
     });
 
     app.post('/parametrizacoes/tipos-pagamento', { preHandler: [authenticate, requireTenantAccess, requireAdminRole] }, async (request, reply) => {
@@ -223,6 +279,14 @@ export function createParametrizacoesRoutes(authService: AuthService, parametriz
       return reply.status(200).send(await parametrizacoesService.listCategoriasDespesa(user));
     });
 
+    app.get('/parametrizacoes/categorias-despesa/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      const params = request.params as { id: string };
+      const item = await parametrizacoesService.getCategoriaDespesa(user, params.id);
+      if (!item) return reply.status(404).send({ message: 'Registro não encontrado' });
+      return reply.status(200).send(item);
+    });
+
     app.post('/parametrizacoes/categorias-despesa', { preHandler: [authenticate, requireTenantAccess, requireAdminRole] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       return reply.status(200).send(await parametrizacoesService.saveCategoriaDespesa(user, saveTituloSchema.parse(request.body)));
@@ -244,6 +308,14 @@ export function createParametrizacoesRoutes(authService: AuthService, parametriz
     app.get('/parametrizacoes/categorias-incidencia', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       return reply.status(200).send(await parametrizacoesService.listCategoriasIncidencia(user));
+    });
+
+    app.get('/parametrizacoes/categorias-incidencia/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      const params = request.params as { id: string };
+      const item = await parametrizacoesService.getCategoriaIncidencia(user, params.id);
+      if (!item) return reply.status(404).send({ message: 'Registro não encontrado' });
+      return reply.status(200).send(item);
     });
 
     app.post('/parametrizacoes/categorias-incidencia', { preHandler: [authenticate, requireTenantAccess, requireAdminRole] }, async (request, reply) => {
@@ -294,6 +366,14 @@ export function createParametrizacoesRoutes(authService: AuthService, parametriz
       return reply.status(200).send(await parametrizacoesService.listSeveridadesIncidencia(user));
     });
 
+    app.get('/parametrizacoes/severidades-incidencia/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      const params = request.params as { id: string };
+      const item = await parametrizacoesService.getSeveridadeIncidencia(user, params.id);
+      if (!item) return reply.status(404).send({ message: 'Registro não encontrado' });
+      return reply.status(200).send(item);
+    });
+
     app.post('/parametrizacoes/severidades-incidencia', { preHandler: [authenticate, requireTenantAccess, requireAdminRole] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       return reply.status(200).send(await parametrizacoesService.saveSeveridadeIncidencia(user, saveTituloSchema.parse(request.body)));
@@ -317,6 +397,14 @@ export function createParametrizacoesRoutes(authService: AuthService, parametriz
       return reply.status(200).send(await parametrizacoesService.listImpactosIncidencia(user));
     });
 
+    app.get('/parametrizacoes/impactos-incidencia/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      const params = request.params as { id: string };
+      const item = await parametrizacoesService.getImpactoIncidencia(user, params.id);
+      if (!item) return reply.status(404).send({ message: 'Registro não encontrado' });
+      return reply.status(200).send(item);
+    });
+
     app.post('/parametrizacoes/impactos-incidencia', { preHandler: [authenticate, requireTenantAccess, requireAdminRole] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       return reply.status(200).send(await parametrizacoesService.saveImpactoIncidencia(user, saveTituloSchema.parse(request.body)));
@@ -338,6 +426,14 @@ export function createParametrizacoesRoutes(authService: AuthService, parametriz
     app.get('/parametrizacoes/centros-lucro', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       return reply.status(200).send(await parametrizacoesService.listCentrosLucro(user));
+    });
+
+    app.get('/parametrizacoes/centros-lucro/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      const params = request.params as { id: string };
+      const item = await parametrizacoesService.getCentroLucro(user, params.id);
+      if (!item) return reply.status(404).send({ message: 'Centro de lucro não encontrado' });
+      return reply.status(200).send(item);
     });
 
     app.post('/parametrizacoes/centros-lucro', { preHandler: [authenticate, requireTenantAccess, requireAdminRole] }, async (request, reply) => {

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import type { SessionUser } from '../auth/auth.types.js';
 import { ensureSameTenant, resolveTenantId } from '../common/access.js';
-import type { RecursosFisicosRepository } from './recursos-fisicos.repository.js';
+import type { RecursoFisicoRecord, RecursosFisicosRepository } from './recursos-fisicos.repository.js';
 
 const estoqueItemSchema = z.object({
   id: z.string().optional(),
@@ -33,6 +33,28 @@ export const saveRecursoFisicoSchema = z.object({
 
 export type SaveRecursoFisicoDto = z.infer<typeof saveRecursoFisicoSchema>;
 
+function toRecursoFisicoDto(item: RecursoFisicoRecord) {
+  return {
+    id: item.id,
+    codigoExterno: item.codigoExterno || '',
+    nome: item.nome,
+    custoHora: item.custoHora,
+    faixasDisponibilidade: item.faixasDisponibilidade,
+    estoqueItens: item.estoqueItens.map((stockItem) => ({
+      id: stockItem.id,
+      numerador: stockItem.numerador,
+      codigo: stockItem.codigo || '',
+      nome: stockItem.nome,
+      descricao: stockItem.descricao || '',
+      imagemUrl: stockItem.imagemUrl || '',
+    })),
+    estoqueCount: item.estoqueItens.length,
+    dataCadastro: item.createdAt?.toISOString() || '',
+    usuarioCadastro: item.createdByNome || '',
+    usuarioCadastroId: item.createdBy || '',
+  };
+}
+
 export class RecursosFisicosService {
   constructor(private readonly repository: RecursosFisicosRepository) {}
 
@@ -42,26 +64,18 @@ export class RecursosFisicosService {
 
     return {
       total,
-      data: data.map((item) => ({
-        id: item.id,
-        codigoExterno: item.codigoExterno || '',
-        nome: item.nome,
-        custoHora: item.custoHora,
-        faixasDisponibilidade: item.faixasDisponibilidade,
-        estoqueItens: item.estoqueItens.map((stockItem) => ({
-          id: stockItem.id,
-          numerador: stockItem.numerador,
-          codigo: stockItem.codigo || '',
-          nome: stockItem.nome,
-          descricao: stockItem.descricao || '',
-          imagemUrl: stockItem.imagemUrl || '',
-        })),
-        estoqueCount: item.estoqueItens.length,
-        dataCadastro: item.createdAt?.toISOString() || '',
-        usuarioCadastro: item.createdByNome || '',
-        usuarioCadastroId: item.createdBy || '',
-      })),
+      data: data.map(toRecursoFisicoDto),
     };
+  }
+
+  async getById(actor: SessionUser, id: string) {
+    const existing = await this.repository.findById(id);
+    if (!existing) {
+      return null;
+    }
+
+    ensureSameTenant(actor, existing.tenantId);
+    return toRecursoFisicoDto(existing);
   }
 
   async save(actor: SessionUser, input: SaveRecursoFisicoDto) {
@@ -100,25 +114,7 @@ export class RecursosFisicosService {
       })),
     });
 
-    return {
-      id: item.id,
-      codigoExterno: item.codigoExterno || '',
-      nome: item.nome,
-      custoHora: item.custoHora,
-      faixasDisponibilidade: item.faixasDisponibilidade,
-      estoqueItens: item.estoqueItens.map((stockItem) => ({
-        id: stockItem.id,
-        numerador: stockItem.numerador,
-        codigo: stockItem.codigo || '',
-        nome: stockItem.nome,
-        descricao: stockItem.descricao || '',
-        imagemUrl: stockItem.imagemUrl || '',
-      })),
-      estoqueCount: item.estoqueItens.length,
-      dataCadastro: item.createdAt?.toISOString() || '',
-      usuarioCadastro: item.createdByNome || '',
-      usuarioCadastroId: item.createdBy || '',
-    };
+    return toRecursoFisicoDto(item);
   }
 
   async remove(actor: SessionUser, id: string) {

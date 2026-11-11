@@ -19,8 +19,8 @@ import { Edit, Trash2, Settings, Loader2, Calendar } from 'lucide-react';
 import { NewButton } from '@/components/shared/NewButton';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
-import { usePermissions } from '@/hooks/usePermissions';
-import { TabelaPrecoFormModal } from '@/components/producao/TabelaPrecoFormModal';
+import { useRecordList } from '@/hooks/useRecordNavigation';
+import { TABELAS_PRECO_ROUTES } from '@/modules/tabelas-preco/tabelas-preco.navigation';
 import type { TabelaPrecoItem } from '@/modules/tabelas-preco/tabelas-preco.types';
 import { ApiTabelasPrecoRepository } from '@/modules/tabelas-preco/tabelas-preco.api.repository';
 import {
@@ -197,10 +197,14 @@ function TabelaPrecoDetailPanel({
 
 const TabelasPreco = () => {
   const { toast } = useToast();
-  const { canAlterar } = usePermissions();
   const [search, setSearch] = useState('');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<TabelaPrecoItem | null>(null);
+  const { openNew, openRecord } = useRecordList(TABELAS_PRECO_ROUTES);
+  // Keeps the filtered order so the form page can navigate previous/next.
+  const openEdit = (item: { id: string }) =>
+    openRecord(
+      item.id,
+      filteredItems.map((i) => i.id),
+    );
   const [items, setItems] = useState<TabelaPrecoItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -233,11 +237,6 @@ const TabelasPreco = () => {
   useEffect(() => {
     fetchItems();
   }, [fetchItems]);
-
-  const handleSave = async () => {
-    await fetchItems();
-    setEditingItem(null);
-  };
 
   const handleDeleteConfirm = async () => {
     if (!deletingId) return;
@@ -346,15 +345,7 @@ const TabelasPreco = () => {
       sortable: false,
       render: (item) => (
         <div className="flex justify-end gap-1">
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-7 w-7"
-            onClick={() => {
-              setEditingItem(item);
-              setIsModalOpen(true);
-            }}
-          >
+          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(item)}>
             <Edit className="w-3.5 h-3.5" />
           </Button>
           <Button
@@ -377,13 +368,7 @@ const TabelasPreco = () => {
         description="Gerencie tabelas de preços para recursos técnicos e físicos"
       />
       <ListActionBar>
-        <NewButton
-          tooltip="Nova Tabela"
-          onClick={() => {
-            setEditingItem(null);
-            setIsModalOpen(true);
-          }}
-        />
+        <NewButton tooltip="Nova Tabela" onClick={openNew} />
         <div className="flex-1" />
         <SearchBar value={search} onChange={setSearch} />
         <ListFilterPanel
@@ -465,7 +450,7 @@ const TabelasPreco = () => {
               title="Nenhuma tabela de preço cadastrada"
               description="Comece adicionando tabelas de preços."
               icon={Settings}
-              onAction={() => setIsModalOpen(true)}
+              onAction={openNew}
               actionLabel="Adicionar Tabela"
             />
           ) : (
@@ -483,15 +468,12 @@ const TabelasPreco = () => {
             getRowKey={(item) => item.id}
             emptyTitle="Nenhuma tabela de preço cadastrada"
             emptyDescription="Comece adicionando tabelas de preços."
-            onEmptyAction={() => setIsModalOpen(true)}
+            onEmptyAction={openNew}
             emptyActionLabel="Adicionar Tabela"
             renderCard={(item) => (
               <TabelaPrecoCard
                 item={item}
-                onEdit={() => {
-                  setEditingItem(item);
-                  setIsModalOpen(true);
-                }}
+                onEdit={() => openEdit(item)}
                 onDelete={() => setDeletingId(item.id)}
               />
             )}
@@ -528,40 +510,13 @@ const TabelasPreco = () => {
             renderDetail={(item) => (
               <TabelaPrecoDetailPanel
                 item={item}
-                onEdit={() => {
-                  setEditingItem(item);
-                  setIsModalOpen(true);
-                }}
+                onEdit={() => openEdit(item)}
                 onDelete={() => setDeletingId(item.id)}
               />
             )}
           />
         )}
       </DataCard>
-      <TabelaPrecoFormModal
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setEditingItem(null);
-        }}
-        onSave={handleSave}
-        data={editingItem}
-        readOnly={!!editingItem && !canAlterar('Produção', 'Parametrizações', 'Tabelas de Preços')}
-        navigation={(() => {
-          const navIndex = editingItem
-            ? filteredItems.findIndex((i) => i.id === editingItem.id)
-            : -1;
-          return navIndex >= 0
-            ? {
-                currentIndex: navIndex,
-                total: filteredItems.length,
-                onPrevious: () => setEditingItem(filteredItems[navIndex - 1]),
-                onNext: () => setEditingItem(filteredItems[navIndex + 1]),
-              }
-            : undefined;
-        })()}
-      />
-
       <AlertDialog open={!!deletingId} onOpenChange={(open) => !open && setDeletingId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>

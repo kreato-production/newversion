@@ -19,8 +19,8 @@ import { Edit, Trash2, Settings, Loader2 } from 'lucide-react';
 import { NewButton } from '@/components/shared/NewButton';
 import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { usePermissions } from '@/hooks/usePermissions';
-import { CategoriaIncidenciaFormModal } from '@/components/producao/CategoriaIncidenciaFormModal';
+import { useRecordList } from '@/hooks/useRecordNavigation';
+import { CATEGORIAS_INCIDENCIA_FORM } from '@/modules/parametrizacoes/producao.forms';
 import { ApiParametrizacoesRepository } from '@/modules/parametrizacoes/parametrizacoes.api.repository';
 import {
   useListingView,
@@ -46,11 +46,11 @@ const repository = new ApiParametrizacoesRepository();
 const STORAGE_KEY = 'kreato_categorias_incidencia';
 
 const COLUMN_CONFIG: ColumnConfig[] = [
-  { key: 'codigo_externo', label: 'Código',    defaultVisible: true },
-  { key: 'titulo',         label: 'Título',    required: true },
-  { key: 'descricao',      label: 'Descrição', defaultVisible: true },
-  { key: 'created_at',     label: 'Cadastro',  defaultVisible: false },
-  { key: 'actions',        label: 'Ações',     required: true },
+  { key: 'codigo_externo', label: 'Código', defaultVisible: true },
+  { key: 'titulo', label: 'Título', required: true },
+  { key: 'descricao', label: 'Descrição', defaultVisible: true },
+  { key: 'created_at', label: 'Cadastro', defaultVisible: false },
+  { key: 'actions', label: 'Ações', required: true },
 ];
 
 // ─── Card renderer ────────────────────────────────────────────────────────────
@@ -174,16 +174,18 @@ function CategoriaDetailPanel({
 const CategoriasIncidencia = () => {
   const { toast } = useToast();
   const { t } = useLanguage();
-  const { canAlterar } = usePermissions();
   const [search, setSearch] = useState('');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<CategoriaIncidencia | null>(null);
+  const { openNew, openRecord } = useRecordList(CATEGORIAS_INCIDENCIA_FORM.routes);
+  // Keeps the filtered order so the form page can navigate previous/next.
+  const openEdit = (item: { id: string }) =>
+    openRecord(
+      item.id,
+      filteredItems.map((i) => i.id),
+    );
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<CategoriaIncidencia | null>(null);
   const [items, setItems] = useState<CategoriaIncidencia[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-
-  const permPath = ['Produção', 'Parametrizações', 'Categorias de Incidência'] as const;
 
   const { mode, setMode, visibleColumnKeys, toggleColumn, resetColumns, optionalColumns } =
     useListingView({ storageKey: STORAGE_KEY, columns: COLUMN_CONFIG });
@@ -239,34 +241,6 @@ const CategoriasIncidencia = () => {
     }
   };
 
-  const handleSave = async (data: {
-    titulo: string;
-    descricao?: string;
-    codigo_externo?: string;
-  }) => {
-    try {
-      await repository.saveCategoriaIncidencia({
-        ...(editingItem ? { id: editingItem.id } : {}),
-        titulo: data.titulo,
-        descricao: data.descricao || '',
-        codigo_externo: data.codigo_externo || '',
-      });
-      toast({
-        title: t('common.success'),
-        description: `${t('incidentCategory.entity')} ${editingItem ? t('common.updated').toLowerCase() : t('common.save').toLowerCase()}!`,
-      });
-      await fetchData();
-      setEditingItem(null);
-    } catch (err) {
-      toast({
-        title: t('common.error'),
-        description: (err as Error).message,
-        variant: 'destructive',
-      });
-      throw err;
-    }
-  };
-
   const filteredItems = items.filter(
     (item) =>
       item.titulo.toLowerCase().includes(search.toLowerCase()) ||
@@ -309,15 +283,7 @@ const CategoriasIncidencia = () => {
       sortable: false,
       render: (item) => (
         <div className="flex justify-end gap-1">
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-7 w-7"
-            onClick={() => {
-              setEditingItem(item);
-              setIsModalOpen(true);
-            }}
-          >
+          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(item)}>
             <Edit className="w-3.5 h-3.5" />
           </Button>
           <Button
@@ -342,10 +308,7 @@ const CategoriasIncidencia = () => {
       <ListActionBar>
         <NewButton
           tooltip={`${t('common.new')} ${t('incidentCategory.entity')}`}
-          onClick={() => {
-            setEditingItem(null);
-            setIsModalOpen(true);
-          }}
+          onClick={openNew}
         />
         <div className="flex-1" />
         <SearchBar value={search} onChange={setSearch} placeholder={t('common.search')} />
@@ -370,7 +333,7 @@ const CategoriasIncidencia = () => {
               title={t('common.noResults')}
               description={`${t('common.add')} ${t('incidentCategory.entity').toLowerCase()}.`}
               icon={Settings}
-              onAction={() => setIsModalOpen(true)}
+              onAction={openNew}
               actionLabel={`${t('common.add')} ${t('incidentCategory.entity')}`}
             />
           ) : (
@@ -388,15 +351,12 @@ const CategoriasIncidencia = () => {
             getRowKey={(item) => item.id}
             emptyTitle={t('common.noResults')}
             emptyDescription={`${t('common.add')} ${t('incidentCategory.entity').toLowerCase()}.`}
-            onEmptyAction={() => setIsModalOpen(true)}
+            onEmptyAction={openNew}
             emptyActionLabel={`${t('common.add')} ${t('incidentCategory.entity')}`}
             renderCard={(item) => (
               <CategoriaCard
                 item={item}
-                onEdit={() => {
-                  setEditingItem(item);
-                  setIsModalOpen(true);
-                }}
+                onEdit={() => openEdit(item)}
                 onDelete={() => setDeletingId(item.id)}
               />
             )}
@@ -425,40 +385,13 @@ const CategoriasIncidencia = () => {
             renderDetail={(item) => (
               <CategoriaDetailPanel
                 item={item}
-                onEdit={() => {
-                  setEditingItem(item);
-                  setIsModalOpen(true);
-                }}
+                onEdit={() => openEdit(item)}
                 onDelete={() => setDeletingId(item.id)}
               />
             )}
           />
         )}
       </DataCard>
-      <CategoriaIncidenciaFormModal
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setEditingItem(null);
-        }}
-        onSave={handleSave}
-        data={editingItem}
-        readOnly={!!editingItem && !canAlterar(permPath[0], permPath[1], permPath[2])}
-        navigation={(() => {
-          const navIndex = editingItem
-            ? filteredItems.findIndex((i) => i.id === editingItem.id)
-            : -1;
-          return navIndex >= 0
-            ? {
-                currentIndex: navIndex,
-                total: filteredItems.length,
-                onPrevious: () => setEditingItem(filteredItems[navIndex - 1]),
-                onNext: () => setEditingItem(filteredItems[navIndex + 1]),
-              }
-            : undefined;
-        })()}
-      />
-
       <AlertDialog open={!!deletingId} onOpenChange={(open) => !open && setDeletingId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>

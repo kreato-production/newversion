@@ -15,7 +15,8 @@ import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator';
 import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared/PageComponents';
 import { ListActionBar } from '@/components/shared/ListActionBar';
-import { DepartamentoFormModal } from '@/components/recursos/DepartamentoFormModal';
+import { useRecordList } from '@/hooks/useRecordNavigation';
+import { DEPARTAMENTOS_ROUTES } from '@/modules/departamentos/departamentos.navigation';
 import { SortableTable, Column } from '@/components/shared/SortableTable';
 import { Edit, Trash2, Building2, Loader2, Download, Upload } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -25,7 +26,6 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import {
   ApiDepartamentosRepository,
-  type DepartamentoApiInput,
   type DepartamentoApiItem,
 } from '@/modules/departamentos/departamentos.api.repository';
 import {
@@ -184,8 +184,13 @@ const Departamentos = () => {
   const importFileRef = useRef<HTMLInputElement>(null);
   const [isImporting, setIsImporting] = useState(false);
   const [search, setSearch] = useState('');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<Departamento | null>(null);
+  const { openNew, openRecord } = useRecordList(DEPARTAMENTOS_ROUTES);
+  // Keeps the filtered order so the form page can navigate previous/next.
+  const openEdit = (item: { id: string }) =>
+    openRecord(
+      item.id,
+      filteredItems.map((i) => i.id),
+    );
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<Departamento | null>(null);
   const [items, setItems] = useState<Departamento[]>([]);
@@ -213,28 +218,6 @@ const Departamentos = () => {
   useEffect(() => {
     void fetchDepartamentos();
   }, [fetchDepartamentos]);
-
-  const handleSave = async (data: DepartamentoApiInput) => {
-    try {
-      await apiRepository.save(data);
-      toast({
-        title: t('common.success'),
-        description: editingItem
-          ? `Departamento ${t('common.updated').toLowerCase()}!`
-          : `Departamento salvo!`,
-      });
-      await fetchDepartamentos();
-      setEditingItem(null);
-    } catch (error) {
-      console.error('Error saving departamento:', error);
-      toast({
-        title: 'Erro',
-        description: `Erro ao salvar departamento: ${(error as Error).message}`,
-        variant: 'destructive',
-      });
-      throw error;
-    }
-  };
 
   const handleDeleteConfirm = async () => {
     if (!deletingId) return;
@@ -401,10 +384,7 @@ const Departamentos = () => {
             size="icon"
             variant="ghost"
             className="h-7 w-7"
-            onClick={() => {
-              setEditingItem(item);
-              setIsModalOpen(true);
-            }}
+            onClick={() => openEdit(item)}
             disabled={!podeAlterar}
           >
             <Edit className="w-3.5 h-3.5" />
@@ -437,15 +417,7 @@ const Departamentos = () => {
       />
 
       <ListActionBar>
-        {podeIncluir && (
-          <NewButton
-            tooltip={`${t('common.new')} Departamento`}
-            onClick={() => {
-              setEditingItem(null);
-              setIsModalOpen(true);
-            }}
-          />
-        )}
+        {podeIncluir && <NewButton tooltip={`${t('common.new')} Departamento`} onClick={openNew} />}
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
@@ -496,7 +468,7 @@ const Departamentos = () => {
               title={t('common.noResults')}
               description="Adicione um departamento."
               icon={Building2}
-              onAction={podeIncluir ? () => setIsModalOpen(true) : undefined}
+              onAction={podeIncluir ? openNew : undefined}
               actionLabel="Adicionar Departamento"
             />
           ) : (
@@ -514,15 +486,12 @@ const Departamentos = () => {
             getRowKey={(item) => item.id}
             emptyTitle={t('common.noResults')}
             emptyDescription="Adicione um departamento."
-            onEmptyAction={podeIncluir ? () => setIsModalOpen(true) : undefined}
+            onEmptyAction={podeIncluir ? openNew : undefined}
             emptyActionLabel="Adicionar Departamento"
             renderCard={(item) => (
               <DepartamentoCard
                 item={item}
-                onEdit={() => {
-                  setEditingItem(item);
-                  setIsModalOpen(true);
-                }}
+                onEdit={() => openEdit(item)}
                 onDelete={() => setDeletingId(item.id)}
               />
             )}
@@ -550,40 +519,13 @@ const Departamentos = () => {
             renderDetail={(item) => (
               <DepartamentoDetailPanel
                 item={item}
-                onEdit={() => {
-                  setEditingItem(item);
-                  setIsModalOpen(true);
-                }}
+                onEdit={() => openEdit(item)}
                 onDelete={() => setDeletingId(item.id)}
               />
             )}
           />
         )}
       </DataCard>
-
-      <DepartamentoFormModal
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setEditingItem(null);
-        }}
-        onSave={handleSave}
-        data={editingItem}
-        readOnly={!!editingItem && !podeAlterar}
-        navigation={(() => {
-          const navIndex = editingItem
-            ? filteredItems.findIndex((i) => i.id === editingItem.id)
-            : -1;
-          return navIndex >= 0
-            ? {
-                currentIndex: navIndex,
-                total: filteredItems.length,
-                onPrevious: () => setEditingItem(filteredItems[navIndex - 1]),
-                onNext: () => setEditingItem(filteredItems[navIndex + 1]),
-              }
-            : undefined;
-        })()}
-      />
 
       <AlertDialog open={!!deletingId} onOpenChange={(open) => !open && setDeletingId(null)}>
         <AlertDialogContent>

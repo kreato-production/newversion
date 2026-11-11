@@ -1,13 +1,6 @@
 import ParametroListPage from '@/components/shared/ParametroListPage';
+import { PARAMETROS } from '@/modules/parametros/parametros.config';
 
-const Material = () => (
-  <ParametroListPage
-    title="Material"
-    description="Gerencie os materiais disponíveis para os figurinos"
-    entityName="Material"
-    storageKey="kreato_material"
-    permissionPath={['Recursos', 'Parametrizações', 'Material']}
-  />
-);
+const Material = () => <ParametroListPage {...PARAMETROS.material} />;
 
 export default Material;

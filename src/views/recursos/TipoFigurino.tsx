@@ -1,13 +1,6 @@
 import ParametroListPage from '@/components/shared/ParametroListPage';
+import { PARAMETROS } from '@/modules/parametros/parametros.config';
 
-const TipoFigurino = () => (
-  <ParametroListPage
-    title="Tipo de Figurino"
-    description="Gerencie os tipos de figurino disponíveis no sistema"
-    entityName="Tipo de Figurino"
-    storageKey="kreato_tipo_figurino"
-    permissionPath={['Recursos', 'Parametrizações', 'Tipo Figurino']}
-  />
-);
+const TipoFigurino = () => <ParametroListPage {...PARAMETROS.tipoFigurino} />;
 
 export default TipoFigurino;

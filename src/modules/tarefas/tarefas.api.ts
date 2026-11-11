@@ -83,6 +83,10 @@ export class ApiTarefasRepository {
     return response.data;
   }
 
+  getById(id: string): Promise<Tarefa> {
+    return apiRequest<Tarefa>(`/tarefas/${id}`);
+  }
+
   async save(input: Partial<Tarefa>): Promise<Tarefa> {
     const path = input.id ? `/tarefas/${input.id}` : '/tarefas';
     const method = input.id ? 'PUT' : 'POST';

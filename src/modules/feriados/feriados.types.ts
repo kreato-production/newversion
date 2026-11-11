@@ -3,6 +3,7 @@ export type Feriado = {
   data: string;
   feriado: string;
   observacoes: string;
+  traducoes?: Record<string, string> | null;
   dataCadastro: string;
   usuarioCadastro: string;
 };

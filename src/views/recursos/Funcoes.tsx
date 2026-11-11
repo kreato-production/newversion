@@ -1,13 +1,6 @@
 import ParametroListPage from '@/components/shared/ParametroListPage';
+import { PARAMETROS } from '@/modules/parametros/parametros.config';
 
-const Funcoes = () => (
-  <ParametroListPage
-    title="Funções"
-    description="Gerencie as funções disponíveis"
-    entityName="Função"
-    storageKey="kreato_funcoes"
-    permissionPath={['Recursos', 'Parametrizações', 'Funções']}
-  />
-);
+const Funcoes = () => <ParametroListPage {...PARAMETROS.funcoes} />;
 
 export default Funcoes;

@@ -30,7 +30,8 @@ import {
   MasterDetail,
   type ColumnConfig,
 } from '@/components/listing';
-import { CategoriaDespesaFormModal } from '@/components/financeiro/CategoriaDespesaFormModal';
+import { useRecordList } from '@/hooks/useRecordNavigation';
+import { CATEGORIAS_DESPESA_FORM } from '@/modules/parametrizacoes/financeiro.forms';
 
 export interface CategoriaDespesaItem {
   id: string;
@@ -196,8 +197,7 @@ const CategoriasDespesa = () => {
   const importFileRef = useRef<HTMLInputElement>(null);
   const [isImporting, setIsImporting] = useState(false);
   const [search, setSearch] = useState('');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<CategoriaDespesaItem | null>(null);
+  const { openNew, openRecord } = useRecordList(CATEGORIAS_DESPESA_FORM.routes);
   const [items, setItems] = useState<CategoriaDespesaItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -236,35 +236,6 @@ const CategoriasDespesa = () => {
   useEffect(() => {
     void fetchCategoriasDespesa();
   }, [fetchCategoriasDespesa]);
-
-  const handleSave = async (data: CategoriaDespesaItem) => {
-    try {
-      await repository.saveCategoriaDespesa({
-        id: editingItem?.id,
-        codigo_externo: data.codigoExterno,
-        titulo: data.titulo,
-        descricao: data.descricao,
-        cor: data.cor,
-        traducoes: data.traducoes,
-      });
-
-      toast({
-        title: 'Sucesso',
-        description: `Categoria de despesa ${editingItem ? 'atualizada' : 'criada'} com sucesso`,
-      });
-
-      setIsModalOpen(false);
-      setEditingItem(null);
-      await fetchCategoriasDespesa();
-    } catch (error) {
-      console.error('Error saving categoria_despesa:', error);
-      toast({
-        title: 'Erro',
-        description: 'Erro ao salvar categoria de despesa',
-        variant: 'destructive',
-      });
-    }
-  };
 
   const handleDeleteConfirm = async () => {
     if (!deletingId) return;
@@ -390,6 +361,13 @@ const CategoriasDespesa = () => {
     );
   });
 
+  // Keeps the filtered order so the form page can navigate previous/next.
+  const openEdit = (item: { id: string }) =>
+    openRecord(
+      item.id,
+      filteredItems.map((i) => i.id),
+    );
+
   const columns: Column<CategoriaDespesaItem & { actions?: never }>[] = [
     {
       key: 'codigoExterno',
@@ -430,15 +408,7 @@ const CategoriasDespesa = () => {
       sortable: false,
       render: (item) => (
         <div className="flex justify-end gap-1">
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-7 w-7"
-            onClick={() => {
-              setEditingItem(item);
-              setIsModalOpen(true);
-            }}
-          >
+          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(item)}>
             <Edit className="h-3.5 w-3.5" />
           </Button>
           <Button
@@ -480,13 +450,7 @@ const CategoriasDespesa = () => {
       />
 
       <ListActionBar>
-        <NewButton
-          tooltip="Nova Categoria de Despesa"
-          onClick={() => {
-            setEditingItem(null);
-            setIsModalOpen(true);
-          }}
-        />
+        <NewButton tooltip="Nova Categoria de Despesa" onClick={openNew} />
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
@@ -537,7 +501,7 @@ const CategoriasDespesa = () => {
               title="Nenhuma categoria de despesa encontrada"
               description="Adicione a primeira categoria de despesa."
               icon={Settings}
-              onAction={() => setIsModalOpen(true)}
+              onAction={openNew}
               actionLabel="Adicionar Categoria"
             />
           ) : (
@@ -555,15 +519,12 @@ const CategoriasDespesa = () => {
             getRowKey={(item) => item.id}
             emptyTitle="Nenhuma categoria de despesa encontrada"
             emptyDescription="Adicione a primeira categoria de despesa."
-            onEmptyAction={() => setIsModalOpen(true)}
+            onEmptyAction={openNew}
             emptyActionLabel="Adicionar Categoria"
             renderCard={(item) => (
               <CategoriaDespesaCard
                 item={item}
-                onEdit={() => {
-                  setEditingItem(item);
-                  setIsModalOpen(true);
-                }}
+                onEdit={() => openEdit(item)}
                 onDelete={() => setDeletingId(item.id)}
               />
             )}
@@ -604,40 +565,13 @@ const CategoriasDespesa = () => {
             renderDetail={(item) => (
               <CategoriaDespesaDetailPanel
                 item={item}
-                onEdit={() => {
-                  setEditingItem(item);
-                  setIsModalOpen(true);
-                }}
+                onEdit={() => openEdit(item)}
                 onDelete={() => setDeletingId(item.id)}
               />
             )}
           />
         )}
       </DataCard>
-
-      <CategoriaDespesaFormModal
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setEditingItem(null);
-        }}
-        onSave={handleSave}
-        data={editingItem}
-        navigation={(() => {
-          const navIndex = editingItem
-            ? filteredItems.findIndex((item) => item.id === editingItem.id)
-            : -1;
-
-          return navIndex >= 0
-            ? {
-                currentIndex: navIndex,
-                total: filteredItems.length,
-                onPrevious: () => setEditingItem(filteredItems[navIndex - 1]),
-                onNext: () => setEditingItem(filteredItems[navIndex + 1]),
-              }
-            : undefined;
-        })()}
-      />
 
       <AlertDialog open={!!deletingId} onOpenChange={(open) => !open && setDeletingId(null)}>
         <AlertDialogContent>

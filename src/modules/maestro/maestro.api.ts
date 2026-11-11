@@ -56,6 +56,10 @@ export class ApiMaestroRepository {
     return apiRequest<{ data: Maestro[]; total: number }>('/maestro');
   }
 
+  async getById(id: string): Promise<Maestro> {
+    return apiRequest<Maestro>(`/maestro/${id}`);
+  }
+
   async save(input: SaveMaestroInput): Promise<Maestro> {
     const path = input.id ? `/maestro/${input.id}` : '/maestro';
     const method = input.id ? 'PUT' : 'POST';

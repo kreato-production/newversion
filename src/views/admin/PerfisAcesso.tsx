@@ -19,7 +19,8 @@ import { Edit, Trash2, Settings, Copy, FileText, Loader2 } from 'lucide-react';
 import { NewButton } from '@/components/shared/NewButton';
 import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
-import PerfilFormModal from '@/components/admin/PerfilFormModal';
+import { useRecordList } from '@/hooks/useRecordNavigation';
+import { PERFIS_ACESSO_FORM } from '@/modules/parametros/perfis-acesso.form';
 import {
   clonePermissionsAsync,
   createDefaultPermissions,
@@ -60,12 +61,12 @@ const apiRepository = new ApiParametrosRepository();
 const STORAGE_KEY = 'kreato_perfis_acesso';
 
 const COLUMN_CONFIG: ColumnConfig[] = [
-  { key: 'codigoExterno',   label: 'Código',         defaultVisible: true },
-  { key: 'nome',            label: 'Nome',           required: true },
-  { key: 'descricao',       label: 'Descrição',      defaultVisible: true },
-  { key: 'dataCadastro',    label: 'Data Cadastro',  defaultVisible: false },
-  { key: 'usuarioCadastro', label: 'Usuário',        defaultVisible: false },
-  { key: 'actions',         label: 'Ações',          required: true },
+  { key: 'codigoExterno', label: 'Código', defaultVisible: true },
+  { key: 'nome', label: 'Nome', required: true },
+  { key: 'descricao', label: 'Descrição', defaultVisible: true },
+  { key: 'dataCadastro', label: 'Data Cadastro', defaultVisible: false },
+  { key: 'usuarioCadastro', label: 'Usuário', defaultVisible: false },
+  { key: 'actions', label: 'Ações', required: true },
 ];
 
 const mapDbToPerfil = (db: PerfilDb, userName: string): Perfil => ({
@@ -110,10 +111,22 @@ function PerfilCard({
       )}
 
       <CardFooter className="px-4 py-2 border-t flex justify-end gap-1 mt-auto">
-        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={onCopy} title="Copiar Perfil">
+        <Button
+          size="icon"
+          variant="ghost"
+          className="h-7 w-7"
+          onClick={onCopy}
+          title="Copiar Perfil"
+        >
           <Copy className="h-3.5 w-3.5" />
         </Button>
-        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={onExportPDF} title="Exportar PDF">
+        <Button
+          size="icon"
+          variant="ghost"
+          className="h-7 w-7"
+          onClick={onExportPDF}
+          title="Exportar PDF"
+        >
           <FileText className="h-3.5 w-3.5" />
         </Button>
         <Button size="icon" variant="ghost" className="h-7 w-7" onClick={onEdit}>
@@ -217,8 +230,13 @@ const PerfisAcesso = () => {
   const { t } = useLanguage();
   const { user, session } = useAuth();
   const [search, setSearch] = useState('');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<Perfil | null>(null);
+  const { openNew, openRecord } = useRecordList(PERFIS_ACESSO_FORM.routes);
+  // Keeps the filtered order so the form page can navigate previous/next.
+  const openEdit = (item: { id: string }) =>
+    openRecord(
+      item.id,
+      filteredItems.map((i) => i.id),
+    );
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<Perfil | null>(null);
   const [items, setItems] = useState<Perfil[]>([]);
@@ -252,35 +270,6 @@ const PerfisAcesso = () => {
   useEffect(() => {
     void fetchData();
   }, [fetchData]);
-
-  const handleSave = async (data: Perfil) => {
-    try {
-      await apiRepository.save('kreato_perfis_acesso', {
-        ...(editingItem ? { id: data.id } : {}),
-        codigoExterno: data.codigoExterno || '',
-        nome: data.nome,
-        descricao: data.descricao || '',
-      });
-
-      toast({
-        title: t('common.success'),
-        description: editingItem
-          ? `Perfil ${t('common.updated').toLowerCase()}!`
-          : `Perfil ${t('common.save').toLowerCase()}!`,
-      });
-
-      await fetchData();
-      setEditingItem(null);
-    } catch (error) {
-      console.error('Error saving perfil:', error);
-      toast({
-        title: 'Erro',
-        description: `Erro ao salvar: ${(error as Error).message}`,
-        variant: 'destructive',
-      });
-      throw error;
-    }
-  };
 
   const handleDeleteConfirm = async () => {
     if (!deletingId) return;
@@ -370,7 +359,17 @@ const PerfisAcesso = () => {
       doc.setFontSize(8);
 
       const colWidths = [45, 35, 35, 30, 12, 12, 12, 12, 12];
-      const headers = ['Módulo', 'Sub-módulo 1', 'Sub-módulo 2', 'Campo', 'Ação', 'Leit.', 'Incl.', 'Alt.', 'Excl.'];
+      const headers = [
+        'Módulo',
+        'Sub-módulo 1',
+        'Sub-módulo 2',
+        'Campo',
+        'Ação',
+        'Leit.',
+        'Incl.',
+        'Alt.',
+        'Excl.',
+      ];
       let xPos = margin;
 
       headers.forEach((header, index) => {
@@ -503,15 +502,7 @@ const PerfisAcesso = () => {
           >
             <FileText className="w-3.5 h-3.5" />
           </Button>
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-7 w-7"
-            onClick={() => {
-              setEditingItem(item);
-              setIsModalOpen(true);
-            }}
-          >
+          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(item)}>
             <Edit className="w-3.5 h-3.5" />
           </Button>
           <Button
@@ -532,13 +523,7 @@ const PerfisAcesso = () => {
       <PageHeader title="Perfis de Acesso" description="Gerencie os perfis de acesso do sistema" />
 
       <ListActionBar>
-        <NewButton
-          tooltip={`${t('common.new')} Perfil`}
-          onClick={() => {
-            setEditingItem(null);
-            setIsModalOpen(true);
-          }}
-        />
+        <NewButton tooltip={`${t('common.new')} Perfil`} onClick={openNew} />
         <div className="flex-1" />
         <SearchBar value={search} onChange={setSearch} placeholder={t('common.search')} />
         {mode === 'list' && (
@@ -563,7 +548,7 @@ const PerfisAcesso = () => {
               title={t('common.noResults')}
               description={`${t('common.add')} perfil.`}
               icon={Settings}
-              onAction={() => setIsModalOpen(true)}
+              onAction={openNew}
               actionLabel={`${t('common.add')} Perfil`}
             />
           ) : (
@@ -581,15 +566,12 @@ const PerfisAcesso = () => {
             getRowKey={(item) => item.id}
             emptyTitle={t('common.noResults')}
             emptyDescription={`${t('common.add')} perfil.`}
-            onEmptyAction={() => setIsModalOpen(true)}
+            onEmptyAction={openNew}
             emptyActionLabel={`${t('common.add')} Perfil`}
             renderCard={(item) => (
               <PerfilCard
                 item={item}
-                onEdit={() => {
-                  setEditingItem(item);
-                  setIsModalOpen(true);
-                }}
+                onEdit={() => openEdit(item)}
                 onDelete={() => setDeletingId(item.id)}
                 onCopy={() => void handleCopy(item)}
                 onExportPDF={() => void handleExportPDF(item)}
@@ -618,10 +600,7 @@ const PerfisAcesso = () => {
             renderDetail={(item) => (
               <PerfilDetailPanel
                 item={item}
-                onEdit={() => {
-                  setEditingItem(item);
-                  setIsModalOpen(true);
-                }}
+                onEdit={() => openEdit(item)}
                 onDelete={() => setDeletingId(item.id)}
                 onCopy={() => void handleCopy(item)}
                 onExportPDF={() => void handleExportPDF(item)}
@@ -630,29 +609,6 @@ const PerfisAcesso = () => {
           />
         )}
       </DataCard>
-
-      <PerfilFormModal
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setEditingItem(null);
-        }}
-        onSave={handleSave}
-        data={editingItem}
-        navigation={(() => {
-          const navIndex = editingItem
-            ? filteredItems.findIndex((i) => i.id === editingItem.id)
-            : -1;
-          return navIndex >= 0
-            ? {
-                currentIndex: navIndex,
-                total: filteredItems.length,
-                onPrevious: () => setEditingItem(filteredItems[navIndex - 1]),
-                onNext: () => setEditingItem(filteredItems[navIndex + 1]),
-              }
-            : undefined;
-        })()}
-      />
 
       <AlertDialog open={!!deletingId} onOpenChange={(open) => !open && setDeletingId(null)}>
         <AlertDialogContent>

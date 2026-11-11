@@ -50,6 +50,10 @@ export class ApiTenantsRepository {
     return apiRequest<TenantApiItem[]>('/tenants');
   }
 
+  async getById(id: string): Promise<TenantApiItem> {
+    return apiRequest<TenantApiItem>(`/tenants/${id}`);
+  }
+
   async save(input: TenantApiInput): Promise<void> {
     const path = input.id ? `/tenants/${input.id}` : '/tenants';
     const method = input.id ? 'PUT' : 'POST';

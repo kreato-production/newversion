@@ -18,7 +18,8 @@ import { ListActionBar } from '@/components/shared/ListActionBar';
 import { Edit, Trash2, UserCog, Loader2 } from 'lucide-react';
 import { NewButton } from '@/components/shared/NewButton';
 import { useToast } from '@/hooks/use-toast';
-import { UsuarioFormModal } from '@/components/admin/UsuarioFormModal';
+import { useRecordList } from '@/hooks/useRecordNavigation';
+import { USUARIOS_ROUTES } from '@/modules/usuarios/usuarios.navigation';
 import { SortableTable, type Column } from '@/components/shared/SortableTable';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ApiUsuariosRepository } from '@/modules/usuarios/usuarios.api.repository';
@@ -31,7 +32,6 @@ import {
   MasterDetail,
   type ColumnConfig,
 } from '@/components/listing';
-import { isPasswordPolicyValid, PASSWORD_POLICY_MESSAGE } from '@/lib/password-policy';
 import {
   ListFilterPanel,
   FilterSection,
@@ -218,8 +218,13 @@ const Usuarios = () => {
   const { toast } = useToast();
   const { session } = useAuth();
   const [search, setSearch] = useState('');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<Usuario | null>(null);
+  const { openNew, openRecord } = useRecordList(USUARIOS_ROUTES);
+  // Keeps the filtered order so the form page can navigate previous/next.
+  const openEdit = (item: { id: string }) =>
+    openRecord(
+      item.id,
+      filteredItems.map((i) => i.id),
+    );
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<Usuario | null>(null);
   const [items, setItems] = useState<Usuario[]>([]);
@@ -285,74 +290,6 @@ const Usuarios = () => {
   useEffect(() => {
     void fetchData();
   }, [fetchData]);
-
-  const handleSave = async (data: Usuario) => {
-    try {
-      if (!data.email || !data.nome || !data.usuario) {
-        toast({
-          title: 'Erro',
-          description: 'Preencha todos os campos obrigatorios',
-          variant: 'destructive',
-        });
-        return;
-      }
-
-      if (!editingItem && !data.senha) {
-        toast({
-          title: 'Erro',
-          description: 'Preencha todos os campos obrigatorios',
-          variant: 'destructive',
-        });
-        return;
-      }
-
-      if (data.senha && !isPasswordPolicyValid(data.senha)) {
-        toast({
-          title: 'Erro',
-          description: PASSWORD_POLICY_MESSAGE,
-          variant: 'destructive',
-        });
-        return;
-      }
-
-      await apiRepository.save({
-        ...(editingItem ? { id: data.id } : {}),
-        codigoExterno: data.codigoExterno || '',
-        nome: data.nome,
-        email: data.email,
-        usuario: data.usuario,
-        ...(data.senha ? { senha: data.senha } : {}),
-        foto: data.foto || '',
-        perfil: data.perfil || '',
-        perfilId: data.perfilId || undefined,
-        descricao: data.descricao || '',
-        status: data.status || 'Ativo',
-        tipoAcesso: data.tipoAcesso || 'Operacional',
-        recursoHumanoId: data.recursoHumanoId || undefined,
-        tenantId: data.tenantId ?? null,
-        role: data.role,
-        dataCadastro: data.dataCadastro,
-        usuarioCadastro: data.usuarioCadastro,
-      });
-
-      toast({
-        title: 'Sucesso',
-        description: editingItem ? 'Usuario atualizado!' : 'Usuario criado com sucesso!',
-      });
-
-      await fetchData();
-      setEditingItem(null);
-      setIsModalOpen(false);
-    } catch (err: unknown) {
-      console.error('Error saving user:', err);
-      toast({
-        title: 'Erro',
-        description: (err as Error).message || 'Erro ao salvar usuario',
-        variant: 'destructive',
-      });
-      throw err;
-    }
-  };
 
   const handleDeleteConfirm = async () => {
     if (!deletingId) return;
@@ -459,8 +396,7 @@ const Usuarios = () => {
             variant="ghost"
             onClick={(event) => {
               event.stopPropagation();
-              setEditingItem(item);
-              setIsModalOpen(true);
+              openEdit(item);
             }}
           >
             <Edit className="w-4 h-4" />
@@ -486,13 +422,7 @@ const Usuarios = () => {
       <PageHeader title="Usuarios" description="Gerencie os usuarios do sistema" />
 
       <ListActionBar>
-        <NewButton
-          tooltip="Novo Usuario"
-          onClick={() => {
-            setEditingItem(null);
-            setIsModalOpen(true);
-          }}
-        />
+        <NewButton tooltip="Novo Usuario" onClick={openNew} />
         <div className="flex-1" />
         <SearchBar value={search} onChange={setSearch} />
         <ListFilterPanel
@@ -559,7 +489,7 @@ const Usuarios = () => {
               title="Nenhum usuario cadastrado"
               description="Adicione usuarios para gerenciar o acesso ao sistema."
               icon={UserCog}
-              onAction={() => setIsModalOpen(true)}
+              onAction={openNew}
               actionLabel="Adicionar Usuario"
             />
           ) : (
@@ -577,15 +507,12 @@ const Usuarios = () => {
             getRowKey={(item) => item.id}
             emptyTitle="Nenhum usuario cadastrado"
             emptyDescription="Adicione usuarios para gerenciar o acesso ao sistema."
-            onEmptyAction={() => setIsModalOpen(true)}
+            onEmptyAction={openNew}
             emptyActionLabel="Adicionar Usuario"
             renderCard={(item) => (
               <UsuarioCard
                 item={item}
-                onEdit={() => {
-                  setEditingItem(item);
-                  setIsModalOpen(true);
-                }}
+                onEdit={() => openEdit(item)}
                 onDelete={() => setDeletingId(item.id)}
               />
             )}
@@ -618,40 +545,13 @@ const Usuarios = () => {
             renderDetail={(item) => (
               <UsuarioDetailPanel
                 item={item}
-                onEdit={() => {
-                  setEditingItem(item);
-                  setIsModalOpen(true);
-                }}
+                onEdit={() => openEdit(item)}
                 onDelete={() => setDeletingId(item.id)}
               />
             )}
           />
         )}
       </DataCard>
-
-      <UsuarioFormModal
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setEditingItem(null);
-        }}
-        onSave={handleSave}
-        data={editingItem}
-        showTenantSelector
-        navigation={(() => {
-          const navIndex = editingItem
-            ? filteredItems.findIndex((i) => i.id === editingItem.id)
-            : -1;
-          return navIndex >= 0
-            ? {
-                currentIndex: navIndex,
-                total: filteredItems.length,
-                onPrevious: () => setEditingItem(filteredItems[navIndex - 1]),
-                onNext: () => setEditingItem(filteredItems[navIndex + 1]),
-              }
-            : undefined;
-        })()}
-      />
 
       <AlertDialog open={!!deletingId} onOpenChange={(open) => !open && setDeletingId(null)}>
         <AlertDialogContent>

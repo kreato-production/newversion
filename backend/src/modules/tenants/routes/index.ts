@@ -18,6 +18,13 @@ export function createTenantsRoutes(authService: AuthService, tenantsService: Te
       return reply.status(200).send(await tenantsService.list(request.user!));
     });
 
+    app.get('/tenants/:id', { preHandler: [authenticate, requireGlobalAdmin] }, async (request, reply) => {
+      const params = request.params as { id: string };
+      const item = await tenantsService.getById(request.user!, params.id);
+      if (!item) return reply.status(404).send({ message: 'Tenant não encontrado' });
+      return reply.status(200).send(item);
+    });
+
     app.post('/tenants', { preHandler: [authenticate, requireGlobalAdmin] }, async (request, reply) => {
       const body = saveTenantSchema.parse(request.body);
       return reply.status(200).send(await tenantsService.save(request.user!, body));

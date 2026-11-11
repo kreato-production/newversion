@@ -5,20 +5,22 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ### Frontend (root)
+
 ```sh
-npm run dev              # Vite dev server on :8080
+npm run dev              # Next.js dev server (Turbopack) on :3001
 npm run build            # Production build
 npm run lint             # ESLint
-npm test                 # Vitest (37 tests, jsdom environment)
+npm test                 # Vitest (jsdom environment)
 npm run test:coverage    # Vitest with v8 coverage report
 npx vitest run src/path/to/file.test.tsx  # Run a single test file
 ```
 
 ### Backend (`backend/`)
+
 ```sh
 npm run dev              # tsx watch src/server.ts (hot-reload, port 3333)
 npm run build            # tsc → dist/
-npm test                 # Vitest (28 tests, no DB needed)
+npm test                 # Vitest (no DB needed)
 npm run test:coverage    # Vitest with coverage
 npx vitest run src/path/to/file.test.ts   # Run a single test file
 npm run prisma:migrate   # prisma migrate dev
@@ -27,6 +29,7 @@ npm run prisma:generate  # regenerate Prisma Client
 ```
 
 ### Root shortcuts for backend
+
 ```sh
 npm run backend:dev
 npm run backend:test
@@ -34,6 +37,7 @@ npm run backend:prisma:push
 ```
 
 ### Infrastructure
+
 ```sh
 docker compose up postgres -d   # Start PostgreSQL only
 docker compose up -d            # Start PostgreSQL + backend
@@ -45,7 +49,7 @@ docker build -t kreato-backend ./backend
 ### Two-app monorepo
 
 ```
-root/          → Frontend: React 18 + Vite + TypeScript
+root/          → Frontend: Next.js 16 (App Router) + React 18 + TypeScript
 backend/       → Backend:  Fastify 5 + Prisma 6 + TypeScript (ESM)
 ```
 
@@ -84,13 +88,26 @@ backend/src/
 
 ### Frontend architecture
 
-**Provider tree** (in `App.tsx`): `QueryClientProvider` → `ThemeProvider` → `AuthProvider` → `LanguageProvider` → `TooltipProvider` → `Router`.
+**Routing**: Next.js App Router. Each route is a thin `src/app/(app)/<modulo>/<cadastro>/page.tsx` (`'use client'`) that renders a view from `src/views/`. `src/app/(app)/layout.tsx` wraps pages in `AppShell` (sidebar + breadcrumb); auth protection is done in middleware.
+
+**Provider tree** (in `src/components/layout/Providers.tsx`): `QueryClientProvider` → `ThemeProvider` → `AuthProvider` → `LanguageProvider` → `TooltipProvider`.
 
 **Auth**: `AuthContext` exposes `user`, `isAuthenticated`, `login()`, `logout()`. It is backed by Auth.js session state and the backend-only `authRepository` implementation from `src/modules/auth/auth.repository.ts`.
 
 **Data fetching**: Frontend modules use `apiRequest()` from `src/lib/api/http.ts` with `credentials: 'include'` (cookie-based auth) and route browser traffic through `/api/proxy`.
 
-**Code splitting**: All 40+ page imports in `App.tsx` use `React.lazy()` grouped by section (produção, recursos, admin), wrapped in `<Suspense fallback={<PageLoader />}>`.
+**Cadastro form pages (not modals)**: cadastro screens open the form as a page, not a `Dialog`. Reference implementation: Pessoas. Migration plan for the remaining screens: `docs/formularios-em-pagina-inventario.md` (sprints 18-25).
+
+- Routes: `<basePath>` (list), `<basePath>/novo` (create), `<basePath>/[id]` (edit/view); the `[id]` page reads the id with `useParams()` and renders the form with `key={id}`.
+- `RecordRouteConfig` (`basePath`, `navStorageKey`) per module, e.g. `src/modules/pessoas/pessoas.navigation.ts`.
+- List side: `useRecordList(config)` from `src/hooks/useRecordNavigation.ts` → `openNew()`, `openRecord(id, orderedIds)` (stores the filtered order in sessionStorage for previous/next).
+- Form side: `useRecordNavigation(config, id)` → `goBack()`, `navigation`; `useRecordForm()` (`src/hooks/useRecordForm.ts`) → load by id, `formData`/`update`, `handleSubmit` with toasts; layout `<FormPage>` (`src/components/shared/FormPage.tsx`) → header, action bar (Voltar, anterior/próximo, Cancelar, Salvar) and the `<form id={formId}>` inside a card.
+- Read-only when the user lacks `alterar` (edit) / `incluir` (create).
+- Complex forms (sub-lists, calculated fields, own validation) use `<RecordFormPage>` (`src/components/shared/RecordFormPage.tsx`) with a `XxxFormBody` that receives `RecordFormBodyProps` (`formId`, `data`, `readOnly`, `onSubmit`), keeps its own field state initialized from `data`, and renders `<form id={formId}>` — e.g. `src/views/recursos/TurnoForm.tsx` + `src/components/recursos/TurnoFormBody.tsx`. If the `<form>` lives inside a tab, give that `TabsContent` `forceMount` so Save works from other tabs.
+- Simple parametrizations (code, name, color, description, translations, flags, extra tabs) need no new component: write a `TituloFormConfig` and render `<TituloFormRoute config={...} />` from `src/components/shared/TituloFormPage.tsx` (examples in `src/modules/parametrizacoes/producao.forms.tsx`).
+- Radix `<Select>`: if a form sets a select's value programmatically after mount while its options are still loading, Radix fires `onValueChange('')` and wipes it — ignore empty values in `onValueChange` (see the status select in `src/components/producao/TarefaFormBody.tsx`).
+- Backend: each migrated module needs `GET /<recurso>/:id` (404 when missing, `ensureSameTenant` → 403) with a route test — see `backend/src/modules/pessoas`.
+- Modals remain only for auxiliary actions (maps, reports, charts, pickers) and sub-records edited inside a form.
 
 **Permissions**: `usePermissions()` hook from `src/hooks/usePermissions.ts` exposes `hasPermission`, `canIncluir`, `canAlterar`, `canExcluir`. The `PermissionGate` component (`src/components/layout/PermissionGate.tsx`) wraps content behind a permission check.
 
@@ -102,15 +119,15 @@ backend/src/
 
 ### Key files to understand before making changes
 
-| File | Why it matters |
-|---|---|
-| `backend/src/app.ts` | Central wiring — all modules registered here |
-| `backend/src/plugins/auth.ts` | Auth middleware used on every protected route |
-| `backend/src/fastify.d.ts` | Declares `request.user: SessionUser` on FastifyRequest |
-| `backend/src/config/env.ts` | All env vars validated here; test env overrides applied here |
-| `src/lib/api/http.ts` | All backend HTTP calls go through `apiRequest()`; handles 401 → refresh retry |
-| `src/modules/auth/auth.repository.ts` | Backend auth contract and singleton used by the frontend |
-| `src/contexts/AuthContext.tsx` | Single source of truth for auth state on the frontend |
+| File                                  | Why it matters                                                                |
+| ------------------------------------- | ----------------------------------------------------------------------------- |
+| `backend/src/app.ts`                  | Central wiring — all modules registered here                                  |
+| `backend/src/plugins/auth.ts`         | Auth middleware used on every protected route                                 |
+| `backend/src/fastify.d.ts`            | Declares `request.user: SessionUser` on FastifyRequest                        |
+| `backend/src/config/env.ts`           | All env vars validated here; test env overrides applied here                  |
+| `src/lib/api/http.ts`                 | All backend HTTP calls go through `apiRequest()`; handles 401 → refresh retry |
+| `src/modules/auth/auth.repository.ts` | Backend auth contract and singleton used by the frontend                      |
+| `src/contexts/AuthContext.tsx`        | Single source of truth for auth state on the frontend                         |
 
 ### Supabase deprecation status
 
@@ -121,6 +138,7 @@ The application runtime no longer contains active Supabase integrations. Remaini
 Backend requires `DATABASE_URL`, `JWT_ACCESS_SECRET` (≥32 chars), `JWT_REFRESH_SECRET` (≥32 chars) in `backend/.env`. In `NODE_ENV=test`, the env module supplies safe defaults — tests run without a real `.env`.
 
 Frontend vars in root `.env` / `.env.local`:
+
 - `NEXT_PUBLIC_BACKEND_API_URL` — defaults to `http://localhost:3333`
 - `NEXT_PUBLIC_AUTH_PROVIDER=backend` — use own backend for auth
 - `NEXT_PUBLIC_KEYCLOAK_AUTH_ENABLED=false` — keep SSO toggle hidden by default

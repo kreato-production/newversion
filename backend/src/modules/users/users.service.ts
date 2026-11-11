@@ -3,7 +3,7 @@ import type { SessionUser } from '../auth/auth.types.js';
 import { hashPassword } from '../../lib/security/password.js';
 import { isValidPasswordPolicy, PASSWORD_POLICY_MESSAGE } from '../../lib/security/password-policy.js';
 import { AccessError, ensureSameTenant, resolveTenantId } from '../common/access.js';
-import type { UsersRepository } from './users.repository.js';
+import type { UserRecord, UsersRepository } from './users.repository.js';
 
 export const saveUserSchema = z.object({
   id: z.string().uuid().optional(),
@@ -41,6 +41,28 @@ function mapStatusToView(status: 'ATIVO' | 'INATIVO' | 'BLOQUEADO'): 'Ativo' | '
   return 'Ativo';
 }
 
+function toUserDto(item: UserRecord) {
+  return {
+    id: item.id,
+    codigoExterno: item.codigoExterno || '',
+    nome: item.nome,
+    email: item.email,
+    usuario: item.usuario,
+    senha: '',
+    foto: item.fotoUrl || '',
+    perfil: item.perfil || '',
+    perfilId: item.perfilId || undefined,
+    descricao: item.descricao || '',
+    status: mapStatusToView(item.status),
+    tipoAcesso: item.tipoAcesso,
+    recursoHumanoId: item.recursoHumanoId || undefined,
+    dataCadastro: item.createdAt.toISOString(),
+    usuarioCadastro: '',
+    tenantId: item.tenantId,
+    role: item.role,
+  };
+}
+
 export class UsersService {
   constructor(private readonly repository: UsersRepository) {}
 
@@ -76,26 +98,18 @@ export class UsersService {
     const { data, total } = await this.repository.listByTenant(tenantId, { ...opts, actorUnidadeIds });
     return {
       total,
-      data: data.map((item) => ({
-        id: item.id,
-        codigoExterno: item.codigoExterno || '',
-        nome: item.nome,
-        email: item.email,
-        usuario: item.usuario,
-        senha: '',
-        foto: item.fotoUrl || '',
-        perfil: item.perfil || '',
-        perfilId: item.perfilId || undefined,
-        descricao: item.descricao || '',
-        status: mapStatusToView(item.status),
-        tipoAcesso: item.tipoAcesso,
-        recursoHumanoId: item.recursoHumanoId || undefined,
-        dataCadastro: item.createdAt.toISOString(),
-        usuarioCadastro: '',
-        tenantId: item.tenantId,
-        role: item.role,
-      })),
+      data: data.map(toUserDto),
     };
+  }
+
+  async getById(actor: SessionUser, id: string) {
+    const existing = await this.repository.findById(id);
+    if (!existing) {
+      return null;
+    }
+
+    ensureSameTenant(actor, existing.tenantId);
+    return toUserDto(existing);
   }
 
   async save(actor: SessionUser, input: SaveUserDto) {
@@ -154,25 +168,7 @@ export class UsersService {
       role: input.role ?? (actor.role === 'GLOBAL_ADMIN' ? 'TENANT_ADMIN' : 'USER'),
     });
 
-    return {
-      id: item.id,
-      codigoExterno: item.codigoExterno || '',
-      nome: item.nome,
-      email: item.email,
-      usuario: item.usuario,
-      senha: '',
-      foto: item.fotoUrl || '',
-      perfil: item.perfil || '',
-      perfilId: item.perfilId || undefined,
-      descricao: item.descricao || '',
-      status: mapStatusToView(item.status),
-      tipoAcesso: item.tipoAcesso,
-      recursoHumanoId: item.recursoHumanoId || undefined,
-      dataCadastro: item.createdAt.toISOString(),
-      usuarioCadastro: '',
-      tenantId: item.tenantId,
-      role: item.role,
-    };
+    return toUserDto(item);
   }
 
   async remove(actor: SessionUser, id: string) {

@@ -12,6 +12,10 @@ export class ApiTurnosRepository {
     return response.data;
   }
 
+  async getById(id: string): Promise<Turno> {
+    return apiRequest<Turno>(`/turnos/${id}`);
+  }
+
   async save(input: TurnoInput): Promise<Turno> {
     const path = input.id ? `/turnos/${input.id}` : '/turnos';
     const method = input.id ? 'PUT' : 'POST';

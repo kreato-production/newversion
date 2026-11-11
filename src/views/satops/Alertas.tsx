@@ -27,9 +27,9 @@ import {
   SORT_OPTIONS_NOME,
 } from '@/components/shared/ListFilter';
 import { useToast } from '@/hooks/use-toast';
-import { AlertaFormModal, JANELA_TIME_FIELDS } from '@/components/satops/AlertaFormModal';
+import { useRecordList } from '@/hooks/useRecordNavigation';
+import { ALERTAS_ROUTES, JANELA_TIME_FIELDS } from '@/modules/satops/alertas.navigation';
 import { ApiSatOpsRepository, type AlertaApiItem } from '@/modules/satops/satops.api.repository';
-import { usePermissions } from '@/hooks/usePermissions';
 import {
   useListingView,
   ViewSwitcher,
@@ -180,10 +180,14 @@ function AlertaDetailPanel({
 
 const Alertas = () => {
   const { toast } = useToast();
-  const { canAlterar } = usePermissions();
   const [search, setSearch] = useState('');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<AlertaApiItem | null>(null);
+  const { openNew, openRecord } = useRecordList(ALERTAS_ROUTES);
+  // Keeps the filtered order so the form page can navigate previous/next.
+  const openEdit = (item: { id: string }) =>
+    openRecord(
+      item.id,
+      filteredItems.map((i) => i.id),
+    );
   const [items, setItems] = useState<AlertaApiItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -211,27 +215,6 @@ const Alertas = () => {
   useEffect(() => {
     void fetchItems();
   }, [fetchItems]);
-
-  const handleSave = async (data: AlertaApiItem) => {
-    try {
-      await repository.saveAlerta({
-        ...(editingItem ? { id: data.id } : {}),
-        nome: data.nome,
-        tempoParaAlerta: data.tempoParaAlerta,
-        regra: data.regra,
-        campoReferencia: data.campoReferencia,
-      });
-      toast({
-        title: 'Sucesso',
-        description: editingItem ? 'Alerta atualizado!' : 'Alerta cadastrado!',
-      });
-      await fetchItems();
-      setEditingItem(null);
-    } catch {
-      toast({ title: 'Erro', description: 'Erro ao salvar alerta', variant: 'destructive' });
-      throw new Error('save failed');
-    }
-  };
 
   const handleDeleteConfirm = async () => {
     if (!deletingId) return;
@@ -325,15 +308,7 @@ const Alertas = () => {
       sortable: false,
       render: (item) => (
         <div className="flex justify-end gap-1">
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-7 w-7"
-            onClick={() => {
-              setEditingItem(item);
-              setIsModalOpen(true);
-            }}
-          >
+          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(item)}>
             <Edit className="w-3.5 h-3.5" />
           </Button>
           <Button
@@ -357,13 +332,7 @@ const Alertas = () => {
       />
 
       <ListActionBar>
-        <NewButton
-          tooltip="Novo Alerta"
-          onClick={() => {
-            setEditingItem(null);
-            setIsModalOpen(true);
-          }}
-        />
+        <NewButton tooltip="Novo Alerta" onClick={openNew} />
         <div className="flex-1" />
         <SearchBar value={search} onChange={setSearch} />
 
@@ -418,7 +387,7 @@ const Alertas = () => {
               title="Nenhum alerta cadastrado"
               description="Comece adicionando alertas para monitorizar as janelas satelitais."
               icon={Bell}
-              onAction={() => setIsModalOpen(true)}
+              onAction={openNew}
               actionLabel="Adicionar Alerta"
             />
           ) : (
@@ -436,15 +405,12 @@ const Alertas = () => {
             getRowKey={(item) => item.id}
             emptyTitle="Nenhum alerta cadastrado"
             emptyDescription="Comece adicionando alertas para monitorizar as janelas satelitais."
-            onEmptyAction={() => setIsModalOpen(true)}
+            onEmptyAction={openNew}
             emptyActionLabel="Adicionar Alerta"
             renderCard={(item) => (
               <AlertaCard
                 item={item}
-                onEdit={() => {
-                  setEditingItem(item);
-                  setIsModalOpen(true);
-                }}
+                onEdit={() => openEdit(item)}
                 onDelete={() => setDeletingId(item.id)}
               />
             )}
@@ -470,40 +436,13 @@ const Alertas = () => {
             renderDetail={(item) => (
               <AlertaDetailPanel
                 item={item}
-                onEdit={() => {
-                  setEditingItem(item);
-                  setIsModalOpen(true);
-                }}
+                onEdit={() => openEdit(item)}
                 onDelete={() => setDeletingId(item.id)}
               />
             )}
           />
         )}
       </DataCard>
-
-      <AlertaFormModal
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setEditingItem(null);
-        }}
-        onSave={handleSave}
-        data={editingItem}
-        readOnly={!!editingItem && !canAlterar('SatOps', 'Parametrizações', 'Alertas')}
-        navigation={(() => {
-          const navIndex = editingItem
-            ? filteredItems.findIndex((i) => i.id === editingItem.id)
-            : -1;
-          return navIndex >= 0
-            ? {
-                currentIndex: navIndex,
-                total: filteredItems.length,
-                onPrevious: () => setEditingItem(filteredItems[navIndex - 1]),
-                onNext: () => setEditingItem(filteredItems[navIndex + 1]),
-              }
-            : undefined;
-        })()}
-      />
 
       <AlertDialog open={!!deletingId} onOpenChange={(open) => !open && setDeletingId(null)}>
         <AlertDialogContent>

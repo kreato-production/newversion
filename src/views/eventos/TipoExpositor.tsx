@@ -1,14 +1,6 @@
 import ParametroListPage from '@/components/shared/ParametroListPage';
+import { PARAMETROS } from '@/modules/parametros/parametros.config';
 
-const TipoExpositor = () => (
-  <ParametroListPage
-    title="Tipo de Expositor"
-    description="Gerencie os tipos de expositor disponíveis no sistema"
-    entityName="Tipo de Expositor"
-    storageKey="kreato_tipo_expositor"
-    permissionPath={['Gestão de Eventos', 'Parametrizações', 'Tipo de Expositor']}
-    showCor
-  />
-);
+const TipoExpositor = () => <ParametroListPage {...PARAMETROS.tipoExpositor} />;
 
 export default TipoExpositor;

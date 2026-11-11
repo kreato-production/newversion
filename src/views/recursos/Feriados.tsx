@@ -17,12 +17,13 @@ import { PageHeader, SearchBar, DataCard, EmptyState } from '@/components/shared
 import { ListActionBar } from '@/components/shared/ListActionBar';
 import { SortableTable, type Column } from '@/components/shared/SortableTable';
 import { NewButton } from '@/components/shared/NewButton';
-import { FeriadoFormModal } from '@/components/recursos/FeriadoFormModal';
+import { useRecordList } from '@/hooks/useRecordNavigation';
+import { FERIADOS_ROUTES } from '@/modules/feriados/feriados.navigation';
 import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { ApiFeriadosRepository } from '@/modules/feriados/feriados.api.repository';
-import type { Feriado, FeriadoInput } from '@/modules/feriados/feriados.types';
+import type { Feriado } from '@/modules/feriados/feriados.types';
 import {
   useListingView,
   ViewSwitcher,
@@ -173,8 +174,13 @@ const Feriados = () => {
   const importFileRef = useRef<HTMLInputElement>(null);
   const [isImporting, setIsImporting] = useState(false);
   const [search, setSearch] = useState('');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<Feriado | null>(null);
+  const { openNew, openRecord } = useRecordList(FERIADOS_ROUTES);
+  // Keeps the filtered order so the form page can navigate previous/next.
+  const openEdit = (item: { id: string }) =>
+    openRecord(
+      item.id,
+      filteredItems.map((i) => i.id),
+    );
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<Feriado | null>(null);
   const [items, setItems] = useState<Feriado[]>([]);
@@ -202,26 +208,6 @@ const Feriados = () => {
   useEffect(() => {
     void fetchFeriados();
   }, [fetchFeriados]);
-
-  const handleSave = async (data: FeriadoInput) => {
-    try {
-      await feriadosRepository.save(data);
-      toast({
-        title: t('common.success'),
-        description: editingItem ? 'Feriado atualizado!' : 'Feriado salvo!',
-      });
-      await fetchFeriados();
-      setEditingItem(null);
-    } catch (error) {
-      console.error('Error saving feriado:', error);
-      toast({
-        title: 'Erro',
-        description: `Erro ao salvar feriado: ${(error as Error).message}`,
-        variant: 'destructive',
-      });
-      throw error;
-    }
-  };
 
   const handleDeleteConfirm = async () => {
     if (!deletingId) return;
@@ -396,10 +382,7 @@ const Feriados = () => {
             size="icon"
             variant="ghost"
             className="h-7 w-7"
-            onClick={() => {
-              setEditingItem(item);
-              setIsModalOpen(true);
-            }}
+            onClick={() => openEdit(item)}
             disabled={!podeAlterar}
           >
             <Edit className="w-3.5 h-3.5" />
@@ -432,15 +415,7 @@ const Feriados = () => {
       />
 
       <ListActionBar>
-        {podeIncluir && (
-          <NewButton
-            tooltip="Novo Feriado"
-            onClick={() => {
-              setEditingItem(null);
-              setIsModalOpen(true);
-            }}
-          />
-        )}
+        {podeIncluir && <NewButton tooltip="Novo Feriado" onClick={openNew} />}
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
@@ -491,7 +466,7 @@ const Feriados = () => {
               title={t('common.noResults')}
               description="Adicione um feriado."
               icon={CalendarDays}
-              onAction={podeIncluir ? () => setIsModalOpen(true) : undefined}
+              onAction={podeIncluir ? openNew : undefined}
               actionLabel="Adicionar Feriado"
             />
           ) : (
@@ -509,15 +484,12 @@ const Feriados = () => {
             getRowKey={(item) => item.id}
             emptyTitle={t('common.noResults')}
             emptyDescription="Adicione um feriado."
-            onEmptyAction={podeIncluir ? () => setIsModalOpen(true) : undefined}
+            onEmptyAction={podeIncluir ? openNew : undefined}
             emptyActionLabel="Adicionar Feriado"
             renderCard={(item) => (
               <FeriadoCard
                 item={item}
-                onEdit={() => {
-                  setEditingItem(item);
-                  setIsModalOpen(true);
-                }}
+                onEdit={() => openEdit(item)}
                 onDelete={() => setDeletingId(item.id)}
               />
             )}
@@ -545,49 +517,13 @@ const Feriados = () => {
             renderDetail={(item) => (
               <FeriadoDetailPanel
                 item={item}
-                onEdit={() => {
-                  setEditingItem(item);
-                  setIsModalOpen(true);
-                }}
+                onEdit={() => openEdit(item)}
                 onDelete={() => setDeletingId(item.id)}
               />
             )}
           />
         )}
       </DataCard>
-
-      <FeriadoFormModal
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setEditingItem(null);
-        }}
-        onSave={handleSave}
-        data={
-          editingItem
-            ? {
-                id: editingItem.id,
-                data: editingItem.data,
-                feriado: editingItem.feriado,
-                observacoes: editingItem.observacoes,
-              }
-            : null
-        }
-        readOnly={!!editingItem && !podeAlterar}
-        navigation={(() => {
-          const navIndex = editingItem
-            ? filteredItems.findIndex((i) => i.id === editingItem.id)
-            : -1;
-          return navIndex >= 0
-            ? {
-                currentIndex: navIndex,
-                total: filteredItems.length,
-                onPrevious: () => setEditingItem(filteredItems[navIndex - 1]),
-                onNext: () => setEditingItem(filteredItems[navIndex + 1]),
-              }
-            : undefined;
-        })()}
-      />
 
       <AlertDialog open={!!deletingId} onOpenChange={() => setDeletingId(null)}>
         <AlertDialogContent>

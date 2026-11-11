@@ -26,6 +26,14 @@ export function createUsersRoutes(authService: AuthService, usersService: UsersS
       return reply.status(200).send(await usersService.list(user, opts));
     });
 
+    app.get('/users/:id', { preHandler: [authenticate, requireAdminRole, requireTenantAccess] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      const params = request.params as { id: string };
+      const item = await usersService.getById(user, params.id);
+      if (!item) return reply.status(404).send({ message: 'Usuário não encontrado' });
+      return reply.status(200).send(item);
+    });
+
     app.post('/users', { preHandler: [authenticate, requireAdminRole, requireTenantAccess, requireIncluir] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const body = saveUserSchema.parse(request.body);

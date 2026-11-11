@@ -28,6 +28,14 @@ export function createContasPagarRoutes(
       return reply.status(200).send(await contasPagarService.list(user, query));
     });
 
+    app.get('/contas-pagar/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      const params = request.params as { id: string };
+      const item = await contasPagarService.getById(user, params.id);
+      if (!item) return reply.status(404).send({ message: 'Conta a pagar não encontrada' });
+      return reply.status(200).send(item);
+    });
+
     app.post('/contas-pagar', { preHandler: [authenticate, requireTenantAccess, requireIncluir] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       return reply.status(200).send(

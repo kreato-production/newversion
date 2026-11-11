@@ -37,6 +37,14 @@ export function createSatOpsRoutes(
       return reply.status(200).send(await estadosEventoService.list(user));
     });
 
+    app.get('/satops/estados-evento/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      const params = request.params as { id: string };
+      const item = await estadosEventoService.getById(user, params.id);
+      if (!item) return reply.status(404).send({ message: 'Estado de evento não encontrado' });
+      return reply.status(200).send(item);
+    });
+
     app.post('/satops/estados-evento', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       return reply.status(200).send(
@@ -107,6 +115,14 @@ export function createAlertasRoutes(
     app.get('/satops/alertas', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       return reply.status(200).send(await alertasService.list(user));
+    });
+
+    app.get('/satops/alertas/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      const params = request.params as { id: string };
+      const item = await alertasService.getById(user, params.id);
+      if (!item) return reply.status(404).send({ message: 'Alerta não encontrado' });
+      return reply.status(200).send(item);
     });
 
     app.post('/satops/alertas', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {

@@ -26,6 +26,14 @@ export function createUnidadesRoutes(authService: AuthService, unidadesService: 
       return reply.status(200).send(await unidadesService.list(user, opts));
     });
 
+    app.get('/unidades/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      const params = request.params as { id: string };
+      const item = await unidadesService.getById(user, params.id);
+      if (!item) return reply.status(404).send({ message: 'Unidade de negócio não encontrada' });
+      return reply.status(200).send(item);
+    });
+
     app.post('/unidades', { preHandler: [authenticate, requireAdminRole, requireTenantAccess, requireIncluir] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const body = saveUnidadeSchema.parse(request.body);

@@ -21,6 +21,14 @@ export function createDepartamentosRoutes(authService: AuthService, departamento
       return reply.status(200).send(await departamentosService.list(user, opts));
     });
 
+    app.get('/departamentos/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      const params = request.params as { id: string };
+      const item = await departamentosService.getById(user, params.id);
+      if (!item) return reply.status(404).send({ message: 'Departamento não encontrado(a)' });
+      return reply.status(200).send(item);
+    });
+
     app.post('/departamentos', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const body = saveDepartamentoSchema.parse(request.body);

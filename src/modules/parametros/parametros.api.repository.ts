@@ -31,6 +31,10 @@ export class ApiParametrosRepository {
     return response.data;
   }
 
+  async getById(storageKey: string, id: string): Promise<ParametroApiItem> {
+    return apiRequest<ParametroApiItem>(`/parametros/${storageKey}/${id}`);
+  }
+
   async save(storageKey: string, input: ParametroApiInput): Promise<ParametroApiItem> {
     const path = input.id ? `/parametros/${storageKey}/${input.id}` : `/parametros/${storageKey}`;
     const method = input.id ? 'PUT' : 'POST';

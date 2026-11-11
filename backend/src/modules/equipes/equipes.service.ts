@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import type { SessionUser } from '../auth/auth.types.js';
 import { ensureSameTenant, resolveTenantId } from '../common/access.js';
-import type { EquipesRepository } from './equipes.repository.js';
+import type { EquipeRecord, EquipesRepository } from './equipes.repository.js';
 
 export const saveEquipeSchema = z.object({
   id: z.string().uuid().optional(),
@@ -16,6 +16,16 @@ export const saveEquipeMembroSchema = z.object({
   targetId: z.string().min(1),
 });
 
+function toEquipeDto(item: EquipeRecord, membrosCount: number) {
+  return {
+    id: item.id,
+    codigo: item.codigo,
+    descricao: item.descricao,
+    membrosCount,
+    dataCadastro: item.createdAt.toISOString(),
+  };
+}
+
 export class EquipesService {
   constructor(private readonly repository: EquipesRepository) {}
 
@@ -25,13 +35,7 @@ export class EquipesService {
     const counts = await this.repository.countMembros(data.map((e) => e.id));
     return {
       total,
-      data: data.map((item) => ({
-        id: item.id,
-        codigo: item.codigo,
-        descricao: item.descricao,
-        membrosCount: counts[item.id] ?? 0,
-        dataCadastro: item.createdAt.toISOString(),
-      })),
+      data: data.map((item) => toEquipeDto(item, counts[item.id] ?? 0)),
     };
   }
 
@@ -43,6 +47,17 @@ export class EquipesService {
 
     ensureSameTenant(actor, equipe.tenantId);
     return equipe;
+  }
+
+  async getById(actor: SessionUser, id: string) {
+    const existing = await this.repository.findById(id);
+    if (!existing) {
+      return null;
+    }
+
+    ensureSameTenant(actor, existing.tenantId);
+    const counts = await this.repository.countMembros([existing.id]);
+    return toEquipeDto(existing, counts[existing.id] ?? 0);
   }
 
   async save(actor: SessionUser, input: SaveEquipeDto) {

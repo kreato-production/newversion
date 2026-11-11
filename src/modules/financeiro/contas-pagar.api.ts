@@ -55,6 +55,10 @@ export class ApiContasPagarRepository {
     return apiRequest(`/contas-pagar${qs ? `?${qs}` : ''}`);
   }
 
+  getById(id: string): Promise<ContaPagar> {
+    return apiRequest(`/contas-pagar/${id}`);
+  }
+
   save(input: SaveContaPagarInput): Promise<ContaPagar> {
     const path = input.id ? `/contas-pagar/${input.id}` : '/contas-pagar';
     const method = input.id ? 'PUT' : 'POST';

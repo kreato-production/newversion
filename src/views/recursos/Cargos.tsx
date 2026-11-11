@@ -1,13 +1,6 @@
 import ParametroListPage from '@/components/shared/ParametroListPage';
+import { PARAMETROS } from '@/modules/parametros/parametros.config';
 
-const Cargos = () => (
-  <ParametroListPage
-    title="Cargos"
-    description="Gerencie os cargos dos recursos humanos"
-    entityName="Cargo"
-    storageKey="kreato_cargos"
-    permissionPath={['Recursos', 'Parametrizações', 'Cargos']}
-  />
-);
+const Cargos = () => <ParametroListPage {...PARAMETROS.cargos} />;
 
 export default Cargos;

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import type { SessionUser } from '../auth/auth.types.js';
 import { ensureSameTenant, resolveTenantId } from '../common/access.js';
-import type { ProgramasRepository } from './programas.repository.js';
+import type { ProgramaRecord, ProgramasRepository } from './programas.repository.js';
 
 export const saveProgramaSchema = z.object({
   id: z.string().uuid().optional(),
@@ -15,6 +15,19 @@ export const saveProgramaSchema = z.object({
 
 export type SaveProgramaDto = z.infer<typeof saveProgramaSchema>;
 
+function toProgramaDto(item: ProgramaRecord) {
+  return {
+    id: item.id,
+    codigoExterno: item.codigoExterno || '',
+    nome: item.nome,
+    descricao: item.descricao || '',
+    cor: item.cor || null,
+    unidadeNegocioId: item.unidadeNegocioId || '',
+    unidadeNegocio: item.unidadeNegocioNome || '',
+    dataCadastro: item.createdAt.toISOString(),
+  };
+}
+
 export class ProgramasService {
   constructor(private readonly repository: ProgramasRepository) {}
 
@@ -23,17 +36,18 @@ export class ProgramasService {
     const { data, total } = await this.repository.listByTenant(tenantId, opts);
     return {
       total,
-      data: data.map((item) => ({
-        id: item.id,
-        codigoExterno: item.codigoExterno || '',
-        nome: item.nome,
-        descricao: item.descricao || '',
-        cor: item.cor || null,
-        unidadeNegocioId: item.unidadeNegocioId || '',
-        unidadeNegocio: item.unidadeNegocioNome || '',
-        dataCadastro: item.createdAt.toISOString(),
-      })),
+      data: data.map(toProgramaDto),
     };
+  }
+
+  async getById(actor: SessionUser, id: string) {
+    const existing = await this.repository.findById(id);
+    if (!existing) {
+      return null;
+    }
+
+    ensureSameTenant(actor, existing.tenantId);
+    return toProgramaDto(existing);
   }
 
   async save(actor: SessionUser, input: SaveProgramaDto) {
@@ -58,16 +72,7 @@ export class ProgramasService {
       createdById: actor.id,
     });
 
-    return {
-      id: item.id,
-      codigoExterno: item.codigoExterno || '',
-      nome: item.nome,
-      descricao: item.descricao || '',
-      cor: item.cor || null,
-      unidadeNegocioId: item.unidadeNegocioId || '',
-      unidadeNegocio: item.unidadeNegocioNome || '',
-      dataCadastro: item.createdAt.toISOString(),
-    };
+    return toProgramaDto(item);
   }
 
   async remove(actor: SessionUser, id: string) {

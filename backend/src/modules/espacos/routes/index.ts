@@ -25,6 +25,14 @@ export function createEspacosRoutes(authService: AuthService, espacosService: Es
       return reply.status(200).send(await espacosService.list(user, opts));
     });
 
+    app.get('/espacos/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      const params = request.params as { id: string };
+      const item = await espacosService.getById(user, params.id);
+      if (!item) return reply.status(404).send({ message: 'Espaço não encontrado(a)' });
+      return reply.status(200).send(item);
+    });
+
     app.post('/espacos', { preHandler: [authenticate, requireTenantAccess, requireIncluir] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const body = saveEspacoSchema.parse(request.body);

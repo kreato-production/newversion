@@ -36,14 +36,11 @@ import {
   MasterDetail,
   type ColumnConfig,
 } from '@/components/listing';
-import { TemplateFormModal } from '@/components/producao/TemplateFormModal';
+import { useRecordList } from '@/hooks/useRecordNavigation';
+import { TEMPLATES_ROUTES } from '@/modules/templates/templates.navigation';
 import { PlanoProducaoModal } from '@/components/producao/PlanoProducaoModal';
 import { etapasFromTemplate } from '@/modules/templates/templates.api';
-import {
-  templatesRepository,
-  type Template,
-  type SaveTemplateInput,
-} from '@/modules/templates/templates.api';
+import { templatesRepository, type Template } from '@/modules/templates/templates.api';
 
 // ─── Column configuration ─────────────────────────────────────────────────────
 
@@ -246,8 +243,13 @@ export default function Templates() {
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filterSortBy, setFilterSortBy] = useState('');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<Template | null>(null);
+  const { openNew, openRecord } = useRecordList(TEMPLATES_ROUTES);
+  // Keeps the filtered order so the form page can navigate previous/next.
+  const openEdit = (item: { id: string }) =>
+    openRecord(
+      item.id,
+      filteredItems.map((i) => i.id),
+    );
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<Template | null>(null);
   const [planoTemplate, setPlanoTemplate] = useState<Template | null>(null);
@@ -270,21 +272,6 @@ export default function Templates() {
   useEffect(() => {
     void fetchTemplates();
   }, [fetchTemplates]);
-
-  const handleSave = async (input: SaveTemplateInput) => {
-    try {
-      await templatesRepository.save(input);
-      toast({
-        title: 'Sucesso',
-        description: editingItem ? 'Template atualizado.' : 'Template criado.',
-      });
-      await fetchTemplates();
-      setEditingItem(null);
-    } catch {
-      toast({ title: 'Erro', description: 'Erro ao salvar template.', variant: 'destructive' });
-      throw new Error('save failed');
-    }
-  };
 
   const handleDeleteConfirm = async () => {
     if (!deletingId) return;
@@ -401,8 +388,7 @@ export default function Templates() {
               className="h-7 w-7"
               onClick={(e) => {
                 e.stopPropagation();
-                setEditingItem(item);
-                setIsModalOpen(true);
+                openEdit(item);
               }}
             >
               <Edit className="h-3.5 w-3.5" />
@@ -442,15 +428,7 @@ export default function Templates() {
       />
 
       <ListActionBar>
-        {podeIncluir && (
-          <NewButton
-            tooltip="Novo Template"
-            onClick={() => {
-              setEditingItem(null);
-              setIsModalOpen(true);
-            }}
-          />
-        )}
+        {podeIncluir && <NewButton tooltip="Novo Template" onClick={openNew} />}
         <div className="flex-1" />
         <SearchBar value={search} onChange={setSearch} />
         <ListFilterPanel
@@ -491,7 +469,7 @@ export default function Templates() {
               title="Nenhum template encontrado"
               description="Crie o primeiro template de produção."
               icon={Layers}
-              onAction={() => setIsModalOpen(true)}
+              onAction={openNew}
               actionLabel="Novo Template"
             />
           ) : (
@@ -509,17 +487,14 @@ export default function Templates() {
             getRowKey={(item) => item.id}
             emptyTitle="Nenhum template encontrado"
             emptyDescription="Crie o primeiro template de produção."
-            onEmptyAction={() => setIsModalOpen(true)}
+            onEmptyAction={openNew}
             emptyActionLabel="Novo Template"
             renderCard={(item) => (
               <TemplateCard
                 item={item}
                 podeAlterar={podeAlterar}
                 podeExcluir={podeExcluir}
-                onEdit={() => {
-                  setEditingItem(item);
-                  setIsModalOpen(true);
-                }}
+                onEdit={() => openEdit(item)}
                 onDelete={() => setDeletingId(item.id)}
                 onPlano={() => setPlanoTemplate(item)}
               />
@@ -549,10 +524,7 @@ export default function Templates() {
                 item={item}
                 podeAlterar={podeAlterar}
                 podeExcluir={podeExcluir}
-                onEdit={() => {
-                  setEditingItem(item);
-                  setIsModalOpen(true);
-                }}
+                onEdit={() => openEdit(item)}
                 onDelete={() => setDeletingId(item.id)}
                 onPlano={() => setPlanoTemplate(item)}
               />
@@ -560,17 +532,6 @@ export default function Templates() {
           />
         )}
       </DataCard>
-
-      <TemplateFormModal
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setEditingItem(null);
-        }}
-        onSave={handleSave}
-        data={editingItem}
-        readOnly={!!editingItem && !podeAlterar}
-      />
 
       {planoTemplate && (
         <PlanoProducaoModal

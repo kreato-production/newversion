@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
-import Turnos, { TURNOS_PERMISSION_SCOPE } from './Turnos';
+import Turnos from './Turnos';
+import { TURNOS_PERMISSION_SCOPE } from '@/modules/turnos/turnos.navigation';
 import { usePermissions } from '@/hooks/usePermissions';
 import type { ColumnConfig } from '@/components/listing/useListingView';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -78,8 +79,8 @@ vi.mock('@/components/listing', () => ({
   CardGrid: () => <div>cards</div>,
   MasterDetail: () => <div>detail</div>,
 }));
-vi.mock('@/components/recursos/TurnoFormModal', () => ({
-  TurnoFormModal: (): null => null,
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
 }));
 
 const mockUsePermissions = vi.mocked(usePermissions);

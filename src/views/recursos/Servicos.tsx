@@ -1,13 +1,6 @@
 import ParametroListPage from '@/components/shared/ParametroListPage';
+import { PARAMETROS } from '@/modules/parametros/parametros.config';
 
-const Servicos = () => (
-  <ParametroListPage
-    title="Serviços"
-    description="Gerencie os serviços oferecidos"
-    entityName="Serviço"
-    storageKey="kreato_servicos"
-    permissionPath={['Recursos', 'Parametrizações', 'Serviços']}
-  />
-);
+const Servicos = () => <ParametroListPage {...PARAMETROS.servicos} />;
 
 export default Servicos;

@@ -7,6 +7,10 @@ export class ApiEquipesRepository {
     return response.data;
   }
 
+  async getById(id: string): Promise<Equipe> {
+    return apiRequest<Equipe>(`/equipes/${id}`);
+  }
+
   async create(input: EquipeInput): Promise<void> {
     await apiRequest('/equipes', {
       method: 'POST',

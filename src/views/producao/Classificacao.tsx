@@ -1,14 +1,6 @@
 import ParametroListPage from '@/components/shared/ParametroListPage';
+import { PARAMETROS } from '@/modules/parametros/parametros.config';
 
-const Classificacao = () => (
-  <ParametroListPage
-    title="Classificação"
-    description="Gerencie as classificações de conteúdo"
-    entityName="Classificação"
-    storageKey="kreato_classificacao"
-    permissionPath={['Produção', 'Parametrizações', 'Classificação']}
-    showCor
-  />
-);
+const Classificacao = () => <ParametroListPage {...PARAMETROS.classificacao} />;
 
 export default Classificacao;

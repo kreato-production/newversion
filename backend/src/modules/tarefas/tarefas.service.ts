@@ -112,6 +112,13 @@ export class TarefasService {
     };
   }
 
+  async getById(actor: SessionUser, id: string) {
+    const existing = await this.repository.findById(id);
+    if (!existing) return null;
+    ensureSameTenant(actor, existing.tenantId);
+    return mapTarefa(existing);
+  }
+
   async save(actor: SessionUser, input: z.infer<typeof saveTarefaSchema>) {
     const tenantId = resolveTenantId(actor, actor.tenantId);
 

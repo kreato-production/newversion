@@ -22,6 +22,10 @@ export class ApiRecursosTecnicosRepository {
     return response.data;
   }
 
+  async getById(id: string): Promise<RecursoTecnico> {
+    return apiRequest<RecursoTecnico>(`/recursos-tecnicos/${id}`);
+  }
+
   async listOptions(): Promise<RecursoTecnicoOptionsResponse> {
     return apiRequest<RecursoTecnicoOptionsResponse>('/recursos-tecnicos/options');
   }

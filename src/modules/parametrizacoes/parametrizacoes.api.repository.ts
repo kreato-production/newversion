@@ -131,6 +131,10 @@ export class ApiParametrizacoesRepository {
     return apiRequest('/parametrizacoes/status-gravacao');
   }
 
+  getStatusGravacao(id: string): Promise<StatusGravacaoApiItem> {
+    return apiRequest(`/parametrizacoes/status-gravacao/${id}`);
+  }
+
   saveStatusGravacao(
     input: Partial<StatusGravacaoApiItem> & { nome: string },
   ): Promise<StatusGravacaoApiItem> {
@@ -160,6 +164,10 @@ export class ApiParametrizacoesRepository {
     return apiRequest('/parametrizacoes/status-planeamento');
   }
 
+  getStatusPlaneamento(id: string): Promise<StatusPlaneamentoApiItem> {
+    return apiRequest(`/parametrizacoes/status-planeamento/${id}`);
+  }
+
   saveStatusPlaneamento(
     input: Partial<StatusPlaneamentoApiItem> & { nome: string },
   ): Promise<StatusPlaneamentoApiItem> {
@@ -185,6 +193,10 @@ export class ApiParametrizacoesRepository {
     return apiRequest('/parametrizacoes/status-tarefa');
   }
 
+  getStatusTarefa(id: string): Promise<StatusTarefaApiItem> {
+    return apiRequest(`/parametrizacoes/status-tarefa/${id}`);
+  }
+
   saveStatusTarefa(
     input: Partial<StatusTarefaApiItem> & { codigo: string; nome: string },
   ): Promise<StatusTarefaApiItem> {
@@ -208,6 +220,10 @@ export class ApiParametrizacoesRepository {
 
   removeStatusTarefa(id: string): Promise<void> {
     return apiRequest(`/parametrizacoes/status-tarefa/${id}`, { method: 'DELETE' });
+  }
+
+  getStatusContaPagar(id: string): Promise<StatusContaPagarApiItem> {
+    return apiRequest(`/parametrizacoes/status-contas-pagar/${id}`);
   }
 
   listStatusContasPagar(): Promise<ListResponse<StatusContaPagarApiItem>> {
@@ -248,6 +264,10 @@ export class ApiParametrizacoesRepository {
     return apiRequest(`/parametrizacoes/status-contas-pagar/${id}`, { method: 'DELETE' });
   }
 
+  getFormaPagamento(id: string): Promise<FormaPagamentoApiItem> {
+    return apiRequest(`/parametrizacoes/formas-pagamento/${id}`);
+  }
+
   listFormasPagamento(): Promise<ListResponse<FormaPagamentoApiItem>> {
     return apiRequest('/parametrizacoes/formas-pagamento');
   }
@@ -285,6 +305,10 @@ export class ApiParametrizacoesRepository {
     return apiRequest(`/parametrizacoes/formas-pagamento/${id}`, { method: 'DELETE' });
   }
 
+  getTipoDocumentoFinanceiro(id: string): Promise<TipoDocumentoFinanceiroApiItem> {
+    return apiRequest(`/parametrizacoes/tipos-documentos-financeiro/${id}`);
+  }
+
   listTiposDocumentosFinanceiro(): Promise<ListResponse<TipoDocumentoFinanceiroApiItem>> {
     return apiRequest('/parametrizacoes/tipos-documentos-financeiro');
   }
@@ -314,6 +338,10 @@ export class ApiParametrizacoesRepository {
     return apiRequest(`/parametrizacoes/tipos-documentos-financeiro/${id}`, { method: 'DELETE' });
   }
 
+  getTipoPagamento(id: string): Promise<TipoPagamentoApiItem> {
+    return apiRequest(`/parametrizacoes/tipos-pagamento/${id}`);
+  }
+
   listTiposPagamento(): Promise<ListResponse<TipoPagamentoApiItem>> {
     return apiRequest('/parametrizacoes/tipos-pagamento');
   }
@@ -341,6 +369,10 @@ export class ApiParametrizacoesRepository {
 
   removeTipoPagamento(id: string): Promise<void> {
     return apiRequest(`/parametrizacoes/tipos-pagamento/${id}`, { method: 'DELETE' });
+  }
+
+  getCategoriaDespesa(id: string): Promise<CategoriaDespesaApiItem> {
+    return apiRequest(`/parametrizacoes/categorias-despesa/${id}`);
   }
 
   listCategoriasDespesa(): Promise<ListResponse<CategoriaDespesaApiItem>> {
@@ -374,6 +406,10 @@ export class ApiParametrizacoesRepository {
 
   listCategoriasIncidencia(): Promise<ListResponse<IncidenciaParametroApiItem>> {
     return apiRequest('/parametrizacoes/categorias-incidencia');
+  }
+
+  getCategoriaIncidencia(id: string): Promise<IncidenciaParametroApiItem> {
+    return apiRequest(`/parametrizacoes/categorias-incidencia/${id}`);
   }
 
   saveCategoriaIncidencia(
@@ -438,6 +474,10 @@ export class ApiParametrizacoesRepository {
     return apiRequest('/parametrizacoes/severidades-incidencia');
   }
 
+  getSeveridadeIncidencia(id: string): Promise<IncidenciaParametroApiItem> {
+    return apiRequest(`/parametrizacoes/severidades-incidencia/${id}`);
+  }
+
   saveSeveridadeIncidencia(
     input: Partial<IncidenciaParametroApiItem> & { titulo: string; cor?: string | null },
   ): Promise<IncidenciaParametroApiItem> {
@@ -467,6 +507,10 @@ export class ApiParametrizacoesRepository {
     return apiRequest('/parametrizacoes/impactos-incidencia');
   }
 
+  getImpactoIncidencia(id: string): Promise<IncidenciaParametroApiItem> {
+    return apiRequest(`/parametrizacoes/impactos-incidencia/${id}`);
+  }
+
   saveImpactoIncidencia(
     input: Partial<IncidenciaParametroApiItem> & { titulo: string },
   ): Promise<IncidenciaParametroApiItem> {
@@ -489,6 +533,10 @@ export class ApiParametrizacoesRepository {
 
   removeImpactoIncidencia(id: string): Promise<void> {
     return apiRequest(`/parametrizacoes/impactos-incidencia/${id}`, { method: 'DELETE' });
+  }
+
+  getCentroLucro(id: string): Promise<CentroLucroApiItem> {
+    return apiRequest(`/parametrizacoes/centros-lucro/${id}`);
   }
 
   listCentrosLucro(): Promise<ListResponse<CentroLucroApiItem>> {

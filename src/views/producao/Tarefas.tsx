@@ -15,13 +15,6 @@ import { NewButton } from '@/components/shared/NewButton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
   Card,
   CardContent,
   CardDescription,
@@ -43,7 +36,8 @@ import { DataCard, PageHeader } from '@/components/shared/PageComponents';
 import { ListActionBar } from '@/components/shared/ListActionBar';
 import { useListingView, ViewSwitcher, CardGrid, MasterDetail } from '@/components/listing';
 import { TarefaKanbanView } from '@/components/producao/TarefaKanbanView';
-import { TarefaFormModal } from '@/components/producao/TarefaFormModal';
+import { useRecordList } from '@/hooks/useRecordNavigation';
+import { TAREFAS_ROUTES } from '@/modules/tarefas/tarefas.navigation';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { cn } from '@/lib/utils';
@@ -51,7 +45,6 @@ import {
   ApiTarefasRepository,
   type Tarefa,
   type TarefaGravacao,
-  type TarefaRecursoHumano,
   type TarefaStatus,
 } from '@/modules/tarefas/tarefas.api';
 import {
@@ -65,21 +58,18 @@ const tarefasRepository = new ApiTarefasRepository();
 
 const Tarefas = () => {
   const { t, formatDate } = useLanguage();
-  const { canAlterar, canExcluir, canIncluir } = usePermissions();
+  const { canAlterar, canIncluir } = usePermissions();
 
-  const podeIncluir = canIncluir('ProduÃ§Ã£o', 'Tarefas');
-  const podeAlterar = canAlterar('ProduÃ§Ã£o', 'Tarefas');
-  const podeExcluir = canExcluir('ProduÃ§Ã£o', 'Tarefas');
+  const podeIncluir = canIncluir('Produção', 'Tarefas');
+  const podeAlterar = canAlterar('Produção', 'Tarefas');
 
   const [tarefas, setTarefas] = useState<Tarefa[]>([]);
   const [statusList, setStatusList] = useState<TarefaStatus[]>([]);
   const [gravacoes, setGravacoes] = useState<TarefaGravacao[]>([]);
-  const [recursosHumanos, setRecursosHumanos] = useState<TarefaRecursoHumano[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<string[]>([]);
   const [filterGravacao, setFilterGravacao] = useState<string[]>([]);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingTarefa, setEditingTarefa] = useState<Tarefa | null>(null);
+  const { openNew, openRecord } = useRecordList(TAREFAS_ROUTES);
   const [selectedTarefa, setSelectedTarefa] = useState<Tarefa | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -99,7 +89,6 @@ const Tarefas = () => {
       setTarefas(tarefasData);
       setStatusList(options.statusList);
       setGravacoes(options.gravacoes);
-      setRecursosHumanos(options.recursosHumanos);
     } catch (error) {
       console.error('Error loading tarefas:', error);
       toast.error('Erro ao carregar dados');
@@ -114,36 +103,12 @@ const Tarefas = () => {
     void loadData();
   }, []);
 
-  const handleSave = async (tarefa: Tarefa) => {
-    try {
-      await tarefasRepository.save(tarefa);
-      toast.success(editingTarefa ? t('tasks.updated') : t('tasks.created'));
-      setIsModalOpen(false);
-      setEditingTarefa(null);
-      await loadData(false);
-    } catch (error) {
-      console.error('Error saving tarefa:', error);
-      toast.error('Erro ao salvar tarefa');
-    }
-  };
-
-  const handleDelete = async (id: string) => {
-    try {
-      await tarefasRepository.remove(id);
-      toast.success(t('common.deleted'));
-      setIsModalOpen(false);
-      setEditingTarefa(null);
-      await loadData(false);
-    } catch (error) {
-      console.error('Error deleting tarefa:', error);
-      toast.error('Erro ao excluir tarefa');
-    }
-  };
-
-  const handleEdit = (tarefa: Tarefa) => {
-    setEditingTarefa(tarefa);
-    setIsModalOpen(true);
-  };
+  // Opens the form page, keeping the board/list order for previous/next.
+  const handleEdit = (tarefa: Tarefa) =>
+    openRecord(
+      tarefa.id,
+      sortedTarefas.map((i) => i.id),
+    );
 
   const getPrioridadeColor = (prioridade: string) => {
     switch (prioridade) {
@@ -308,15 +273,7 @@ const Tarefas = () => {
         </div>
 
         <ListActionBar>
-          {podeIncluir && (
-            <NewButton
-              tooltip={t('tasks.new')}
-              onClick={() => {
-                setEditingTarefa(null);
-                setIsModalOpen(true);
-              }}
-            />
-          )}
+          {podeIncluir && <NewButton tooltip={t('tasks.new')} onClick={openNew} />}
           <div className="flex-1" />
           <div className="relative min-w-[200px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -378,13 +335,7 @@ const Tarefas = () => {
             <div className="text-center py-12 border-2 border-dashed rounded-lg">
               <p className="text-muted-foreground mb-4">{t('tasks.empty')}</p>
               {podeIncluir && (
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setEditingTarefa(null);
-                    setIsModalOpen(true);
-                  }}
-                >
+                <Button variant="outline" onClick={openNew}>
                   {t('tasks.addFirst')}
                 </Button>
               )}
@@ -454,10 +405,7 @@ const Tarefas = () => {
             getRowKey={(item) => item.id}
             emptyTitle={t('tasks.empty')}
             emptyDescription=""
-            onEmptyAction={() => {
-              setEditingTarefa(null);
-              setIsModalOpen(true);
-            }}
+            onEmptyAction={openNew}
             emptyActionLabel={t('tasks.new')}
             renderCard={(tarefa) => (
               <Card
@@ -591,31 +539,6 @@ const Tarefas = () => {
           />
         )}
       </div>
-
-      <TarefaFormModal
-        open={isModalOpen}
-        onOpenChange={setIsModalOpen}
-        onSave={handleSave}
-        onDelete={editingTarefa && podeExcluir ? () => handleDelete(editingTarefa.id) : undefined}
-        data={editingTarefa}
-        statusList={statusList}
-        gravacoes={gravacoes}
-        recursosHumanos={recursosHumanos}
-        readOnly={Boolean(editingTarefa) && !podeAlterar}
-        navigation={(() => {
-          const idx = editingTarefa
-            ? sortedTarefas.findIndex((i) => i.id === editingTarefa.id)
-            : -1;
-          return idx >= 0
-            ? {
-                currentIndex: idx,
-                total: sortedTarefas.length,
-                onPrevious: () => setEditingTarefa(sortedTarefas[idx - 1]),
-                onNext: () => setEditingTarefa(sortedTarefas[idx + 1]),
-              }
-            : undefined;
-        })()}
-      />
     </>
   );
 };

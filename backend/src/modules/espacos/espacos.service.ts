@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import type { SessionUser } from '../auth/auth.types.js';
 import { ensureSameTenant, resolveTenantId } from '../common/access.js';
-import type { EspacosRepository } from './espacos.repository.js';
+import type { EspacoRecord, EspacosRepository } from './espacos.repository.js';
 
 const faixaDisponibilidadeSchema = z.object({
   id: z.string().optional(),
@@ -23,6 +23,19 @@ export const saveEspacoSchema = z.object({
 
 export type SaveEspacoDto = z.infer<typeof saveEspacoSchema>;
 
+function toEspacoDto(item: EspacoRecord) {
+  return {
+    id: item.id,
+    codigoExterno: item.codigoExterno || '',
+    titulo: item.titulo,
+    descricao: item.descricao || '',
+    faixasDisponibilidade: item.faixasDisponibilidade,
+    dataCadastro: item.createdAt?.toISOString() || '',
+    usuarioCadastro: item.createdByNome || '',
+    usuarioCadastroId: item.createdBy || '',
+  };
+}
+
 export class EspacosService {
   constructor(private readonly repository: EspacosRepository) {}
 
@@ -32,17 +45,18 @@ export class EspacosService {
 
     return {
       total,
-      data: data.map((item) => ({
-        id: item.id,
-        codigoExterno: item.codigoExterno || '',
-        titulo: item.titulo,
-        descricao: item.descricao || '',
-        faixasDisponibilidade: item.faixasDisponibilidade,
-        dataCadastro: item.createdAt?.toISOString() || '',
-        usuarioCadastro: item.createdByNome || '',
-        usuarioCadastroId: item.createdBy || '',
-      })),
+      data: data.map(toEspacoDto),
     };
+  }
+
+  async getById(actor: SessionUser, id: string) {
+    const existing = await this.repository.findById(id);
+    if (!existing) {
+      return null;
+    }
+
+    ensureSameTenant(actor, existing.tenantId);
+    return toEspacoDto(existing);
   }
 
   async save(actor: SessionUser, input: SaveEspacoDto) {
@@ -71,16 +85,7 @@ export class EspacosService {
       })),
     });
 
-    return {
-      id: item.id,
-      codigoExterno: item.codigoExterno || '',
-      titulo: item.titulo,
-      descricao: item.descricao || '',
-      faixasDisponibilidade: item.faixasDisponibilidade,
-      dataCadastro: item.createdAt?.toISOString() || '',
-      usuarioCadastro: item.createdByNome || '',
-      usuarioCadastroId: item.createdBy || '',
-    };
+    return toEspacoDto(item);
   }
 
   async remove(actor: SessionUser, id: string) {

@@ -28,6 +28,14 @@ export function createTabelasPrecoRoutes(authService: AuthService, tabelasPrecoS
       return reply.status(200).send(await tabelasPrecoService.listOptions(user));
     });
 
+    app.get('/tabelas-preco/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      const params = request.params as { id: string };
+      const item = await tabelasPrecoService.getById(user, params.id);
+      if (!item) return reply.status(404).send({ message: 'Tabela de preço não encontrada' });
+      return reply.status(200).send(item);
+    });
+
     app.post('/tabelas-preco', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const body = saveTabelaPrecoSchema.parse(request.body);

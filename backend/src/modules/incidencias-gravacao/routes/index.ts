@@ -33,6 +33,14 @@ export function createIncidenciasGravacaoRoutes(
       return reply.status(200).send(await incidenciasService.listByJanela(user, params.id));
     });
 
+    app.get('/incidencias-gravacao/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      const params = request.params as { id: string };
+      const item = await incidenciasService.getById(user, params.id);
+      if (!item) return reply.status(404).send({ message: 'Incidência não encontrada' });
+      return reply.status(200).send(item);
+    });
+
     app.post('/incidencias-gravacao', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const body = saveIncidenciaGravacaoSchema.parse(request.body);

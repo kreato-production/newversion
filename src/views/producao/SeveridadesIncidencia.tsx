@@ -19,8 +19,8 @@ import { Edit, Trash2, Settings, Loader2 } from 'lucide-react';
 import { NewButton } from '@/components/shared/NewButton';
 import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { usePermissions } from '@/hooks/usePermissions';
-import { SeveridadeIncidenciaFormModal } from '@/components/producao/SeveridadeIncidenciaFormModal';
+import { useRecordList } from '@/hooks/useRecordNavigation';
+import { SEVERIDADES_INCIDENCIA_FORM } from '@/modules/parametrizacoes/producao.forms';
 import { ApiParametrizacoesRepository } from '@/modules/parametrizacoes/parametrizacoes.api.repository';
 import {
   useListingView,
@@ -185,16 +185,18 @@ function SeveridadeDetailPanel({
 const SeveridadesIncidencia = () => {
   const { toast } = useToast();
   const { t } = useLanguage();
-  const { canAlterar } = usePermissions();
   const [search, setSearch] = useState('');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<SeveridadeIncidencia | null>(null);
+  const { openNew, openRecord } = useRecordList(SEVERIDADES_INCIDENCIA_FORM.routes);
+  // Keeps the filtered order so the form page can navigate previous/next.
+  const openEdit = (item: { id: string }) =>
+    openRecord(
+      item.id,
+      filteredItems.map((i) => i.id),
+    );
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<SeveridadeIncidencia | null>(null);
   const [items, setItems] = useState<SeveridadeIncidencia[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-
-  const permPath = ['Produção', 'Parametrizações', 'Severidades de Incidência'] as const;
 
   const { mode, setMode, visibleColumnKeys, toggleColumn, resetColumns, optionalColumns } =
     useListingView({ storageKey: STORAGE_KEY, columns: COLUMN_CONFIG });
@@ -251,38 +253,6 @@ const SeveridadesIncidencia = () => {
     }
   };
 
-  const handleSave = async (data: {
-    titulo: string;
-    descricao?: string;
-    codigo_externo?: string;
-    cor?: string;
-    traducoes?: Record<string, string>;
-  }) => {
-    try {
-      await repository.saveSeveridadeIncidencia({
-        ...(editingItem ? { id: editingItem.id } : {}),
-        titulo: data.titulo,
-        descricao: data.descricao || '',
-        codigo_externo: data.codigo_externo || '',
-        cor: data.cor || '#888888',
-        traducoes: data.traducoes,
-      });
-      toast({
-        title: t('common.success'),
-        description: `${t('incidentSeverity.entity')} ${editingItem ? t('common.updated').toLowerCase() : t('common.save').toLowerCase()}!`,
-      });
-      await fetchData();
-      setEditingItem(null);
-    } catch (err) {
-      toast({
-        title: t('common.error'),
-        description: (err as Error).message,
-        variant: 'destructive',
-      });
-      throw err;
-    }
-  };
-
   const filteredItems = items.filter(
     (item) =>
       item.titulo.toLowerCase().includes(search.toLowerCase()) ||
@@ -333,15 +303,7 @@ const SeveridadesIncidencia = () => {
       sortable: false,
       render: (item) => (
         <div className="flex justify-end gap-1">
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-7 w-7"
-            onClick={() => {
-              setEditingItem(item);
-              setIsModalOpen(true);
-            }}
-          >
+          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(item)}>
             <Edit className="w-3.5 h-3.5" />
           </Button>
           <Button
@@ -366,10 +328,7 @@ const SeveridadesIncidencia = () => {
       <ListActionBar>
         <NewButton
           tooltip={`${t('common.new')} ${t('incidentSeverity.entity')}`}
-          onClick={() => {
-            setEditingItem(null);
-            setIsModalOpen(true);
-          }}
+          onClick={openNew}
         />
         <div className="flex-1" />
         <SearchBar value={search} onChange={setSearch} placeholder={t('common.search')} />
@@ -394,7 +353,7 @@ const SeveridadesIncidencia = () => {
               title={t('common.noResults')}
               description={`${t('common.add')} ${t('incidentSeverity.entity').toLowerCase()}.`}
               icon={Settings}
-              onAction={() => setIsModalOpen(true)}
+              onAction={openNew}
               actionLabel={`${t('common.add')} ${t('incidentSeverity.entity')}`}
             />
           ) : (
@@ -412,15 +371,12 @@ const SeveridadesIncidencia = () => {
             getRowKey={(item) => item.id}
             emptyTitle={t('common.noResults')}
             emptyDescription={`${t('common.add')} ${t('incidentSeverity.entity').toLowerCase()}.`}
-            onEmptyAction={() => setIsModalOpen(true)}
+            onEmptyAction={openNew}
             emptyActionLabel={`${t('common.add')} ${t('incidentSeverity.entity')}`}
             renderCard={(item) => (
               <SeveridadeCard
                 item={item}
-                onEdit={() => {
-                  setEditingItem(item);
-                  setIsModalOpen(true);
-                }}
+                onEdit={() => openEdit(item)}
                 onDelete={() => setDeletingId(item.id)}
               />
             )}
@@ -448,40 +404,13 @@ const SeveridadesIncidencia = () => {
             renderDetail={(item) => (
               <SeveridadeDetailPanel
                 item={item}
-                onEdit={() => {
-                  setEditingItem(item);
-                  setIsModalOpen(true);
-                }}
+                onEdit={() => openEdit(item)}
                 onDelete={() => setDeletingId(item.id)}
               />
             )}
           />
         )}
       </DataCard>
-      <SeveridadeIncidenciaFormModal
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setEditingItem(null);
-        }}
-        onSave={handleSave}
-        data={editingItem}
-        readOnly={!!editingItem && !canAlterar(permPath[0], permPath[1], permPath[2])}
-        navigation={(() => {
-          const navIndex = editingItem
-            ? filteredItems.findIndex((i) => i.id === editingItem.id)
-            : -1;
-          return navIndex >= 0
-            ? {
-                currentIndex: navIndex,
-                total: filteredItems.length,
-                onPrevious: () => setEditingItem(filteredItems[navIndex - 1]),
-                onNext: () => setEditingItem(filteredItems[navIndex + 1]),
-              }
-            : undefined;
-        })()}
-      />
-
       <AlertDialog open={!!deletingId} onOpenChange={(open) => !open && setDeletingId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>

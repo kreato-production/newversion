@@ -32,9 +32,15 @@ export type IncidenciaAnexoApiItem = {
   created_at: string | null;
 };
 
+export type SaveIncidenciaGravacaoInput = Partial<IncidenciaGravacaoApiItem> & { titulo: string };
+
 export class ApiIncidenciasGravacaoRepository {
   list() {
     return apiRequest<IncidenciaGravacaoApiItem[]>('/incidencias-gravacao');
+  }
+
+  getById(id: string) {
+    return apiRequest<IncidenciaGravacaoApiItem>(`/incidencias-gravacao/${id}`);
   }
 
   listByGravacao(gravacaoId: string) {
@@ -45,7 +51,7 @@ export class ApiIncidenciasGravacaoRepository {
     return apiRequest<IncidenciaGravacaoApiItem[]>(`/satops/janelas/${janelaId}/incidencias`);
   }
 
-  save(input: Partial<IncidenciaGravacaoApiItem> & { titulo: string }) {
+  save(input: SaveIncidenciaGravacaoInput) {
     const path = input.id ? `/incidencias-gravacao/${input.id}` : '/incidencias-gravacao';
     const method = input.id ? 'PUT' : 'POST';
 

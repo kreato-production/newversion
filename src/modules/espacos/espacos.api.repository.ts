@@ -21,6 +21,10 @@ export class ApiEspacosRepository {
     return response.data;
   }
 
+  async getById(id: string): Promise<Espaco> {
+    return apiRequest<Espaco>(`/espacos/${id}`);
+  }
+
   async save(input: EspacoInput): Promise<void> {
     const path = input.id ? `/espacos/${input.id}` : '/espacos';
     const method = input.id ? 'PUT' : 'POST';

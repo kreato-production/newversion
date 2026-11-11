@@ -25,6 +25,14 @@ export function createProgramasRoutes(authService: AuthService, programasService
       return reply.status(200).send(await programasService.list(user, opts));
     });
 
+    app.get('/programas/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      const params = request.params as { id: string };
+      const item = await programasService.getById(user, params.id);
+      if (!item) return reply.status(404).send({ message: 'Programa não encontrado' });
+      return reply.status(200).send(item);
+    });
+
     app.post('/programas', { preHandler: [authenticate, requireTenantAccess, requireIncluir] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const body = saveProgramaSchema.parse(request.body);
