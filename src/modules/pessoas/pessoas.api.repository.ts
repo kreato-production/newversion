@@ -1,10 +1,5 @@
 import { apiRequest } from '@/lib/api/http';
-import type {
-  ClassificacaoPessoaOption,
-  GravacaoParticipacao,
-  Pessoa,
-  PessoaInput,
-} from './pessoas.types';
+import type { GravacaoParticipacao, PessoaOptions, Pessoa, PessoaInput } from './pessoas.types';
 
 function normalizeInput(input: PessoaInput): PessoaInput {
   return {
@@ -27,6 +22,9 @@ function normalizeInput(input: PessoaInput): PessoaInput {
     estado: input.estado?.trim() || '',
     cep: input.cep?.trim() || '',
     observacoes: input.observacoes?.trim() || '',
+    paisNascimento: input.paisNascimento || '',
+    idiomaNativo: input.idiomaNativo || '',
+    tags: (input.tags ?? []).map((tag) => tag.trim()).filter(Boolean),
     status: input.status || 'Ativo',
   };
 }
@@ -37,8 +35,16 @@ export class ApiPessoasRepository {
     return response.data;
   }
 
-  async listOptions(): Promise<{ classificacoes: ClassificacaoPessoaOption[] }> {
-    return apiRequest<{ classificacoes: ClassificacaoPessoaOption[] }>('/pessoas/options');
+  async getById(id: string): Promise<Pessoa> {
+    return apiRequest<Pessoa>(`/pessoas/${id}`);
+  }
+
+  async listOptions(): Promise<PessoaOptions> {
+    const response = await apiRequest<Partial<PessoaOptions>>('/pessoas/options');
+    return {
+      classificacoes: response.classificacoes ?? [],
+      tags: response.tags ?? [],
+    };
   }
 
   async save(input: PessoaInput): Promise<void> {

@@ -30,6 +30,16 @@ export function createPessoasRoutes(authService: AuthService, pessoasService: Pe
       return reply.status(200).send(await pessoasService.listOptions(user));
     });
 
+    app.get('/pessoas/:id', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
+      const { user } = request as AuthenticatedRequest;
+      const params = request.params as { id: string };
+      const item = await pessoasService.getById(user, params.id);
+      if (!item) {
+        return reply.status(404).send({ message: 'Pessoa não encontrada' });
+      }
+      return reply.status(200).send(item);
+    });
+
     app.get('/pessoas/:id/gravacoes', { preHandler: [authenticate, requireTenantAccess] }, async (request, reply) => {
       const { user } = request as AuthenticatedRequest;
       const params = request.params as { id: string };

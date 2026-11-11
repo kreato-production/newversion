@@ -18,7 +18,8 @@ import { DataCard, EmptyState, PageHeader, SearchBar } from '@/components/shared
 import { ListActionBar } from '@/components/shared/ListActionBar';
 import { NewButton } from '@/components/shared/NewButton';
 import { SortableTable, type Column } from '@/components/shared/SortableTable';
-import { PessoaFormModal } from '@/components/recursos/PessoaFormModal';
+import { PESSOAS_ROUTES } from '@/modules/pessoas/pessoas.navigation';
+import { useRecordList } from '@/hooks/useRecordNavigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -34,7 +35,7 @@ import {
   chipsSubtitle,
   sortSubtitle,
 } from '@/components/shared/ListFilter';
-import type { Pessoa, PessoaInput } from '@/modules/pessoas/pessoas.types';
+import type { Pessoa } from '@/modules/pessoas/pessoas.types';
 import { Edit, Loader2, Trash2, Users } from 'lucide-react';
 import {
   useListingView,
@@ -54,9 +55,36 @@ const COLUMN_CONFIG: ColumnConfig[] = [
   { key: 'telefone', label: 'Telefone', defaultVisible: false },
   { key: 'classificacao', label: 'Classificação', defaultVisible: true },
   { key: 'cidade', label: 'Cidade/UF', defaultVisible: false },
+  { key: 'paisNascimento', label: 'País de Nascimento', defaultVisible: false },
+  { key: 'idiomaNativo', label: 'Idioma Nativo', defaultVisible: false },
+  { key: 'tags', label: 'Tags', defaultVisible: false },
   { key: 'status', label: 'Status', defaultVisible: true },
   { key: 'acoes', label: 'Ações', required: true },
 ];
+
+function TagList({ tags, max }: { tags: string[]; max?: number }) {
+  if (!tags?.length) return null;
+  const visible = max ? tags.slice(0, max) : tags;
+  const hidden = tags.length - visible.length;
+  return (
+    <div className="flex flex-wrap gap-1">
+      {visible.map((tag) => (
+        <Badge key={tag} variant="outline" className="text-[10px] h-4 px-1.5 font-normal">
+          {tag}
+        </Badge>
+      ))}
+      {hidden > 0 && (
+        <Badge
+          variant="outline"
+          className="text-[10px] h-4 px-1.5 font-normal"
+          title={tags.slice(visible.length).join(', ')}
+        >
+          +{hidden}
+        </Badge>
+      )}
+    </div>
+  );
+}
 
 // ─── Card renderer ────────────────────────────────────────────────────────────
 
@@ -85,16 +113,23 @@ function PessoaCard({
             </AvatarFallback>
           </Avatar>
           <div className="min-w-0">
+            {/* Work name leads; the full name moves below it. Without a work name, the full name leads. */}
             <p className="font-medium text-sm leading-snug truncate">
-              {item.nome} {item.sobrenome}
+              {item.nomeTrabalho?.trim() || `${item.nome} ${item.sobrenome}`}
             </p>
-            <p className="text-xs text-muted-foreground truncate">{item.email}</p>
+            {item.nomeTrabalho?.trim() && (
+              <p className="text-xs font-normal text-muted-foreground truncate">
+                {item.nome} {item.sobrenome}
+              </p>
+            )}
+            {item.email && <p className="text-xs text-muted-foreground truncate">{item.email}</p>}
           </div>
         </div>
       </CardHeader>
 
       <CardContent className="px-4 pb-3 flex-1 space-y-1 text-xs text-muted-foreground">
         {item.classificacao && <div>{item.classificacao}</div>}
+        <TagList tags={item.tags} max={3} />
         <Badge
           variant={item.status === 'Ativo' ? 'default' : 'secondary'}
           className="text-[10px] h-4 px-1.5"
@@ -177,7 +212,16 @@ function PessoaDetailPanel({
         {field('Telefone', item.telefone)}
         {field('Classificação', item.classificacao)}
         {item.cidade && item.estado ? field('Cidade/UF', `${item.cidade}/${item.estado}`) : null}
+        {field('País de Nascimento', item.paisNascimento)}
+        {field('Idioma Nativo', item.idiomaNativo)}
       </div>
+
+      {item.tags?.length > 0 && (
+        <div>
+          <p className="text-xs text-muted-foreground mb-1">Tags</p>
+          <TagList tags={item.tags} />
+        </div>
+      )}
 
       <Separator />
 
@@ -209,20 +253,24 @@ function PessoaDetailPanel({
 const Pessoas = () => {
   const { toast } = useToast();
   const { t } = useLanguage();
-  const { user, session } = useAuth();
+  const { openNew, openRecord } = useRecordList(PESSOAS_ROUTES);
+  const { session } = useAuth();
   const { canIncluir, canAlterar, canExcluir } = usePermissions();
   const podeIncluir = canIncluir('Recursos', 'Pessoas');
   const podeAlterar = canAlterar('Recursos', 'Pessoas');
   const podeExcluir = canExcluir('Recursos', 'Pessoas');
   const [search, setSearch] = useState('');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<Pessoa | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<Pessoa | null>(null);
   const [items, setItems] = useState<Pessoa[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filterSortBy, setFilterSortBy] = useState('');
   const [filterClassificacao, setFilterClassificacao] = useState<string[]>([]);
+  const [filterSexo, setFilterSexo] = useState<string[]>([]);
+  const [filterStatus, setFilterStatus] = useState<string[]>([]);
+  const [filterPais, setFilterPais] = useState<string[]>([]);
+  const [filterIdioma, setFilterIdioma] = useState<string[]>([]);
+  const [filterTags, setFilterTags] = useState<string[]>([]);
 
   const { mode, setMode, visibleColumnKeys, toggleColumn, resetColumns, optionalColumns } =
     useListingView({ storageKey: STORAGE_KEY, columns: COLUMN_CONFIG });
@@ -252,29 +300,6 @@ const Pessoas = () => {
     fetchPessoas();
   }, [fetchPessoas]);
 
-  const handleSave = async (input: PessoaInput) => {
-    try {
-      await pessoasRepository.save({
-        ...input,
-        tenantId: user?.tenantId ?? null,
-      });
-      toast({
-        title: t('common.success'),
-        description: editingItem ? 'Pessoa atualizada!' : 'Pessoa cadastrada!',
-      });
-      await fetchPessoas();
-      setEditingItem(null);
-    } catch (error) {
-      console.error('Error saving pessoa:', error);
-      toast({
-        title: t('common.error'),
-        description: `Erro ao salvar: ${(error as Error).message}`,
-        variant: 'destructive',
-      });
-      throw error;
-    }
-  };
-
   const handleDeleteConfirm = async () => {
     if (!deletingId) return;
     try {
@@ -295,19 +320,41 @@ const Pessoas = () => {
   };
 
   const classificacaoOptions = uniqueChips(items, 'classificacao');
+  const sexoOptions = uniqueChips(items, 'sexo');
+  const statusOptions = [
+    { value: 'Ativo', label: 'Ativo' },
+    { value: 'Inativo', label: 'Inativo' },
+  ];
+  const paisOptions = uniqueChips(items, 'paisNascimento');
+  const idiomaOptions = uniqueChips(items, 'idiomaNativo');
+  const tagOptions = uniqueChips(
+    items.flatMap((item) => (item.tags ?? []).map((tag) => ({ tag }))),
+    'tag',
+  );
 
   const filteredItems = (() => {
+    const term = search.toLowerCase();
     let result = items.filter(
       (item) =>
-        item.nome.toLowerCase().includes(search.toLowerCase()) ||
-        item.sobrenome.toLowerCase().includes(search.toLowerCase()) ||
-        item.email.toLowerCase().includes(search.toLowerCase()) ||
-        item.classificacao.toLowerCase().includes(search.toLowerCase()),
+        item.nome.toLowerCase().includes(term) ||
+        item.sobrenome.toLowerCase().includes(term) ||
+        item.email.toLowerCase().includes(term) ||
+        item.classificacao.toLowerCase().includes(term) ||
+        (item.tags ?? []).some((tag) => tag.toLowerCase().includes(term)),
     );
     if (filterClassificacao.length)
       result = result.filter(
         (i) => i.classificacao && filterClassificacao.includes(i.classificacao),
       );
+    if (filterSexo.length) result = result.filter((i) => i.sexo && filterSexo.includes(i.sexo));
+    if (filterStatus.length) result = result.filter((i) => filterStatus.includes(i.status));
+    if (filterPais.length)
+      result = result.filter((i) => i.paisNascimento && filterPais.includes(i.paisNascimento));
+    if (filterIdioma.length)
+      result = result.filter((i) => i.idiomaNativo && filterIdioma.includes(i.idiomaNativo));
+    // A person matches when it has at least one of the selected tags.
+    if (filterTags.length)
+      result = result.filter((i) => (i.tags ?? []).some((tag) => filterTags.includes(tag)));
     if (filterSortBy === 'nome-asc')
       return [...result].sort((a, b) => a.nome.localeCompare(b.nome));
     if (filterSortBy === 'nome-desc')
@@ -318,6 +365,13 @@ const Pessoas = () => {
       return [...result].sort((a, b) => (b.dataCadastro ?? '').localeCompare(a.dataCadastro ?? ''));
     return result;
   })();
+
+  // Keeps the filtered/sorted order so the form page can navigate previous/next.
+  const openEdit = (item: Pessoa) =>
+    openRecord(
+      item.id,
+      filteredItems.map((i) => i.id),
+    );
 
   const columns: Column<Pessoa>[] = [
     {
@@ -367,6 +421,26 @@ const Pessoas = () => {
       render: (item) => (item.cidade && item.estado ? `${item.cidade}/${item.estado}` : '-'),
     },
     {
+      key: 'paisNascimento',
+      label: 'País de Nascimento',
+      groupable: true,
+      groupValue: (item) => item.paisNascimento || '(Sem país)',
+      render: (item) => item.paisNascimento || '-',
+    },
+    {
+      key: 'idiomaNativo',
+      label: 'Idioma Nativo',
+      groupable: true,
+      groupValue: (item) => item.idiomaNativo || '(Sem idioma)',
+      render: (item) => item.idiomaNativo || '-',
+    },
+    {
+      key: 'tags',
+      label: 'Tags',
+      sortable: false,
+      render: (item) => (item.tags?.length ? <TagList tags={item.tags} max={3} /> : '-'),
+    },
+    {
       key: 'status',
       label: t('common.status'),
       groupable: true,
@@ -387,8 +461,7 @@ const Pessoas = () => {
             disabled={!podeAlterar}
             onClick={(event) => {
               event.stopPropagation();
-              setEditingItem(item);
-              setIsModalOpen(true);
+              openEdit(item);
             }}
           >
             <Edit className="w-4 h-4" />
@@ -416,23 +489,28 @@ const Pessoas = () => {
       <PageHeader title={t('people.title')} description={t('field.managePeople')} />
 
       <ListActionBar>
-        {podeIncluir && (
-          <NewButton
-            tooltip={t('field.newPerson')}
-            onClick={() => {
-              setEditingItem(null);
-              setIsModalOpen(true);
-            }}
-          />
-        )}
+        {podeIncluir && <NewButton tooltip={t('field.newPerson')} onClick={openNew} />}
         <div className="flex-1" />
         <SearchBar value={search} onChange={setSearch} />
         <ListFilterPanel
-          activeCount={(filterSortBy ? 1 : 0) + (filterClassificacao.length ? 1 : 0)}
+          activeCount={
+            (filterSortBy ? 1 : 0) +
+            (filterClassificacao.length ? 1 : 0) +
+            (filterSexo.length ? 1 : 0) +
+            (filterStatus.length ? 1 : 0) +
+            (filterPais.length ? 1 : 0) +
+            (filterIdioma.length ? 1 : 0) +
+            (filterTags.length ? 1 : 0)
+          }
           resultCount={filteredItems.length}
           onClear={() => {
             setFilterSortBy('');
             setFilterClassificacao([]);
+            setFilterSexo([]);
+            setFilterStatus([]);
+            setFilterPais([]);
+            setFilterIdioma([]);
+            setFilterTags([]);
           }}
           entityLabel="pessoas"
         >
@@ -454,6 +532,33 @@ const Pessoas = () => {
                 selected={filterClassificacao}
                 onChange={setFilterClassificacao}
               />
+            </FilterSection>
+          )}
+          {sexoOptions.length > 0 && (
+            <FilterSection title="Sexo" subtitle={chipsSubtitle(filterSexo)}>
+              <MultiChip options={sexoOptions} selected={filterSexo} onChange={setFilterSexo} />
+            </FilterSection>
+          )}
+          <FilterSection title="Status" subtitle={chipsSubtitle(filterStatus)}>
+            <MultiChip options={statusOptions} selected={filterStatus} onChange={setFilterStatus} />
+          </FilterSection>
+          {paisOptions.length > 0 && (
+            <FilterSection title="País de Nascimento" subtitle={chipsSubtitle(filterPais)}>
+              <MultiChip options={paisOptions} selected={filterPais} onChange={setFilterPais} />
+            </FilterSection>
+          )}
+          {idiomaOptions.length > 0 && (
+            <FilterSection title="Idioma Nativo" subtitle={chipsSubtitle(filterIdioma)}>
+              <MultiChip
+                options={idiomaOptions}
+                selected={filterIdioma}
+                onChange={setFilterIdioma}
+              />
+            </FilterSection>
+          )}
+          {tagOptions.length > 0 && (
+            <FilterSection title="Tags" subtitle={chipsSubtitle(filterTags)}>
+              <MultiChip options={tagOptions} selected={filterTags} onChange={setFilterTags} />
             </FilterSection>
           )}
         </ListFilterPanel>
@@ -479,7 +584,7 @@ const Pessoas = () => {
               title={t('field.noPersonRegistered')}
               description={t('field.peopleHint')}
               icon={Users}
-              onAction={podeIncluir ? () => setIsModalOpen(true) : undefined}
+              onAction={podeIncluir ? openNew : undefined}
               actionLabel={t('field.addPerson')}
             />
           ) : (
@@ -497,17 +602,14 @@ const Pessoas = () => {
             getRowKey={(item) => item.id}
             emptyTitle={t('field.noPersonRegistered')}
             emptyDescription={t('field.peopleHint')}
-            onEmptyAction={podeIncluir ? () => setIsModalOpen(true) : undefined}
+            onEmptyAction={podeIncluir ? openNew : undefined}
             emptyActionLabel={t('field.addPerson')}
             renderCard={(item) => (
               <PessoaCard
                 item={item}
                 podeAlterar={podeAlterar}
                 podeExcluir={podeExcluir}
-                onEdit={() => {
-                  setEditingItem(item);
-                  setIsModalOpen(true);
-                }}
+                onEdit={() => openEdit(item)}
                 onDelete={() => setDeletingId(item.id)}
               />
             )}
@@ -543,40 +645,13 @@ const Pessoas = () => {
                 item={item}
                 podeAlterar={podeAlterar}
                 podeExcluir={podeExcluir}
-                onEdit={() => {
-                  setEditingItem(item);
-                  setIsModalOpen(true);
-                }}
+                onEdit={() => openEdit(item)}
                 onDelete={() => setDeletingId(item.id)}
               />
             )}
           />
         )}
       </DataCard>
-
-      <PessoaFormModal
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setEditingItem(null);
-        }}
-        onSave={handleSave}
-        data={editingItem}
-        readOnly={!!editingItem && !podeAlterar}
-        navigation={(() => {
-          const navIndex = editingItem
-            ? filteredItems.findIndex((i) => i.id === editingItem.id)
-            : -1;
-          return navIndex >= 0
-            ? {
-                currentIndex: navIndex,
-                total: filteredItems.length,
-                onPrevious: () => setEditingItem(filteredItems[navIndex - 1]),
-                onNext: () => setEditingItem(filteredItems[navIndex + 1]),
-              }
-            : undefined;
-        })()}
-      />
 
       <AlertDialog open={!!deletingId} onOpenChange={(open) => !open && setDeletingId(null)}>
         <AlertDialogContent>

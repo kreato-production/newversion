@@ -22,6 +22,9 @@ export type PessoaRecord = {
   estado: string | null;
   cep: string | null;
   observacoes: string | null;
+  paisNascimento: string | null;
+  idiomaNativo: string | null;
+  tags: string[];
   status: string;
   createdAt: Date | null;
   createdByNome: string | null;
@@ -46,6 +49,9 @@ export type SavePessoaInput = {
   estado?: string | null;
   cep?: string | null;
   observacoes?: string | null;
+  paisNascimento?: string | null;
+  idiomaNativo?: string | null;
+  tags?: string[];
   status: string;
   createdBy?: string | null;
 };
@@ -85,6 +91,9 @@ type PessoaRow = {
   estado: string | null;
   cep: string | null;
   observacoes: string | null;
+  paisNascimento: string | null;
+  idiomaNativo: string | null;
+  tags: string[] | null;
   status: string | null;
   createdAt: Date | null;
   createdByNome: string | null;
@@ -100,6 +109,7 @@ export interface PessoasRepository {
   save(input: SavePessoaInput): Promise<PessoaRecord>;
   remove(id: string): Promise<void>;
   listClassificacoes(tenantId: string): Promise<ClassificacaoPessoaOptionRecord[]>;
+  listTags(tenantId: string): Promise<string[]>;
   listGravacoes(tenantId: string, pessoaId: string): Promise<GravacaoParticipacaoRecord[]>;
 }
 
@@ -161,6 +171,9 @@ export class PrismaPessoasRepository implements PessoasRepository {
           estado = ${input.estado ?? null},
           cep = ${input.cep ?? null},
           observacoes = ${input.observacoes ?? null},
+          pais_nascimento = ${input.paisNascimento ?? null},
+          idioma_nativo = ${input.idiomaNativo ?? null},
+          tags = ${input.tags ?? []}::text[],
           status = ${input.status},
           updated_at = NOW()
         WHERE id = ${id} AND tenant_id = ${input.tenantId}
@@ -186,6 +199,9 @@ export class PrismaPessoasRepository implements PessoasRepository {
           estado,
           cep,
           observacoes,
+          pais_nascimento,
+          idioma_nativo,
+          tags,
           status,
           created_at,
           updated_at,
@@ -209,6 +225,9 @@ export class PrismaPessoasRepository implements PessoasRepository {
           ${input.estado ?? null},
           ${input.cep ?? null},
           ${input.observacoes ?? null},
+          ${input.paisNascimento ?? null},
+          ${input.idiomaNativo ?? null},
+          ${input.tags ?? []}::text[],
           ${input.status},
           NOW(),
           NOW(),
@@ -250,6 +269,19 @@ export class PrismaPessoasRepository implements PessoasRepository {
       WHERE tenant_id = ${tenantId}
       ORDER BY nome ASC
     `);
+  }
+
+  async listTags(tenantId: string): Promise<string[]> {
+    await this.ensureTables();
+
+    const rows = await prisma.$queryRaw<Array<{ tag: string }>>(Prisma.sql`
+      SELECT DISTINCT unnest(tags) AS tag
+      FROM pessoas
+      WHERE tenant_id = ${tenantId}
+      ORDER BY tag ASC
+    `);
+
+    return rows.map((row) => row.tag);
   }
 
   async listGravacoes(tenantId: string, pessoaId: string): Promise<GravacaoParticipacaoRecord[]> {
@@ -349,6 +381,9 @@ export class PrismaPessoasRepository implements PessoasRepository {
           p.estado,
           p.cep,
           p.observacoes,
+          p.pais_nascimento AS "paisNascimento",
+          p.idioma_nativo AS "idiomaNativo",
+          COALESCE(p.tags, '{}'::text[]) AS tags,
           p.status,
           p.created_at AS "createdAt",
           u.nome AS "createdByNome"
@@ -380,6 +415,9 @@ export class PrismaPessoasRepository implements PessoasRepository {
         p.estado,
         p.cep,
         p.observacoes,
+        p.pais_nascimento AS "paisNascimento",
+        p.idioma_nativo AS "idiomaNativo",
+        COALESCE(p.tags, '{}'::text[]) AS tags,
         p.status,
         p.created_at AS "createdAt",
         u.nome AS "createdByNome"
@@ -410,6 +448,9 @@ export class PrismaPessoasRepository implements PessoasRepository {
       estado: row.estado,
       cep: row.cep,
       observacoes: row.observacoes,
+      paisNascimento: row.paisNascimento,
+      idiomaNativo: row.idiomaNativo,
+      tags: row.tags ?? [],
       status: row.status || 'Ativo',
       createdAt: row.createdAt,
       createdByNome: row.createdByNome,
@@ -439,11 +480,22 @@ export class PrismaPessoasRepository implements PessoasRepository {
             estado text NULL,
             cep text NULL,
             observacoes text NULL,
+            pais_nascimento text NULL,
+            idioma_nativo text NULL,
+            tags text[] NOT NULL DEFAULT '{}',
             status text NOT NULL DEFAULT 'Ativo',
             created_at timestamptz NULL DEFAULT NOW(),
             updated_at timestamptz NULL DEFAULT NOW(),
             created_by text NULL REFERENCES "User"(id) ON DELETE SET NULL
           )
+        `);
+
+        // Columns added after the table was first created in existing databases.
+        await prisma.$executeRawUnsafe(`
+          ALTER TABLE pessoas
+            ADD COLUMN IF NOT EXISTS pais_nascimento text NULL,
+            ADD COLUMN IF NOT EXISTS idioma_nativo text NULL,
+            ADD COLUMN IF NOT EXISTS tags text[] NOT NULL DEFAULT '{}'
         `);
 
         await prisma.$executeRawUnsafe(`

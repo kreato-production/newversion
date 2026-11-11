@@ -17,6 +17,9 @@ export interface Pessoa {
   estado: string;
   cep: string;
   observacoes: string;
+  paisNascimento: string;
+  idiomaNativo: string;
+  tags: string[];
   status: 'Ativo' | 'Inativo';
   dataCadastro: string;
   usuarioCadastro: string;
@@ -42,7 +45,16 @@ export interface PessoaInput {
   estado: string;
   cep: string;
   observacoes: string;
+  paisNascimento: string;
+  idiomaNativo: string;
+  tags: string[];
   status: 'Ativo' | 'Inativo';
+}
+
+export interface PessoaOptions {
+  classificacoes: ClassificacaoPessoaOption[];
+  /** Tags already used by people of the tenant, for autocomplete. */
+  tags: string[];
 }
 
 export interface ClassificacaoPessoaOption {

@@ -1,12 +1,39 @@
 import { z } from 'zod';
 import type { SessionUser } from '../auth/auth.types.js';
 import { ensureSameTenant, resolveTenantId } from '../common/access.js';
-import type { PessoasRepository } from './pessoas.repository.js';
+import type { PessoaRecord, PessoasRepository } from './pessoas.repository.js';
 
 const optionalUuid = z.preprocess(
   (value) => (value === '' || value === undefined ? null : value),
   z.string().uuid().nullable().optional(),
 );
+
+export const MAX_PESSOA_TAGS = 30;
+export const MAX_PESSOA_TAG_LENGTH = 40;
+
+/** Trims, drops empties and removes case-insensitive duplicates, keeping the first spelling. */
+export function normalizeTags(tags: string[]): string[] {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const raw of tags) {
+    const tag = raw.trim().replace(/\s+/g, ' ');
+    const key = tag.toLocaleLowerCase('pt-BR');
+    if (tag && !seen.has(key)) {
+      seen.add(key);
+      result.push(tag);
+    }
+  }
+  return result;
+}
+
+const tagsSchema = z
+  .array(z.string().max(MAX_PESSOA_TAG_LENGTH))
+  .nullable()
+  .optional()
+  .transform((value) => normalizeTags(value ?? []))
+  .refine((value) => value.length <= MAX_PESSOA_TAGS, {
+    message: `Informe no maximo ${MAX_PESSOA_TAGS} tags`,
+  });
 
 export const savePessoaSchema = z.object({
   id: z.string().uuid().optional(),
@@ -27,10 +54,42 @@ export const savePessoaSchema = z.object({
   estado: z.string().optional().nullable(),
   cep: z.string().optional().nullable(),
   observacoes: z.string().optional().nullable(),
+  paisNascimento: z.string().optional().nullable(),
+  idiomaNativo: z.string().optional().nullable(),
+  tags: tagsSchema,
   status: z.enum(['Ativo', 'Inativo']).default('Ativo'),
 });
 
 export type SavePessoaDto = z.infer<typeof savePessoaSchema>;
+
+function toPessoaDto(item: PessoaRecord) {
+  return {
+    id: item.id,
+    codigoExterno: item.codigoExterno || '',
+    nome: item.nome,
+    sobrenome: item.sobrenome,
+    nomeTrabalho: item.nomeTrabalho || '',
+    foto: item.foto || '',
+    dataNascimento: item.dataNascimento || '',
+    sexo: item.sexo || '',
+    telefone: item.telefone || '',
+    email: item.email || '',
+    classificacao: item.classificacao || '',
+    classificacaoId: item.classificacaoId || '',
+    documento: item.documento || '',
+    endereco: item.endereco || '',
+    cidade: item.cidade || '',
+    estado: item.estado || '',
+    cep: item.cep || '',
+    observacoes: item.observacoes || '',
+    paisNascimento: item.paisNascimento || '',
+    idiomaNativo: item.idiomaNativo || '',
+    tags: item.tags ?? [],
+    status: item.status === 'Inativo' ? 'Inativo' : 'Ativo',
+    dataCadastro: item.createdAt?.toISOString() || '',
+    usuarioCadastro: item.createdByNome || '',
+  };
+}
 
 export class PessoasService {
   constructor(private readonly repository: PessoasRepository) {}
@@ -41,36 +100,27 @@ export class PessoasService {
 
     return {
       total,
-      data: data.map((item) => ({
-        id: item.id,
-        codigoExterno: item.codigoExterno || '',
-        nome: item.nome,
-        sobrenome: item.sobrenome,
-        nomeTrabalho: item.nomeTrabalho || '',
-        foto: item.foto || '',
-        dataNascimento: item.dataNascimento || '',
-        sexo: item.sexo || '',
-        telefone: item.telefone || '',
-        email: item.email || '',
-        classificacao: item.classificacao || '',
-        classificacaoId: item.classificacaoId || '',
-        documento: item.documento || '',
-        endereco: item.endereco || '',
-        cidade: item.cidade || '',
-        estado: item.estado || '',
-        cep: item.cep || '',
-        observacoes: item.observacoes || '',
-        status: item.status === 'Inativo' ? 'Inativo' : 'Ativo',
-        dataCadastro: item.createdAt?.toISOString() || '',
-        usuarioCadastro: item.createdByNome || '',
-      })),
+      data: data.map(toPessoaDto),
     };
   }
 
   async listOptions(actor: SessionUser) {
     const tenantId = resolveTenantId(actor, actor.tenantId);
-    const classificacoes = await this.repository.listClassificacoes(tenantId);
-    return { classificacoes };
+    const [classificacoes, tags] = await Promise.all([
+      this.repository.listClassificacoes(tenantId),
+      this.repository.listTags(tenantId),
+    ]);
+    return { classificacoes, tags };
+  }
+
+  async getById(actor: SessionUser, id: string) {
+    const existing = await this.repository.findById(id);
+    if (!existing) {
+      return null;
+    }
+
+    ensureSameTenant(actor, existing.tenantId);
+    return toPessoaDto(existing);
   }
 
   async save(actor: SessionUser, input: SavePessoaDto) {
@@ -103,33 +153,14 @@ export class PessoasService {
       estado: input.estado,
       cep: input.cep,
       observacoes: input.observacoes,
+      paisNascimento: input.paisNascimento || null,
+      idiomaNativo: input.idiomaNativo || null,
+      tags: input.tags,
       status: input.status,
       createdBy: actor.id,
     });
 
-    return {
-      id: item.id,
-      codigoExterno: item.codigoExterno || '',
-      nome: item.nome,
-      sobrenome: item.sobrenome,
-      nomeTrabalho: item.nomeTrabalho || '',
-      foto: item.foto || '',
-      dataNascimento: item.dataNascimento || '',
-      sexo: item.sexo || '',
-      telefone: item.telefone || '',
-      email: item.email || '',
-      classificacao: item.classificacao || '',
-      classificacaoId: item.classificacaoId || '',
-      documento: item.documento || '',
-      endereco: item.endereco || '',
-      cidade: item.cidade || '',
-      estado: item.estado || '',
-      cep: item.cep || '',
-      observacoes: item.observacoes || '',
-      status: item.status === 'Inativo' ? 'Inativo' : 'Ativo',
-      dataCadastro: item.createdAt?.toISOString() || '',
-      usuarioCadastro: item.createdByNome || '',
-    };
+    return toPessoaDto(item);
   }
 
   async remove(actor: SessionUser, id: string) {
