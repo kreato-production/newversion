@@ -143,6 +143,11 @@ const translations: Record<Language, Record<string, string>> = {
 
     // Menu / Sidebar
     'menu.dashboard': 'Dashboard',
+    'tabs.close': 'Fechar',
+    'tabs.closeOthers': 'Fechar outros',
+    'tabs.closeRight': 'Fechar à direita',
+    'tabs.closeAll': 'Fechar todos',
+    'tabs.openModules': 'Módulos abertos',
     'menu.production': 'Produção',
     'menu.programs': 'Programas',
     'menu.content': 'Conteúdo',
@@ -1037,6 +1042,11 @@ const translations: Record<Language, Record<string, string>> = {
 
     // Menu / Sidebar
     'menu.dashboard': 'Dashboard',
+    'tabs.close': 'Close',
+    'tabs.closeOthers': 'Close others',
+    'tabs.closeRight': 'Close tabs to the right',
+    'tabs.closeAll': 'Close all',
+    'tabs.openModules': 'Open modules',
     'menu.production': 'Production',
     'menu.programs': 'Programs',
     'menu.content': 'Content',
@@ -1928,6 +1938,11 @@ const translations: Record<Language, Record<string, string>> = {
 
     // Menu / Sidebar
     'menu.dashboard': 'Panel',
+    'tabs.close': 'Cerrar',
+    'tabs.closeOthers': 'Cerrar otras',
+    'tabs.closeRight': 'Cerrar a la derecha',
+    'tabs.closeAll': 'Cerrar todas',
+    'tabs.openModules': 'Módulos abiertos',
     'menu.production': 'Producción',
     'menu.programs': 'Programas',
     'menu.content': 'Contenido',

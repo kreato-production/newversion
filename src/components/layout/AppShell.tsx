@@ -16,6 +16,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import AppSidebar from './AppSidebar';
 import { AppBreadcrumb } from './AppBreadcrumb';
+import { ModuleTabsProvider, ModuleTabsBar } from './ModuleTabs';
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
@@ -92,96 +93,101 @@ export function AppShell({ children }: { children: ReactNode }) {
   const nextThemeLabel = !mounted || theme === 'light' ? t('theme.dark') : t('theme.light');
 
   return (
-    <SidebarProvider>
-      <AppSidebar />
-      <SidebarInset>
-        {/* Top header bar */}
-        <header className="flex h-9 shrink-0 items-center gap-2 border-b bg-background px-3">
-          <SidebarTrigger className="-ml-1" />
-          <Separator orientation="vertical" className="mr-1 h-3.5" />
-          <AppBreadcrumb />
+    <ModuleTabsProvider>
+      <SidebarProvider>
+        <AppSidebar />
+        <SidebarInset>
+          {/* Top header bar */}
+          <header className="flex h-9 shrink-0 items-center gap-2 border-b bg-background px-3">
+            <SidebarTrigger className="-ml-1" />
+            <Separator orientation="vertical" className="mr-1 h-3.5" />
+            <AppBreadcrumb />
 
-          {/* Settings: theme + language */}
-          <div className="ml-auto flex items-center gap-0.5">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-7 w-7">
-                  <Globe className="h-3.5 w-3.5" />
-                  <span className="sr-only">{t('language')}</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-40">
-                {LANGUAGES.map((lang) => (
-                  <DropdownMenuItem
-                    key={lang}
-                    onClick={() => setLanguage(lang)}
-                    className={`cursor-pointer gap-2 ${language === lang ? 'bg-accent' : ''}`}
-                  >
-                    <span className="text-base">{languageLabels[lang].flag}</span>
-                    <span>{languageLabels[lang].name}</span>
+            {/* Settings: theme + language */}
+            <div className="ml-auto flex items-center gap-0.5">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-7 w-7">
+                    <Globe className="h-3.5 w-3.5" />
+                    <span className="sr-only">{t('language')}</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-40">
+                  {LANGUAGES.map((lang) => (
+                    <DropdownMenuItem
+                      key={lang}
+                      onClick={() => setLanguage(lang)}
+                      className={`cursor-pointer gap-2 ${language === lang ? 'bg-accent' : ''}`}
+                    >
+                      <span className="text-base">{languageLabels[lang].flag}</span>
+                      <span>{languageLabels[lang].name}</span>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={toggleTheme}
+                title={nextThemeLabel}
+              >
+                {!mounted || theme === 'light' ? (
+                  <Moon className="h-3.5 w-3.5" />
+                ) : (
+                  <Sun className="h-3.5 w-3.5" />
+                )}
+                <span className="sr-only">{nextThemeLabel}</span>
+              </Button>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-7 w-7" title="Sistema">
+                    <Settings className="h-3.5 w-3.5" />
+                    <span className="sr-only">Sistema</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-44">
+                  <DropdownMenuItem asChild className="cursor-pointer gap-2">
+                    <Link href="/api-docs">
+                      <BookOpen className="h-4 w-4" />
+                      API
+                    </Link>
                   </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+                  <DropdownMenuItem asChild className="cursor-pointer gap-2">
+                    <Link href="/arquitetura">
+                      <Layers className="h-4 w-4" />
+                      Arquitetura
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild className="cursor-pointer gap-2">
+                    <Link href="/seguranca">
+                      <ShieldCheck className="h-4 w-4" />
+                      Segurança
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild className="cursor-pointer gap-2">
+                    <Link href="/sobre">
+                      <Info className="h-4 w-4" />
+                      Sobre o Sistema
+                    </Link>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </header>
 
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7"
-              onClick={toggleTheme}
-              title={nextThemeLabel}
-            >
-              {!mounted || theme === 'light' ? (
-                <Moon className="h-3.5 w-3.5" />
-              ) : (
-                <Sun className="h-3.5 w-3.5" />
-              )}
-              <span className="sr-only">{nextThemeLabel}</span>
-            </Button>
+          {/* Open modules (tabs) */}
+          <ModuleTabsBar />
 
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-7 w-7" title="Sistema">
-                  <Settings className="h-3.5 w-3.5" />
-                  <span className="sr-only">Sistema</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-44">
-                <DropdownMenuItem asChild className="cursor-pointer gap-2">
-                  <Link href="/api-docs">
-                    <BookOpen className="h-4 w-4" />
-                    API
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild className="cursor-pointer gap-2">
-                  <Link href="/arquitetura">
-                    <Layers className="h-4 w-4" />
-                    Arquitetura
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild className="cursor-pointer gap-2">
-                  <Link href="/seguranca">
-                    <ShieldCheck className="h-4 w-4" />
-                    Segurança
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild className="cursor-pointer gap-2">
-                  <Link href="/sobre">
-                    <Info className="h-4 w-4" />
-                    Sobre o Sistema
-                  </Link>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+          {/* Page content */}
+          <div className="flex-1 overflow-auto p-6 animate-fade-in">
+            <GlobalAdminGuard>{children}</GlobalAdminGuard>
           </div>
-        </header>
-
-        {/* Page content */}
-        <div className="flex-1 overflow-auto p-6 animate-fade-in">
-          <GlobalAdminGuard>{children}</GlobalAdminGuard>
-        </div>
-      </SidebarInset>
-    </SidebarProvider>
+        </SidebarInset>
+      </SidebarProvider>
+    </ModuleTabsProvider>
   );
 }

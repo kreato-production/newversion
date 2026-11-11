@@ -226,3 +226,9 @@ export function AppBreadcrumb() {
     </Breadcrumb>
   );
 }
+
+/** Human-readable title of a route (last breadcrumb label), used as fallback tab label. */
+export function getRouteTitle(pathname: string): string {
+  const crumbs = buildCrumbs(pathname);
+  return crumbs[crumbs.length - 1]?.label ?? pathname;
+}
