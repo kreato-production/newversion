@@ -225,7 +225,10 @@ export class PrismaEquipesRepository implements EquipesRepository {
           ALTER TABLE usuario_equipes
             DROP CONSTRAINT IF EXISTS usuario_equipes_usuario_id_fkey
         `);
-      })();
+      })().catch((error: unknown) => {
+        this.membersReady = null;
+        throw error;
+      });
     }
 
     await this.membersReady;

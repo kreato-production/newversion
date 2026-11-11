@@ -366,7 +366,10 @@ async function ensureTables() {
           `ALTER TABLE ${table} ADD COLUMN IF NOT EXISTS traducoes jsonb NULL DEFAULT '{}'::jsonb`,
         );
       }
-    })();
+    })().catch((error: unknown) => {
+      ensurePromise = null;
+      throw error;
+    });
   }
 
   await ensurePromise;

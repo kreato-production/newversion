@@ -64,7 +64,10 @@ async function ensureTables() {
           updated_at timestamptz NOT NULL DEFAULT NOW()
         )
       `);
-    })();
+    })().catch((error: unknown) => {
+      ensurePromise = null;
+      throw error;
+    });
   }
   return ensurePromise;
 }

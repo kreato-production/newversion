@@ -147,7 +147,10 @@ export class PrismaAdminConfigRepository implements AdminConfigRepository {
         await prisma.$executeRawUnsafe(`
           CREATE INDEX IF NOT EXISTS idx_perfil_permissoes_tenant_id ON perfil_permissoes (tenant_id)
         `);
-      })();
+      })().catch((error: unknown) => {
+        this.perfilPermissoesReady = null;
+        throw error;
+      });
     }
 
     await this.perfilPermissoesReady;
@@ -328,7 +331,10 @@ export class PrismaAdminConfigRepository implements AdminConfigRepository {
         await prisma.$executeRawUnsafe(`
           ALTER TABLE formulario_campos ADD COLUMN IF NOT EXISTS posicao integer NULL
         `);
-      })();
+      })().catch((error: unknown) => {
+        this.formularioCamposReady = null;
+        throw error;
+      });
     }
 
     await this.formularioCamposReady;

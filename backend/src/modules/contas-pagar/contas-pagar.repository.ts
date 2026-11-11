@@ -175,7 +175,10 @@ async function ensureTables() {
           ON contas_pagar (tenant_id, evento_orcamento_item_id)
           WHERE evento_orcamento_item_id IS NOT NULL
       `);
-    })();
+    })().catch((error: unknown) => {
+      ensurePromise = null;
+      throw error;
+    });
   }
 
   await ensurePromise;

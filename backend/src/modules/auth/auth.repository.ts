@@ -155,7 +155,11 @@ export class PrismaAuthRepository implements AuthRepository {
     if (!PrismaAuthRepository.perfilIdColumnReady) {
       PrismaAuthRepository.perfilIdColumnReady = prisma
         .$executeRawUnsafe(`ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "perfilId" text NULL`)
-        .then(() => undefined);
+        .then(() => undefined)
+        .catch((error: unknown) => {
+          PrismaAuthRepository.perfilIdColumnReady = null;
+          throw error;
+        });
     }
 
     await PrismaAuthRepository.perfilIdColumnReady;

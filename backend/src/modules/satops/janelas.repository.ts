@@ -158,7 +158,10 @@ async function ensureTables() {
       await prisma.$executeRawUnsafe(
         `ALTER TABLE satops_janelas ADD COLUMN IF NOT EXISTS simulacao boolean NOT NULL DEFAULT false`,
       );
-    })();
+    })().catch((error: unknown) => {
+      ensurePromise = null;
+      throw error;
+    });
   }
   return ensurePromise;
 }

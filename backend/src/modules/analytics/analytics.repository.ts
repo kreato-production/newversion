@@ -822,7 +822,11 @@ export class PrismaAnalyticsRepository implements AnalyticsRepository {
               AND table_name = ${tableName}
           ) AS exists
         `)
-        .then((rows) => rows[0]?.exists ?? false);
+        .then((rows) => rows[0]?.exists ?? false)
+        .catch((error: unknown) => {
+          this.tableExistsCache.delete(tableName);
+          throw error;
+        });
       this.tableExistsCache.set(tableName, promise);
     }
 

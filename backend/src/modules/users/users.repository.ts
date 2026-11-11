@@ -90,7 +90,11 @@ export class PrismaUsersRepository implements UsersRepository {
     if (!this.perfilIdColumnReady) {
       this.perfilIdColumnReady = prisma
         .$executeRawUnsafe(`ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "perfilId" text NULL`)
-        .then(() => undefined);
+        .then(() => undefined)
+        .catch((error: unknown) => {
+          this.perfilIdColumnReady = null;
+          throw error;
+        });
     }
 
     await this.perfilIdColumnReady;
@@ -470,7 +474,10 @@ export class PrismaUsersRepository implements UsersRepository {
         await prisma.$executeRawUnsafe(`
           CREATE INDEX IF NOT EXISTS idx_usuario_unidades_unidade_id ON usuario_unidades (unidade_id)
         `);
-      })();
+      })().catch((error: unknown) => {
+        this.relationsReady = null;
+        throw error;
+      });
     }
 
     await this.relationsReady;

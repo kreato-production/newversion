@@ -443,7 +443,10 @@ export class PrismaTenantsRepository implements TenantsRepository {
           `UPDATE tenant_modulos_backend SET modulo = $1 WHERE modulo = $2`,
           'Administração', 'AdministraÃ§Ã£o',
         );
-      })();
+      })().catch((error: unknown) => {
+        this.tenantModulesReady = null;
+        throw error;
+      });
     }
 
     await this.tenantModulesReady;

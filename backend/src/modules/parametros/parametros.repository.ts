@@ -139,7 +139,10 @@ export class PrismaParametrosRepository implements ParametrosRepository {
         await prisma.$executeRawUnsafe(`
           CREATE UNIQUE INDEX IF NOT EXISTS idx_perfis_acesso_tenant_nome ON perfis_acesso (tenant_id, nome)
         `);
-      })();
+      })().catch((error: unknown) => {
+        this.perfisAcessoReady = null;
+        throw error;
+      });
     }
 
     await this.perfisAcessoReady;

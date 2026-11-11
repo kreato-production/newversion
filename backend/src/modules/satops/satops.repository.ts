@@ -146,7 +146,10 @@ async function ensureTables() {
       await prisma.$executeRawUnsafe(`
         ALTER TABLE satops_satelites ADD COLUMN IF NOT EXISTS checklist jsonb NULL
       `);
-    })();
+    })().catch((error: unknown) => {
+      ensurePromise = null;
+      throw error;
+    });
   }
   return ensurePromise;
 }
