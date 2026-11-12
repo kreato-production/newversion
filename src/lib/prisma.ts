@@ -13,7 +13,37 @@
  * as chamadas a prisma.X lançarão erro, mas o jwt callback as captura graciosamente.
  */
 
-import type { PrismaClient as PrismaClientType } from '../../backend/node_modules/.prisma/client';
+/**
+ * Só a parte do PrismaClient usada no Next.js (auth.ts e /api/user/foto). Não importamos os
+ * tipos de `backend/node_modules/.prisma/client`: no CI e no build do deploy só a raiz é
+ * instalada, e esse import quebrava o `tsc` e o `next build`.
+ */
+type DbUserRecord = {
+  status: string;
+  role: string;
+  tenantId: string | null;
+  usuario: string | null;
+  nome: string;
+  email: string | null;
+  perfil: string | null;
+  tipoAcesso: string | null;
+  fotoUrl: string | null;
+  image: string | null;
+};
+
+type PrismaClientType = {
+  user: {
+    findUnique(args: {
+      where: { id: string } | { email: string };
+      select?: Partial<Record<keyof DbUserRecord, boolean>>;
+    }): Promise<DbUserRecord | null>;
+    update(args: {
+      where: { id: string } | { email: string };
+      data: Partial<Record<keyof DbUserRecord, unknown>>;
+    }): Promise<unknown>;
+  };
+  $queryRaw<T = unknown>(query: TemplateStringsArray, ...values: unknown[]): Promise<T>;
+};
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClientType | undefined;
